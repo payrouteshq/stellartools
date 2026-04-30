@@ -1,14 +1,11 @@
-import React from "react";
-
 import { Link2, Palette, QrCode, Zap } from "lucide-react";
-import Image from "next/image";
 
 const features = [
   {
     icon: QrCode,
     title: "QR code that just works",
     description:
-      "Deep-links into Lobstr, xBull or other Stellar wallet with amount, memo, and destination pre-filled. One scan, one tap.",
+      "Deep links into Lobstr, xBull or other Stellar wallets with amount, memo, and destination pre-filled. One scan, one tap.",
   },
   {
     icon: Link2,
@@ -33,7 +30,7 @@ export default function CheckoutSection() {
       <div className="mx-auto grid max-w-[1200px] items-center gap-12 md:grid-cols-2 md:gap-20">
         <div>
           <div className="text-primary mb-6 text-sm font-bold tracking-[1.5px] uppercase">Hosted Checkout</div>
-          <h2 className="text-foreground mb-6 max-w-[520px] text-[clamp(40px,5vw,60px)] leading-[1.1] font-bold tracking-tight">
+          <h2 className="text-background mb-6 max-w-[520px] text-[clamp(40px,5vw,60px)] leading-[1.1] font-bold tracking-tight">
             A checkout your customers will <em className="text-primary italic">actually use.</em>
           </h2>
           <p className="mb-10 text-lg leading-relaxed text-white/60">

@@ -41,7 +41,6 @@ export const postProduct = async (
 
     console.log({ asset, secret });
 
-    // CRACKED FIX: Do not "return;". Just wrap the logic in an IF.
     if (asset && asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
       // Fire and forget trustline creation
       createTrustlines(secret.publicKey, [{ code: asset.code, issuer: asset.issuer }], environment).catch((err) => {

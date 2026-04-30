@@ -3,7 +3,7 @@ import { SVGProps } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
-export const Paykit = (props: React.SVGProps<SVGSVGElement>) => {
+export const PayKit = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

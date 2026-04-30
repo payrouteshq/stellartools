@@ -1,10 +1,8 @@
-import React from "react";
-
 import { AuroraBackground } from "@/components/aurora-background";
 import { Linkedin, XIcon } from "@/components/icon";
 import { FooterSection } from "@/components/landing/footer-section";
 import { Header } from "@/components/ui/navbar";
-import { Github, Twitter } from "lucide-react";
+import { Github } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -32,18 +30,18 @@ const team = [
     },
   },
   {
-    name: "Sam",
-    role: "Head of Marketing",
+    name: "Lucas Svoboda",
+    role: "Head of Product",
     bio: "Growing the ecosystem and connecting with builders globally to bring our vision to the world.",
-    image: "/images/founder.jpeg",
-    socials: { twitter: "#", linkedin: "#" },
+    image: "/images/lucas.jpeg",
+    socials: { linkedin: "https://www.linkedin.com/in/lucas-s-723a73212/" },
   },
   {
-    name: "Sam",
-    role: "Head of Marketing",
-    bio: "Growing the ecosystem and connecting with builders globally to bring our vision to the world.",
-    image: "/images/founder.jpeg",
-    socials: { twitter: "#", linkedin: "#" },
+    name: "Mauricio Iriarte Hermida",
+    role: "Designer",
+    bio: "Designing the future of payments on Stellar. Passionate about creating beautiful and intuitive user experiences.",
+    image: "/images/mau.jpeg",
+    socials: { linkedin: "https://www.linkedin.com/in/mauiriarte/" },
   },
 ];
 
@@ -63,53 +61,49 @@ export default function TeamPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
             {team.map((member) => (
               <div
                 key={member.name}
-                className="bg-card text-card-foreground border-border flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all hover:shadow-md"
+                className="bg-card text-card-foreground border-border flex flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-sm transition-all hover:shadow-md"
               >
-                <div className="bg-muted relative aspect-square w-full">
-                  <Image src={member.image} alt={member.name} fill className="object-cover" />
+                <div className="ring-border mb-4 size-24 overflow-hidden rounded-full ring-2">
+                  <Image src={member.image} alt={member.name} width={96} height={96} className="size-full object-cover" />
                 </div>
-                <div className="flex flex-1 flex-col p-6">
-                  <div className="mb-2">
-                    <h3 className="text-xl font-bold tracking-tight">{member.name}</h3>
-                    <p className="text-foreground/80 text-sm font-medium">{member.role}</p>
-                  </div>
-                  <p className="text-muted-foreground mb-6 flex-1 text-sm leading-relaxed">{member.bio}</p>
-                  <div className="text-muted-foreground flex items-center gap-4">
-                    {member.socials.twitter && (
-                      <Link
-                        href={member.socials.twitter}
-                        className="hover:text-foreground transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <XIcon className="h-5 w-5" />
-                      </Link>
-                    )}
-                    {member.socials.github && (
-                      <Link
-                        href={member.socials.github}
-                        className="hover:text-foreground transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Github className="h-5 w-5" />
-                      </Link>
-                    )}
-                    {member.socials.linkedin && (
-                      <Link
-                        href={member.socials.linkedin}
-                        className="hover:text-foreground transition-colors"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Linkedin className="h-5 w-5" />
-                      </Link>
-                    )}
-                  </div>
+                <h3 className="text-base font-bold tracking-tight">{member.name}</h3>
+                <p className="text-muted-foreground mb-3 text-xs font-medium">{member.role}</p>
+                <p className="text-muted-foreground mb-4 flex-1 text-xs leading-relaxed">{member.bio}</p>
+                <div className="text-muted-foreground flex items-center gap-3">
+                  {member.socials.twitter && (
+                    <Link
+                      href={member.socials.twitter}
+                      className="hover:text-foreground transition-colors"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <XIcon className="size-4" />
+                    </Link>
+                  )}
+                  {member.socials.github && (
+                    <Link
+                      href={member.socials.github}
+                      className="hover:text-foreground transition-colors"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Github className="size-4" />
+                    </Link>
+                  )}
+                  {member.socials.linkedin && (
+                    <Link
+                      href={member.socials.linkedin}
+                      className="hover:text-foreground transition-colors"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Linkedin className="size-4" />
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}

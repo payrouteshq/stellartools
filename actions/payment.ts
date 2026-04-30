@@ -183,6 +183,8 @@ const paymentActionHandler = async (
 
           await processPaymentBilling(payment.id, organizationId, environment, ctx.lifeTimeVolumeUsdCents);
 
+          if (process.env.SEND_PAYMENT_RECEIPT_EMAILS !== "true") return;
+
           if (ctx.customer?.email) {
             await sendEmail(
               ctx.customer.email,

@@ -2,12 +2,14 @@
 
 import * as React from "react";
 
+import { sendBookCallEmail as sendBookCallEmailAction } from "@/actions/email";
 import { AuroraBackground } from "@/components/aurora-background";
 import { FooterSection } from "@/components/landing/footer-section";
 import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/ui/navbar";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -29,11 +31,13 @@ export default function BookCallPage() {
     defaultValues: { name: "", email: "", message: "" },
   });
 
-  const onSubmit = async (_data: FormValues) => {
-    await new Promise((r) => setTimeout(r, 900));
-    setSubmitted(true);
-    form.reset();
-  };
+  const { mutate: sendBookCallEmail, isPending } = useMutation({
+    mutationFn: sendBookCallEmailAction,
+    onSuccess: () => {
+      setSubmitted(true);
+      form.reset();
+    },
+  });
 
   return (
     <AuroraBackground className="bg-background min-h-screen scroll-smooth">
@@ -64,7 +68,7 @@ export default function BookCallPage() {
         ) : (
           <>
             <Link
-              href="/landing"
+              href={process.env.NEXT_PUBLIC_APP_URL!}
               className="text-muted-foreground hover:text-foreground mb-10 flex w-fit items-center gap-1.5 text-sm no-underline transition-colors"
             >
               <ArrowLeft className="size-3.5" />
@@ -79,7 +83,7 @@ export default function BookCallPage() {
               </p>
             </div>
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
+            <form onSubmit={form.handleSubmit((data) => sendBookCallEmail(data))} className="flex flex-col gap-5">
               <RHF.Controller
                 control={form.control}
                 name="name"
@@ -129,10 +133,11 @@ export default function BookCallPage() {
 
               <Button
                 type="submit"
-                disabled={form.formState.isSubmitting}
+                disabled={isPending}
+                isLoading={isPending}
                 className="bg-primary text-primary-foreground mt-1 w-full"
               >
-                {form.formState.isSubmitting ? "Sending..." : "Send message →"}
+                Send message →
               </Button>
             </form>
           </>

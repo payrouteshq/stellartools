@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getCurrentUser, signOut } from "@/actions/auth";
 import { AppModal } from "@/components/app-modal";
-import { Paykit, StellarTools } from "@/components/icon";
+import { PayKit, StellarTools } from "@/components/icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -25,12 +25,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const NAV_LINKS = [
-  { href: "#features", label: "Products", target: "_self" },
-  { href: "#integrations", label: "Integrations", target: "_self" },
-  { href: "#developers", label: "Developers", target: "_self" },
-  { href: "/docs", label: "Docs", target: "_self" },
-  { href: "/pricing", label: "Pricing", target: "_self" },
-  { href: "https://github.com/usepaykit/stellartools", label: "GitHub", target: "_blank" },
+  { href: "#integrations", label: "Integrations" },
+  { href: "#developers", label: "Developers" },
+  { href: "/docs", label: "Docs" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/team", label: "Team" },
+  { href: "https://github.com/usepaykit/stellartools", label: "GitHub" },
 ] as const;
 
 export function Header() {
@@ -76,12 +76,16 @@ export function Header() {
     <nav className="sticky top-0 z-50 w-full">
       <div className="px-4 pt-3 pb-1 md:hidden">
         <div className="bg-background/95 border-border flex items-center justify-between rounded-2xl border px-4 py-2.5 shadow-sm backdrop-blur-md">
-          <Link href="/" className="flex items-center gap-2">
-            <Paykit className="size-7" />
+          <div className="flex items-center gap-2">
+            <Link href="https://usepaykit.dev" target="_blank">
+              <PayKit className="size-7" />
+            </Link>
             <span className="text-foreground text-sm">/</span>
-            <StellarTools width={28} height={28} className="size-7 rounded-md object-contain" />
-            <span className="font-rosemary text-foreground text-base font-semibold">StellarTools</span>
-          </Link>
+            <Link className="flex items-center gap-2" href="/" target="_blank">
+              <StellarTools width={28} height={28} className="size-7 rounded-md object-contain" />
+              <span className="font-rosemary text-foreground text-base font-semibold">StellarTools</span>
+            </Link>
+          </div>
 
           <button
             aria-label="Open menu"
@@ -98,12 +102,12 @@ export function Header() {
           <DialogTitle className="sr-only">Navigation menu</DialogTitle>
 
           <nav className="flex flex-1 flex-col justify-center gap-1 px-8">
-            {NAV_LINKS.map(({ href, label, target }) => (
+            {NAV_LINKS.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setMenuOpen(false)}
-                target={target}
+                target={href.startsWith("http") ? "_blank" : undefined}
                 className="text-foreground hover:text-primary flex items-center justify-between border-b py-5 text-[22px] font-semibold no-underline transition-colors last:border-b-0"
               >
                 {label}
@@ -150,12 +154,16 @@ export function Header() {
         )}
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Paykit className="size-8" />
+          <div className="flex items-center gap-2">
+            <Link href="https://usepaykit.dev" target="_blank">
+              <PayKit className="size-8" />
+            </Link>
             <span className="text-foreground">/</span>
-            <StellarTools width={32} height={32} />
-            <span className="font-rosemary text-foreground text-lg font-semibold">StellarTools</span>
-          </Link>
+            <Link className="flex items-center gap-2" href="/">
+              <StellarTools width={32} height={32} />
+              <span className="font-rosemary text-foreground text-lg font-semibold">StellarTools</span>
+            </Link>
+          </div>
 
           <ul className="flex list-none gap-8">
             {NAV_LINKS.map(({ href, label }) => (

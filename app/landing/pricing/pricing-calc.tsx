@@ -41,12 +41,10 @@ export function PricingCalc() {
   const volume = isEnterprise ? 0 : milestone.value;
   const isFree = volume <= FREE_THRESHOLD_USD;
 
-  // CRACKED LOGIC: Determine rate based on total volume, but only charge for volume above 10k
   const rateBps = getVolumeTierRateBps(volume);
   const billableVolume = Math.max(0, volume - FREE_THRESHOLD_USD);
   const fee = (billableVolume * rateBps) / BPS_DENOMINATOR;
 
-  // Effective % of total volume
   const pct = volume > 0 ? (fee / volume) * 100 : 0;
 
   return (
@@ -136,7 +134,6 @@ export function PricingCalc() {
                 <span className="text-foreground text-2xl font-bold">{pct.toFixed(2)}%</span>
               )
             }
-            note={!isFree ? `${(rateBps / 100).toFixed(2)}% on billable volume` : undefined}
           />
         </div>
       )}

@@ -9,7 +9,6 @@ const footerLinks = {
     { name: "Metered Billing", href: "#" },
     { name: "Checkout", href: "#checkout" },
     { name: "Payouts", href: "#payouts" },
-    { name: "Pricing", href: "#pricing" },
   ],
   integrations: [
     { name: "LangChain", href: "#" },
@@ -22,8 +21,6 @@ const footerLinks = {
     { name: "Documentation", href: "/docs" },
     { name: "API Reference", href: "/docs/api" },
     { name: "GitHub", href: "https://github.com/usepaykit/stellartools" },
-    { name: "Changelog", href: "#" },
-    { name: "Status", href: "#" },
   ],
 };
 
@@ -92,7 +89,7 @@ export const FooterSection = () => {
         </div>
       </div>
       <div className="mx-auto mt-10 flex max-w-[1200px] flex-col items-center justify-between gap-4 border-t border-white/8 pt-6 text-[13px] text-white/30 sm:flex-row">
-        <span>© {currentYear} StellarTools · Stellar Tools Engine</span>
+        <span>© {currentYear} StellarTools</span>
         <div className="flex items-center gap-4">
           <Link href="#" className="transition-colors hover:text-white/60">
             Terms

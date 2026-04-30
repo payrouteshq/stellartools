@@ -89,9 +89,7 @@ export async function withEvent<T>(
         });
       }
 
-      // 5. CRACKED: Execute the custom side effects returned in the config
       if (sideEffects && sideEffects.length > 0) {
-        console.log("scheduling side effects");
         sideEffects.forEach((effect) => {
           if (typeof waitUntil === "function") waitUntil(effect());
           else effect().catch((e) => console.error("[SideEffect Error]", e));
@@ -108,11 +106,10 @@ export async function withEvent<T>(
             type: primaryEvent!.type,
             created: new Date().toISOString(),
             livemode: env === "mainnet",
-            installationId: app_installation.id, // CRACKED: Partner needs to know WHICH installation this is
+            installationId: app_installation.id,
             data: primaryEvent!.map(result) as Record<string, unknown>,
           };
 
-          // deliverToApp helper uses app.webhookUrl and app.appSecret for signing
           deliveries.push(deliverToApp(app, app_installation.id, envelope, webhookLogId!));
         });
       }

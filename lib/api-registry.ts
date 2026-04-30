@@ -30,10 +30,8 @@ export const processResource = <T>(data: T, convertToSnakeCase: boolean = false)
   const result: Record<string, T> = {};
 
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-    // 1. Skip sensitive keys
     if (SENSITIVE_KEY_REGEXES.some((regex) => regex.test(key))) continue;
 
-    // 2. CRACKED: Skip empty values to keep response clean
     if (value === null || value === undefined) continue;
     if (_.isArray(value) && value.length === 0) continue;
 
