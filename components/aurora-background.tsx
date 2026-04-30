@@ -19,7 +19,7 @@ export const AuroraBackground = ({
     <main>
       <div className={cn("transition-bg relative h-fit bg-zinc-50 text-slate-950 dark:bg-zinc-900")} {...props}>
         <div
-          className="absolute inset-0 overflow-hidden"
+          className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
           style={
             {
               "--aurora":
