@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function HeroSection() {
   return (
-    <section className="mx-auto flex max-w-[1200px] flex-col items-center gap-12 px-6 pt-24 pb-20 lg:gap-20">
+    <section className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center gap-12 px-6 pt-24 pb-20 lg:gap-20">
       <div className="flex flex-col items-center text-center">
         <div className="bg-primary/10 text-primary mb-6 flex flex-col items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold tracking-wide sm:flex-row">
           <span className="bg-primary text-primary-foreground text-clamp(8px,1.5vw,13px) rounded-full px-1.5 py-0.5">
@@ -28,7 +28,8 @@ export default function HeroSection() {
 
         <div className="flex flex-wrap items-center justify-center gap-3.5">
           <Link
-            href="/dashboard"
+            href="https://dashboard.stellartools.dev"
+            target="_blank"
             className="bg-primary text-primary-foreground rounded-xl px-7 py-3.5 text-base font-semibold no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
           >
             Start building free
