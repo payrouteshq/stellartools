@@ -27,7 +27,7 @@ import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import { ChevronRight, Copy, ExternalLink, Info, Plus } from "lucide-react";
+import { ChevronRight, Copy, Info, Plus } from "lucide-react";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
@@ -283,9 +283,12 @@ export default function ApiKeysPage() {
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">API keys</h1>
               </div>
-              <Link href="#" className="text-primary flex items-center gap-1 text-sm hover:underline">
+              <Link
+                target="_blank"
+                href={`${process.env.NEXT_PUBLIC_DOCS_URL!}/api-reference/authentication`}
+                className="text-primary flex items-center gap-1 text-sm hover:underline"
+              >
                 Learn more about API authentication
-                <ExternalLink className="h-4 w-4" />
               </Link>
             </div>
 

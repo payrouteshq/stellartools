@@ -156,7 +156,7 @@ export const retrieveSubscriptions = async <S extends SubscriptionStatus = Subsc
     )
     .orderBy(desc(subscriptions.createdAt));
 
-  return await paginate(rows as SubscriptionRow<S>[], limit);
+  return await paginate(rows as unknown as SubscriptionRow<S>[], limit);
 };
 
 export const listSubscriptions = async (

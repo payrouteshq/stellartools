@@ -79,7 +79,7 @@ const navMain = [
     items: [
       { title: "API Keys", url: "/api-keys" },
       { title: "Webhooks", url: "/webhooks" },
-      { title: "Documentation", url: "/documentation" },
+      { title: "Documentation", url: `${process.env.NEXT_PUBLIC_DOCS_URL!}` },
     ],
   },
 ];
@@ -239,7 +239,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
                               {item.items?.map((sub) => (
                                 <SidebarMenuSubItem key={sub.title}>
                                   <SidebarMenuSubButton asChild isActive={isActive(sub.url)}>
-                                    <Link href={sub.url}>
+                                    <Link href={sub.url} target={sub.url.startsWith("http") ? "_blank" : undefined}>
                                       <span className={cn(isActive(sub.url) && "text-muted-foreground font-medium")}>
                                         {sub.title}
                                       </span>
@@ -257,7 +257,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild tooltip={item.title} isActive={active}>
-                        <Link href={item.url}>
+                        <Link href={item.url} target={item.url.startsWith("http") ? "_blank" : undefined}>
                           {item.icon && <item.icon className={cn(active && "text-muted-foreground")} />}
                           <span className={cn(active && "text-muted-foreground font-medium")}>{item.title}</span>
                         </Link>

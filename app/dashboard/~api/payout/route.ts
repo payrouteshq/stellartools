@@ -70,7 +70,7 @@ export const POST = apiHandler({
       {
         id: payoutId,
         status: "pending",
-        amount: body.amount,
+        amount: BigInt(body.amount.toString()),
         walletAddress: body.walletAddress,
         memo: body.memo ?? null,
         metadata: null,

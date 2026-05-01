@@ -10,7 +10,7 @@ export const OPTIONS = createOptionsHandler();
 export const POST = apiHandler({
   auth: ["apikey"],
   schema: {
-    params: Schema.object({ customer_id: Schema.string(), product_id: Schema.string() }),
+    params: Schema.object({ customerId: Schema.string(), productId: Schema.string() }),
     body: Schema.object({
       amount: Schema.number(), // Raw usage (e.g., 5000 tokens)
       type: Schema.enum(["deduct", "refund", "grant"]),
@@ -20,12 +20,12 @@ export const POST = apiHandler({
     }),
   },
   handler: async ({ params, body, auth }) => {
-    const { customer_id, product_id } = params;
+    const { customerId, productId } = params;
     const { organizationId, environment } = auth;
 
     const [productData, creditBalance] = await Promise.all([
-      retrieveProducts(organizationId, environment, { productId: product_id }).then((res) => res[0]),
-      retrieveCreditBalance(customer_id, product_id, organizationId),
+      retrieveProducts(organizationId, environment, { productId }).then((res) => res[0]),
+      retrieveCreditBalance(customerId, productId, organizationId),
     ]);
 
     if (!productData || !creditBalance) {
@@ -63,8 +63,8 @@ export const POST = apiHandler({
     const response = await runAtomic(async () => {
       const transaction = await postCreditTransaction(
         {
-          customerId: customer_id,
-          productId: product_id,
+          customerId,
+          productId,
           balanceId: creditBalance.id,
           amount: requiredCredits,
           balanceBefore: creditBalance.balance,

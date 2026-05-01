@@ -78,7 +78,7 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
             id: eventId,
             merchantId: payout.organizationId,
             data: {
-              amount: payout.amount,
+              amount: Number(payout.amount),
               walletAddress: payout.walletAddress,
               memo: payout.memo,
               transactionHash: payout.transactionHash,

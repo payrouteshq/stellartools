@@ -511,6 +511,7 @@ export function ProductsModalContent({
                   render={({ field, fieldState: { error } }) => (
                     <NumberField
                       {...field}
+                      disabled={isEditMode}
                       value={field.value || "0"}
                       id="totalCredits"
                       label="Total Credits"

@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { STROOPS_PER_XLM } from "@/lib/utils";
+import { STROOPS_PER_XLM, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
@@ -160,7 +160,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                     searchValue: p.product.name!,
                     id: p.product.id,
                     title: p.product.name,
-                    subtitle: `${formatXLM(p.product.priceAmount)} XLM / ${p.product.recurringPeriod}`,
+                    subtitle: `${formatXLM(Number(stroopsToXlm(BigInt(p.product.priceAmount.toString()))))} XLM / ${p.product.recurringPeriod}`,
                   })}
                 />
               )}

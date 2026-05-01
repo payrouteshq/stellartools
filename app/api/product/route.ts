@@ -20,7 +20,7 @@ export const POST = apiHandler({
       assetCode: body.asset_code,
       status: "active" as const,
       metadata: body.metadata,
-      priceAmount: Number(xlmToStroops(body.price_amount.toString())),
+      priceAmount: xlmToStroops(body.price_amount.toString()),
       recurringPeriod: body.recurring_period ?? null,
       unit: body.unit ?? null,
       unitsPerCredit: body.units_per_credit ? BigInt(body.units_per_credit) : null,

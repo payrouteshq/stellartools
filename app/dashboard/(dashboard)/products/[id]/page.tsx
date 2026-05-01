@@ -203,7 +203,7 @@ export default function ProductDetailPage() {
       images: product.images ?? [],
       metadata: product.metadata ?? {},
       pricing: {
-        amount: product.priceAmount,
+        amount: Number(product.priceAmount),
         asset: product.assetCode ? `${product.assetCode}:${product.assetId}` : product.assetId,
         isRecurring: product.type === "subscription",
         period: product.recurringPeriod ?? undefined,
@@ -454,9 +454,10 @@ export default function ProductDetailPage() {
                       <TableBody>
                         <TableRow>
                           <TableCell className="font-medium">
-                            {product.type === "metered"
-                              ? "—"
-                              : `${Number(product.priceAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${product.assetCode ?? "XLM"}`}
+                            {formatCurrency(
+                              Number(stroopsToXlm(BigInt(product.priceAmount.toString()))),
+                              product.assetCode
+                            )}
                           </TableCell>
                           <TableCell className="text-muted-foreground max-w-[200px] truncate text-sm">
                             {product.description ?? "—"}
