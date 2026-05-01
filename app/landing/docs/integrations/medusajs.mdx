@@ -1,0 +1,62 @@
+---
+title: "MedusaJS Adapter"
+description: "Stellar as a payment provider in Medusa v2"
+---
+
+The `@stellartools/medusajs-adapter` registers Stellar as a payment provider in [Medusa v2](https://medusajs.com). Customers pay with XLM or other Stellar assets. You get webhooks, refunds, and the full payment lifecycle.
+
+## Install
+
+```bash
+npm install @stellartools/medusajs-adapter
+```
+
+## Configure
+
+Add the adapter as a payment provider in your Medusa config:
+
+```ts
+import { defineConfig, loadEnv } from "@medusajs/framework/utils";
+import { StellarTools } from "@stellartools/medusajs-adapter";
+
+loadEnv(process.env.NODE_ENV || "development", process.cwd());
+
+module.exports = defineConfig({
+  projectConfig: {
+    databaseUrl: process.env.DATABASE_URL,
+  },
+  modules: [
+    {
+      resolve: "@medusajs/payment",
+      options: {
+        providers: [
+          {
+            resolve: "@stellartools/medusajs-adapter",
+            id: "stellar",
+            options: {
+              apiKey: process.env.STELLAR_TOOLS_API_KEY,
+              webhookSecret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET,
+            },
+          },
+        ],
+      },
+    },
+  ],
+});
+```
+
+## Options
+
+<ParamField body="apiKey" type="string" required>
+  Your StellarTools API key.
+</ParamField>
+
+<ParamField body="webhookSecret" type="string" required>
+  Webhook signing secret for verifying incoming events.
+</ParamField>
+
+<ParamField body="debug" type="boolean">
+  Enable debug logging. Defaults to `true`.
+</ParamField>
+
+Point your StellarTools webhook at Medusa's provider webhook URL to receive payment events.

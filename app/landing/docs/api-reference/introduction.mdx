@@ -1,47 +1,66 @@
 ---
-title: "API Overview"
-description: "Stellar Tools REST API for checkouts, customers, payments, webhooks, and more"
+title: "Introduction"
+description: "The StellarTools REST API"
 ---
+
+The StellarTools API lets you manage customers, products, checkouts, subscriptions, payments, refunds, and webhooks over plain HTTP. Every operation maps to a resource with predictable endpoints and consistent response shapes.
+
+**If you're building in TypeScript or JavaScript**, the [TypeScript SDK](/integrations/typescript-sdk) is the faster path — it wraps these endpoints with full type safety and handles auth automatically. The raw API is the right choice when you're working in another language, integrating from a backend that can't run Node, or need low-level control.
 
 ## Base URL
 
 ```
-https://stellartools.dev/api
+https://api.stellartools.dev
 ```
 
-For local development: `http://localhost:3000/api`
+## Responses
 
-## Authentication
+<Tabs>
+  <Tab title="Success">
+    Returns `200` with the result wrapped in a `data` field.
 
-Send your API key in the `x-api-key` header. If auth is missing, endpoints return `400` with `{ "error": "API key or session token is required" }`.
+    ```json
+    { "data": { "id": "cus_01jx...", "object": "customer", ... } }
+    ```
 
-<Note>Get your API key from the StellarTools dashboard (Settings → API Keys).</Note>
+    Every resource includes an `object` field identifying its type — e.g. `"customer"`, `"payment"`, `"subscription"`.
+  </Tab>
+  <Tab title="Error">
+    Returns a non-2xx status with an `error` string.
 
-## API resources
+    ```json
+    { "error": "Customer not found" }
+    ```
+  </Tab>
+</Tabs>
 
-| Resource                                      | Description                                                    |
-| --------------------------------------------- | -------------------------------------------------------------- |
-| [Checkout](/api-reference/checkout)           | Create and manage payment checkouts (one-time or subscription) |
-| [Customers](/api-reference/customers)         | Create, list, get, update, and delete customers                |
-| [Webhooks](/api-reference/webhooks)           | Create, update, and delete webhook endpoints                   |
-| [Subscriptions](/api-reference/subscriptions) | Create and manage subscriptions (pause, resume, cancel)        |
-| [Payments](/api-reference/payments)           | Retrieve payment status                                        |
-| [Refunds](/api-reference/refunds)             | Create refunds for payments                                    |
-| [Products](/api-reference/products)           | Create products (one-time, subscription, or metered)           |
-| [Credits](/api-reference/credits)             | Manage credit balances and usage for metered billing           |
+## Pagination
 
-## Response format
+List endpoints support cursor-based pagination via query parameters.
 
-Success responses wrap data in a `data` field:
+<ParamField query="limit" type="number">
+  Maximum number of records to return.
+</ParamField>
+
+<ParamField query="starting_after" type="string">
+  Return records after this resource ID (exclusive). Use the last ID in the previous page to paginate forward.
+</ParamField>
+
+<ParamField query="ending_before" type="string">
+  Return records before this resource ID (exclusive). Use the first ID in the current page to paginate backward.
+</ParamField>
+
+List responses always have this shape:
 
 ```json
 {
-  "data": { ... }
+  "object": "list",
+  "data": [...],
+  "has_more": true,
+  "url": "/api/customers"
 }
 ```
 
-Errors return a JSON object with an `error` field and an appropriate HTTP status (4xx/5xx).
-
 ## Rate limits
 
-Rate limits depend on your plan. Check the dashboard for current limits.
+There are no rate limits at this time.

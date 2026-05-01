@@ -1,43 +1,84 @@
 ---
 title: "Refunds"
-description: "Create refunds for payments"
+description: "Issue refunds for payments"
 ---
 
-Refunds send assets back to a receiver address (e.g. customer wallet) for a given payment.
+A refund sends the original payment amount back to the customer's Stellar wallet. Refunds are processed on-chain and reflect a `succeeded` or `failed` status once the transaction settles.
 
-## Create refund
+## The refund object
 
-Required: `paymentId`, `assetId`, `amount`, `receiverWalletAddress`, `customerId`. Optional: `reason`, `metadata`. Amount is in stroops (1 XLM = 10,000,000 stroops). For other assets, use the asset's smallest unit. `receiverWalletAddress` is the Stellar account that receives the refund. Response `200`: `{ "data": { refund object } }` or error with validation/state message.
+<ResponseField name="id" type="string">
+  Unique identifier. Prefixed with `rf_`.
+</ResponseField>
 
-<Note>Refunds trigger `refund.succeeded` or `refund.failed` webhook events.</Note>
+<ResponseField name="object" type="string">
+  Always `"refund"`.
+</ResponseField>
 
-<CodeGroup>
+<ResponseField name="payment_id" type="string">
+  The payment being refunded.
+</ResponseField>
 
-```typescript SDK
-const refund = await stellar.refunds.create({
-  paymentId: "pay_xxx",
-  assetId: "asset_xxx",
-  amount: 10000000,
-  receiverWalletAddress: "G...",
-  customerId: "cust_xxx",
-  reason: "Customer request",
-  metadata: {},
-});
-```
+<ResponseField name="customer_id" type="string">
+  The customer receiving the refund.
+</ResponseField>
 
-```bash cURL
-curl -X POST "https://stellartools.dev/api/refunds" \
-  -H "x-api-key: your_api_key" \
+<ResponseField name="amount" type="string">
+  Amount refunded, e.g. `"50 XLM"`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `pending`, `succeeded`, or `failed`.
+</ResponseField>
+
+<ResponseField name="reason" type="string">
+  Optional reason for the refund.
+</ResponseField>
+
+<ResponseField name="receiver_wallet_address" type="string">
+  Stellar public key the refund was sent to.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Arbitrary key-value data.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+---
+
+## Create a refund
+
+`POST /refunds`
+
+Refunds the full amount of a payment to the customer's wallet on file. Pass `wallet_address` to override the destination.
+
+```bash
+curl https://api.stellartools.dev/refunds \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "paymentId": "pay_xxx",
-    "assetId": "asset_xxx",
-    "amount": 10000000,
-    "receiverWalletAddress": "G...",
-    "customerId": "cust_xxx",
-    "reason": "Customer request",
-    "metadata": {}
+    "payment_id": "pay_01jx...",
+    "reason": "Customer request"
   }'
 ```
 
-</CodeGroup>
+### Body
+
+<ParamField body="payment_id" type="string" required>
+  ID of the payment to refund.
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Reason for the refund.
+</ParamField>
+
+<ParamField body="wallet_address" type="string">
+  Override the refund destination. Defaults to the wallet that made the original payment.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value data.
+</ParamField>

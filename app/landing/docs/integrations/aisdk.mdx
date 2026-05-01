@@ -1,0 +1,62 @@
+---
+title: "AI SDK Adapter"
+description: "Metered billing for Vercel AI SDK"
+---
+
+The `@stellartools/aisdk-adapter` package wraps [Vercel AI SDK](https://sdk.vercel.ai) functions with metered billing. Each call checks the customer's credit balance, runs the model, and charges by token usage.
+
+## Install
+
+```bash
+npm install @stellartools/aisdk-adapter ai
+```
+
+## Usage
+
+The adapter exports `generateText`, `generateObject`, `streamText`, and `streamObject` directly. Pass your StellarTools config alongside the usual AI SDK options.
+
+```ts
+import { generateText } from "@stellartools/aisdk-adapter";
+import { openai } from "@ai-sdk/openai";
+
+const response = await generateText({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  productId: "prod_llm_ai",
+  customerId: "cust_xxx",
+  model: openai("gpt-4o"),
+  prompt: "Write a haiku about Stellar",
+});
+
+console.log(response.text);
+```
+
+Streaming:
+
+```ts
+import { streamText } from "@stellartools/aisdk-adapter";
+import { openai } from "@ai-sdk/openai";
+
+await streamText({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  productId: "prod_llm_ai",
+  customerId: "cust_xxx",
+  model: openai("gpt-4o"),
+  messages: [{ role: "user", content: "Hello" }],
+});
+```
+
+The preflight check runs before the model call. If the customer does not have enough credits, the adapter throws before any tokens are used.
+
+## Options
+
+<ParamField body="apiKey" type="string" required>
+  Your StellarTools API key.
+</ParamField>
+
+<ParamField body="productId" type="string" required>
+  The credit product ID to charge for usage.
+</ParamField>
+
+<ParamField body="customerId" type="string" required>
+  The StellarTools customer ID to bill.
+</ParamField>

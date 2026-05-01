@@ -1,0 +1,204 @@
+---
+title: "Webhooks"
+description: "Listen to real-time events from StellarTools"
+---
+
+Webhooks let your server react to things as they happen. When a payment is confirmed, a subscription is canceled, or a customer is updated, StellarTools sends an HTTP `POST` to your endpoint with a signed JSON payload.
+
+Create and manage webhooks at [dashboard.stellartools.dev/webhooks](https://dashboard.stellartools.dev/webhooks). When you create one, pick which events to subscribe to and copy the signing secret to verify deliveries.
+
+---
+
+## Event envelope
+
+Every webhook POST has the same top-level shape, regardless of event type.
+
+```json
+{
+  "id": "wh_evt_01jx4k...",
+  "type": "payment.confirmed",
+  "created": "2026-05-01T14:32:00.000Z",
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "pay_01jx4m...",
+      "checkout_id": "chk_01jx4n...",
+      "customer_id": "cust_01jx2a...",
+      "amount": "10 XLM",
+      "status": "confirmed",
+      "transaction_hash": "a3f92c8d...",
+      "created_at": "2026-05-01T14:31:58.000Z",
+      "metadata": null
+    }
+  }
+}
+```
+
+### Envelope fields
+
+<ResponseField name="id" type="string" required>
+  Unique ID for this event. Prefixed with `wh_evt_`.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  The event type, e.g. `payment.confirmed` or `subscription.canceled`. See the full list below.
+</ResponseField>
+
+<ResponseField name="created" type="string" required>
+  ISO 8601 timestamp of when the event was created.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  `true` if the event came from a mainnet (live) API key. `false` for testnet.
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Contains the event payload.
+
+  <Expandable title="data fields">
+    <ResponseField name="data.object" type="object" required>
+      The full resource that triggered the event. Its shape depends on the event type. For `payment.*` events it is a Payment object, for `subscription.*` a Subscription, and so on.
+    </ResponseField>
+
+    <ResponseField name="data.previous_attributes" type="object">
+      Only present on `*.updated` events. Contains the fields that changed, with their **previous** values. Fields that did not change are not included.
+
+      For example, on a `subscription.updated` event where the status changed from `active` to `paused`:
+
+      ```json
+      "previous_attributes": {
+        "status": "active"
+      }
+      ```
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Event types
+
+### Customer events
+
+<ResponseField name="customer.created" type="event">
+  A new customer was created.
+</ResponseField>
+
+<ResponseField name="customer.updated" type="event">
+  A customer's details were updated. Includes `previous_attributes`.
+</ResponseField>
+
+<ResponseField name="customer.deleted" type="event">
+  A customer was deleted.
+</ResponseField>
+
+### Payment method events
+
+<ResponseField name="payment_method.created" type="event">
+  A Stellar wallet was linked to a customer.
+</ResponseField>
+
+<ResponseField name="payment_method.deleted" type="event">
+  A wallet was removed from a customer.
+</ResponseField>
+
+### Checkout events
+
+<ResponseField name="checkout.created" type="event">
+  A new checkout session was created.
+</ResponseField>
+
+### Payment events
+
+<ResponseField name="payment.pending" type="event">
+  A payment transaction was submitted to the network but has not yet been confirmed.
+</ResponseField>
+
+<ResponseField name="payment.confirmed" type="event">
+  A payment is confirmed on the Stellar ledger. This is the event to act on when fulfilling an order.
+</ResponseField>
+
+<ResponseField name="payment.failed" type="event">
+  A payment could not be confirmed on-chain.
+</ResponseField>
+
+### Refund events
+
+<ResponseField name="refund.succeeded" type="event">
+  A refund was sent to the customer's wallet successfully.
+</ResponseField>
+
+<ResponseField name="refund.failed" type="event">
+  A refund could not be processed.
+</ResponseField>
+
+### Subscription events
+
+<ResponseField name="subscription.created" type="event">
+  A new subscription was created.
+</ResponseField>
+
+<ResponseField name="subscription.updated" type="event">
+  A subscription was updated (for example: paused, resumed, or `cancel_at_period_end` was toggled). Includes `previous_attributes`.
+</ResponseField>
+
+<ResponseField name="subscription.canceled" type="event">
+  A subscription was canceled.
+</ResponseField>
+
+---
+
+## Handling events
+
+Use `st.webhooks.constructEvent` to verify the signature and get the typed event back. Always verify before acting on the payload.
+
+```ts
+import { StellarTools } from "@stellartools/core";
+import { NextRequest, NextResponse } from "next/server";
+
+const st = new StellarTools({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+});
+
+export async function POST(req: NextRequest) {
+  const body = await req.text();
+  const signature = req.headers.get("X-StellarTools-Signature")!;
+
+  const event = st.webhooks.constructEvent(body, signature, process.env.STELLAR_TOOLS_WEBHOOK_SECRET!);
+
+  switch (event.type) {
+    case "payment.confirmed": {
+      const payment = event.data.object;
+      // payment.id, payment.customer_id, payment.amount, payment.transaction_hash
+      break;
+    }
+    case "subscription.updated": {
+      const subscription = event.data.object;
+      const changed = event.data.previous_attributes;
+      // check what changed: changed?.status, changed?.cancel_at_period_end, etc.
+      break;
+    }
+    case "subscription.canceled": {
+      const subscription = event.data.object;
+      // revoke access for subscription.customer_id
+      break;
+    }
+    case "refund.succeeded": {
+      const refund = event.data.object;
+      break;
+    }
+  }
+
+  return NextResponse.json({ received: true });
+}
+```
+
+<Note>
+  If `constructEvent` throws, the signature is invalid or the payload was tampered with. Return a `400` and do not process the event.
+</Note>
+
+---
+
+## Retries
+
+If your endpoint returns a non-2xx response, StellarTools will retry the delivery. Check your webhook logs at [dashboard.stellartools.dev/webhooks](https://dashboard.stellartools.dev/webhooks) to see all delivery attempts and manually resend any failed events.

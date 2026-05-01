@@ -90,6 +90,21 @@ export interface Product {
    * The units per credit of the product.
    */
   unitsPerCredit?: number;
+
+  /**
+   * The price amount of the product in its asset (e.g. `10` for 10 XLM).
+   */
+  priceAmount: number;
+
+  /**
+   * The billing interval for subscription products.
+   */
+  recurringPeriod?: RecurringPeriod;
+
+  /**
+   * Number of credits granted when this product is purchased.
+   */
+  creditsGranted?: number | null;
 }
 
 export const productSchema = schemaFor<Product>()(
@@ -109,6 +124,10 @@ export const productSchema = schemaFor<Product>()(
     unit: z.string().optional(),
     unitDivisor: z.number().optional(),
     unitsPerCredit: z.number().optional(),
+    priceAmount: z.number(),
+    recurringPeriod: recurringPeriodEnum.optional(),
+    creditsGranted: z.number().optional(),
+    creditExpiryDays: z.number().optional(),
   })
 );
 

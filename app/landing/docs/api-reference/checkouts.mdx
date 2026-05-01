@@ -1,0 +1,144 @@
+---
+title: "Checkouts"
+description: "Create and manage checkout sessions"
+---
+
+A checkout session is a short-lived payment page. You create one, redirect the customer to the `payment_url`, and StellarTools handles the rest. On completion, the customer is sent to your `redirect_url`.
+
+## The checkout object
+
+<ResponseField name="id" type="string">
+  Unique identifier. Prefixed with `chk_`.
+</ResponseField>
+
+<ResponseField name="object" type="string">
+  Always `"checkout"`.
+</ResponseField>
+
+<ResponseField name="customer_id" type="string">
+  The customer being charged.
+</ResponseField>
+
+<ResponseField name="product_id" type="string">
+  For product checkouts. The product being purchased.
+</ResponseField>
+
+<ResponseField name="amount" type="number">
+  For direct checkouts. The amount to charge.
+</ResponseField>
+
+<ResponseField name="asset_code" type="string">
+  For direct checkouts. Asset code, e.g. `"XLM"`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `open`, `completed`, `expired`, or `failed`.
+</ResponseField>
+
+<ResponseField name="payment_url" type="string">
+  URL to redirect the customer to for payment.
+</ResponseField>
+
+<ResponseField name="redirect_url" type="string">
+  URL the customer is sent to after payment.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Optional description shown on the checkout page.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Arbitrary key-value data.
+</ResponseField>
+
+<ResponseField name="expires_at" type="string">
+  ISO 8601 timestamp. Checkout sessions expire after 24 hours.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+---
+
+## Create a checkout
+
+`POST /checkout?type=product` or `POST /checkout?type=direct`
+
+Use `type=product` to charge for a product you've defined. Use `type=direct` to charge an arbitrary amount without a product.
+
+### Product checkout
+
+```bash
+curl "https://api.stellartools.dev/checkout?type=product" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "cus_01jx...",
+    "product_id": "prod_01jx...",
+    "redirect_url": "https://yourapp.com/success"
+  }'
+```
+
+<ParamField body="product_id" type="string" required>
+  The product to charge for.
+</ParamField>
+
+<ParamField body="customer_id" type="string">
+  Existing customer ID. If omitted, provide `customer_email` or `customer_phone` to create one.
+</ParamField>
+
+<ParamField body="customer_email" type="string">
+  Email to look up or create a customer.
+</ParamField>
+
+<ParamField body="customer_phone" type="string">
+  Phone number to look up or create a customer.
+</ParamField>
+
+<ParamField body="redirect_url" type="string">
+  URL to redirect the customer to after payment.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Description shown on the checkout page.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value data.
+</ParamField>
+
+### Direct checkout
+
+```bash
+curl "https://api.stellartools.dev/checkout?type=direct" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": "cus_01jx...",
+    "amount": 50,
+    "asset_code": "XLM",
+    "redirect_url": "https://yourapp.com/success"
+  }'
+```
+
+<ParamField body="amount" type="number" required>
+  Amount to charge.
+</ParamField>
+
+<ParamField body="asset_code" type="string" required>
+  Asset code, e.g. `"XLM"`.
+</ParamField>
+
+Same optional fields as product checkout (`customer_id`, `customer_email`, `customer_phone`, `redirect_url`, `description`, `metadata`).
+
+---
+
+## Retrieve a checkout
+
+`GET /checkout/{id}`
+
+```bash
+curl https://api.stellartools.dev/checkout/chk_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
+```

@@ -1,38 +1,55 @@
 ---
 title: "Introduction"
-description: "Welcome to Stellar Tools — drop-in payment adapters for your stack"
+description: "Payment infrastructure for the Stellar blockchain"
 ---
 
-Stellar Tools lets you accept fast, low-cost crypto payments (Stellar/XLM and Stellar assets) with minimal setup. Use our REST API, SDK, and adapters to add checkouts, subscriptions, and payments to your app.
+StellarTools is a payments platform built on [Stellar](https://stellar.org). You can use it to accept crypto payments, run subscriptions, charge by usage, and pay out to local currencies. Payments settle in a few seconds for fractions of a cent.
 
-## What you can do
+**What you can build with it:**
 
-- Checkouts — Create one-time or subscription checkouts; get payment URLs or Stellar `web+stellar:tx` URIs for wallets.
-- Customers — Create and manage customers; attach Stellar wallets for recurring payments.
-- Products — Define one-time, subscription, or metered products (with price/asset or credits for usage-based billing).
-- Subscriptions — Create and manage subscriptions on-chain (pause, resume, cancel).
-- Payments and refunds — Retrieve payment status; issue refunds to a Stellar address.
-- Webhooks — Receive events such as `payment.confirmed`, `subscription.canceled`, `refund.succeeded`.
+- One-time and recurring checkout pages
+- Subscription billing with pause, resume, and cancellation
+- Metered billing for AI apps, file uploads, or any usage-based product
+- Customer portals where users manage their own subscriptions and invoices
+- Global payouts to local currencies (NGN, KES, GHS, and more)
 
-## Get started
+## Get your API key
 
-<Card title="Quickstart" icon="rocket" href="/quickstart" horizontal>
-  Set up Stellar Tools and make your first request.
-</Card>
+Go to [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys) and create a new key. The key encodes your environment (testnet or mainnet), so you do not need to set any base URLs or environment flags.
 
-<Card title="Adapters" icon="puzzle-piece" href="/adapters/overview" horizontal>
-  Integrate with MedusaJS, Better Auth, Uploadthing, LangChain, or AI SDK.
-</Card>
+<Note>
+  Use testnet keys while building. Switch to a mainnet key when you are ready to go live.
+</Note>
 
-<Card title="Metered billing" icon="coins" href="/metered-billing" horizontal>
-  Charge by usage with credits: tokens, storage, API calls. Products, Credits API, and adapters.
-</Card>
+## Install the SDK
 
-<Card title="API reference" icon="terminal" href="/api-reference/introduction" horizontal>
-  REST API for checkouts, customers, webhooks, subscriptions, payments, refunds, products, and credits.
-</Card>
+```bash
+npm install @stellartools/core
+```
 
-## Need help?
+```ts
+import { StellarTools } from "@stellartools/core";
 
-- [Support](mailto:odii@stellartools.dev)
-- [GitHub](https://github.com/usepaykit/stellartools)
+const st = new StellarTools({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+});
+```
+
+That is all the setup you need. From here, `st.customers`, `st.checkout`, `st.subscriptions`, and the rest are ready to use.
+
+## Explore
+
+<CardGroup cols={2}>
+  <Card title="TypeScript SDK" icon="code" href="/integrations/typescript-sdk">
+    Core SDK for customers, checkouts, products, subscriptions, and more.
+  </Card>
+  <Card title="Integrations" icon="puzzle-piece" href="/integrations/aisdk">
+    Adapters for AI SDK, LangChain, MedusaJS, Better Auth, and Uploadthing.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/webhooks">
+    Listen to payment, subscription, and customer events in real time.
+  </Card>
+  <Card title="API Reference" icon="terminal" href="/api-reference/introduction">
+    Full REST API reference for all resources.
+  </Card>
+</CardGroup>

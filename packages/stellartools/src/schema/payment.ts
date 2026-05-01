@@ -44,4 +44,9 @@ export interface Payment {
    * The metadata of the payment.
    */
   metadata: Record<string, unknown> | null;
+
+  /**
+   * The subscription ID this payment belongs to, if any.
+   */
+  subscriptionId?: string | null;
 }

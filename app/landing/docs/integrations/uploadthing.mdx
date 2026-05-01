@@ -1,0 +1,51 @@
+---
+title: "Uploadthing Adapter"
+description: "Charge by upload size with StellarTools credits"
+---
+
+The `@stellartools/uploadthing-adapter` meters file uploads by total byte size. It runs a preflight credit check, charges after a successful upload, and refunds if the upload fails.
+
+## Install
+
+```bash
+npm install @stellartools/uploadthing-adapter uploadthing
+```
+
+## Usage
+
+```ts
+import { createUploadthing } from "uploadthing/server";
+import { createMeteredUploadthing } from "@stellartools/uploadthing-adapter";
+
+const ut = createUploadthing();
+const f = createMeteredUploadthing({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  productId: "prod_uploads",
+});
+
+export const uploadRouter = f({
+  image: ut.imageUploader().maxSize("4MB"),
+}).middleware(async (opts) => {
+  return { userId: opts.req.headers.get("x-user-id") ?? "" };
+});
+```
+
+Each request must include an `x-customer-id` header with the StellarTools customer ID to charge.
+
+## Config options
+
+<ParamField body="apiKey" type="string" required>
+  Your StellarTools API key.
+</ParamField>
+
+<ParamField body="productId" type="string" required>
+  Credit product ID to charge for uploads.
+</ParamField>
+
+## Required headers
+
+<ParamField header="x-customer-id" type="string" required>
+  The StellarTools customer ID to charge for the upload.
+</ParamField>
+
+If the customer does not have enough credits, the adapter throws and the upload is rejected before any files are stored.

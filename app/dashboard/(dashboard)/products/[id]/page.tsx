@@ -485,7 +485,7 @@ export default function ProductDetailPage() {
                   <p className="text-muted-foreground mt-2 text-sm">
                     Suggest a related product for customers to add to their order, right in Checkout.{" "}
                     <Link
-                      href={process.env.NEXT_PUBLIC_DOCS_URL! + "/metered-billing"}
+                      href="#"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary inline-flex items-center gap-0.5 font-medium hover:underline"

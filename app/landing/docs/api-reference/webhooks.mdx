@@ -1,125 +1,136 @@
 ---
-title: 'Webhooks'
-description: 'Create and manage webhook endpoints'
+title: "Webhooks"
+description: "Create and manage webhook endpoints"
 ---
 
-Webhooks send HTTP POST requests to your URL when events occur (e.g. `payment.confirmed`, `subscription.canceled`).
+Webhook endpoints receive event notifications from StellarTools when things happen in your account. See the [Webhooks guide](/webhooks) for the full list of event types and how to handle deliveries.
 
-## Events
+## The webhook object
 
-| Event | Description |
-|-------|-------------|
-| `customer.created` | New customer created |
-| `customer.updated` | Customer updated |
-| `customer.deleted` | Customer deleted |
-| `checkout.created` | Checkout created |
-| `payment.pending` | Payment submitted, awaiting confirmation |
-| `payment.confirmed` | Payment confirmed on-chain |
-| `payment.failed` | Payment failed |
-| `refund.succeeded` | Refund completed |
-| `refund.failed` | Refund failed |
-| `subscription.created` | Subscription created |
-| `subscription.updated` | Subscription updated |
-| `subscription.canceled` | Subscription canceled |
+<ResponseField name="id" type="string">
+  Unique identifier. Prefixed with `wh_`.
+</ResponseField>
 
-## Create webhook
+<ResponseField name="object" type="string">
+  Always `"webhook"`.
+</ResponseField>
 
-If `secret` is omitted and you use a session token, a secret is auto-generated. Use the returned `secret` to verify signatures. Response `200`: `{ "data": { "id", "url", "events", "secret", "name", "description", "isDisabled", ... } }`
+<ResponseField name="name" type="string">
+  A label for this endpoint.
+</ResponseField>
 
-<CodeGroup>
+<ResponseField name="url" type="string">
+  The HTTPS URL that receives event POSTs.
+</ResponseField>
 
-```typescript SDK
-const webhook = await stellar.webhooks.create({
-  name: "Production webhooks",
-  url: "https://yoursite.com/webhooks/stellar",
-  events: ["payment.confirmed", "subscription.canceled"],
-  description: "Optional description",
-  secret: "optional_custom_secret",
-});
-```
+<ResponseField name="events" type="array">
+  List of event types this endpoint is subscribed to.
+</ResponseField>
 
-```bash cURL
-curl -X POST "https://stellartools.dev/api/webhooks" \
-  -H "x-api-key: your_api_key" \
+<ResponseField name="is_disabled" type="boolean">
+  When `true`, deliveries to this endpoint are suspended.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Optional description.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+---
+
+## Create a webhook
+
+`POST /webhooks`
+
+```bash
+curl https://api.stellartools.dev/webhooks \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Production webhooks",
-    "url": "https://yoursite.com/webhooks/stellar",
-    "events": ["payment.confirmed", "subscription.canceled"],
-    "description": "Optional description",
-    "secret": "optional_custom_secret"
+    "name": "Production handler",
+    "url": "https://yourapp.com/webhooks",
+    "events": ["payment.confirmed", "subscription.canceled"]
   }'
 ```
 
-</CodeGroup>
+### Body
+
+<ParamField body="name" type="string" required>
+  Label for this endpoint.
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  The HTTPS URL to send events to.
+</ParamField>
+
+<ParamField body="events" type="array" required>
+  Event types to subscribe to. At least one required. See [event types](/webhooks#event-types).
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional description.
+</ParamField>
 
 ---
 
-## Get webhook
+## Retrieve a webhook
 
-Response `200`: `{ "data": { webhook object } }`
+`GET /webhooks/{id}`
 
-<CodeGroup>
-
-```typescript SDK
-const webhook = await stellar.webhooks.retrieve("whsec_xxx");
+```bash
+curl https://api.stellartools.dev/webhooks/wh_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
 ```
-
-```bash cURL
-curl -X GET "https://stellartools.dev/api/webhooks/whsec_xxx" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>
 
 ---
 
-## Update webhook
+## Update a webhook
 
-Response `200`: `{ "data": { updated webhook } }`
+`PUT /webhooks/{id}`
 
-<CodeGroup>
-
-```typescript SDK
-const updated = await stellar.webhooks.update("whsec_xxx", {
-  name: "Updated name",
-  url: "https://yoursite.com/webhooks/new",
-  events: ["payment.confirmed", "refund.succeeded"],
-  description: "Optional",
-  isDisabled: false,
-});
-```
-
-```bash cURL
-curl -X PUT "https://stellartools.dev/api/webhooks/whsec_xxx" \
-  -H "x-api-key: your_api_key" \
+```bash
+curl -X PUT https://api.stellartools.dev/webhooks/wh_01jx... \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Updated name",
-    "url": "https://yoursite.com/webhooks/new",
-    "events": ["payment.confirmed", "refund.succeeded"],
-    "description": "Optional",
-    "isDisabled": false
-  }'
+  -d '{ "is_disabled": true }'
 ```
 
-</CodeGroup>
+### Body
+
+<ParamField body="name" type="string">
+  New label.
+</ParamField>
+
+<ParamField body="url" type="string">
+  New destination URL.
+</ParamField>
+
+<ParamField body="events" type="array">
+  Updated event type list. At least one required.
+</ParamField>
+
+<ParamField body="is_disabled" type="boolean">
+  Set to `true` to pause deliveries, `false` to resume.
+</ParamField>
+
+<ParamField body="description" type="string">
+  New description.
+</ParamField>
 
 ---
 
-## Delete webhook
+## Delete a webhook
 
-Response `200`: `{ "data": { "success": true } }`
+`DELETE /webhooks/{id}`
 
-<CodeGroup>
-
-```typescript SDK
-await stellar.webhooks.delete("whsec_xxx");
+```bash
+curl -X DELETE https://api.stellartools.dev/webhooks/wh_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
 ```
-
-```bash cURL
-curl -X DELETE "https://stellartools.dev/api/webhooks/whsec_xxx" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>

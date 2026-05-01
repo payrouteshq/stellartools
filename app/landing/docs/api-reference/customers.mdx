@@ -1,127 +1,174 @@
 ---
-title: 'Customers'
-description: 'Create and list customers'
+title: "Customers"
+description: "Create and manage customers"
 ---
 
-Customers represent payers. Create a customer to associate checkouts and subscriptions, and optionally attach Stellar wallets.
+A customer represents a person or entity that pays through StellarTools. Customers hold wallets, subscriptions, and payment history.
 
-## Create customer
+## The customer object
 
-Name and email are required; phone, image, and metadata are optional. Image should be a public HTTPS URL. Response `200`: `{ "data": { "id", "name", "email", "phone", "metadata", "createdAt", "wallets": [] } }`
+<ResponseField name="id" type="string">
+  Unique identifier. Prefixed with `cus_`.
+</ResponseField>
 
-<CodeGroup>
+<ResponseField name="object" type="string">
+  Always `"customer"`.
+</ResponseField>
 
-```typescript SDK
-const customer = await stellar.customers.create({
-  name: "Jane Doe",
-  email: "jane@example.com",
-  phone: "+1234567890",
-  image: "https://example.com/jane.png",
-  metadata: { source: "web" },
-});
-```
+<ResponseField name="email" type="string">
+  Email address of the customer.
+</ResponseField>
 
-```bash cURL
-curl -X POST "https://stellartools.dev/api/customers" \
-  -H "x-api-key: your_api_key" \
+<ResponseField name="name" type="string">
+  Full name of the customer.
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  Phone number of the customer.
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  URL to the customer's profile image.
+</ResponseField>
+
+<ResponseField name="wallets" type="array">
+  Stellar wallets linked to this customer.
+
+  <Expandable title="wallet fields">
+    <ResponseField name="id" type="string">
+      Unique identifier for the wallet. Prefixed with `cwl_`.
+    </ResponseField>
+    <ResponseField name="address" type="string">
+      The Stellar public key.
+    </ResponseField>
+    <ResponseField name="metadata" type="object">
+      Arbitrary key-value metadata.
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Arbitrary key-value data you can attach to the customer.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+---
+
+## Create a customer
+
+`POST /customers`
+
+Creates one customer. You can also pass an array to create multiple at once.
+
+```bash
+curl https://api.stellartools.dev/customers \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "phone": "+1234567890",
-    "image": "https://example.com/jane.png",
-    "metadata": { "source": "web" }
-  }'
+  -d '{ "email": "jane@example.com", "name": "Jane Smith" }'
 ```
 
-</CodeGroup>
+### Body
+
+<ParamField body="email" type="string" required>
+  Customer's email address.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Customer's full name.
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Customer's phone number.
+</ParamField>
+
+<ParamField body="image" type="string">
+  URL to a profile image.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value string pairs to attach to the customer.
+</ParamField>
 
 ---
 
 ## List customers
 
-Returns all customers for the organization. Optionally includes wallet addresses. Response `200`: `{ "data": [ { "id", "name", "email", "wallets", ... }, ... ] }`
+`GET /customers`
 
-<CodeGroup>
+Returns all customers for your account.
 
-```typescript SDK
-const customers = await stellar.customers.list({});
+```bash
+curl https://api.stellartools.dev/customers \
+  -H "x-api-key: YOUR_API_KEY"
 ```
 
-```bash cURL
-curl -X GET "https://stellartools.dev/api/customers" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>
+Returns a [list object](/api-reference/introduction#pagination) containing customer objects.
 
 ---
 
-## Get customer
+## Retrieve a customer
 
-Response `200`: `{ "data": { customer object } }`
+`GET /customers/{customerId}`
 
-<CodeGroup>
-
-```typescript SDK
-const customer = await stellar.customers.retrieve("cust_xxx");
+```bash
+curl https://api.stellartools.dev/customers/cus_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
 ```
-
-```bash cURL
-curl -X GET "https://stellartools.dev/api/customers/cust_xxx" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>
 
 ---
 
-## Update customer
+## Update a customer
 
-All fields are optional; only include the ones you want to update. Response `200`: `{ "data": { updated customer } }`
+`PUT /customers/{customerId}`
 
-<CodeGroup>
-
-```typescript SDK
-const updated = await stellar.customers.update("cust_xxx", {
-  name: "Jane Smith",
-  email: "jane.smith@example.com",
-  phone: "+1234567890",
-  image: "https://example.com/jane-smith.png",
-  metadata: {},
-});
-```
-
-```bash cURL
-curl -X PUT "https://stellartools.dev/api/customers/cust_xxx" \
-  -H "x-api-key: your_api_key" \
+```bash
+curl -X PUT https://api.stellartools.dev/customers/cus_01jx... \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Jane Smith",
-    "email": "jane.smith@example.com",
-    "phone": "+1234567890",
-    "image": "https://example.com/jane-smith.png",
-    "metadata": {}
-  }'
+  -d '{ "name": "Jane Doe" }'
 ```
 
-</CodeGroup>
+### Body
+
+<ParamField body="email" type="string">
+  New email address.
+</ParamField>
+
+<ParamField body="name" type="string">
+  New name.
+</ParamField>
+
+<ParamField body="phone" type="string">
+  New phone number.
+</ParamField>
+
+<ParamField body="image" type="string">
+  New image URL.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Merged with existing metadata.
+</ParamField>
 
 ---
 
-## Delete customer
+## Delete a customer
 
-Response `200`: `{ "data": null }`
+`DELETE /customers/{customerId}`
 
-<CodeGroup>
+Returns `null` on success.
 
-```typescript SDK
-await stellar.customers.delete("cust_xxx");
+```bash
+curl -X DELETE https://api.stellartools.dev/customers/cus_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
 ```
-
-```bash cURL
-curl -X DELETE "https://stellartools.dev/api/customers/cust_xxx" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>

@@ -20,43 +20,46 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
-            "pages": ["docs", "index", "quickstart", "metered-billing", "development"]
+            "group": "Getting Started",
+            "pages": ["index"]
           },
           {
-            "group": "Adapters",
+            "group": "Integrations",
             "pages": [
-              "adapters/overview",
-              "adapters/medusajs",
-              "adapters/betterauth",
-              "adapters/uploadthing",
-              "adapters/langchain",
-              "adapters/aisdk"
+              "integrations/typescript-sdk",
+              "integrations/aisdk",
+              "integrations/langchain",
+              "integrations/medusajs",
+              "integrations/betterauth",
+              "integrations/uploadthing"
             ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": ["webhooks"]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
             "group": "Overview",
-            "pages": ["api-reference/introduction"]
+            "pages": ["api-reference/introduction", "api-reference/authentication"]
           },
           {
             "group": "Resources",
             "pages": [
-              "api-reference/checkout",
               "api-reference/customers",
-              "api-reference/webhooks",
+              "api-reference/products",
+              "api-reference/checkouts",
               "api-reference/subscriptions",
               "api-reference/payments",
               "api-reference/refunds",
-              "api-reference/products",
-              "api-reference/credits"
+              "api-reference/webhooks"
             ]
           }
         ]
@@ -91,7 +94,8 @@
     "primary": {
       "type": "button",
       "label": "Sign Up Free",
-      "href": "/signup"
+      "href": "https://dashboard.stellartools.dev/signup",
+      "target": "_blank"
     }
   },
   "contextual": {
@@ -101,7 +105,7 @@
     "socials": {
       "x": "https://x.com/stellartoolsorg",
       "github": "https://github.com/usepaykit/stellartools",
-      "linkedin": "https://www.linkedin.com/company/stellartools"
+      "linkedin": "https://www.linkedin.com/company/stellartoolsorg"
     }
   }
 }

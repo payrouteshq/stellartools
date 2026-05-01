@@ -1,0 +1,33 @@
+---
+title: "Authentication"
+description: "Authenticating requests to the StellarTools API"
+---
+
+Every request to the StellarTools API must include your API key in the `x-api-key` header.
+
+```bash
+curl https://api.stellartools.dev/customers \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+The API key determines the environment your requests run in. Keys prefixed for testnet only interact with testnet data; mainnet keys interact with live data. There is no separate base URL — the key controls it.
+
+## Getting an API key
+
+Go to [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys) to create and manage your keys. Copy the key immediately after creating it — it will not be shown again.
+
+```bash
+STELLAR_TOOLS_API_KEY=sk_test_...
+```
+
+Store it in an environment variable and never expose it in client-side code.
+
+## Errors
+
+If the key is missing, the API returns `401`:
+
+```json
+{ "error": "Session Token or API Key or App Token required" }
+```
+
+If the key is present but invalid or revoked, the API returns `401` as well. Double-check that you are sending the right key for the right environment (testnet vs. mainnet).

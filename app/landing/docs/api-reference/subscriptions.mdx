@@ -1,178 +1,164 @@
 ---
-title: 'Subscriptions'
-description: 'Create and manage subscriptions'
+title: "Subscriptions"
+description: "Manage recurring billing subscriptions"
 ---
 
-Subscriptions are recurring payments tied to a product of type `subscription` and customer wallets.
+Subscriptions are created automatically when a customer completes a checkout for a `subscription` product. Use these endpoints to retrieve, update, pause, resume, or cancel them.
 
-## Create subscriptions (bulk)
+## The subscription object
 
-Creates subscriptions for multiple customers on a subscription product. Each customer must have a Stellar wallet. Response `200`: `{ "data": { "count": 2, "failed": [] } }`. The `failed` array lists any customers that could not be subscribed (e.g. missing wallet).
+<ResponseField name="id" type="string">
+  Unique identifier. Prefixed with `sub_`.
+</ResponseField>
 
-<CodeGroup>
+<ResponseField name="object" type="string">
+  Always `"subscription"`.
+</ResponseField>
 
-```typescript SDK
-const result = await stellar.subscriptions.create({
-  productId: "prod_sub_xxx",
-  customerIds: ["cust_1", "cust_2"],
-  period: {
-    from: "2025-01-01T00:00:00.000Z",
-    to: "2025-02-01T00:00:00.000Z",
-  },
-  cancelAtPeriodEnd: false,
-});
-```
+<ResponseField name="customer_id" type="string">
+  The customer this subscription belongs to.
+</ResponseField>
 
-```bash cURL
-curl -X POST "https://stellartools.dev/api/subscriptions" \
-  -H "x-api-key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "productId": "prod_sub_xxx",
-    "customerIds": ["cust_1", "cust_2"],
-    "period": {
-      "from": "2025-01-01T00:00:00.000Z",
-      "to": "2025-02-01T00:00:00.000Z"
-    },
-    "cancelAtPeriodEnd": false
-  }'
-```
+<ResponseField name="product_id" type="string">
+  The product being subscribed to.
+</ResponseField>
 
-</CodeGroup>
+<ResponseField name="status" type="string">
+  One of `trialing`, `active`, `past_due`, `paused`, or `canceled`.
+</ResponseField>
+
+<ResponseField name="current_period_start" type="string">
+  ISO 8601 timestamp. Start of the current billing period.
+</ResponseField>
+
+<ResponseField name="current_period_end" type="string">
+  ISO 8601 timestamp. End of the current billing period.
+</ResponseField>
+
+<ResponseField name="cancel_at_period_end" type="boolean">
+  If `true`, the subscription will cancel at the end of the current period rather than renewing.
+</ResponseField>
+
+<ResponseField name="canceled_at" type="string">
+  ISO 8601 timestamp. Set when the subscription is canceled.
+</ResponseField>
+
+<ResponseField name="paused_at" type="string">
+  ISO 8601 timestamp. Set when the subscription is paused.
+</ResponseField>
+
+<ResponseField name="trial_days" type="number">
+  Number of trial days, if any.
+</ResponseField>
+
+<ResponseField name="failed_payment_count" type="number">
+  Number of consecutive failed renewal attempts.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Arbitrary key-value data.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
 
 ---
 
 ## List subscriptions
 
-Response `200`: `{ "data": [ { subscription objects } ] }`
+`GET /subscriptions?customer_id={customerId}`
 
-<CodeGroup>
+Returns all subscriptions for a customer.
 
-```typescript SDK
-const subscriptions = await stellar.subscriptions.list("cust_xxx");
+```bash
+curl "https://api.stellartools.dev/subscriptions?customerId=cus_01jx..." \
+  -H "x-api-key: YOUR_API_KEY"
 ```
 
-```bash cURL
-curl -X GET "https://stellartools.dev/api/subscriptions?customerId=cust_xxx" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>
+<ParamField query="customerId" type="string" required>
+  The customer whose subscriptions to list.
+</ParamField>
 
 ---
 
-## Get subscription
+## Retrieve a subscription
 
-Response `200`: `{ "data": { subscription object } }`
+`GET /subscriptions/{id}`
 
-<CodeGroup>
+Fetches the subscription and syncs its status with the Stellar network before returning.
 
-```typescript SDK
-const subscription = await stellar.subscriptions.retrieve("sub_xxx");
+```bash
+curl https://api.stellartools.dev/subscriptions/sub_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
 ```
 
-```bash cURL
-curl -X GET "https://stellartools.dev/api/subscriptions/sub_xxx" \
-  -H "x-api-key: your_api_key"
-```
-
-</CodeGroup>
+The response includes `related_resources` (the product and asset) and `last_attempt` (the most recent payment).
 
 ---
 
-## Update subscription
+## Update a subscription
 
-Update metadata or set `cancelAtPeriodEnd`. Response `200`: `{ "data": { updated subscription } }`
+`PUT /subscriptions/{id}`
 
-<CodeGroup>
-
-```typescript SDK
-const updated = await stellar.subscriptions.update("sub_xxx", {
-  metadata: { plan: "pro" },
-  cancelAtPeriodEnd: true,
-});
-```
-
-```bash cURL
-curl -X PUT "https://stellartools.dev/api/subscriptions/sub_xxx" \
-  -H "x-api-key: your_api_key" \
+```bash
+curl -X PUT https://api.stellartools.dev/subscriptions/sub_01jx... \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "metadata": { "plan": "pro" },
-    "cancelAtPeriodEnd": true
-  }'
+  -d '{ "cancel_at_period_end": true }'
 ```
 
-</CodeGroup>
+### Body
+
+<ParamField body="cancel_at_period_end" type="boolean">
+  Set to `true` to schedule cancellation at the end of the current period.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Merged with existing metadata.
+</ParamField>
+
+<ParamField body="product_id" type="string">
+  Swap to a different product.
+</ParamField>
 
 ---
 
-## Pause subscription
+## Cancel a subscription
 
-Pauses the subscription on-chain. The REST API may require `customerAddress` (Stellar public key) and `productId` in the body. Response `200`: `{ "data": { subscription } }`
+`POST /subscriptions/{id}/cancel`
 
-<CodeGroup>
+Cancels immediately on-chain and sets `cancel_at_period_end` to `true`.
 
-```typescript SDK
-const subscription = await stellar.subscriptions.pause("sub_xxx");
+```bash
+curl -X POST https://api.stellartools.dev/subscriptions/sub_01jx.../cancel \
+  -H "x-api-key: YOUR_API_KEY"
 ```
 
-```bash cURL
-curl -X POST "https://stellartools.dev/api/subscriptions/sub_xxx/pause" \
-  -H "x-api-key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerAddress": "G...",
-    "productId": "prod_xxx"
-  }'
-```
-
-</CodeGroup>
+Returns `{ "success": true }`.
 
 ---
 
-## Resume subscription
+## Pause a subscription
 
-Resumes a paused subscription. REST body must include `customerAddress` and `productId`. Response `200`: `{ "data": { updated subscription } }`
+`POST /subscriptions/{id}/pause`
 
-<CodeGroup>
-
-```typescript SDK
-const subscription = await stellar.subscriptions.resume("sub_xxx");
+```bash
+curl -X POST https://api.stellartools.dev/subscriptions/sub_01jx.../pause \
+  -H "x-api-key: YOUR_API_KEY"
 ```
-
-```bash cURL
-curl -X POST "https://stellartools.dev/api/subscriptions/sub_xxx/resume" \
-  -H "x-api-key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerAddress": "G...",
-    "productId": "prod_xxx"
-  }'
-```
-
-</CodeGroup>
 
 ---
 
-## Cancel subscription
+## Resume a subscription
 
-Cancels the subscription on-chain and updates status. REST body must include `customerAddress` and `productId`. Response `200`: `{ "data": { subscription } }`
+`POST /subscriptions/{id}/resume`
 
-<CodeGroup>
-
-```typescript SDK
-const subscription = await stellar.subscriptions.cancel("sub_xxx");
+```bash
+curl -X POST https://api.stellartools.dev/subscriptions/sub_01jx.../resume \
+  -H "x-api-key: YOUR_API_KEY"
 ```
-
-```bash cURL
-curl -X POST "https://stellartools.dev/api/subscriptions/sub_xxx/cancel" \
-  -H "x-api-key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerAddress": "G...",
-    "productId": "prod_xxx"
-  }'
-```
-
-</CodeGroup>

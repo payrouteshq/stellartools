@@ -1,0 +1,105 @@
+---
+title: "Better Auth Adapter"
+description: "Billing plugin for Better Auth apps"
+---
+
+The `@stellartools/betterauth-adapter` adds a billing plugin to [Better Auth](https://www.better-auth.com). It links users to StellarTools customers and adds session-protected endpoints for subscriptions, refunds, and credits.
+
+## Install
+
+```bash
+npm install @stellartools/betterauth-adapter
+```
+
+## Configure
+
+```ts
+import { betterAuth } from "better-auth";
+import { stellarTools } from "@stellartools/betterauth-adapter";
+
+export const auth = betterAuth({
+  plugins: [
+    stellarTools({
+      apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+      createCustomerOnSignUp: true,
+      creditLowThreshold: 100,
+      onCustomerCreated: async (customer) => {
+        console.log("Customer created", customer);
+      },
+      onSubscriptionCreated: async (subscription) => {
+        console.log("Subscription created", subscription);
+      },
+      onSubscriptionCanceled: async (subscription) => {
+        console.log("Subscription canceled", subscription);
+      },
+      onCreditsLow: async (creditBalance) => {
+        console.log("Credits low", creditBalance);
+      },
+    }),
+  ],
+});
+```
+
+The plugin adds `stellarCustomerId` to the user schema. Run migrations after adding it so your database is up to date.
+
+## Plugin options
+
+<ParamField body="apiKey" type="string" required>
+  Your StellarTools API key.
+</ParamField>
+
+<ParamField body="createCustomerOnSignUp" type="boolean">
+  Create a StellarTools customer when a user signs up. Defaults to `false`.
+</ParamField>
+
+<ParamField body="creditLowThreshold" type="number">
+  Trigger `onCreditsLow` when balance is at or below this value. Defaults to `10`.
+</ParamField>
+
+<ParamField body="onCustomerCreated" type="function">
+  Called when a customer is created or linked.
+</ParamField>
+
+<ParamField body="onSubscriptionCreated" type="function">
+  Called when a subscription is created.
+</ParamField>
+
+<ParamField body="onSubscriptionCanceled" type="function">
+  Called when a subscription is canceled.
+</ParamField>
+
+<ParamField body="onCreditsLow" type="function">
+  Called when credits fall below the threshold after a consume.
+</ParamField>
+
+## Endpoints
+
+All endpoints require a valid Better Auth session.
+
+### Customers
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/stellar/customer/create` | Create or link a StellarTools customer. |
+| `GET` | `/api/auth/stellar/customer/retrieve` | Get the current user's customer. |
+| `POST` | `/api/auth/stellar/customer/update` | Update name, email, phone, or metadata. |
+
+### Subscriptions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/stellar/subscription/create` | Create a subscription. |
+| `GET` | `/api/auth/stellar/subscription/list` | List subscriptions for the current user. |
+
+### Credits
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/stellar/credits/consume` | Consume credits for a product. |
+| `GET` | `/api/auth/stellar/credits/transactions` | Get credit transaction history. |
+
+### Refunds
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/stellar/refund/create` | Create a refund for a payment. |

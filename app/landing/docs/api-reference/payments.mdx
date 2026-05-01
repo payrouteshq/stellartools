@@ -1,10 +1,77 @@
 ---
 title: "Payments"
-description: "Retrieve payment status"
+description: "Retrieve payment records"
 ---
 
-Payments are created when a checkout is paid. Use this API to fetch payment details and optionally refresh status from the chain.
+A payment is created automatically when a customer completes a checkout. Payments are confirmed on the Stellar ledger and carry a transaction hash.
 
-## Get payment
+## The payment object
 
-Response `200`: `{ "data": { "id", "checkoutId", "status", "amount", "transactionHash", "customerId", "environment", ... } }`. Status can be `pending`, `completed`, or `failed`.
+<ResponseField name="id" type="string">
+  Unique identifier. Prefixed with `pay_`.
+</ResponseField>
+
+<ResponseField name="object" type="string">
+  Always `"payment"`.
+</ResponseField>
+
+<ResponseField name="checkout_id" type="string">
+  The checkout this payment originated from.
+</ResponseField>
+
+<ResponseField name="customer_id" type="string">
+  The customer who made the payment.
+</ResponseField>
+
+<ResponseField name="subscription_id" type="string">
+  If this payment is a subscription renewal, the subscription ID.
+</ResponseField>
+
+<ResponseField name="amount" type="string">
+  Amount and asset, e.g. `"50 XLM"`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `pending`, `confirmed`, or `failed`.
+</ResponseField>
+
+<ResponseField name="transaction_hash" type="string">
+  The Stellar transaction hash.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Arbitrary key-value data.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp.
+</ResponseField>
+
+<ResponseField name="line_items" type="array">
+  Detailed breakdown included on retrieval.
+
+  <Expandable title="line item fields">
+    <ResponseField name="customer" type="object">
+      Customer snapshot at the time of payment.
+    </ResponseField>
+    <ResponseField name="wallet" type="object">
+      The wallet that made the payment.
+    </ResponseField>
+    <ResponseField name="refund" type="object">
+      The associated refund, if one was issued.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Retrieve a payment
+
+`GET /payment/{id}`
+
+Fetches the payment and verifies its on-chain status before returning. If the payment is still `pending`, the Stellar network is queried and the status is updated accordingly.
+
+```bash
+curl https://api.stellartools.dev/payment/pay_01jx... \
+  -H "x-api-key: YOUR_API_KEY"
+```

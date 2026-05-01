@@ -1,0 +1,101 @@
+---
+title: "TypeScript SDK"
+description: "The core SDK for the StellarTools API"
+---
+
+The `@stellartools/core` package is the main way to talk to the StellarTools API from TypeScript or JavaScript. It covers customers, checkouts, products, subscriptions, payments, refunds, and credits.
+
+## Install
+
+```bash
+npm install @stellartools/core
+```
+
+## Initialize
+
+```ts
+import { StellarTools } from "@stellartools/core";
+
+const st = new StellarTools({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+});
+```
+
+The API key determines whether requests go to testnet or mainnet. No other configuration is needed.
+
+## Customers
+
+```ts
+const customer = await st.customers.create({
+  email: "jane@example.com",
+  name: "Jane Smith",
+  phone: "+12345678901",
+});
+
+// customer.id — use this as customerId everywhere else
+```
+
+## Checkouts
+
+```ts
+const checkout = await st.checkout.create({
+  customerId: customer.id,
+  productId: "prod_xxx",
+  redirectUrl: "https://yourapp.com/success",
+});
+
+// Send the customer to checkout.paymentUrl
+redirect(checkout.paymentUrl);
+```
+
+For a direct amount checkout without a product:
+
+```ts
+const checkout = await st.checkout.create({
+  customerId: customer.id,
+  amount: 10,
+  assetCode: "XLM",
+  redirectUrl: "https://yourapp.com/success",
+});
+```
+
+## Products
+
+```ts
+const product = await st.products.create({
+  name: "Pro Plan",
+  type: "subscription",
+  assetCode: "XLM",
+  priceAmount: 10,
+  recurringPeriod: "monthly",
+});
+```
+
+Product types: `one_time`, `subscription`, `metered`.
+
+## Subscriptions
+
+```ts
+// Create
+const subscription = await st.subscriptions.create({
+  customerId: "cust_xxx",
+  productId: "prod_xxx",
+});
+
+// Pause, resume, cancel
+await st.subscriptions.pause(subscription.id);
+await st.subscriptions.resume(subscription.id);
+await st.subscriptions.cancel(subscription.id);
+```
+
+## Webhooks
+
+```ts
+const event = st.webhooks.constructEvent(
+  rawBody,
+  req.headers.get("X-StellarTools-Signature")!,
+  process.env.STELLAR_TOOLS_WEBHOOK_SECRET!
+);
+```
+
+See the [Webhooks](/webhooks) page for all event types and a full handler example.
