@@ -23,7 +23,7 @@ export class CreditApi {
     return unwrap(
       await Result.andThenAsync(validateSchema(creditTransactionSchema, params), async (data) => {
         return await this.apiClient.post<CreditBalance>(
-          `/customers/${customerId}/credits/${data.productId}/transaction`,
+          `/customers/${customerId}/credits/${data.product_id}/transaction`,
           data
         );
       })
@@ -58,8 +58,8 @@ export class CreditApi {
     return unwrap(
       await Result.andThenAsync(validateSchema(checkCreditSchema, params), async (data) => {
         return await this.apiClient.post<{ isSufficient: boolean }>(
-          `/customers/${customerId}/credits/${data.productId}/transaction`,
-          { amount: data.rawAmount, dryRun: true, type: "refund" }
+          `/customers/${customerId}/credits/${data.product_id}/transaction`,
+          { amount: data.raw_amount, dryRun: true, type: "refund" }
         );
       })
     );
@@ -69,7 +69,7 @@ export class CreditApi {
     return unwrap(
       await Result.andThenAsync(validateSchema(consumeCreditSchema, params), async (data) => {
         return await this.apiClient.post<CreditBalance>(
-          `/customers/${customerId}/credits/${data.productId}/transaction`,
+          `/customers/${customerId}/credits/${data.product_id}/transaction`,
           { ...data, type: "deduct", dryRun: false }
         );
       })

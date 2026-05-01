@@ -9,16 +9,18 @@ import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString } from "@
 import { toast } from "@/components/ui/toast";
 import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { requiresTrustline, retrieveAccount } from "@/integrations/stellar-core";
-import { xlmToStroops } from "@/lib/utils";
+import { stroopsToXlm, xlmToStroops } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Asset, BASE_FEE, Memo, Networks, Operation, Transaction, TransactionBuilder } from "@stellar/stellar-sdk";
 import { UseMutationResult, UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as RHF from "react-hook-form";
 import { z as Schema } from "zod";
 
+type Checkout = Awaited<ReturnType<typeof retrieveCheckoutAndCustomer>>;
+
 interface CheckoutContextValue {
   id: string;
-  checkout: undefined | ReturnType<typeof retrieveCheckoutAndCustomer> extends Promise<infer T> ? T : any;
+  checkout: undefined | Checkout;
   query: UseQueryResult<any, Error>;
   form: RHF.UseFormReturn<any>;
   isLoading: boolean;
@@ -142,6 +144,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
                 assetId: checkout?.assetId,
                 subscriptionId: null,
                 amountUsdCentsSnapshot: BigInt(0),
+                creditBalanceId: null,
               },
               checkout?.organizationId,
               checkout?.environment,
@@ -176,7 +179,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
               destination: checkout.merchantPublicKey,
               asset:
                 checkout.assetCode === "XLM" ? Asset.native() : new Asset(checkout.assetCode!, checkout.assetIssuer!),
-              amount: checkout.finalAmount.toString(),
+              amount: stroopsToXlm(BigInt(checkout.finalAmount)),
             })
           )
           .addMemo(Memo.text(checkoutId))
@@ -212,6 +215,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
                 assetId: checkout?.assetId,
                 subscriptionId: null,
                 amountUsdCentsSnapshot: BigInt(0),
+                creditBalanceId: null,
               },
               checkout?.organizationId,
               checkout?.environment,

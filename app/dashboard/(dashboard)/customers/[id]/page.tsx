@@ -67,7 +67,7 @@ import { useParams, useRouter } from "next/navigation";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
 
-import { RefundModalContent } from "../../transactions/_shared";
+import { RefundModalContent, RefundModalFooter } from "../../transactions/_shared";
 
 // --- Reusable Internal Components ---
 
@@ -183,6 +183,9 @@ export default function CustomerDetailPage() {
     createdUrl: null as string | null,
   });
   const isCheckoutModalOpenRef = React.useRef(false);
+  const refundModalSubmitRef = React.useRef<(() => void) | null>(null);
+  const [refundModalFooterProps, setRefundModalFooterProps] = React.useState({ isPending: false });
+  const isRefundModalOpenRef = React.useRef(false);
   const invalidate = useInvalidateOrgQuery();
   const { data: orgContext } = useOrgContext();
   const { data: payments, isLoading: isLoadingPayments } = useOrgQuery(["payments", customerId], () =>
@@ -200,6 +203,8 @@ export default function CustomerDetailPage() {
 
   const openRefundModal = React.useCallback(
     (paymentToRefund: ResolvedPayment | null) => {
+      isRefundModalOpenRef.current = true;
+      setRefundModalFooterProps({ isPending: false });
       AppModal.open({
         title: "Create Refund",
         description: "Process a refund for a transaction by providing the payment details.",
@@ -212,15 +217,39 @@ export default function CustomerDetailPage() {
               invalidate(["payments", customerId]);
               AppModal.close();
             }}
+            setSubmitRef={refundModalSubmitRef}
+            onFooterChange={(props) => setRefundModalFooterProps((prev) => ({ ...prev, ...props }))}
           />
         ),
-        footer: null,
+        footer: (
+          <RefundModalFooter
+            onClose={AppModal.close}
+            submitRef={refundModalSubmitRef}
+            isPending={false}
+          />
+        ),
         size: "small",
         showCloseButton: true,
+        onClose: () => {
+          isRefundModalOpenRef.current = false;
+        },
       });
     },
     [customerId, invalidate]
   );
+
+  React.useEffect(() => {
+    if (!isRefundModalOpenRef.current) return;
+    AppModal.updateConfig({
+      footer: (
+        <RefundModalFooter
+          onClose={AppModal.close}
+          submitRef={refundModalSubmitRef}
+          isPending={refundModalFooterProps.isPending}
+        />
+      ),
+    });
+  }, [refundModalFooterProps.isPending]);
 
   const openCheckoutModal = React.useCallback(() => {
     isCheckoutModalOpenRef.current = true;
@@ -611,7 +640,7 @@ function CheckoutModalContent({
         ?.filter((p) => p.product.status === "active")
         .map((p) => ({
           value: p.product.id,
-          label: `${p.product.name} - ${p.product.priceAmount} ${p.asset.code}`,
+          label: `${p.product.name} - ${stroopsToXlm(p.product.priceAmount)} ${p.asset.code}`,
           type: p.product.type,
           recurringPeriod: p.product.recurringPeriod,
         })) ?? []
@@ -628,12 +657,12 @@ function CheckoutModalContent({
       });
 
       const response = await api.post<Checkout>("/checkout?type=product", {
-        customerId,
-        customerEmail: undefined,
-        customerPhone: undefined,
-        productId: data.productId,
+        customer_id: customerId,
+        customer_email: undefined,
+        customer_phone: undefined,
+        product_id: data.productId,
         description: data.description,
-        redirectUrl: data.redirectUrl || undefined,
+        redirect_url: data.redirectUrl || undefined,
         metadata: null,
       });
 
@@ -645,6 +674,7 @@ function CheckoutModalContent({
     },
     onSuccess: async (data: any) => {
       invalidate(["payments", customerId]);
+      invalidate(["customer-events", customerId]);
       toast.success("Checkout created");
       const baseUrl =
         (typeof process.env.NEXT_PUBLIC_CHECKOUT_URL === "string" && process.env.NEXT_PUBLIC_CHECKOUT_URL.trim()) ||

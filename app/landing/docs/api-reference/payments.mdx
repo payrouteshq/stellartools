@@ -28,7 +28,7 @@ A payment is created automatically when a customer completes a checkout. Payment
 </ResponseField>
 
 <ResponseField name="amount" type="string">
-  Amount and asset, e.g. `"50 XLM"`.
+  Amount and asset code, e.g. `"50 XLM"`.
 </ResponseField>
 
 <ResponseField name="status" type="string">
@@ -39,6 +39,51 @@ A payment is created automatically when a customer completes a checkout. Payment
   The Stellar transaction hash.
 </ResponseField>
 
+<ResponseField name="billing_details" type="object | null">
+  Snapshot of the customer's billing info at the time of payment. `null` if no customer was attached.
+
+  <Expandable title="billing_details fields">
+    <ResponseField name="email" type="string">
+      Customer's email address.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Customer's full name.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="payment_method_details" type="object | null">
+  The Stellar wallet used to make the payment. `null` if unavailable.
+
+  <Expandable title="payment_method_details fields">
+    <ResponseField name="id" type="string">
+      Wallet identifier. Prefixed with `cwl_`.
+    </ResponseField>
+    <ResponseField name="address" type="string">
+      The Stellar public key (G-address).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="line_items" type="array">
+  Refunds issued against this payment. Empty array if no refunds exist.
+
+  <Expandable title="line item fields">
+    <ResponseField name="id" type="string">
+      Unique identifier for the refund. Prefixed with `ref_`.
+    </ResponseField>
+    <ResponseField name="amount" type="string">
+      Refunded amount and asset code, e.g. `"10 XLM"`.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      The reason provided when the refund was issued.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      `pending`, `confirmed`, or `failed`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
 <ResponseField name="metadata" type="object">
   Arbitrary key-value data.
 </ResponseField>
@@ -47,31 +92,46 @@ A payment is created automatically when a customer completes a checkout. Payment
   ISO 8601 timestamp.
 </ResponseField>
 
-<ResponseField name="line_items" type="array">
-  Detailed breakdown included on retrieval.
-
-  <Expandable title="line item fields">
-    <ResponseField name="customer" type="object">
-      Customer snapshot at the time of payment.
-    </ResponseField>
-    <ResponseField name="wallet" type="object">
-      The wallet that made the payment.
-    </ResponseField>
-    <ResponseField name="refund" type="object">
-      The associated refund, if one was issued.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
-
 ---
 
 ## Retrieve a payment
 
 `GET /payment/{id}`
 
-Fetches the payment and verifies its on-chain status before returning. If the payment is still `pending`, the Stellar network is queried and the status is updated accordingly.
+Fetches a single payment by ID. Before returning, the Stellar network is queried for any `pending` payments and their status is updated accordingly.
 
 ```bash
 curl https://api.stellartools.dev/payment/pay_01jx... \
   -H "x-api-key: YOUR_API_KEY"
 ```
+
+Returns a payment object.
+
+---
+
+## List payments
+
+`GET /payment`
+
+Returns a paginated list of payments for your account, ordered by creation date descending.
+
+```bash
+curl https://api.stellartools.dev/payment \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+### Query parameters
+
+<ParamField query="customer" type="string">
+  Filter payments by customer ID. Returns only payments made by this customer.
+</ParamField>
+
+<ParamField query="limit" type="number">
+  Maximum number of payments to return. Defaults to `10`.
+</ParamField>
+
+<ParamField query="starting_after" type="string">
+  Return payments after this payment ID (exclusive). Use the last `id` in the previous page to paginate forward.
+</ParamField>
+
+Returns a [list object](/api-reference/introduction#pagination) containing payment objects.

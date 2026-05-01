@@ -42,11 +42,8 @@ export const POST = apiHandler({
 
     if (cancellationResult.isErr()) return Result.err(cancellationResult.error);
 
-    return await putSubscription(
-      id,
-      { canceledAt: new Date(), cancelAtPeriodEnd: true },
-      organizationId,
-      environment
-    ).then((_) => Result.ok({ success: true }));
+    return await putSubscription(id, { canceledAt: new Date() }, organizationId, environment).then((_) =>
+      Result.ok({ success: true })
+    );
   },
 });

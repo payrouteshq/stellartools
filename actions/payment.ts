@@ -12,6 +12,7 @@ import { PaymentStatus } from "@/constant/schema.client";
 import {
   Account,
   Checkout,
+  CreditBalance,
   Customer,
   Network,
   Organization,
@@ -37,6 +38,8 @@ import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/
 import { all } from "better-all";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import moment from "moment";
+
+import { postCreditBalance, postCreditTransaction } from "./credit";
 
 type PaymentContext = {
   org: Organization;
@@ -133,8 +136,6 @@ const paymentActionHandler = async (
     const sideEffects: (() => Promise<void>)[] = [];
 
     const rawAmount = `${stroopsToXlm(payment.amount)} ${payment.metadata?.assetCode}`;
-
-    console.log({ rawAmount });
 
     const basePayload = {
       id: payment.id,
@@ -248,9 +249,6 @@ export const postPayment = async (
   env?: Network,
   options?: { customerWalletAddress?: string; assetCode?: string; assetId?: string | null; failErrorMessage?: string }
 ) => {
-  console.log("posting payment");
-  console.dir({ params }, { depth: 100 });
-  console.log("resolving org context");
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   let customerWalletId: string | null = null;
@@ -263,8 +261,6 @@ export const postPayment = async (
       environment
     ).then((w) => w?.id ?? null);
   }
-
-  console.log({ customerWalletId });
 
   return await paymentActionHandler(
     async () => {
@@ -400,6 +396,7 @@ export const deletePayment = async (id: string, organizationId: string) => {
 };
 
 export const sweepAndProcessPayment = async (checkoutId: string) => {
+  console.log("sweeping and processing payment", checkoutId);
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
 
   if (!checkout || checkout.status !== "open" || checkout.productType == "subscription") {
@@ -431,6 +428,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
           metadata: null,
           assetId,
           amountUsdCentsSnapshot: BigInt(0),
+          creditBalanceId: null,
         },
         organizationId,
         environment,
@@ -450,10 +448,30 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
     );
 
     const amountUsdCentsSnapshot = BigInt(
-      Math.round((await getAssetUsdPrice(checkout.assetMetadata ?? {})) * checkout.finalAmount) * 100
+      Math.round((await getAssetUsdPrice(checkout.assetMetadata ?? {})) * Number(stroopsToXlm(checkout.finalAmount))) *
+        100
     );
 
-    console.log("amountUsdCentsSnapshot", amountUsdCentsSnapshot);
+    const isMeteredProduct = checkout.productType == "metered" && checkout.productTotalCredits;
+
+    let creditBalance: CreditBalance | null = null;
+
+    if (isMeteredProduct) {
+      console.log("posting credit balance");
+
+      creditBalance = await postCreditBalance(
+        {
+          customerId,
+          productId: checkout.productId,
+          balance: checkout.productTotalCredits!,
+          consumed: BigInt(0),
+          granted: checkout.productTotalCredits!,
+          metadata: null,
+        },
+        organizationId,
+        environment
+      );
+    }
 
     await postPayment(
       {
@@ -466,6 +484,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
         metadata: null,
         assetId,
         amountUsdCentsSnapshot,
+        creditBalanceId: creditBalance?.id ?? null,
       },
 
       organizationId,

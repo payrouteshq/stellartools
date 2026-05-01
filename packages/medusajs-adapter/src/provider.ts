@@ -87,22 +87,21 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
             currency_code,
           }),
           async (valid) => {
-            const checkoutPayload = {
+            const checkout = await this.stellar.checkouts.createDirect({
               amount: Number(valid.amount),
-              assetCode: valid.currency_code,
+              asset_code: valid.currency_code,
+              customer_id: context?.customer?.id as string,
+              redirect_url: data?.redirectUrl as string,
               metadata: data?.metadata as any,
               description: (data?.description as string) ?? "Order Payment",
-              customerId: context?.customer?.id as string,
-              redirectUrl: data?.redirectUrl as string,
-            };
-            const checkout = await this.stellar.checkouts.createDirect(checkoutPayload);
+            });
             return Result.ok(checkout);
           }
         )
       ).map((checkout) => ({
         id: checkout.id,
         status: PaymentSessionStatus.REQUIRES_MORE,
-        data: { id: checkout.id, payment_url: checkout.paymentUrl },
+        data: { id: checkout.id, payment_url: checkout.payment_url },
       }))
     );
   };
@@ -147,7 +146,7 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
     }
 
     const refund = await this.stellar.refunds.create({
-      paymentId: result.value.paymentId,
+      payment_id: result.value.paymentId,
       reason: result.value.reason ?? "",
       metadata: { source: "MedusaJS Adapter" },
     });

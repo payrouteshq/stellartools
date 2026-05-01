@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Slider } from "@/components/ui/slider";
 import { useOrgQuery } from "@/hooks/use-org-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, Package, Search } from "lucide-react";
@@ -55,12 +56,12 @@ const columns: ColumnDef<UsageRecord>[] = [
             <span className="text-muted-foreground text-sm">/ {record.granted.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
-              <div
-                className="bg-primary h-full transition-all"
-                style={{ width: `${Math.min(usagePercentage, 100)}%` }}
-              />
-            </div>
+            <Slider
+              value={[Math.min(usagePercentage, 100)]}
+              min={0}
+              max={100}
+              className="pointer-events-none"
+            />
             <span className="text-muted-foreground text-xs">{usagePercentage.toFixed(1)}%</span>
           </div>
         </div>
@@ -171,7 +172,6 @@ export default function UsagePage() {
       label: "Revoke",
       onClick: (record) => {
         console.log("Revoke usage record:", record.id);
-        // Add your revoke logic here
       },
       variant: "destructive",
     },

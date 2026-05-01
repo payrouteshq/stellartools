@@ -262,7 +262,7 @@ export const products = pgTable("product", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   environment: networkEnum("network").notNull(),
-  priceAmount: integer("price_amount").notNull(),
+  priceAmount: bigint("price_amount", { mode: "bigint" }).notNull(),
 
   // Subscription
   recurringPeriod: recurringPeriodEnum("recurring_period"),
@@ -284,7 +284,7 @@ export const checkouts = pgTable(
       .references(() => organizations.id),
     customerId: text("customer_id").references(() => customers.id),
     productId: text("product_id").references(() => products.id),
-    amount: integer("amount"),
+    amount: bigint("amount", { mode: "bigint" }),
     description: text("description"),
     status: checkoutStatusEnum("status").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
@@ -354,6 +354,7 @@ export const payments = pgTable("payment", {
   customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
   assetId: text("asset_id").references(() => assets.id),
   subscriptionId: text("subscription_id").references(() => subscriptions.id),
+  creditBalanceId: text("credit_balance_id").references(() => creditBalances.id),
   metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
 });
 
@@ -388,7 +389,7 @@ export const payouts = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id),
-    amount: integer("amount").notNull(),
+    amount: bigint("amount", { mode: "bigint" }).notNull(),
     status: payoutStatusEnum("status").notNull(),
     walletAddress: text("wallet_address"),
     asset: text("asset").references(() => assets.id),

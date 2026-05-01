@@ -80,9 +80,9 @@ export const createSubscription = (options: BillingConfig) =>
     {
       method: "POST",
       body: Schema.object({
-        productId: Schema.string(),
+        product_id: Schema.string(),
         metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
-        cancelAtPeriodEnd: Schema.boolean(),
+        cancel_at_period_end: Schema.boolean(),
         period: Schema.object({ from: Schema.coerce.date(), to: Schema.coerce.date() }),
       }),
       use: [sessionMiddleware],
@@ -90,7 +90,7 @@ export const createSubscription = (options: BillingConfig) =>
     async (ctx) => {
       const customerId = await retrieveOrCreateCustomer(ctx);
       const { stellar } = getContext(ctx, options);
-      const sub = await stellar.subscriptions.create({ customerIds: [customerId], ...ctx.body });
+      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_ids: [customerId] });
 
       options?.onSubscriptionCreated?.(sub);
 
@@ -114,8 +114,8 @@ export const consumeCredits = (options: BillingConfig) =>
     {
       method: "POST",
       body: Schema.object({
-        productId: Schema.string(),
-        rawAmount: Schema.number(),
+        product_id: Schema.string(),
+        raw_amount: Schema.number(),
         metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
       }),
       use: [sessionMiddleware],
@@ -132,7 +132,7 @@ export const consumeCredits = (options: BillingConfig) =>
       });
 
       if (options.onCreditsLow && result.balance <= (options.creditLowThreshold ?? DEFAULT_CREDITS_LOW_THRESHOLD)) {
-        await options.onCreditsLow({ ...result, customerId });
+        await options.onCreditsLow({ ...result, customer_id: customerId });
       }
 
       return ctx.json(result);
@@ -145,7 +145,7 @@ export const getTransactions = (options: BillingConfig) =>
     {
       method: "GET",
       query: Schema.object({
-        productId: Schema.string(),
+        product_id: Schema.string(),
         limit: Schema.coerce.number().optional(),
         offset: Schema.coerce.number().optional(),
       }),
@@ -170,7 +170,7 @@ export const createRefund = (options: BillingConfig) =>
     {
       method: "POST",
       body: Schema.object({
-        paymentId: Schema.string(),
+        payment_id: Schema.string(),
         reason: Schema.string(),
         metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
       }),
@@ -180,7 +180,7 @@ export const createRefund = (options: BillingConfig) =>
       const { stellar } = getContext(ctx, options);
       return ctx.json(
         await stellar.refunds.create({
-          paymentId: ctx.body.paymentId,
+          payment_id: ctx.body.payment_id,
           reason: ctx.body.reason,
           metadata: { ...stringifyObjectFields(ctx.body?.metadata ?? {}), source: "betterauth-adapter" },
         })

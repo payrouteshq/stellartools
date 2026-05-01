@@ -4,9 +4,7 @@ import * as React from "react";
 
 import { retrieveAssets } from "@/actions/asset";
 import { createProductImage } from "@/actions/product";
-import { AppModal } from "@/components/app-modal";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
-import { Markdown } from "@/components/markdown";
 import { NumberField } from "@/components/number-field";
 import { RadioGroup } from "@/components/radio-group";
 import { SelectInput } from "@/components/select+input";
@@ -18,12 +16,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { Product as ProductSchema } from "@/db";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { fileFromUrl } from "@/lib/utils";
+import { fileFromUrl, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, RecurringPeriod } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
-import { HelpCircle, Plus, Trash2 } from "lucide-react";
+import { HelpCircle, Info, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import * as RHF from "react-hook-form";
 import { useFieldArray, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -43,8 +42,8 @@ const productSchema = z.object({
     asset: z.string().min(1, "Asset is required"),
   }),
   unit: z.string().optional(),
-  totalCredits: z.bigint().min(BigInt(0)).optional(),
-  unitsPerCredit: z.bigint().min(BigInt(1)).optional(),
+  totalCredits: z.number().min(0).optional(),
+  unitsPerCredit: z.number().min(1).optional(),
   metadata: z
     .array(
       z.object({
@@ -74,59 +73,7 @@ export interface Product extends Pick<
   totalCredits?: bigint | null;
 }
 
-function openLearnMoreModal() {
-  AppModal.open({
-    title: "Understanding Metered Billing",
-    content: <Markdown content={METERED_BILLING_MARKDOWN} />,
-    size: "full",
-    showCloseButton: true,
-    primaryButton: { children: "Got it", onClick: AppModal.close },
-  });
-}
-
-// --- Modal Component (exported for use on product detail page) ---
-
-const METERED_BILLING_MARKDOWN = /* html */ `
-## What is metered billing?
-
-Metered billing charges customers based on their actual usage. Think pay-as-you-go: upload storage, API calls, AI tokens, processing time, anything measurable.
-
----
-
-## Unit Label
-
-A human-friendly name for what you're measuring. This can be anything: "tokens", "megabytes", "API calls", "minutes", "images", whatever makes sense for your service.
-
-**Example:** "MB" for file storage, "tokens" for AI usage
-
----
-
-## Unit Divisor
-
-Converts raw measurements into your chosen unit. For example, if you're measuring file storage and raw data comes in bytes, set this to 1,048,576 to convert bytes to megabytes.
-
-**Common divisors:**
-- File count: 1 (or leave as default)
-- Kilobytes: 1,024
-- Megabytes: 1,048,576
-- Gigabytes: 1,073,741,824
-
----
-
-## Units per Credit
-
-How many units equal one credit. If you set this to 10, then every 10 units costs 1 credit.
-
-**Example:** Set to 5 means uploading 50MB costs 10 credits (50 / 5)
-
----
-
-## Credits Granted
-
-The number of credits customers get when they purchase this product. They'll spend these credits as they use your service.
-
-**Example:** Grant 1,000 credits = 5,000 units if unitsPerCredit is 5
-`;
+// --- Modal Component  ---
 
 export function ProductsModalContent({
   onClose,
@@ -159,8 +106,8 @@ export function ProductsModalContent({
       type: "one_time",
       recurringPeriod: "month",
       price: { amount: "", asset: "XLM" },
-      totalCredits: BigInt(0),
-      unitsPerCredit: BigInt(1),
+      totalCredits: 0,
+      unitsPerCredit: 1,
       metadata: [],
     },
   });
@@ -187,12 +134,7 @@ export function ProductsModalContent({
           : [];
 
       const displayAmount =
-        editingProduct.pricing.amount != null
-          ? Number(editingProduct.pricing.amount).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          : "";
+        editingProduct.pricing.amount != null ? stroopsToXlm(BigInt(editingProduct.pricing.amount.toString())) : "";
 
       form.reset({
         name: editingProduct.name,
@@ -205,8 +147,8 @@ export function ProductsModalContent({
           asset: editingProduct.pricing.asset,
         },
         unit: editingProduct.unit ?? "",
-        totalCredits: editingProduct.totalCredits ?? BigInt(0),
-        unitsPerCredit: editingProduct.unitsPerCredit ?? BigInt(1),
+        totalCredits: Number(editingProduct.totalCredits ?? 0),
+        unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
         metadata: metadataArray,
       });
 
@@ -272,11 +214,11 @@ export function ProductsModalContent({
           description: data?.description,
           images: imageResults,
           metadata: metadataRecord,
-          priceAmount: parseFloat(data.price.amount),
-          recurringPeriod: data.recurringPeriod,
+          price_amount: parseFloat(data.price.amount),
+          recurring_period: data.recurringPeriod,
           unit: data.unit,
-          totalCredits: data.totalCredits,
-          unitsPerCredit: data.unitsPerCredit,
+          total_credits: data.totalCredits,
+          units_per_credit: data.unitsPerCredit,
         });
 
         if (response.isErr()) throw new Error(response.error.message);
@@ -289,12 +231,12 @@ export function ProductsModalContent({
         description: data.description,
         images: imageResults,
         type: data.type,
-        priceAmount: parseFloat(data.price.amount),
-        assetId: data.price.asset.split(":")[1],
-        recurringPeriod: data.recurringPeriod,
+        price_amount: parseFloat(data.price.amount),
+        asset_code: data.price.asset.split(":")[0],
+        recurring_period: data.recurringPeriod,
         unit: data.unit,
-        totalCredits: data.totalCredits,
-        unitsPerCredit: data.unitsPerCredit,
+        total_credits: data.totalCredits,
+        units_per_credit: data.unitsPerCredit,
         metadata: metadataRecord,
         status: "active",
       });
@@ -486,16 +428,14 @@ export function ProductsModalContent({
           <div className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
               <Label className="font-medium">Pricing Model</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-auto gap-1.5 px-2 py-1 text-xs"
-                onClick={openLearnMoreModal}
+              <Link
+                target="_blank"
+                className="text-primary flex h-auto items-center gap-1.5 px-2 py-1 text-xs no-underline hover:underline hover:underline-offset-2"
+                href={process.env.NEXT_PUBLIC_DOCS_URL!}
               >
                 <HelpCircle className="h-3.5 w-3.5" />
                 Learn about metered billing
-              </Button>
+              </Link>
             </div>
             <RHF.Controller
               control={form.control}
@@ -536,6 +476,7 @@ export function ProductsModalContent({
                     render={({ field, fieldState: { error } }) => (
                       <TextField
                         {...field}
+                        disabled={isEditMode}
                         value={field.value || ""}
                         id="unit"
                         label="Unit Label"
@@ -548,11 +489,12 @@ export function ProductsModalContent({
 
                   <RHF.Controller
                     control={form.control}
-                    name="unit"
+                    name="unitsPerCredit"
                     render={({ field, fieldState: { error } }) => (
                       <NumberField
                         {...field}
-                        value={field.value || 1}
+                        disabled={isEditMode}
+                        value={field.value?.toString() || "1"}
                         id="units_per_credit"
                         label="Units per Credit"
                         placeholder="1"
@@ -569,7 +511,7 @@ export function ProductsModalContent({
                   render={({ field, fieldState: { error } }) => (
                     <NumberField
                       {...field}
-                      value={field.value?.toString() || "0"}
+                      value={field.value || "0"}
                       id="totalCredits"
                       label="Total Credits"
                       placeholder="e.g., 1000"
@@ -579,10 +521,10 @@ export function ProductsModalContent({
                   )}
                 />
 
-                <div className="bg-primary/5 border-primary/10 rounded-md border p-3">
+                <div className="bg-primary/5 border-primary/10 flex items-center gap-2 rounded-md border p-3">
+                  <Info className="text-primary h-4 w-4" />
                   <p className="text-primary text-[11px] leading-relaxed font-medium">
-                    PRO TIP: Every{" "}
-                    <span className="font-bold underline">{(watched.unitsPerCredit || 1).toLocaleString()}</span>{" "}
+                    Every <span className="font-bold underline">{(watched.unitsPerCredit || 1).toLocaleString()}</span>{" "}
                     {watched.unit || "units"} used will deduct <span className="font-bold underline">1</span> credit
                     from the customer's balance of{" "}
                     <span className="font-bold underline">{(watched.totalCredits || 0).toLocaleString()}</span>.

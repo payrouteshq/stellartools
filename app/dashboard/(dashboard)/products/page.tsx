@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { stroopsToXlm } from "@/lib/utils";
 import { Column, ColumnDef } from "@tanstack/react-table";
 import {
   Archive,
@@ -238,8 +239,8 @@ function ProductsPageContent() {
             name: product.name,
             description: product.description,
             pricing: {
-              amount: product.priceAmount,
-              asset: `${asset.code}:${asset.id}`,
+              amount: Number(stroopsToXlm(BigInt(product.priceAmount.toString()))),
+              asset: asset.code,
               isRecurring: product.type === "subscription",
               period: product.recurringPeriod!,
             },

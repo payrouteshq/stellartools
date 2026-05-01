@@ -10,24 +10,20 @@ export interface CreditBalance {
   id: string;
 
   /**
-   * The organization ID of the credit balance.
-   */
-  organizationId: string;
-
-  /**
    * The customer ID of the credit balance.
    */
-  customerId: string;
+  customer_id: string;
 
   /**
    * The product ID of the credit balance.
    */
-  productId: string;
+  product_id: string;
 
   /**
    * The environment of the credit balance.
    */
   environment: Environment;
+
   /**
    * The metadata of the credit balance.
    */
@@ -51,11 +47,12 @@ export interface CreditBalance {
   /**
    * The created at timestamp for the credit balance.
    */
-  createdAt: string;
+  created_at: string;
+
   /**
    * The updated at timestamp for the credit balance.
    */
-  updatedAt: string;
+  updated_at: string;
 }
 
 export interface CreditTransaction {
@@ -64,21 +61,17 @@ export interface CreditTransaction {
    */
   id: string;
   /**
-   * The organization ID of the credit transaction.
-   */
-  organizationId: string;
-  /**
    * The customer ID of the credit transaction.
    */
-  customerId: string;
+  customer_id: string;
   /**
    * The product ID of the credit transaction.
    */
-  productId: string;
+  product_id: string;
   /**
    * The balance ID of the credit transaction.
    */
-  balanceId: string;
+  balance_id: string;
   /**
    * The amount of the credit transaction.
    */
@@ -87,12 +80,12 @@ export interface CreditTransaction {
   /**
    * The balance before the credit transaction.
    */
-  balanceBefore: number;
+  balance_before: number;
 
   /**
    * The balance after the credit transaction.
    */
-  balanceAfter: number;
+  balance_after: number;
 
   /**
    * The reason of the credit transaction.
@@ -107,19 +100,19 @@ export interface CreditTransaction {
   /**
    * The created at timestamp for the credit transaction.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The updated at timestamp for the credit transaction.
    */
-  updatedAt: string;
+  updated_at: string;
 }
 
 export interface CreditTransactionParams {
   /**
    * The product ID of the credit transaction.
    */
-  productId: string;
+  product_id: string;
 
   /**
    * The amount of credits to deduct.
@@ -139,7 +132,7 @@ export interface CreditTransactionParams {
 
 export const creditTransactionSchema = schemaFor<CreditTransactionParams>()(
   z.object({
-    productId: z.string(),
+    product_id: z.string(),
     amount: z.number(),
     reason: z.string(),
     metadata: z.record(z.string(), z.any()).optional(),
@@ -150,7 +143,7 @@ export interface CreditTransactionHistoryParams {
   /**
    * The product ID of the credit transaction.
    */
-  productId: string;
+  product_id: string;
 
   /**
    * The limit of the credit transaction history.
@@ -165,7 +158,7 @@ export interface CreditTransactionHistoryParams {
 
 export const creditTransactionHistorySchema = schemaFor<CreditTransactionHistoryParams>()(
   z.object({
-    productId: z.string(),
+    product_id: z.string(),
     limit: z.number().optional(),
     offset: z.number().optional(),
   })
@@ -175,18 +168,18 @@ export interface CheckCreditsParams {
   /**
    * The product ID of the credit action.
    */
-  productId: string;
+  product_id: string;
 
   /**
    * The raw amount of the credit action.
    */
-  rawAmount: number;
+  raw_amount: number;
 }
 
 export const checkCreditSchema = schemaFor<CheckCreditsParams>()(
   z.object({
-    productId: z.string(),
-    rawAmount: z.number(),
+    product_id: z.string(),
+    raw_amount: z.number(),
     metadata: z.record(z.string(), z.any()).optional(),
   })
 );
@@ -195,7 +188,7 @@ export interface ConsumeCreditParams {
   /**
    * The product ID of the credit action.
    */
-  productId: string;
+  product_id: string;
 
   /**
    * The reason of the credit action.
@@ -205,7 +198,7 @@ export interface ConsumeCreditParams {
   /**
    * The raw amount of the credit action.
    */
-  rawAmount: number;
+  raw_amount: number;
 
   /**
    * The metadata of the credit action.
@@ -215,9 +208,9 @@ export interface ConsumeCreditParams {
 
 export const consumeCreditSchema = schemaFor<ConsumeCreditParams>()(
   z.object({
-    productId: z.string(),
+    product_id: z.string(),
     reason: z.enum(["deduct", "refund", "grant"]),
-    rawAmount: z.number(),
+    raw_amount: z.number(),
     metadata: z.record(z.string(), z.any()).optional(),
   })
 );

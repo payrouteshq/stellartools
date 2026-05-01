@@ -10,6 +10,8 @@ export const POST = apiHandler({
   requiredAppScope: "write:products",
   schema: { body: createProductSchema },
   handler: async ({ body, auth: { organizationId, environment } }) => {
+    console.log(body);
+
     const productData: Parameters<typeof postProduct>[0] = {
       name: body.name,
       description: body.description ?? null,
@@ -22,7 +24,7 @@ export const POST = apiHandler({
       recurringPeriod: body.recurring_period ?? null,
       unit: body.unit ?? null,
       unitsPerCredit: body.units_per_credit ? BigInt(body.units_per_credit) : null,
-      totalCredits: null,
+      totalCredits: body.total_credits ? BigInt(body.total_credits) : null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { useCheckout } from "@/contexts/checkout-context";
-import { cn, truncate } from "@/lib/utils";
+import { cn, stroopsToXlm, truncate } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import Image from "next/image";
@@ -98,7 +98,7 @@ export default function CheckoutUI() {
               )}
               <Separator />
               <div className="text-3xl font-black tracking-tighter sm:text-4xl">
-                {checkout.finalAmount}{" "}
+                {stroopsToXlm(checkout.finalAmount)}{" "}
                 <span className="text-muted-foreground text-lg font-medium">{checkout.assetCode}</span>
                 {checkout.productType === "subscription" && (
                   <span className="text-muted-foreground ml-1 text-sm font-normal">/ {checkout.recurringPeriod}</span>

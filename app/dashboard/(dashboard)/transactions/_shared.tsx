@@ -75,9 +75,9 @@ export function RefundModalContent({
       });
 
       const result = await api.post<{ id: string }>("/refunds", {
-        paymentId: data.paymentId,
+        payment_id: data.paymentId,
         metadata: null,
-        walletAddress: data.walletAddress,
+        wallet_address: data.walletAddress,
         reason: data.reason ?? null,
       });
 

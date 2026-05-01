@@ -81,6 +81,7 @@ export const GET = apiHandler({
               metadata: null,
               assetId: sub.subscription.assetId,
               amountUsdCentsSnapshot,
+              creditBalanceId: null,
             },
             orgId,
             env,

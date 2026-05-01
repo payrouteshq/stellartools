@@ -19,6 +19,7 @@ export const PUT = apiHandler({
         ...body,
         unitsPerCredit: body.units_per_credit ? BigInt(body.units_per_credit.toString()) : null,
         totalCredits: body.total_credits ? BigInt(body.total_credits.toString()) : null,
+        priceAmount: body.price_amount ? BigInt(body.price_amount.toString()) : undefined,
       })
     );
     return Result.ok(product);

@@ -554,8 +554,6 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
         }))
       );
 
-      console.log({ result, error: result.isErr() ? result.error : null });
-
       if (result.isErr()) throw new Error(result.error.message);
 
       return result.value;

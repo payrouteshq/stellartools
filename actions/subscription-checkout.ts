@@ -8,7 +8,7 @@ import { subscriptionIntervals } from "@/constant";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import { retrieveAssetContractId } from "@/integrations/stellar-core";
-import { generateResourceId, xlmToStroops } from "@/lib/utils";
+import { generateResourceId, stroopsToXlm, xlmToStroops } from "@/lib/utils";
 import moment from "moment";
 
 /**
@@ -153,7 +153,8 @@ export async function finalizeSubscriptionCheckout(
     );
 
     const amountUsdCentsSnapshot = BigInt(
-      Math.round((await getAssetUsdPrice(checkout.assetMetadata ?? {})) * checkout.finalAmount) * 100
+      Math.round((await getAssetUsdPrice(checkout.assetMetadata ?? {})) * Number(stroopsToXlm(checkout.finalAmount))) *
+        100
     );
 
     console.log("amountUsdCentsSnapshot", amountUsdCentsSnapshot);
@@ -169,6 +170,7 @@ export async function finalizeSubscriptionCheckout(
         assetId: checkout.assetId,
         subscriptionId,
         amountUsdCentsSnapshot,
+        creditBalanceId: null,
       },
       organizationId,
       environment,

@@ -46,7 +46,7 @@ type ApiKeyFormData = z.infer<typeof apiKeySchema>;
 export default function ApiKeysPage() {
   const invalidate = useInvalidateOrgQuery();
   const { data: apiKeys = [], isLoading } = useOrgQuery(["apiKeys"], () => retrieveApiKeys());
-  const { handleCopy, copied } = useCopy();
+  const { handleCopy } = useCopy();
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteApiKey(id),

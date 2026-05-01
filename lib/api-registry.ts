@@ -21,36 +21,42 @@ const SENSITIVE_KEY_REGEXES: RegExp[] = [
   /password/i,
 ];
 
-export const processResource = <T>(data: T, convertToSnakeCase: boolean = false): T => {
-  if (_.isArray(data)) {
-    return data.map((item) => processResource(item, convertToSnakeCase)).filter((i) => i !== undefined) as T;
+export const processResource = <T>(data: T, convertToSnakeCase: boolean = false): any => {
+  if (typeof data === "bigint") return Number(data.toString());
+
+  if (data instanceof Date) return data.toISOString();
+
+  if (data === null || typeof data !== "object") return data;
+
+  if (Array.isArray(data)) {
+    return data.map((item) => processResource(item, convertToSnakeCase)).filter((v) => v !== undefined);
   }
-  if (!_.isPlainObject(data)) return data;
 
-  const result: Record<string, T> = {};
+  if (_.isPlainObject(data)) {
+    const result: Record<string, any> = {};
 
-  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-    if (SENSITIVE_KEY_REGEXES.some((regex) => regex.test(key))) continue;
+    for (const [key, value] of Object.entries(data)) {
+      if (SENSITIVE_KEY_REGEXES.some((regex) => regex.test(key))) continue;
 
-    if (value === null || value === undefined) continue;
-    if (_.isArray(value) && value.length === 0) continue;
+      if (value === null || value === undefined) continue;
+      if (Array.isArray(value) && value.length === 0) continue;
 
-    const snakeKey = convertToSnakeCase ? _.snakeCase(key) : key;
-    const processedValue = processResource(value, convertToSnakeCase);
+      const targetKey = convertToSnakeCase ? _.snakeCase(key) : key;
 
-    if (processedValue !== undefined) {
-      result[snakeKey] = processedValue as T;
+      const processedValue = processResource(value, convertToSnakeCase);
+
+      if (processedValue !== undefined) {
+        result[targetKey] = processedValue;
+      }
     }
+
+    if (typeof result.id === "string" && !result.object) {
+      const prefix = result.id.split("_")[0];
+      result.object = RESOURCE_OBJECT_MAP[prefix] ?? "unknown";
+    }
+
+    return result;
   }
 
-  // 3. Inject "object" name
-  if (result.id && typeof result.id === "string") {
-    const prefix = result.id.split("_")[0];
-    result.object = (RESOURCE_OBJECT_MAP[prefix] ?? "unknown") as unknown as T;
-  }
-
-  // 4. Flatten Date objects to ISO strings
-  if (data instanceof Date) return data.toISOString() as unknown as T;
-
-  return result as unknown as T;
+  return data;
 };

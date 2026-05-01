@@ -1,11 +1,15 @@
+import { putCreditBalance } from "@/actions/credit";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
+import { putSubscription, retrieveSubscription as retrieveDBSubscription } from "@/actions/subscription";
 import { decrypt } from "@/integrations/encryption";
+import { cancelSubscription as cancelSorobanSubscription, retrieveSubscription } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase, xlmToStroops } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
+import { waitUntil } from "@vercel/functions";
 import { all } from "better-all";
 
 export const OPTIONS = createOptionsHandler();
@@ -20,7 +24,12 @@ export const POST = apiHandler({
       payment: async () => {
         const {
           data: [p],
-        } = await retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true, withAsset: true });
+        } = await retrievePayments(
+          organizationId,
+          environment,
+          { paymentId: payment_id },
+          { withWallets: true, withAsset: true }
+        );
         if (!p) throw new Error("Payment not found");
         if (!p.asset) throw new Error("Payment asset not found");
         if (!p.wallets?.address) throw new Error("Customer wallet address not found");
@@ -66,6 +75,43 @@ export const POST = apiHandler({
       environment,
       { errorMessage: res.isErr() ? res.error.message : undefined }
     );
+
+    const runSidedEffects = async () => {
+      if (payment.creditBalanceId) {
+        await putCreditBalance(payment.creditBalanceId, { isRevoked: true });
+      }
+
+      if (payment.subscriptionId && payment.customerId) {
+        const {
+          data: [subscription],
+        } = await retrieveDBSubscription(payment.subscriptionId, organizationId, environment, {
+          limit: 1,
+        });
+
+        if (!subscription) throw new Error("Subscription not found");
+
+        const cancellationResult = await cancelSorobanSubscription(
+          environment,
+          payment.wallets!.address,
+          subscription.customerId!,
+          subscription.productId!
+        );
+
+        if (cancellationResult.isErr()) throw new Error(cancellationResult.error.message);
+
+        await putSubscription(
+          payment.subscriptionId,
+          {
+            canceledAt: new Date(),
+            metadata: { ...(subscription.metadata ?? {}), cancelReason: "refund" },
+          },
+          organizationId,
+          environment
+        );
+      }
+    };
+
+    waitUntil(runSidedEffects());
 
     return Result.ok(refund);
   },

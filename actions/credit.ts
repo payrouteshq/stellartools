@@ -15,13 +15,21 @@ import { generateResourceId } from "@/lib/utils";
 import { and, desc, eq } from "drizzle-orm";
 
 export const postCreditBalance = async (
-  params: Omit<CreditBalance, "id" | "organizationId" | "environment">,
+  params: Omit<CreditBalance, "id" | "organizationId" | "environment" | "createdAt" | "updatedAt" | "isRevoked">,
   orgId: string,
   env: Network
 ) => {
   return await db
     .insert(creditBalances)
-    .values({ id: generateResourceId("cb", orgId, 20), organizationId: orgId, environment: env, ...params })
+    .values({
+      id: generateResourceId("cb", orgId, 20),
+      organizationId: orgId,
+      environment: env,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isRevoked: false,
+      ...params,
+    })
     .returning()
     .then(([creditBalance]) => creditBalance);
 };

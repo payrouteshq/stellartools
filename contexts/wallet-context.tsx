@@ -161,76 +161,71 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     input: Transaction | TransactionBuilder
   ): Promise<{ txHash: string | null; status: "SUCCESS" | "FAIL"; message?: string }> => {
     setTxStatus(TxStatus.SIGNING);
-    try {
-      const network = input instanceof Transaction ? input.networkPassphrase : (input as any).networkPassphrase;
-      const xdr = input instanceof Transaction ? input.toXDR() : input.build().toXDR();
 
-      const { signedTxXdr } = await getWalletKit(network as Networks).signTransaction(xdr, {
-        address: walletAddress,
-        networkPassphrase: network,
-      });
+    const network = input instanceof Transaction ? input.networkPassphrase : (input as any).networkPassphrase;
+    const xdr = input instanceof Transaction ? input.toXDR() : input.build().toXDR();
 
-      console.log("signedTxXdr", signedTxXdr);
+    const { signedTxXdr } = await getWalletKit(network as Networks).signTransaction(xdr, {
+      address: walletAddress,
+      networkPassphrase: network,
+    });
 
-      setTxStatus(TxStatus.SUBMITTING);
-      const signedTx = new Transaction(signedTxXdr, network);
+    console.log("signedTxXdr", signedTxXdr);
 
-      console.log("signedTx", signedTx);
-      let send_tx_response = await stellarRpc.sendTransaction(signedTx);
-      let curr_time = Date.now();
+    setTxStatus(TxStatus.SUBMITTING);
+    const signedTx = new Transaction(signedTxXdr, network);
 
-      while (send_tx_response.status !== "PENDING" && Date.now() - curr_time < 5000) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        send_tx_response = await stellarRpc.sendTransaction(signedTx);
-      }
+    console.log("signedTx", signedTx);
+    let send_tx_response = await stellarRpc.sendTransaction(signedTx);
+    let curr_time = Date.now();
 
-      console.log("send_tx_response", send_tx_response);
+    while (send_tx_response.status !== "PENDING" && Date.now() - curr_time < 5000) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      send_tx_response = await stellarRpc.sendTransaction(signedTx);
+    }
 
-      if (send_tx_response.status !== "PENDING") {
-        setError("Failed to send transaction");
-        console.error("Failed to send transaction: ", send_tx_response.hash, error);
-        setTxStatus(TxStatus.FAIL);
-        return { txHash: null, status: "FAIL", message: "Failed to send transaction" };
-      }
+    console.log("send_tx_response", send_tx_response);
 
-      curr_time = Date.now();
-      let get_tx_response = await stellarRpc.getTransaction(send_tx_response.hash);
-      while (get_tx_response.status === "NOT_FOUND" && Date.now() - curr_time < 30000) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        get_tx_response = await stellarRpc.getTransaction(send_tx_response.hash);
-      }
-
-      console.log("get_tx_response", get_tx_response);
-
-      if (get_tx_response.status === "NOT_FOUND") {
-        setError("Unable to validate transaction success");
-        console.error("Unable to validate transaction success: ", get_tx_response.txHash);
-        setTxStatus(TxStatus.FAIL);
-        return { txHash: null, status: "FAIL", message: "Unable to validate transaction success" };
-      }
-
-      let hash = signedTx.hash().toString("hex");
-
-      console.log("hash", hash);
-
-      setTxHash(hash);
-      if (get_tx_response.status === "SUCCESS") {
-        console.log("Successfully submitted transaction: ", hash);
-        // stall for a bit to ensure data propagates to horizon
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setTxStatus(TxStatus.SUCCESS);
-        return { txHash: hash, status: "SUCCESS" };
-      } else {
-        console.dir({ get_tx_response }, { depth: 10000 });
-        let error = parseError(get_tx_response);
-        console.error(`Transaction failed: `, hash, error);
-        setTxStatus(TxStatus.FAIL);
-        return { txHash: get_tx_response.txHash, status: "FAIL", message: error.message };
-      }
-    } catch (e: any) {
-      setError(e.message || "Execution failed");
+    if (send_tx_response.status !== "PENDING") {
+      setError("Failed to send transaction");
+      console.error("Failed to send transaction: ", send_tx_response.hash, error);
       setTxStatus(TxStatus.FAIL);
-      return { txHash: null, status: "FAIL", message: "Execution failed" };
+      return { txHash: null, status: "FAIL", message: "Failed to send transaction" };
+    }
+
+    curr_time = Date.now();
+    let get_tx_response = await stellarRpc.getTransaction(send_tx_response.hash);
+    while (get_tx_response.status === "NOT_FOUND" && Date.now() - curr_time < 30000) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      get_tx_response = await stellarRpc.getTransaction(send_tx_response.hash);
+    }
+
+    console.log("get_tx_response", get_tx_response);
+
+    if (get_tx_response.status === "NOT_FOUND") {
+      setError("Unable to validate transaction success");
+      console.error("Unable to validate transaction success: ", get_tx_response.txHash);
+      setTxStatus(TxStatus.FAIL);
+      return { txHash: get_tx_response.txHash, status: "FAIL", message: "Unable to validate transaction success" };
+    }
+
+    let hash = signedTx.hash().toString("hex");
+
+    console.log("hash", hash);
+
+    setTxHash(hash);
+
+    if (get_tx_response.status === "SUCCESS") {
+      console.log("Successfully submitted transaction: ", hash);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setTxStatus(TxStatus.SUCCESS);
+      return { txHash: hash, status: "SUCCESS" };
+    } else {
+      const txHash = get_tx_response.txHash ?? hash;
+      let parsedError = parseError(get_tx_response);
+      console.error(`Transaction failed: `, txHash, parsedError);
+      setTxStatus(TxStatus.FAIL);
+      return { txHash, status: "FAIL", message: parsedError.message };
     }
   };
 

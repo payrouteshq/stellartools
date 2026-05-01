@@ -17,7 +17,7 @@ import {
   products,
 } from "@/db";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
-import { computeDiff, generateResourceId } from "@/lib/utils";
+import { computeDiff, generateResourceId, stroopsToXlm } from "@/lib/utils";
 import { CheckoutStatus } from "@/packages/stellartools/dist/schema/checkout";
 import { all } from "better-all";
 import { and, eq, or, sql } from "drizzle-orm";
@@ -74,7 +74,7 @@ export const postCheckout = async (
             data: {
               productId,
               expiresAt,
-              amount,
+              amount: amount ? Number(stroopsToXlm(BigInt(amount.toString()))) : undefined,
               checkoutId,
               externalUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL!}/${checkoutId}`,
             },
@@ -158,9 +158,11 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
         name: products.name,
         recurringPeriod: products.recurringPeriod,
         images: products.images,
+        totalCredits: products.totalCredits,
+        unitsPerCredit: products.unitsPerCredit,
       },
       assets: { id: assets.id, code: assets.code, issuer: assets.issuer, metadata: assets.metadata },
-      finalAmount: sql<number>`COALESCE(${checkouts.amount}, ${products.priceAmount})`.as("final_amount"),
+      finalAmount: sql<bigint>`COALESCE(${checkouts.amount}, ${products.priceAmount})`.as("final_amount"),
       merchantPublicKey: sql<string>`
       CASE 
         WHEN ${checkouts.environment} = 'testnet' THEN ${organizationSecrets.testnetPublicKey}
@@ -198,7 +200,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
   return {
     ...checkout,
     merchantPublicKey,
-    finalAmount,
+    finalAmount: BigInt(finalAmount),
     productType: product?.type ?? "one_time",
     productName: product?.name ?? "Payment",
     recurringPeriod: product?.recurringPeriod ?? "month",
@@ -213,6 +215,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationLogo,
     merchantEmail,
     assetMetadata: assets$1.metadata,
+    productTotalCredits: product?.totalCredits,
   };
 };
 

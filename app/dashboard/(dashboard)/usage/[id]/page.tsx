@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
 import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
 import { useCopy } from "@/hooks/use-copy";
 import { useOrgQuery } from "@/hooks/use-org-query";
@@ -474,14 +475,7 @@ export default function UsageDetailPage() {
                   <div className="flex flex-col gap-2">
                     <p className="text-muted-foreground text-sm font-medium">Usage Percentage</p>
                     <div className="flex items-center gap-3">
-                      <div className="bg-muted h-3 flex-1 overflow-hidden rounded-full">
-                        <div
-                          className="bg-primary h-full transition-all"
-                          style={{
-                            width: `${usageMeter.usagePercentage}%`,
-                          }}
-                        />
-                      </div>
+                      <Slider value={[usageMeter.usagePercentage]} min={0} max={100} className="pointer-events-none" />
                       <span className="text-lg font-bold">{usageMeter.usagePercentage.toFixed(1)}%</span>
                     </div>
                     <p className="text-muted-foreground text-xs">
