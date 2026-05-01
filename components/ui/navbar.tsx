@@ -27,7 +27,7 @@ import { useRouter } from "next/navigation";
 const NAV_LINKS = [
   { href: "#integrations", label: "Integrations" },
   { href: "#developers", label: "Developers" },
-  { href: "/docs", label: "Docs" },
+  { href: process.env.NEXT_PUBLIC_DOCS_URL!, label: "Docs" },
   { href: "/pricing", label: "Pricing" },
   { href: "/team", label: "Team" },
   { href: "https://github.com/usepaykit/stellartools", label: "GitHub" },
@@ -171,6 +171,7 @@ export function Header() {
                 <Link
                   href={href}
                   className="text-muted-foreground hover:text-foreground text-[14.5px] font-medium no-underline transition-colors"
+                  target={href.startsWith("http") ? "_blank" : undefined}
                 >
                   {label}
                 </Link>

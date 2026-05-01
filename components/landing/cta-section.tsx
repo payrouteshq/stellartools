@@ -18,13 +18,15 @@ export default function CTASection() {
         </p>
         <div className="flex flex-row items-center justify-center gap-3.5">
           <Link
-            href="/dashboard"
+            target="_blank"
+            href={process.env.NEXT_PUBLIC_DASHBOARD_URL!}
             className="bg-primary text-primary-foreground rounded-xl px-7 py-3.5 text-base font-semibold no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
           >
             Start for free
           </Link>
           <Link
-            href="/docs"
+            target="_blank"
+            href={process.env.NEXT_PUBLIC_DOCS_URL!}
             className="text-muted-foreground hover:bg-secondary hover:text-foreground rounded-lg px-4 py-2 text-[15px] font-medium no-underline transition-colors"
           >
             Read the docs →

@@ -183,7 +183,8 @@ export function AppConnectionWidget() {
 
         <div className="mt-12 text-center">
           <a
-            href="/docs/integrations"
+            href={process.env.NEXT_PUBLIC_DOCS_URL! + "/integrations"}
+            target="_blank"
             className="bg-primary text-primary-foreground inline-block rounded-[9px] px-5 py-2.5 text-[14.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
           >
             Browse all integrations →

@@ -485,7 +485,7 @@ export default function ProductDetailPage() {
                   <p className="text-muted-foreground mt-2 text-sm">
                     Suggest a related product for customers to add to their order, right in Checkout.{" "}
                     <Link
-                      href="/docs/metered-billing"
+                      href={process.env.NEXT_PUBLIC_DOCS_URL! + "/metered-billing"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary inline-flex items-center gap-0.5 font-medium hover:underline"
@@ -499,7 +499,6 @@ export default function ProductDetailPage() {
                   </div>
                 </section>
 
-                {/* Features (empty state) */}
                 <section>
                   <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">Features</h2>
                   <div className="border-border bg-muted/5 mt-3 flex min-h-[120px] items-center justify-center rounded-lg border border-dashed">
@@ -509,7 +508,6 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="space-y-8 lg:col-span-2">
-                {/* Details */}
                 <section>
                   <div className="flex items-center gap-2">
                     <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">Details</h2>
