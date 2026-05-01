@@ -2,14 +2,14 @@
 
 import { paginate, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
+import { retrievePaymentCount } from "@/actions/payment";
 import { SubscriptionStatus } from "@/constant/schema.client";
 import { Network, Subscription, assets, customerWallets, customers, db, products, subscriptions } from "@/db";
 import { computeDiff, generateResourceId } from "@/lib/utils";
+import { toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { OverrideProps, Prettify } from "@stellartools/core";
 import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
-
-import { retrievePaymentCount } from "./payment";
 
 export const postSubscriptionsBulk = async (
   params: {
@@ -242,7 +242,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
         webhookTriggers.push({
           event: "subscription.canceled",
           map: () => ({
-            object: updatedSubscription,
+            object: toSnakeCase(updatedSubscription),
             previous_attributes: computeDiff(
               {
                 ...oldSubscription,
@@ -270,7 +270,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
         webhookTriggers.push({
           event: "subscription.updated",
           map: () => ({
-            object: updatedSubscription,
+            object: toSnakeCase(updatedSubscription),
             previous_attributes:
               computeDiff(
                 {

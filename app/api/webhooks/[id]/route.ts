@@ -1,5 +1,6 @@
 import { deleteWebhook, putWebhook, retrieveWebhooks } from "@/actions/webhook";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, updateWebhookSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
@@ -21,7 +22,7 @@ export const PUT = apiHandler({
   requiredAppScope: "write:webhooks",
   schema: { params: paramsSchema, body: updateWebhookSchema },
   handler: async ({ params: { id }, body, auth: { organizationId, environment } }) => {
-    const response = await putWebhook(id, body, organizationId, environment);
+    const response = await putWebhook(id, toCamelCase(body), organizationId, environment);
     return Result.ok(response);
   },
 });

@@ -11,17 +11,17 @@ export type SubscriptionData = {
   /**
    * The start date of the subscription.
    */
-  periodStart: string;
+  period_start: string;
 
   /**
    * The end date of the subscription.
    */
-  periodEnd: string;
+  period_end: string;
 
   /**
    * Whether to cancel the subscription at the end of the current period.
    */
-  cancelAtPeriodEnd?: boolean;
+  cancel_at_period_end?: boolean;
 };
 
 export interface Checkout {
@@ -31,19 +31,14 @@ export interface Checkout {
   id: string;
 
   /**
-   * The organization ID of the checkout.
-   */
-  organizationId: string;
-
-  /**
    * The customer ID of the checkout.
    */
-  customerId: string;
+  customer_id: string;
 
   /**
    * The product ID of the checkout.
    */
-  productId?: string;
+  product_id?: string;
 
   /**
    * The amount of the checkout.
@@ -53,7 +48,7 @@ export interface Checkout {
   /**
    * The asset code of the checkout.
    */
-  assetCode?: string;
+  asset_code?: string;
 
   /**
    * The description of the checkout.
@@ -68,22 +63,22 @@ export interface Checkout {
   /**
    * The payment URL of the checkout.
    */
-  paymentUrl: string;
+  payment_url: string;
 
   /**
    * The expiration date of the checkout.
    */
-  expiresAt: string;
+  expires_at: string;
 
   /**
    * The created date of the checkout.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The updated date of the checkout.
    */
-  updatedAt: string;
+  updated_at: string;
 
   /**
    * The metadata of the checkout.
@@ -98,69 +93,69 @@ export interface Checkout {
   /**
    * URL to redirect the customer to after payment (e.g. thank-you page).
    */
-  redirectUrl?: string;
+  redirect_url?: string;
 
   /**
    * The subscription data of the checkout.
    */
-  subscriptionData?: SubscriptionData;
+  subscription_data?: SubscriptionData;
 }
 
 export const subscriptionDataSchema = schemaFor<SubscriptionData>()(
   z.object({
-    periodStart: z.string(),
-    periodEnd: z.string(),
-    cancelAtPeriodEnd: z.boolean().default(false).optional(),
+    period_start: z.string(),
+    period_end: z.string(),
+    cancel_at_period_end: z.boolean().default(false).optional(),
   })
 );
 
 export const checkoutSchema = schemaFor<Checkout>()(
   z.object({
     id: z.string(),
-    organizationId: z.string(),
-    customerId: z.string(),
-    productId: z.string().optional(),
+    customer_id: z.string(),
+    product_id: z.string().optional(),
     amount: z.number().optional(),
     description: z.string().optional(),
+    asset_code: z.string().optional(),
     status: checkoutStatusEnum,
-    paymentUrl: z.string(),
-    expiresAt: z.string(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    payment_url: z.string(),
+    expires_at: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
     metadata: z.record(z.string(), z.any()).default({}),
     environment: environmentSchema,
-    redirectUrl: z.string().optional(),
-    subscriptionData: subscriptionDataSchema.optional(),
+    redirect_url: z.string().optional(),
+    subscription_data: subscriptionDataSchema.optional(),
   })
 );
 
 const baseCreateSchema = z.object({
-  customerId: z.string().optional(),
-  customerEmail: z.email().optional(),
-  customerPhone: z.string().optional(),
+  customer_id: z.string().optional(),
+  customer_email: z.email().optional(),
+  customer_phone: z.string().optional(),
   description: z.string().optional(),
   metadata: z.record(z.string(), z.any()).nullable().optional(),
-  redirectUrl: z.string().optional(),
+  redirect_url: z.string().optional(),
 });
 
 export const createCheckoutSchema = baseCreateSchema.extend({
-  productId: z.string().min(1, "Product ID is required"),
+  product_id: z.string().min(1, "Product ID is required"),
 });
 
 export const createDirectCheckoutSchema = baseCreateSchema.extend({
   amount: z.number().positive("Amount must be greater than 0"),
-  assetCode: z.string().min(1, "Asset code is required"), // e.g. "XLM", "USDC"
+  asset_code: z.string().min(1, "Asset code is required"),
 });
 
 export type CreateCheckout = z.infer<typeof createCheckoutSchema>;
 export type CreateDirectCheckout = z.infer<typeof createDirectCheckoutSchema>;
 
-export const updateCheckoutSchema = checkoutSchema.pick({
-  status: true,
-  metadata: true,
+export const updateCheckoutSchema = z.object({
+  status: checkoutStatusEnum.optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
-export type UpdateCheckout = Pick<Checkout, "status" | "metadata">;
+export type UpdateCheckout = z.infer<typeof updateCheckoutSchema>;
 
 export const retrieveCheckoutSchema = checkoutSchema.pick({
   id: true,

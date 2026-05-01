@@ -69,48 +69,6 @@ export const deleteApiKey = async (id: string, orgId?: string, env?: Network) =>
     .then(() => null);
 };
 
-export const resolveApiKeyOrAuthorizationToken = async (
-  apiKey?: string | null, // 1st degree
-  sessionToken?: string | null, // 2nd degree
-  portalToken?: string | null // 3rd degree
-) => {
-  if (portalToken) {
-    const session = await retrieveCustomerPortalSession(portalToken);
-
-    if (!session) throw new Error("Invalid portal token");
-
-    return {
-      organizationId: session.organizationId,
-      environment: session.environment,
-    };
-  }
-
-  if (sessionToken) {
-    const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(sessionToken);
-
-    const [row] = await db
-      .select({ organizationId: organizations.id, environment: sql<Network>`${environment}` })
-      .from(organizations)
-      .where(eq(organizations.id, orgId))
-      .limit(1);
-
-    if (!row) throw new Error("Invalid Auth");
-
-    return row;
-  }
-
-  const [row] = await db
-    .select({ organizationId: organizations.id, environment: apiKeys.environment, apiKeyId: apiKeys.id })
-    .from(apiKeys)
-    .innerJoin(organizations, eq(apiKeys.organizationId, organizations.id))
-    .where(apiKey ? eq(apiKeys.token, apiKey) : undefined)
-    .limit(1);
-
-  if (!row) throw new Error("Invalid Auth");
-
-  return row;
-};
-
 export const resolveAuthContext = async (params: {
   apiKey?: string | null;
   sessionToken?: string | null;

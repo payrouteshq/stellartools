@@ -19,30 +19,36 @@ export const createProductImage = async (formData: FormData) => {
 };
 
 export const postProduct = async (
-  params: Omit<Product, "id" | "organizationId" | "environment">,
+  params: Omit<Product, "id" | "organizationId" | "environment" | "assetId">,
   orgId?: string,
   env?: Network
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  console.log({ params, organizationId, environment });
+  const [assets, { secret }] = await Promise.all([
+    retrieveAssets(null, environment),
+    retrieveOrganizationIdAndSecret(organizationId, environment),
+  ]);
+
+  const asset = assets.find((asset) => asset.code === params.assetCode);
+
+  if (!asset) {
+    throw new Error(`Asset ${params.assetCode} not found`);
+  }
 
   const [product] = await db
     .insert(products)
-    .values({ ...params, id: generateResourceId("prod", organizationId, 16), organizationId, environment })
+    .values({
+      ...params,
+      assetId: asset.id,
+      id: generateResourceId("prod", organizationId, 16),
+      organizationId,
+      environment,
+    })
     .returning();
 
-  if (params.assetId) {
-    console.log("creating trustline for asset", params.assetId);
-    const [[asset], { secret }] = await Promise.all([
-      retrieveAssets({ id: params.assetId }, environment),
-      retrieveOrganizationIdAndSecret(organizationId, environment),
-    ]);
-
-    console.log({ asset, secret });
-
-    if (asset && asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
-      // Fire and forget trustline creation
+  if (params.assetCode) {
+    if (asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
       createTrustlines(secret.publicKey, [{ code: asset.code, issuer: asset.issuer }], environment).catch((err) => {
         console.error("Failed to create trustline for asset", asset.code, asset.issuer, err);
       });
@@ -87,21 +93,23 @@ export const putProduct = async (id: string, organizationId: string, retUpdate: 
 
   if (!product) return;
 
-  if (retUpdate.assetId) {
-    const [[asset], { secret }] = await Promise.all([
-      retrieveAssets({ id: retUpdate.assetId }, product.environment),
-      retrieveOrganizationIdAndSecret(organizationId, product.environment),
-    ]);
+  const [assets, { secret }] = await Promise.all([
+    retrieveAssets({ id: retUpdate.assetId }, product.environment),
+    retrieveOrganizationIdAndSecret(organizationId, product.environment),
+  ]);
 
-    if (!asset || !asset?.issuer || !asset?.code || asset?.code === "XLM") return;
+  const asset = assets.find((asset) => asset.code === retUpdate.assetCode);
 
-    if (secret?.publicKey) {
-      createTrustlines(secret.publicKey, [{ code: asset.code, issuer: asset.issuer }], product.environment).catch(
-        (err) => {
-          console.error("Failed to create trustline for asset", asset.code, asset.issuer, err);
-        }
-      );
-    }
+  if (!asset) {
+    throw new Error(`Asset ${retUpdate.assetCode} not found`);
+  }
+
+  if (asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
+    createTrustlines(secret.publicKey, [{ code: asset.code, issuer: asset.issuer }], product.environment).catch(
+      (err) => {
+        console.error("Failed to create trustline for asset", asset.code, asset.issuer, err);
+      }
+    );
   }
 
   return product;

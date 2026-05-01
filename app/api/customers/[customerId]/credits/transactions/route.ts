@@ -1,56 +1,39 @@
-import { resolveApiKeyOrAuthorizationToken } from "@/actions/apikey";
 import { creditTransactions, db } from "@/db";
-import { Result, z as Schema, validateSchema } from "@stellartools/core";
+import { apiHandler } from "@/lib/api-handler";
+import { Result, z as Schema } from "@stellartools/core";
 import { and, desc, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 
-export const GET = async (req: NextRequest, context: { params: Promise<{ customerId: string }> }) => {
-  const { customerId } = await context.params;
+export const GET = apiHandler({
+  auth: ["apikey", "session"],
+  schema: {
+    params: Schema.object({ customerId: Schema.string() }),
+    query: Schema.object({
+      product_id: Schema.string().optional(),
+      limit: Schema.coerce.number().default(50),
+      offset: Schema.coerce.number().default(0),
+    }),
+  },
+  handler: async ({ params, query, auth }) => {
+    const { organizationId } = auth;
+    const limit = Math.min(query.limit, 100);
 
-  const apiKey = req.headers.get("x-api-key");
+    const conditions = [
+      eq(creditTransactions.customerId, params.customerId),
+      eq(creditTransactions.organizationId, organizationId),
+      query.product_id ? eq(creditTransactions.productId, query.product_id) : undefined,
+    ].filter(Boolean);
 
-  if (!apiKey) return NextResponse.json({ error: "API key is required" }, { status: 400 });
+    const data = await db
+      .select()
+      .from(creditTransactions)
+      .where(and(...conditions))
+      .orderBy(desc(creditTransactions.createdAt))
+      .limit(limit + 1)
+      .offset(query.offset);
 
-  const { searchParams } = new URL(req.url);
+    const has_more = data.length > limit;
+    const results = has_more ? data.slice(0, limit) : data;
 
-  const result = await Result.andThenAsync(
-    validateSchema(
-      Schema.object({
-        productId: Schema.string().optional(),
-        limit: Schema.coerce.number().default(50),
-        offset: Schema.coerce.number().default(0),
-      }),
-      {
-        productId: searchParams.get("productId"),
-        limit: searchParams.get("limit"),
-        offset: searchParams.get("offset"),
-      }
-    ),
-    async ({ productId, limit, offset }) => {
-      const { organizationId } = await resolveApiKeyOrAuthorizationToken(apiKey);
-      const conditions = [
-        eq(creditTransactions.customerId, customerId),
-        eq(creditTransactions.organizationId, organizationId),
-      ];
-
-      if (productId) {
-        conditions.push(eq(creditTransactions.productId, productId));
-      }
-
-      const transactions = await db
-        .select()
-        .from(creditTransactions)
-        .where(and(...conditions))
-        .orderBy(desc(creditTransactions.createdAt))
-        .limit(limit)
-        .offset(offset);
-
-      return Result.ok(transactions);
-    }
-  );
-
-  if (result.isErr()) return NextResponse.json({ error: result.error.message }, { status: 400 });
-
-  return NextResponse.json({ data: result.value });
-};
+    return Result.ok({ data: results, has_more });
+  },
+});

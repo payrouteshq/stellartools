@@ -1,3 +1,4 @@
+import { Camelize, Snakize } from "@/types";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
 import _ from "lodash";
@@ -78,19 +79,50 @@ export function computeDiff<T extends Record<string, any>>(
   };
 }
 
-export const toSnakeCase = (data: unknown): unknown => {
+export const toSnakeCase = <T>(data: T): Snakize<T> => {
+  // 1. Handle Arrays
   if (_.isArray(data)) {
-    return data.map(toSnakeCase);
+    return data.map((item) => toSnakeCase(item)) as any;
+  }
+
+  // 2. Handle Objects (Only plain objects to avoid corrupting complex types)
+  if (_.isPlainObject(data)) {
+    const result: Record<string, any> = {};
+
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        // _.snakeCase('checkoutId') -> 'checkout_id'
+        const snakeKey = _.snakeCase(key);
+        result[snakeKey] = toSnakeCase(data[key]);
+      }
+    }
+
+    return result as any;
+  }
+
+  // 3. Handle Primitives (Strings, Numbers, BigInts, Booleans)
+  return data as any;
+};
+
+export const toCamelCase = <T>(data: T): Camelize<T> => {
+  if (_.isArray(data)) {
+    return data.map((item) => toCamelCase(item)) as any;
   }
 
   if (_.isPlainObject(data)) {
-    return _.mapValues(
-      _.mapKeys(data as Record<string, unknown>, (_v, k) => _.snakeCase(k)),
-      toSnakeCase
-    );
+    const result: Record<string, any> = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const camelKey = _.camelCase(key);
+        // Runtime check: if we already set this key (manual override),
+        // we might want to skip or overwrite. Usually, last-in wins in JS.
+        result[camelKey] = toCamelCase(data[key]);
+      }
+    }
+    return result as any;
   }
 
-  return data;
+  return data as any;
 };
 
 export const fileFromUrl = async (url: string, fileName: string): Promise<File> => {

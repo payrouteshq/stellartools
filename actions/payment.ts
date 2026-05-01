@@ -32,7 +32,7 @@ import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription
 import { sendEmail } from "@/integrations/email";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
-import { generateResourceId, stroopsToXlm, xlmToStroops } from "@/lib/utils";
+import { generateResourceId, stroopsToXlm, toSnakeCase, xlmToStroops } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
 import { and, count, desc, eq, sql } from "drizzle-orm";
@@ -102,8 +102,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
       productName: ctx.product.name || ctx.checkout.description || "Payment",
-      creditsGranted: ctx.product.creditsGranted ?? 0,
-      creditExpiryDays: ctx.product.creditExpiryDays ?? 30,
+      totalCredits: ctx.product.totalCredits ?? BigInt(0),
       customerEmail: ctx.customer.email ?? ctx.checkout.customerEmail ?? undefined,
     }),
   }),
@@ -114,7 +113,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationLogo: ctx.org.logoUrl,
       amount: `${p.amount} ${p.metadata?.assetCode}`,
       assetCode: p.metadata?.assetCode as string,
-      currentPeriodEnd: moment(ctx.checkout.subscriptionData?.periodEnd).format("MMMM DD, YYYY [at] h:mm A"),
+      currentPeriodEnd: moment(ctx.checkout.subscriptionData?.period_end).format("MMMM DD, YYYY [at] h:mm A"),
       productName: ctx.product.name || ctx.checkout.description || "Payment",
     }),
   }),
@@ -143,7 +142,7 @@ const paymentActionHandler = async (
       customerId: payment.customerId!,
       amount: rawAmount,
       status: payment.status,
-      transactionHash: payment.transactionHash,
+      transaction_hash: payment.transactionHash,
       createdAt: payment.createdAt?.toISOString(),
       metadata: payment.metadata,
     };
@@ -159,7 +158,10 @@ const paymentActionHandler = async (
         }),
       });
 
-      webhooks.push({ event: "payment.failed", map: () => ({ object: basePayload, previous_attributes: undefined }) });
+      webhooks.push({
+        event: "payment.failed",
+        map: () => ({ object: toSnakeCase(basePayload), previous_attributes: undefined }),
+      });
     }
 
     if (payment.status == "confirmed") {
@@ -174,7 +176,7 @@ const paymentActionHandler = async (
 
       webhooks.push({
         event: "payment.confirmed",
-        map: () => ({ object: basePayload, previous_attributes: undefined }),
+        map: () => ({ object: toSnakeCase(basePayload), previous_attributes: undefined }),
       });
 
       const runBackgroundTasks = async () => {

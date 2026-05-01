@@ -3,10 +3,10 @@ import { retrieveProducts } from "@/actions/product";
 import { Network } from "@/db";
 import TOML from "@iarna/toml";
 
-const DEFAULT_LOGO_URL = "https://stellartools.io/default-logo.png";
-const PLATFORM_WEB_AUTH_ENDPOINT = "https://api.stellartools.io/auth";
+const DEFAULT_LOGO_URL = "https://stellartools.dev/default-logo.png";
+const PLATFORM_WEB_AUTH_ENDPOINT = "https://api.stellartools.dev/auth";
 const PLATFORM_PHYSICAL_ADDRESS = "123 Stellar Way, San Francisco, CA 94102, United States";
-const PLATFORM_OFFICIAL_EMAIL = "support@stellartools.io";
+const PLATFORM_OFFICIAL_EMAIL = "odii@stellartools.dev";
 const TESTNET_PASSPHRASE = "Test SDF Network ; September 2015";
 const MAINNET_PASSPHRASE = "Public Global Stellar Network ; September 2015";
 
@@ -30,8 +30,8 @@ export async function GET(request: Request) {
     const networkPassphrase = environment === "testnet" ? TESTNET_PASSPHRASE : MAINNET_PASSPHRASE;
 
     const orgLogo = org.logoUrl || DEFAULT_LOGO_URL;
-    const orgUrl = `https://${orgId}.stellartools.io`;
-    const orgSupportEmail = `${orgId}@stellartools.io`;
+    const orgUrl = `https://${orgId}.stellartools.dev`;
+    const orgSupportEmail = `${orgId}@stellartools.dev`;
     const orgDescription = org.description || `${org.name} - Powered by Stellar Tools`;
 
     const currencies = productsWithAssets.map(({ product, asset }) => {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       if (issuer) currency.issuer = issuer;
 
       if (product.type === "metered") {
-        currency.conditions = `Metered billing: ${product.creditsGranted} credits included, expires in ${product.creditExpiryDays} days`;
+        currency.conditions = `Metered billing: ${product.totalCredits?.toString()} credits included`;
       } else if (product.type === "subscription") {
         currency.conditions = "Recurring subscription";
       }

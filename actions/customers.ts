@@ -362,7 +362,7 @@ export async function getCustomerPortalData(token: string) {
         productName: productsSchema.name,
         productType: productsSchema.type,
         productUnit: productsSchema.unit,
-        creditsGranted: productsSchema.creditsGranted,
+        totalCredits: productsSchema.totalCredits,
         customerWalletId: subscriptionsSchema.customerWalletId,
         walletAddress: customerWallets.address,
       })
@@ -400,7 +400,7 @@ export async function getCustomerPortalData(token: string) {
         productId: creditBalancesSchema.productId,
         productName: productsSchema.name,
         productUnit: productsSchema.unit,
-        creditsGranted: productsSchema.creditsGranted,
+        totalCredits: productsSchema.totalCredits,
       })
       .from(creditBalancesSchema)
       .leftJoin(productsSchema, eq(creditBalancesSchema.productId, productsSchema.id))

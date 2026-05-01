@@ -15,11 +15,7 @@ export const APP_RESOURCES = ["customers", "payments", "checkouts", "subscriptio
 export type AppResource = (typeof APP_RESOURCES)[number];
 export type AppScope = `read:${AppResource}` | `write:${AppResource}` | "*";
 
-export const accountBillingCycleEnum = ["monthly", "yearly"] as const;
-
 export const subscriptionStatusEnum = subscriptionStatusEnum$1.enum;
-
-export type AccountBillingCycle = (typeof accountBillingCycleEnum)[number];
 
 export type Network = (typeof networkEnum)[number];
 

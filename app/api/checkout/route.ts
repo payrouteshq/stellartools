@@ -42,20 +42,20 @@ export const POST = async (req: NextRequest) => {
 
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
-      const { customerId, customerEmail, customerPhone, metadata } = data;
+      const { customer_id, customer_email, customer_phone, metadata } = data;
       const customer = await upsertCustomer(
-        { id: customerId, email: customerEmail, phone: customerPhone },
+        { id: customer_id, email: customer_email, phone: customer_phone },
         auth.organizationId,
         auth.environment,
-        { name: customerEmail?.split("@")[0] ?? "Guest", metadata }
+        { name: customer_email?.split("@")[0] ?? "Guest", metadata }
       );
 
       let subscriptionData = null;
 
-      if ("productId" in data) {
-        const [{ product }] = await retrieveProducts(auth.organizationId, auth.environment, data.productId);
+      if ("product_id" in data) {
+        const [{ product }] = await retrieveProducts(auth.organizationId, auth.environment, data.product_id);
 
-        if (!product) return Result.err(new Error(`Product Not Found ${data.productId}`));
+        if (!product) return Result.err(new Error(`Product Not Found ${data.product_id}`));
 
         if (product.type == "subscription" && !product.recurringPeriod) {
           return Result.err(new Error("Subscription product does not have a recurring period"));
@@ -80,11 +80,11 @@ export const POST = async (req: NextRequest) => {
         expiresAt: new Date(Date.now() + 864e5),
         metadata: data.metadata ?? {},
         description: data.description ?? null,
-        redirectUrl: data.redirectUrl ?? null,
+        redirectUrl: data.redirect_url ?? null,
         subscriptionData,
-        productId: checkoutType === "product" ? data.productId : null,
+        productId: checkoutType === "product" ? data.product_id : null,
         amount: checkoutType === "direct" ? data.amount : null,
-        assetCode: checkoutType === "direct" ? data.assetCode : null,
+        assetCode: checkoutType === "direct" ? data.asset_code : null,
       } as Parameters<typeof postCheckout>[0];
 
       const checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);

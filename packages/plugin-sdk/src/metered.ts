@@ -1,6 +1,6 @@
 import { CreditBalance, z as Schema, StellarTools, schemaFor, validateSchema } from "@stellartools/core";
 
-import { BillingError, InsufficientCreditsError } from "./errors";
+import { BillingError, InsufficientCreditsError, InvalidProductTypeError } from "./errors";
 
 export interface MeteredPluginConfig {
   /**
@@ -120,13 +120,18 @@ export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin 
 
   const preflight = async (customerId: string, productId: string): Promise<void> => {
     try {
+      const product = await stellar.products.retrieve(productId);
+      if (product.type !== "metered") {
+        throw new InvalidProductTypeError(productId);
+      }
+
       const result = await stellar.credits.check(customerId, { productId, rawAmount: 1 });
 
       if (!result.isSufficient) {
         throw new InsufficientCreditsError("Insufficient credits", 1, 0);
       }
     } catch (err) {
-      console.error(err);
+      if (err instanceof InvalidProductTypeError) throw err;
       if (err instanceof InsufficientCreditsError) throw err;
       throw new BillingError(err instanceof Error ? err.message : "Preflight check failed", "UNKNOWN");
     }

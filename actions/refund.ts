@@ -4,6 +4,7 @@ import { withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { Network, Refund, refunds } from "@/db";
 import { db } from "@/db";
+import { toSnakeCase } from "@/lib/utils";
 import { EventTrigger, WebhookTrigger } from "@/types";
 import { and, desc, eq } from "drizzle-orm";
 
@@ -56,7 +57,7 @@ export const postRefund = async (
             status,
             metadata,
           }) => ({
-            object: {
+            object: toSnakeCase({
               id: refundId,
               paymentId,
               customerId,
@@ -68,7 +69,7 @@ export const postRefund = async (
               receiverWalletAddress,
               // @ts-ignore - error is not a valid property for the webhook object but might be needed by the merchant for debugging
               error: options?.errorMessage,
-            },
+            }),
             previous_attributes: undefined,
           }),
         });
@@ -97,7 +98,7 @@ export const postRefund = async (
             metadata,
             status,
           }) => ({
-            object: {
+            object: toSnakeCase({
               id: refundId,
               amount: `${amount} ${assetCode}`,
               paymentId,
@@ -107,7 +108,7 @@ export const postRefund = async (
               metadata,
               receiverWalletAddress,
               status,
-            },
+            }),
             previous_attributes: undefined,
           }),
         });

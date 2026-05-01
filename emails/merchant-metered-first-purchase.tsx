@@ -8,8 +8,7 @@ export interface MerchantMeteredFirstPurchaseEmailProps {
   organizationName: string;
   organizationLogo?: string | null;
   productName: string;
-  creditsGranted: number;
-  creditExpiryDays: number;
+  totalCredits: bigint;
   customerEmail?: string;
 }
 
@@ -17,8 +16,7 @@ export const MerchantMeteredFirstPurchaseEmail = ({
   organizationName,
   organizationLogo,
   productName,
-  creditsGranted,
-  creditExpiryDays,
+  totalCredits,
   customerEmail,
 }: MerchantMeteredFirstPurchaseEmailProps) => {
   return (
@@ -44,13 +42,13 @@ export const MerchantMeteredFirstPurchaseEmail = ({
           <Column className="text-muted-foreground w-[140px] text-xs font-medium tracking-wide uppercase">
             Credits sold
           </Column>
-          <Column className="text-foreground text-sm font-semibold">{creditsGranted.toLocaleString()}</Column>
+          <Column className="text-foreground text-sm font-semibold">{totalCredits.toLocaleString()}</Column>
         </Row>
         <Row className="mb-2">
           <Column className="text-muted-foreground w-[140px] text-xs font-medium tracking-wide uppercase">
-            Expires in
+            Total credits
           </Column>
-          <Column className="text-foreground text-sm">{creditExpiryDays} days</Column>
+          <Column className="text-foreground text-sm">{totalCredits.toLocaleString()}</Column>
         </Row>
         {customerEmail && (
           <Row>

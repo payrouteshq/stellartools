@@ -21,7 +21,7 @@ export interface CustomerWallet {
   /**
    * The created at timestamp for the wallet.
    */
-  createdAt: string;
+  created_at: string;
 }
 
 export interface Customer {
@@ -63,12 +63,12 @@ export interface Customer {
   /**
    * The created at timestamp for the customer.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The updated at timestamp for the customer.
    */
-  updatedAt: string;
+  updated_at: string;
 }
 
 export const customerWalletSchema = schemaFor<CustomerWallet>()(
@@ -76,7 +76,7 @@ export const customerWalletSchema = schemaFor<CustomerWallet>()(
     id: z.string(),
     address: z.string(),
     metadata: z.record(z.string(), z.unknown()).optional(),
-    createdAt: z.string(),
+    created_at: z.string(),
   })
 );
 
@@ -88,31 +88,31 @@ export const customerSchema = schemaFor<Customer>()(
     phone: z.string().optional(),
     image: z.url().nullable().optional(),
     metadata: z.record(z.string(), z.string()).nullable().optional(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
     wallets: z.array(customerWalletSchema),
   })
 );
 
-export const createCustomerSchema = customerSchema.pick({
-  email: true,
-  name: true,
-  phone: true,
-  metadata: true,
-  image: true,
+export const createCustomerSchema = z.object({
+  email: z.email(),
+  name: z.string(),
+  phone: z.string().optional(),
+  metadata: z.record(z.string(), z.string()).nullable().optional(),
+  image: z.url().nullable().optional(),
 });
 
-export interface CreateCustomer extends Pick<Customer, "email" | "name" | "phone" | "metadata" | "image"> {}
+export interface CreateCustomer extends z.infer<typeof createCustomerSchema> {}
 
-export const updateCustomerSchema = customerSchema.partial().pick({
-  email: true,
-  name: true,
-  phone: true,
-  metadata: true,
-  image: true,
+export const updateCustomerSchema = z.object({
+  email: z.email().optional(),
+  name: z.string().optional(),
+  phone: z.string().optional(),
+  metadata: z.record(z.string(), z.string()).nullable().optional(),
+  image: z.url().nullable().optional(),
 });
 
-export interface UpdateCustomer extends Partial<Pick<Customer, "email" | "name" | "phone" | "metadata" | "image">> {}
+export interface UpdateCustomer extends z.infer<typeof updateCustomerSchema> {}
 
 export interface ListCustomers extends Partial<Pick<Customer, "email" | "phone">> {}
 
@@ -129,5 +129,5 @@ export interface CustomerPortal {
   /**
    * The date and time the portal session expires.
    */
-  expiresAt: string;
+  expires_at: string;
 }

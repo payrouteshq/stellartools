@@ -1,11 +1,9 @@
-export const calculateCredits = (params: {
-  rawAmount: number;
-  unitDivisor: number | null;
-  unitsPerCredit: number | null;
-}) => {
-  const { rawAmount, unitDivisor, unitsPerCredit } = params;
-  const units = unitDivisor ? rawAmount / unitDivisor : rawAmount;
+export const calculateUsageToCredits = (rawUsage: number, unitsPerCredit: bigint): bigint => {
+  const usage = BigInt(Math.floor(rawUsage));
+  const factor = unitsPerCredit > BigInt(0) ? unitsPerCredit : BigInt(1);
 
-  // Calculate credits (e.g., 1000 tokens / 10 tokens per credit = 100 credits)
-  return Math.ceil(units / (unitsPerCredit ?? 1));
+  const credits = usage / factor;
+  const remainder = usage % factor;
+
+  return remainder > BigInt(0) ? credits + BigInt(1) : credits;
 };

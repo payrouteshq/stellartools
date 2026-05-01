@@ -71,16 +71,16 @@ Subscriptions are created automatically when a customer completes a checkout for
 
 ## List subscriptions
 
-`GET /subscriptions?customer_id={customerId}`
+`GET /subscriptions?customer_id={customer_id}`
 
 Returns all subscriptions for a customer.
 
 ```bash
-curl "https://api.stellartools.dev/subscriptions?customerId=cus_01jx..." \
+curl "https://api.stellartools.dev/subscriptions?customer_id=cus_01jx..." \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
-<ParamField query="customerId" type="string" required>
+<ParamField query="customer_id" type="string" required>
   The customer whose subscriptions to list.
 </ParamField>
 

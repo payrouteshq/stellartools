@@ -235,7 +235,7 @@ const columns: ColumnDef<WebhookDestination>[] = [
       const webhook = row.original;
       return (
         <div className="flex items-center gap-2">
-          <StatusBadge isDisabled={webhook.isDisabled} />
+          <StatusBadge isDisabled={webhook.is_disabled} />
           <span className="text-muted-foreground text-sm">
             {webhook.eventCount} event{webhook.eventCount !== 1 ? "s" : ""}
           </span>
@@ -498,8 +498,8 @@ function WebhooksPageContent() {
       onClick: openEditModal,
     },
     {
-      label: (webhook) => (webhook.isDisabled ? "Enable" : "Disable"),
-      onClick: (webhook) => toggleWebhookDisabledMutation.mutate({ id: webhook.id, isDisabled: !webhook.isDisabled }),
+      label: (webhook) => (webhook.is_disabled ? "Enable" : "Disable"),
+      onClick: (webhook) => toggleWebhookDisabledMutation.mutate({ id: webhook.id, isDisabled: !webhook.is_disabled }),
     },
     {
       label: "Delete",
@@ -585,7 +585,7 @@ const schema = z.object({
     .min(1, "Please select at least one event"),
 });
 
-interface WebhookDestination extends Pick<Webhook, "id" | "name" | "url" | "isDisabled" | "secret"> {
+interface WebhookDestination extends Pick<Webhook, "id" | "name" | "url" | "is_disabled" | "secret"> {
   eventCount: number;
   eventsFrom: "account" | "test";
   activity?: number[];

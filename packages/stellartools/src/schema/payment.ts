@@ -13,15 +13,20 @@ export interface Payment {
   /**
    * The checkout ID of the payment.
    */
-  checkoutId: string;
+  checkout_id: string;
 
   /**
    * The customer ID of the payment.
    */
-  customerId: string;
+  customer_id: string;
 
   /**
-   * The amount of the payment e.g `"50 XLM"` or `"100 USDC"`.
+   * The subscription ID this payment belongs to, if any.
+   */
+  subscription_id?: string | null;
+
+  /**
+   * The amount of the payment e.g `"50 XLM"`.
    */
   amount: string;
 
@@ -33,20 +38,15 @@ export interface Payment {
   /**
    * The transaction hash of the payment.
    */
-  transactionHash: string;
+  transaction_hash: string;
 
   /**
    * The created at timestamp for the payment.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The metadata of the payment.
    */
   metadata: Record<string, unknown> | null;
-
-  /**
-   * The subscription ID this payment belongs to, if any.
-   */
-  subscriptionId?: string | null;
 }

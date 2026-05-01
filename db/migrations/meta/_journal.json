@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775919289785,
-      "tag": "0000_free_firestar",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1776775961954,
-      "tag": "0001_medical_molecule_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1776782161637,
-      "tag": "0002_foamy_iceman",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1777229706222,
-      "tag": "0003_absurd_moira_mactaggert",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1777230920309,
-      "tag": "0004_old_kate_bishop",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1777463471752,
-      "tag": "0005_eminent_deathbird",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1777465620507,
-      "tag": "0006_quiet_pretty_boy",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1777466583006,
-      "tag": "0007_icy_mentor",
+      "when": 1777611127665,
+      "tag": "0000_bored_leo",
       "breakpoints": true
     }
   ]

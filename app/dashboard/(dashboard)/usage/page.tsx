@@ -25,9 +25,9 @@ type UsageRecord = {
   id: string;
   customerId: string | null;
   productId: string | null;
-  balance: number;
-  consumed: number;
-  granted: number;
+  balance: bigint;
+  consumed: bigint;
+  granted: bigint;
   createdAt: Date;
   updatedAt: Date;
   customer?: {
@@ -47,7 +47,7 @@ const columns: ColumnDef<UsageRecord>[] = [
     header: "Metered Billing",
     cell: ({ row }) => {
       const record = row.original;
-      const usagePercentage = (record.consumed / record.granted) * 100;
+      const usagePercentage = (Number(record.consumed) / Number(record.granted)) * 100;
       return (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">

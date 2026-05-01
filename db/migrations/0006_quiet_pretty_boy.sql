@@ -1,1 +1,0 @@
-ALTER TABLE "payment" ADD COLUMN "amount_usd_snapshot" bigint NOT NULL;

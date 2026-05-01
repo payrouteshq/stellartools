@@ -4,7 +4,7 @@ import { postRefund } from "@/actions/refund";
 import { decrypt } from "@/integrations/encryption";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { generateResourceId, xlmToStroops } from "@/lib/utils";
+import { generateResourceId, toCamelCase, xlmToStroops } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { all } from "better-all";
 
@@ -13,13 +13,14 @@ export const OPTIONS = createOptionsHandler();
 export const POST = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "write:refunds",
-  schema: { body: createRefundSchema.extend({ walletAddress: Schema.string().optional() }) },
-  handler: async ({ body: { paymentId, reason, metadata, walletAddress }, auth: { organizationId, environment } }) => {
+  schema: { body: createRefundSchema.extend({ wallet_address: Schema.string().optional() }) },
+  handler: async ({ body: rawBody, auth: { organizationId, environment } }) => {
+    const { paymentId: payment_id, reason, metadata, walletAddress: wallet_address } = toCamelCase<any>(rawBody);
     const { payment, secret } = await all({
       payment: async () => {
         const {
           data: [p],
-        } = await retrievePayments(organizationId, environment, { paymentId }, { withWallets: true, withAsset: true });
+        } = await retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true, withAsset: true });
         if (!p) throw new Error("Payment not found");
         if (!p.asset) throw new Error("Payment asset not found");
         if (!p.wallets?.address) throw new Error("Customer wallet address not found");
@@ -32,10 +33,10 @@ export const POST = apiHandler({
       },
     });
 
-    const refundId = generateResourceId("rf", paymentId, 15);
+    const refundId = generateResourceId("rf", payment_id, 15);
     const secretKey = decrypt(secret.encrypted);
 
-    const isValidPublicKeyResult = isValidPublicKey(walletAddress ?? payment?.wallets?.address);
+    const isValidPublicKeyResult = isValidPublicKey(wallet_address ?? payment?.wallets?.address);
 
     if (isValidPublicKeyResult.isErr()) throw new Error(isValidPublicKeyResult.error.message);
 
@@ -52,11 +53,11 @@ export const POST = apiHandler({
     const refund = await postRefund(
       {
         id: refundId,
-        paymentId,
+        paymentId: payment_id,
         reason,
         metadata,
         status: res.isOk() ? "succeeded" : "failed",
-        receiverWalletAddress: payment.wallets!.address,
+        receiverWalletAddress: wallet_address ?? payment.wallets!.address,
         customerId: payment.customerId,
         amount: xlmToStroops(payment.amount.toString()),
         assetCode: payment.asset!.code,

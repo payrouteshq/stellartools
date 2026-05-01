@@ -563,8 +563,8 @@ function SubscriptionRow({
 }
 
 function CreditMeter({ credit }: { credit: Credit }) {
-  const total = credit.granted ?? credit.creditsGranted ?? 0;
-  const pct = total > 0 ? Math.min((credit.consumed / total) * 100, 100) : 0;
+  const total = credit.totalCredits ?? BigInt(0);
+  const pct = total > 0 ? Math.min((Number(credit.consumed) / Number(total)) * 100, 100) : 0;
   const unit = credit.productUnit ?? "credits";
 
   return (

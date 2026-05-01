@@ -43,9 +43,8 @@ const productSchema = z.object({
     asset: z.string().min(1, "Asset is required"),
   }),
   unit: z.string().optional(),
-  unitsPerCredit: z.number().min(1).default(1).optional(),
-  unitDivisor: z.number().min(1).optional(),
-  creditsGranted: z.number().min(0).optional(),
+  totalCredits: z.bigint().min(BigInt(0)).optional(),
+  unitsPerCredit: z.bigint().min(BigInt(1)).optional(),
   metadata: z
     .array(
       z.object({
@@ -71,9 +70,8 @@ export interface Product extends Pick<
     period: RecurringPeriod | undefined;
   };
   unit?: string | null;
-  unitDivisor?: number | null;
-  unitsPerCredit?: number | null;
-  creditsGranted?: number | null;
+  unitsPerCredit?: bigint | null;
+  totalCredits?: bigint | null;
 }
 
 function openLearnMoreModal() {
@@ -161,9 +159,8 @@ export function ProductsModalContent({
       type: "one_time",
       recurringPeriod: "month",
       price: { amount: "", asset: "XLM" },
-      unitDivisor: 1,
-      unitsPerCredit: 1,
-      creditsGranted: 0,
+      totalCredits: BigInt(0),
+      unitsPerCredit: BigInt(1),
       metadata: [],
     },
   });
@@ -208,9 +205,8 @@ export function ProductsModalContent({
           asset: editingProduct.pricing.asset,
         },
         unit: editingProduct.unit ?? "",
-        unitDivisor: editingProduct.unitDivisor ?? 1,
-        unitsPerCredit: editingProduct.unitsPerCredit ?? 1,
-        creditsGranted: editingProduct.creditsGranted ?? 0,
+        totalCredits: editingProduct.totalCredits ?? BigInt(0),
+        unitsPerCredit: editingProduct.unitsPerCredit ?? BigInt(1),
         metadata: metadataArray,
       });
 
@@ -279,9 +275,8 @@ export function ProductsModalContent({
           priceAmount: parseFloat(data.price.amount),
           recurringPeriod: data.recurringPeriod,
           unit: data.unit,
-          unitDivisor: data.unitDivisor,
+          totalCredits: data.totalCredits,
           unitsPerCredit: data.unitsPerCredit,
-          creditsGranted: data.creditsGranted,
         });
 
         if (response.isErr()) throw new Error(response.error.message);
@@ -298,9 +293,8 @@ export function ProductsModalContent({
         assetId: data.price.asset.split(":")[1],
         recurringPeriod: data.recurringPeriod,
         unit: data.unit,
-        unitDivisor: data.unitDivisor,
+        totalCredits: data.totalCredits,
         unitsPerCredit: data.unitsPerCredit,
-        creditsGranted: data.creditsGranted,
         metadata: metadataRecord,
         status: "active",
       });
@@ -527,73 +521,73 @@ export function ProductsModalContent({
             />
 
             {watched.type === "metered" && (
-              <div className="space-y-4 rounded-lg border p-4">
+              <div className="animate-in fade-in slide-in-from-top-1 space-y-4 rounded-lg border p-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-semibold">Credit Configuration</h4>
-                  <p className="text-muted-foreground text-xs">Define how usage is measured and converted to credits</p>
+                  <p className="text-muted-foreground text-xs">
+                    Define the conversion rate between raw usage and billing credits.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <RHF.Controller
+                    control={form.control}
+                    name="unit"
+                    render={({ field, fieldState: { error } }) => (
+                      <TextField
+                        {...field}
+                        value={field.value || ""}
+                        id="unit"
+                        label="Unit Label"
+                        placeholder="e.g., tokens, bytes, seconds"
+                        helpText="What are you measuring?"
+                        error={error?.message}
+                      />
+                    )}
+                  />
+
+                  <RHF.Controller
+                    control={form.control}
+                    name="unit"
+                    render={({ field, fieldState: { error } }) => (
+                      <NumberField
+                        {...field}
+                        value={field.value || 1}
+                        id="units_per_credit"
+                        label="Units per Credit"
+                        placeholder="1"
+                        helpText={`How many ${watched.unit || "units"} equal 1 credit?`}
+                        error={error?.message}
+                      />
+                    )}
+                  />
                 </div>
 
                 <RHF.Controller
                   control={form.control}
-                  name="unit"
-                  render={({ field, fieldState: { error } }) => (
-                    <TextField
-                      {...field}
-                      value={field.value || ""}
-                      id="unit"
-                      label="Unit Label"
-                      placeholder="e.g., tokens, MB, requests, minutes"
-                      helpText="Display name for your unit (can be anything)"
-                      error={error?.message}
-                    />
-                  )}
-                />
-
-                <RHF.Controller
-                  control={form.control}
-                  name="unitDivisor"
+                  name="totalCredits"
                   render={({ field, fieldState: { error } }) => (
                     <NumberField
                       {...field}
-                      value={field.value || 1}
-                      id="unitDivisor"
-                      label="Unit Divisor"
-                      helpText="Converts raw data (e.g., bytes) to your unit"
-                      error={error?.message}
-                    />
-                  )}
-                />
-
-                <RHF.Controller
-                  control={form.control}
-                  name="unitsPerCredit"
-                  render={({ field, fieldState: { error } }) => (
-                    <NumberField
-                      {...field}
-                      value={field.value || 1}
-                      id="unitsPerCredit"
-                      label="Units per Credit"
-                      helpText="How many units equal 1 credit?"
-                      error={error?.message}
-                    />
-                  )}
-                />
-
-                <RHF.Controller
-                  control={form.control}
-                  name="creditsGranted"
-                  render={({ field, fieldState: { error } }) => (
-                    <NumberField
-                      {...field}
-                      value={field.value || 0}
-                      id="creditsGranted"
-                      label="Credits Granted"
+                      value={field.value?.toString() || "0"}
+                      id="totalCredits"
+                      label="Total Credits"
                       placeholder="e.g., 1000"
-                      helpText="Initial credits included with this product"
+                      helpText="Credits included in the initial purchase."
                       error={error?.message}
                     />
                   )}
                 />
+
+                <div className="bg-primary/5 border-primary/10 rounded-md border p-3">
+                  <p className="text-primary text-[11px] leading-relaxed font-medium">
+                    PRO TIP: Every{" "}
+                    <span className="font-bold underline">{(watched.unitsPerCredit || 1).toLocaleString()}</span>{" "}
+                    {watched.unit || "units"} used will deduct <span className="font-bold underline">1</span> credit
+                    from the customer's balance of{" "}
+                    <span className="font-bold underline">{(watched.totalCredits || 0).toLocaleString()}</span>.
+                  </p>
+                </div>
               </div>
             )}
 

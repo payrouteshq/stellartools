@@ -54,12 +54,14 @@
             "group": "Resources",
             "pages": [
               "api-reference/customers",
+              "api-reference/portal",
               "api-reference/products",
               "api-reference/checkouts",
               "api-reference/subscriptions",
               "api-reference/payments",
               "api-reference/refunds",
-              "api-reference/webhooks"
+              "api-reference/webhooks",
+              "api-reference/usage"
             ]
           }
         ]

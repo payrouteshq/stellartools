@@ -58,19 +58,19 @@ export interface Webhook {
   description?: string;
 
   /**
-   * The is disabled flag of the webhook.
+   * Whether deliveries to this endpoint are suspended.
    */
-  isDisabled: boolean;
+  is_disabled: boolean;
 
   /**
    * The created at timestamp for the webhook.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The updated at timestamp for the webhook.
    */
-  updatedAt: string;
+  updated_at: string;
 }
 
 export const webhookSchema = schemaFor<Webhook>()(
@@ -81,47 +81,36 @@ export const webhookSchema = schemaFor<Webhook>()(
     events: z.array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType))),
     name: z.string(),
     description: z.string().optional(),
-    isDisabled: z.boolean(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    is_disabled: z.boolean(),
+    created_at: z.string(),
+    updated_at: z.string(),
   })
 );
 
-export const createWebhookSchema = webhookSchema
-  .pick({
-    name: true,
-    url: true,
-    description: true,
-    events: true,
-  })
-  .refine((data) => data.events.length > 0, {
-    message: "At least one event is required",
-    path: ["events"],
-  });
+export const createWebhookSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+  description: z.string().optional(),
+  events: z.array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType))).refine(
+    (e) => e.length > 0,
+    { message: "At least one event is required" }
+  ),
+});
 
-export type CreateWebhook = Pick<Webhook, "name" | "url" | "description" | "events">;
+export type CreateWebhook = z.infer<typeof createWebhookSchema>;
 
-export const updateWebhookSchema = webhookSchema
-  .partial()
-  .pick({
-    name: true,
-    url: true,
-    description: true,
-    events: true,
-    isDisabled: true,
-  })
-  .refine((data) => {
-    if (data.events) {
-      return data.events.length && data.events.length > 0
-        ? true
-        : {
-            message: "At least one event is required",
-            path: ["events"],
-          };
-    }
-  });
+export const updateWebhookSchema = z.object({
+  name: z.string().optional(),
+  url: z.string().optional(),
+  description: z.string().optional(),
+  events: z
+    .array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType)))
+    .optional()
+    .refine((e) => !e || e.length > 0, { message: "At least one event is required" }),
+  is_disabled: z.boolean().optional(),
+});
 
-export type UpdateWebhook = Partial<Pick<Webhook, "name" | "url" | "description" | "events" | "isDisabled">>;
+export type UpdateWebhook = z.infer<typeof updateWebhookSchema>;
 
 // --- Core Event Envelopes ---
 
@@ -147,12 +136,11 @@ export interface WebhookEventBase<TName extends string, TObject> {
    */
   data: {
     /**
-     * The object of the event.
-     * @livemode - Indicates whether the event is live or test.
+     * The resource that triggered the event.
      */
     object: TObject;
     /**
-     * The previous attributes of the object.
+     * The previous attributes of the object (only on *.updated events).
      */
     previous_attributes?: Partial<TObject>;
   };

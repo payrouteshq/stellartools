@@ -256,6 +256,7 @@ export const products = pgTable("product", {
   assetId: text("asset_id")
     .notNull()
     .references(() => assets.id),
+  assetCode: text("asset_code").$type<AssetCode>(),
   type: productTypeEnum("type").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -267,11 +268,9 @@ export const products = pgTable("product", {
   recurringPeriod: recurringPeriodEnum("recurring_period"),
 
   // Metered billing
-  unit: text("unit"), // e.g., "tokens", "MB", "requests", "images", "minutes"
-  unitDivisor: integer("unit_divisor"), // HOW to convert bytes → units (null = use file count)
-  unitsPerCredit: integer("units_per_credit").default(1), // if 1, 1 unit = 1 credit, if 10, 10 units = 1 credit
-  creditsGranted: integer("credits_granted"),
-  creditExpiryDays: integer("credit_expiry_days"),
+  unit: text("unit"), // The human label: "tokens", "MB", "minutes"
+  unitsPerCredit: bigint("units_per_credit", { mode: "bigint" }),
+  totalCredits: bigint("total_credits", { mode: "bigint" }),
 });
 
 export const checkoutStatusEnum = pgEnum("checkout_status", checkoutStatusEnum$1.enum);
@@ -492,9 +491,15 @@ export const creditBalances = pgTable(
     productId: text("product_id").references(() => products.id),
     environment: networkEnum("network").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    balance: integer("balance").notNull().default(0),
-    consumed: integer("consumed").notNull().default(0),
-    granted: integer("granted").notNull().default(0),
+    balance: bigint("balance", { mode: "bigint" })
+      .notNull()
+      .default(sql`0::bigint`),
+    consumed: bigint("consumed", { mode: "bigint" })
+      .notNull()
+      .default(sql`0::bigint`),
+    granted: bigint("granted", { mode: "bigint" })
+      .notNull()
+      .default(sql`0::bigint`),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     isRevoked: boolean("is_revoked").default(false).notNull(),
@@ -521,9 +526,9 @@ export const creditTransactions = pgTable(
       .notNull()
       .references(() => creditBalances.id),
     environment: networkEnum("network").notNull(),
-    amount: integer("amount").notNull(),
-    balanceBefore: integer("balance_before").notNull(),
-    balanceAfter: integer("balance_after").notNull(),
+    amount: bigint("amount", { mode: "bigint" }).notNull(),
+    balanceBefore: bigint("balance_before", { mode: "bigint" }).notNull(),
+    balanceAfter: bigint("balance_after", { mode: "bigint" }).notNull(),
     reason: text("reason"),
     type: creditTransactionTypeEnum("type").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),

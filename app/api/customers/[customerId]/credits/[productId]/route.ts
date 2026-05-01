@@ -1,26 +1,14 @@
-import { resolveApiKeyOrAuthorizationToken } from "@/actions/apikey";
 import { retrieveCreditBalance } from "@/actions/credit";
-import { Result, z as Schema, validateSchema } from "@stellartools/core";
-import { NextRequest, NextResponse } from "next/server";
+import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { Result, z as Schema } from "@stellartools/core";
 
-export const GET = async (
-  req: NextRequest,
-  context: { params: Promise<{ customerId: string; productId: string }> }
-) => {
-  const apiKey = req.headers.get("x-api-key");
+export const OPTIONS = createOptionsHandler();
 
-  if (!apiKey) return NextResponse.json({ error: "API key is required" }, { status: 400 });
-
-  const result = await Result.andThenAsync(
-    validateSchema(Schema.object({ customerId: Schema.string(), productId: Schema.string() }), context.params),
-    async ({ customerId, productId }) => {
-      const { organizationId } = await resolveApiKeyOrAuthorizationToken(apiKey);
-      const creditBalance = await retrieveCreditBalance(customerId, productId, organizationId);
-      return Result.ok(creditBalance);
-    }
-  );
-
-  if (result.isErr()) return NextResponse.json({ error: result.error.message }, { status: 400 });
-
-  return NextResponse.json({ data: result.value });
-};
+export const GET = apiHandler({
+  auth: ["session", "apikey"],
+  schema: { params: Schema.object({ customer_id: Schema.string(), product_id: Schema.string() }) },
+  handler: async ({ params, auth }) => {
+    const balance = await retrieveCreditBalance(params.customer_id, params.product_id, auth.organizationId);
+    return Result.ok(balance);
+  },
+});

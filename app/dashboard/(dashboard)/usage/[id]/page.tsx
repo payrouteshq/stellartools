@@ -24,17 +24,7 @@ import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/compon
 import { useCopy } from "@/hooks/use-copy";
 import { useOrgQuery } from "@/hooks/use-org-query";
 import { ColumnDef } from "@tanstack/react-table";
-import {
-  ArrowRight,
-  CheckCircle2,
-  ChevronRight,
-  Copy,
-  Package,
-  RefreshCw,
-  TrendingDown,
-  TrendingUp,
-  User,
-} from "lucide-react";
+import { ArrowRight, ChevronRight, Copy, Package, RefreshCw, TrendingDown, TrendingUp, User } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -46,9 +36,9 @@ type UsageRecord = {
   customerId: string | null;
   productId: string | null;
   balanceId: string;
-  amount: number;
-  balanceBefore: number;
-  balanceAfter: number;
+  amount: bigint;
+  balanceBefore: bigint;
+  balanceAfter: bigint;
   reason?: string | null;
   metadata?: Record<string, unknown> | null;
   createdAt: Date;
@@ -233,7 +223,7 @@ const columns: ColumnDef<UsageRecord>[] = [
             <ArrowRight className="text-muted-foreground h-3 w-3" />
             <span className="text-sm font-semibold">{record.balanceAfter.toLocaleString()}</span>
           </div>
-          {balanceChange !== 0 && (
+          {balanceChange !== BigInt(0) && (
             <span className="text-muted-foreground text-xs">{balanceChange.toLocaleString()}</span>
           )}
         </div>
@@ -307,7 +297,7 @@ export default function UsageDetailPage() {
     const granted = balance?.granted ?? 0;
     const consumed = balance?.consumed ?? 0;
     const remaining = balance?.balance ?? 0;
-    const usagePercentage = granted > 0 ? (consumed / granted) * 100 : 0;
+    const usagePercentage = granted > 0 ? (Number(consumed) / Number(granted)) * 100 : 0;
     return { granted, consumed, remaining, usagePercentage: Math.min(usagePercentage, 100) };
   }, [balance]);
 
@@ -495,8 +485,8 @@ export default function UsageDetailPage() {
                       <span className="text-lg font-bold">{usageMeter.usagePercentage.toFixed(1)}%</span>
                     </div>
                     <p className="text-muted-foreground text-xs">
-                      {usageMeter.granted - usageMeter.consumed > 0
-                        ? `${(usageMeter.granted - usageMeter.consumed).toLocaleString()} remaining`
+                      {Number(usageMeter.granted) - Number(usageMeter.consumed) > 0
+                        ? `${(Number(usageMeter.granted) - Number(usageMeter.consumed)).toLocaleString()} remaining`
                         : "Fully consumed"}
                     </p>
                   </div>
@@ -504,7 +494,6 @@ export default function UsageDetailPage() {
               </Card>
             </div>
 
-            {/* Summary Stats */}
             <div className="grid gap-4 md:grid-cols-4">
               <Card className="shadow-none">
                 <CardContent className="p-4">

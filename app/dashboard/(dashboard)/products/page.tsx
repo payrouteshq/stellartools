@@ -250,9 +250,7 @@ function ProductsPageContent() {
             images: product.images,
             metadata: product.metadata ?? {},
             unit: product.unit ?? null,
-            unitDivisor: product.unitDivisor ?? null,
             unitsPerCredit: product.unitsPerCredit ?? null,
-            creditsGranted: product.creditsGranted ?? null,
             assetId: product.assetId ?? null,
           };
         });

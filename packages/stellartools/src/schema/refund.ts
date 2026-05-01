@@ -15,15 +15,15 @@ export interface Refund {
   /**
    * The payment ID of the refund.
    */
-  paymentId: string;
+  payment_id: string;
 
   /**
    * The customer ID of the refund.
    */
-  customerId?: string | null;
+  customer_id?: string | null;
 
   /**
-   * The amount of the refund e.g `"50 XLM"` or `"100 USDC"`.
+   * The amount of the refund e.g `"50 XLM"`.
    */
   amount: string;
 
@@ -40,7 +40,7 @@ export interface Refund {
   /**
    * The created at timestamp for the refund.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The metadata for the refund.
@@ -50,27 +50,27 @@ export interface Refund {
   /**
    * The receiver public key of the refund.
    */
-  receiverWalletAddress: string | null;
+  receiver_wallet_address: string | null;
 }
 
 export const refundSchema = schemaFor<Refund>()(
   z.object({
     id: z.string(),
-    paymentId: z.string(),
-    customerId: z.string(),
+    payment_id: z.string(),
+    customer_id: z.string(),
     amount: z.string(),
     reason: z.string(),
     status: refundStatusEnum,
-    createdAt: z.string(),
+    created_at: z.string(),
     metadata: z.record(z.string(), z.any()).default({}).nullable(),
-    receiverWalletAddress: z.string().nullable(),
+    receiver_wallet_address: z.string().nullable(),
   })
 );
 
-export const createRefundSchema = refundSchema.pick({
-  paymentId: true,
-  reason: true,
-  metadata: true,
+export const createRefundSchema = z.object({
+  payment_id: z.string(),
+  reason: z.string(),
+  metadata: z.record(z.string(), z.any()).default({}).nullable(),
 });
 
-export interface CreateRefund extends Pick<Refund, "paymentId" | "reason" | "metadata"> {}
+export interface CreateRefund extends z.infer<typeof createRefundSchema> {}

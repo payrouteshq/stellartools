@@ -1,0 +1,35 @@
+---
+title: "Customer Portal"
+description: "Create portal sessions for customers"
+---
+
+A customer portal session gives a customer a short-lived authenticated URL to manage their own subscriptions — cancel, view billing history, and update payment methods.
+
+## The portal session object
+
+<ResponseField name="url" type="string">
+  The URL to redirect the customer to. Valid until `expires_at`.
+</ResponseField>
+
+<ResponseField name="token" type="string">
+  The session token embedded in the URL.
+</ResponseField>
+
+<ResponseField name="expires_at" type="string">
+  ISO 8601 timestamp. The session expires shortly after creation.
+</ResponseField>
+
+---
+
+## Create a portal session
+
+`POST /customers/{customer_id}/portal`
+
+Create a session and redirect the customer to the returned `url`. The URL is single-use and short-lived — generate it on demand, never store it.
+
+```bash
+curl -X POST https://api.stellartools.dev/customers/cus_01jx.../portal \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+No request body required.

@@ -104,8 +104,8 @@ export async function finalizeSubscriptionCheckout(
     return { success: false, error: "Missing required checkout data" };
   }
 
-  if (!subscriptionData?.periodStart || !subscriptionData?.periodEnd) {
-    return { success: false, error: "Period data missing — call prepareSubscriptionApproval first" };
+  if (!subscriptionData?.period_start || !subscriptionData?.period_end) {
+    return { success: false, error: "Period data missing - call prepareSubscriptionApproval first" };
   }
 
   const tokenContractId = await retrieveAssetContractId(assetCode, checkout.assetIssuer!, checkout.environment);

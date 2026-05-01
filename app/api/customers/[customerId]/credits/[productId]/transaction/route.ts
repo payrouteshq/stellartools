@@ -1,119 +1,91 @@
-import { resolveApiKeyOrAuthorizationToken } from "@/actions/apikey";
 import { postCreditTransaction, putCreditBalance, retrieveCreditBalance } from "@/actions/credit";
+import { runAtomic } from "@/actions/event";
 import { retrieveProducts } from "@/actions/product";
-import { createOptionsHandler } from "@/lib/api-handler";
-import { calculateCredits } from "@/lib/credit-calculator";
-import { Result, z as Schema, validateSchema } from "@stellartools/core";
-import { NextRequest, NextResponse } from "next/server";
+import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { calculateUsageToCredits } from "@/lib/credit-calculator";
+import { Result, z as Schema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
-const handler = async (req: NextRequest, context: { params: Promise<{ customerId: string; productId: string }> }) => {
-  const apiKey = req.headers.get("x-api-key");
+export const POST = apiHandler({
+  auth: ["apikey"],
+  schema: {
+    params: Schema.object({ customer_id: Schema.string(), product_id: Schema.string() }),
+    body: Schema.object({
+      amount: Schema.number(), // Raw usage (e.g., 5000 tokens)
+      type: Schema.enum(["deduct", "refund", "grant"]),
+      reason: Schema.string().optional(),
+      metadata: Schema.record(Schema.string(), Schema.any()).optional(),
+      dry_run: Schema.boolean().optional(),
+    }),
+  },
+  handler: async ({ params, body, auth }) => {
+    const { customer_id, product_id } = params;
+    const { organizationId, environment } = auth;
 
-  if (!apiKey) return NextResponse.json({ error: "API key is required" }, { status: 400 });
+    const [productData, creditBalance] = await Promise.all([
+      retrieveProducts(organizationId, environment, { productId: product_id }).then((res) => res[0]),
+      retrieveCreditBalance(customer_id, product_id, organizationId),
+    ]);
 
-  const { customerId, productId } = await context.params;
-
-  let body: Record<string, unknown>;
-
-  if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
-    body = await req.json().catch(() => ({}));
-  } else {
-    body = Object.fromEntries(req.nextUrl.searchParams);
-  }
-  console.log({ body, searchParamsAsObject: Object.fromEntries(req.nextUrl.searchParams) });
-
-  const result = await Result.andThenAsync(
-    validateSchema(
-      Schema.object({
-        amount: Schema.number(),
-        type: Schema.enum(["deduct", "refund", "grant"]),
-        reason: Schema.string().optional(),
-        metadata: Schema.record(Schema.string(), Schema.any()).optional(),
-        dryRun: Schema.boolean().optional(),
-      }),
-      body
-    ),
-    async ({ amount, type, reason, metadata, dryRun }): Promise<Result<{ isSufficient: boolean }, Error>> => {
-      const { organizationId, environment } = await resolveApiKeyOrAuthorizationToken(apiKey);
-
-      const [{ product }, creditBalance] = await Promise.all([
-        retrieveProducts(organizationId, environment, { productId }).then(([product]) => product),
-        retrieveCreditBalance(customerId, productId, organizationId),
-      ]);
-
-      if (!creditBalance) return Result.err(new Error("Invalid Meter Configuration"));
-
-      const creditsToProcess = calculateCredits({
-        rawAmount: amount,
-        unitDivisor: product.unitDivisor,
-        unitsPerCredit: product.unitsPerCredit,
-      });
-
-      if (dryRun) {
-        return Result.ok({
-          isSufficient: creditsToProcess <= creditBalance.balance,
-          transaction: null,
-          balance: creditBalance,
-        });
-      }
-
-      const balanceBefore = creditBalance.balance;
-      let balanceAfter = balanceBefore;
-      let newConsumed = creditBalance.consumed;
-      let newGranted = creditBalance.granted;
-
-      switch (type) {
-        case "deduct":
-          if (balanceBefore < creditsToProcess) {
-            return Result.err(new Error("Insufficient credits"));
-          }
-          balanceAfter = balanceBefore - creditsToProcess;
-          newConsumed = creditBalance.consumed + creditsToProcess;
-          break;
-
-        case "refund":
-          balanceAfter = balanceBefore + creditsToProcess;
-          newConsumed = Math.max(0, creditBalance.consumed - creditsToProcess);
-          break;
-
-        case "grant":
-          balanceAfter = balanceBefore + creditsToProcess;
-          newGranted = creditBalance.granted + creditsToProcess;
-          break;
-      }
-
-      const [transaction, updatedBalance] = await Promise.all([
-        postCreditTransaction(
-          {
-            customerId,
-            productId,
-            balanceId: creditBalance.id,
-            amount: creditsToProcess,
-            balanceBefore,
-            balanceAfter,
-            type,
-            reason: reason ?? null,
-            metadata: metadata ?? null,
-          },
-          organizationId,
-          environment
-        ),
-        putCreditBalance(creditBalance.id, { balance: balanceAfter, consumed: newConsumed, granted: newGranted }),
-      ]);
-
-      return Result.ok({
-        isSufficient: creditsToProcess <= creditBalance.balance,
-        transaction,
-        balance: updatedBalance,
-      });
+    if (!productData || !creditBalance) {
+      throw new Error("Credit balance or product configuration not found");
     }
-  );
 
-  if (result.isErr()) return NextResponse.json({ error: result.error });
+    const requiredCredits = calculateUsageToCredits(body.amount, productData.product.unitsPerCredit ?? BigInt(1));
 
-  return NextResponse.json(result);
-};
+    const isSufficient = creditBalance.balance >= requiredCredits;
 
-export { handler as POST, handler as GET };
+    if (body.dry_run) {
+      return Result.ok({ is_sufficient: isSufficient, remaining_balance: creditBalance.balance });
+    }
+
+    if (body.type === "deduct" && !isSufficient) {
+      throw new Error(`Insufficient credits: ${creditBalance.balance} < ${requiredCredits}`);
+    }
+
+    // 3. Calculate New Totals
+    const delta = body.type === "deduct" ? -requiredCredits : requiredCredits;
+    const newBalance = creditBalance.balance + delta;
+    const newConsumed =
+      body.type === "deduct"
+        ? creditBalance.consumed + requiredCredits
+        : body.type === "refund"
+          ? creditBalance.consumed - requiredCredits
+          : creditBalance.consumed;
+
+    const newGranted = body.type === "grant" ? creditBalance.granted + requiredCredits : creditBalance.granted;
+
+    const response = await runAtomic(async () => {
+      const transaction = await postCreditTransaction(
+        {
+          customerId: customer_id,
+          productId: product_id,
+          balanceId: creditBalance.id,
+          amount: requiredCredits,
+          balanceBefore: creditBalance.balance,
+          balanceAfter: newBalance,
+          type: body.type,
+          reason: body.reason ?? null,
+          metadata: body.metadata ?? null,
+        },
+        organizationId,
+        environment
+      );
+
+      const updatedBalance = await putCreditBalance(creditBalance.id, {
+        balance: newBalance,
+        consumed: newConsumed,
+        granted: newGranted,
+      });
+
+      return { transaction, balance: updatedBalance };
+    });
+
+    return Result.ok({
+      balance: response.balance.balance,
+      billed_units: body.amount,
+      credits_deducted: requiredCredits,
+    });
+  },
+});

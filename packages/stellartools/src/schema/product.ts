@@ -22,11 +22,6 @@ export interface Product {
   id: string;
 
   /**
-   * The organization ID of the product.
-   */
-  organizationId: string;
-
-  /**
    * The name of the product.
    */
   name: string;
@@ -49,7 +44,7 @@ export interface Product {
   /**
    * The asset ID of the product.
    */
-  assetId: string;
+  asset_code: string;
 
   /**
    * The billing type of the product.
@@ -57,14 +52,24 @@ export interface Product {
   type: ProductType;
 
   /**
+   * The price amount of the product in its asset (e.g. `10` for 10 XLM).
+   */
+  price_amount: number;
+
+  /**
+   * The billing interval for subscription products.
+   */
+  recurring_period?: RecurringPeriod;
+
+  /**
    * The created at timestamp for the product.
    */
-  createdAt: string;
+  created_at: string;
 
   /**
    * The updated at timestamp for the product.
    */
-  updatedAt: string;
+  updated_at: string;
 
   /**
    * The metadata of the product.
@@ -82,93 +87,63 @@ export interface Product {
   unit?: string;
 
   /**
-   * The unit divisor of the product.
-   */
-  unitDivisor?: number | null;
-
-  /**
    * The units per credit of the product.
    */
-  unitsPerCredit?: number;
+  units_per_credit?: number;
 
   /**
-   * The price amount of the product in its asset (e.g. `10` for 10 XLM).
+   * The total credits of the product.
    */
-  priceAmount: number;
-
-  /**
-   * The billing interval for subscription products.
-   */
-  recurringPeriod?: RecurringPeriod;
-
-  /**
-   * Number of credits granted when this product is purchased.
-   */
-  creditsGranted?: number | null;
+  total_credits?: number;
 }
 
 export const productSchema = schemaFor<Product>()(
   z.object({
     id: z.string(),
-    organizationId: z.string(),
     name: z.string(),
     description: z.string().optional(),
     images: z.array(z.string()),
     status: productStatusEnum,
-    assetId: z.string(),
+    asset_code: z.string(),
     type: productTypeEnum,
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    price_amount: z.number(),
+    recurring_period: recurringPeriodEnum.optional(),
+    created_at: z.string(),
+    updated_at: z.string(),
     metadata: z.record(z.string(), z.any()).default({}),
     environment: environmentSchema,
     unit: z.string().optional(),
-    unitDivisor: z.number().optional(),
-    unitsPerCredit: z.number().optional(),
-    priceAmount: z.number(),
-    recurringPeriod: recurringPeriodEnum.optional(),
-    creditsGranted: z.number().optional(),
-    creditExpiryDays: z.number().optional(),
+    units_per_credit: z.number().optional(),
+    total_credits: z.number().optional(),
   })
 );
 
-export const createProductSchema = productSchema
-  .pick({
-    name: true,
-    description: true,
-    images: true,
-    type: true,
-    assetId: true,
-    metadata: true,
-    unit: true,
-    unitDivisor: true,
-    unitsPerCredit: true,
-  })
-  .extend({
-    priceAmount: z.number(),
-    recurringPeriod: recurringPeriodEnum.optional(),
-    creditsGranted: z.number().optional(),
-    creditExpiryDays: z.number().optional(),
-  });
+export const createProductSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  images: z.array(z.string()).optional().default([]),
+  type: productTypeEnum,
+  asset_code: z.string(),
+  price_amount: z.number(),
+  recurring_period: recurringPeriodEnum.optional(),
+  metadata: z.record(z.string(), z.any()).optional().default({}),
+  unit: z.string().optional(),
+  units_per_credit: z.number().optional(),
+  total_credits: z.number().optional(),
+});
 
 export type CreateProduct = z.infer<typeof createProductSchema>;
 
-export const updateProductSchema = productSchema
-  .partial()
-  .pick({
-    name: true,
-    description: true,
-    images: true,
-    metadata: true,
-    unit: true,
-    unitDivisor: true,
-    unitsPerCredit: true,
-  })
-  .extend({
-    priceAmount: z.number().optional(),
-    recurringPeriod: recurringPeriodEnum.optional(),
-    creditsGranted: z.number().nullable().optional(),
-    description: z.string().nullable().optional(),
-    unit: z.string().nullable().optional(),
-  });
+export const updateProductSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().nullable().optional(),
+  images: z.array(z.string()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  unit: z.string().nullable().optional(),
+  units_per_credit: z.number().optional(),
+  price_amount: z.number().optional(),
+  recurring_period: recurringPeriodEnum.optional(),
+  total_credits: z.number().nullable().optional(),
+});
 
 export type UpdateProduct = z.infer<typeof updateProductSchema>;

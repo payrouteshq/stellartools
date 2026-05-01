@@ -15,12 +15,12 @@ export interface Subscription {
   /**
    * The customer ID of the subscription.
    */
-  customerId: string;
+  customer_id: string;
 
   /**
    * The product ID of the subscription.
    */
-  productId: string;
+  product_id: string;
 
   /**
    * The status of the subscription.
@@ -30,42 +30,42 @@ export interface Subscription {
   /**
    * The start date of the current period.
    */
-  currentPeriodStart: string;
+  current_period_start: string;
 
   /**
    * The end date of the current period.
    */
-  currentPeriodEnd: string;
+  current_period_end: string;
 
   /**
    * Whether to cancel the subscription at the end of the current period.
    */
-  cancelAtPeriodEnd: boolean;
+  cancel_at_period_end: boolean;
 
   /**
    * The date the subscription was canceled.
    */
-  canceledAt: string | null;
+  canceled_at: string | null;
 
   /**
    * The date the subscription was paused.
    */
-  pausedAt: string | null;
+  paused_at: string | null;
 
   /**
    * The number of failed payments of the subscription.
    */
-  failedPaymentCount: number | null;
+  failed_payment_count: number | null;
 
   /**
    * The created at timestamp for the subscription.
    */
-  createdAt: string | null;
+  created_at: string | null;
 
   /**
    * The updated at timestamp for the subscription.
    */
-  updatedAt: string;
+  updated_at: string;
 
   /**
    * The metadata of the subscription.
@@ -75,58 +75,54 @@ export interface Subscription {
   /**
    * The number of trial days for the subscription.
    */
-  trialDays: number | null;
+  trial_days: number | null;
 }
 
 export const subscriptionSchema = schemaFor<Subscription>()(
   z.object({
     id: z.string(),
-    customerId: z.string(),
-    productId: z.string(),
+    customer_id: z.string(),
+    product_id: z.string(),
     status: subscriptionStatusEnum,
-    currentPeriodStart: z.string(),
-    currentPeriodEnd: z.string(),
-    cancelAtPeriodEnd: z.boolean(),
-    canceledAt: z.string(),
-    pausedAt: z.string(),
-    failedPaymentCount: z.number(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    current_period_start: z.string(),
+    current_period_end: z.string(),
+    cancel_at_period_end: z.boolean(),
+    canceled_at: z.string(),
+    paused_at: z.string(),
+    failed_payment_count: z.number(),
+    created_at: z.string(),
+    updated_at: z.string(),
     metadata: z.record(z.string(), z.any()).default({}),
-    trialDays: z.number().default(0),
+    trial_days: z.number().default(0),
   })
 );
 
 export const createSubscriptionSchema = z.object({
-  customerIds: z.array(z.string()),
-  productId: z.string(),
+  customer_ids: z.array(z.string()),
+  product_id: z.string(),
   metadata: z.record(z.string(), z.any()).optional(),
-  cancelAtPeriodEnd: z.boolean().optional().default(false),
+  cancel_at_period_end: z.boolean().optional().default(false),
   period: z.object({
     from: z.coerce.date(),
     to: z.coerce.date(),
   }),
-  trialDays: z.number().default(0).optional().nullable(),
+  trial_days: z.number().default(0).optional().nullable(),
 });
 
 export type CreateSubscription = z.infer<typeof createSubscriptionSchema>;
 
-export const pauseSubscriptionSchema = subscriptionSchema.pick({
-  id: true,
-});
+export const pauseSubscriptionSchema = subscriptionSchema.pick({ id: true });
 
 export type PauseSubscription = Pick<Subscription, "id">;
 
-export const resumeSubscriptionSchema = subscriptionSchema.pick({
-  id: true,
-});
+export const resumeSubscriptionSchema = subscriptionSchema.pick({ id: true });
 
 export type ResumeSubscription = Pick<Subscription, "id">;
 
 export const updateSubscriptionSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
-  cancelAtPeriodEnd: z.boolean().optional(),
-  productId: z.string().optional(),
+  cancel_at_period_end: z.boolean().optional(),
+  product_id: z.string().optional(),
 });
 
 export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;

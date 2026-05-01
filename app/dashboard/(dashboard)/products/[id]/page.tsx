@@ -209,9 +209,8 @@ export default function ProductDetailPage() {
         period: product.recurringPeriod ?? undefined,
       },
       unit: product.unit ?? null,
-      unitDivisor: product.unitDivisor ?? null,
       unitsPerCredit: product.unitsPerCredit ?? null,
-      creditsGranted: product.creditsGranted ?? null,
+      totalCredits: product.totalCredits ?? null,
       assetId: product.assetId ?? null,
     };
 

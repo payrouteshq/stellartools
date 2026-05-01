@@ -1,5 +1,6 @@
 import { deleteProduct, putProduct } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, updateProductSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
@@ -11,7 +12,15 @@ export const PUT = apiHandler({
   requiredAppScope: "write:products",
   schema: { body: updateProductSchema, params: paramsSchema },
   handler: async ({ body, auth: { organizationId }, params: { id } }) => {
-    const product = await putProduct(id, organizationId, body);
+    const product = await putProduct(
+      id,
+      organizationId,
+      toCamelCase({
+        ...body,
+        unitsPerCredit: body.units_per_credit ? BigInt(body.units_per_credit.toString()) : null,
+        totalCredits: body.total_credits ? BigInt(body.total_credits.toString()) : null,
+      })
+    );
     return Result.ok(product);
   },
 });

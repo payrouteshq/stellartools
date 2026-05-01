@@ -9,7 +9,7 @@ import {
   retrieveSubscription as retrieveSorobanSubscription,
 } from "@/integrations/soroban-contract";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { computeDiff, toSnakeCase } from "@/lib/utils";
+import { computeDiff, toCamelCase, toSnakeCase } from "@/lib/utils";
 import { Result, z as Schema, updateSubscriptionSchema } from "@stellartools/core";
 import { all } from "better-all";
 import _ from "lodash";
@@ -97,11 +97,9 @@ export const PUT = apiHandler({
   auth: ["session", "apikey", "app", "portal"],
   requiredAppScope: "write:subscriptions",
   schema: { body: updateSubscriptionSchema, params: Schema.object({ id: Schema.string() }) },
-  handler: async ({
-    body: { metadata, cancelAtPeriodEnd, productId },
-    params: { id },
-    auth: { organizationId, environment },
-  }) => {
+  handler: async ({ body, params: { id }, auth: { organizationId, environment } }) => {
+    const { metadata, cancelAtPeriodEnd, productId } = toCamelCase<any>(body);
+
     const { subscription, customerWallet } = await all({
       subscription: async () => retrieveSubscription(id, organizationId, environment).then((res) => res.data[0]),
       async customerWallet() {

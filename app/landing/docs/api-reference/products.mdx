@@ -39,6 +39,10 @@ A product defines what you're selling — a one-time item, a recurring subscript
   The asset this product is priced in.
 </ResponseField>
 
+<ResponseField name="asset_code" type="string">
+  The asset code this product is priced in, e.g "XLM"
+</ResponseField>
+
 <ResponseField name="price_amount" type="number">
   Price in the product's asset.
 </ResponseField>
@@ -51,16 +55,12 @@ A product defines what you're selling — a one-time item, a recurring subscript
   For `metered` products. The unit being measured (e.g. `"token"`, `"request"`).
 </ResponseField>
 
-<ResponseField name="unit_divisor" type="number">
-  How many units make one billable credit.
-</ResponseField>
-
 <ResponseField name="units_per_credit" type="number">
   Units consumed per credit.
 </ResponseField>
 
-<ResponseField name="credits_granted" type="number">
-  Credits granted to the customer when this product is purchased.
+<ResponseField name="total_credits" type="number">
+  Total credits granted to the customer when this product is purchased.
 </ResponseField>
 
 <ResponseField name="metadata" type="object">
@@ -108,8 +108,8 @@ curl https://api.stellartools.dev/product \
   `one_time`, `subscription`, or `metered`.
 </ParamField>
 
-<ParamField body="asset_id" type="string" required>
-  ID of the asset to charge in.
+<ParamField body="asset_code" type="string" required>
+  Asset code to charge in, e.g "XLM".
 </ParamField>
 
 <ParamField body="price_amount" type="number" required>
@@ -132,16 +132,12 @@ curl https://api.stellartools.dev/product \
   For `metered` products. The unit label.
 </ParamField>
 
-<ParamField body="unit_divisor" type="number">
-  Units per billable credit.
-</ParamField>
-
 <ParamField body="units_per_credit" type="number">
   Units consumed per credit.
 </ParamField>
 
-<ParamField body="credits_granted" type="number">
-  Credits granted on purchase.
+<ParamField body="total_credits" type="number">
+  Total credits granted on purchase.
 </ParamField>
 
 <ParamField body="metadata" type="object">
