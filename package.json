@@ -14,7 +14,10 @@
     "build-storybook": "storybook build",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "db:generate": "npx drizzle-kit generate",
-    "db:migrate": "npx drizzle-kit migrate"
+    "db:migrate": "npx drizzle-kit migrate",
+    "build:packages": "pnpm --recursive --filter './packages/*' run build",
+    "changeset:version": "pnpm changeset version",
+    "changeset:publish": "pnpm changeset publish"
   },
   "dependencies": {
     "@aliimam/icons": "^0.1.9",
@@ -47,8 +50,8 @@
     "@react-email/render": "^2.0.4",
     "@react-pdf/renderer": "^4.3.2",
     "@stellar/stellar-sdk": "14.1.1",
-    "@stellartools/core": "workspace:*",
     "@stellartools/app-embed-bridge": "workspace:*",
+    "@stellartools/core": "workspace:*",
     "@tabler/icons-react": "^3.36.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-table": "^8.21.3",
@@ -113,6 +116,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@storybook/addon-essentials": "^8.6.15",
     "@storybook/react": "^8.6.15",
     "@storybook/react-vite": "^8.6.15",

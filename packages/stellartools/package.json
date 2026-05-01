@@ -4,10 +4,11 @@
   "description": "Core SDK for Stellar Tools API",
   "main": "dist/index.js",
   "scripts": {
+    "build": "pnpm run build:prod",
     "build:dev": "export $(cat .env.development | xargs) && tsup",
-    "build:prod": "export $(cat .env.production | xargs) && tsup",
+    "build:prod": "STELLAR_TOOLS_BASE_URL=${STELLAR_TOOLS_BASE_URL:-$(cat .env.production | grep STELLAR_TOOLS_BASE_URL | cut -d= -f2)} tsup",
     "lint:localhost": "if grep -qr 'localhost' dist; then echo '✗ ERROR: Localhost leaked into dist!'; exit 1; else echo '✓ Dist is clean.'; fi",
-    "prepublishOnly": "npm run build:prod && npm run lint:localhost"
+    "prepublishOnly": "[ -n \"$CI\" ] && pnpm run lint:localhost || (pnpm run build:prod && pnpm run lint:localhost)"
   },
   "exports": {
     ".": {
