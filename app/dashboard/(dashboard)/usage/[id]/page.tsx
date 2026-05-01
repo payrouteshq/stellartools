@@ -22,8 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
 import { toast } from "@/components/ui/toast";
+import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useMutation } from "@tanstack/react-query";
@@ -473,7 +473,8 @@ export default function UsageDetailPage() {
                   onClick={() => {
                     AppModal.open({
                       title: "Restore access",
-                      description: "The customer will immediately regain the ability to consume credits for this product.",
+                      description:
+                        "The customer will immediately regain the ability to consume credits for this product.",
                       content: (
                         <p className="text-muted-foreground text-sm">
                           Are you sure you want to restore access to this credit balance?

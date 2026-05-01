@@ -221,13 +221,7 @@ export default function CustomerDetailPage() {
             onFooterChange={(props) => setRefundModalFooterProps((prev) => ({ ...prev, ...props }))}
           />
         ),
-        footer: (
-          <RefundModalFooter
-            onClose={AppModal.close}
-            submitRef={refundModalSubmitRef}
-            isPending={false}
-          />
-        ),
+        footer: <RefundModalFooter onClose={AppModal.close} submitRef={refundModalSubmitRef} isPending={false} />,
         size: "small",
         showCloseButton: true,
         onClose: () => {

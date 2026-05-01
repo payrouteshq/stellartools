@@ -15,7 +15,7 @@ export async function resolvePublicPayments(orgId: string, env: Network, filters
       if (p.status !== "pending") return p;
 
       const txResult = await retrieveTransaction(p.transactionHash, env);
-      
+
       if (txResult.isErr() || !txResult.value) return p;
 
       const newStatus = txResult.value.successful ? "confirmed" : "failed";

@@ -68,7 +68,13 @@ export default function TeamPage() {
                 className="bg-card text-card-foreground border-border flex flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-sm transition-all hover:shadow-md"
               >
                 <div className="ring-border mb-4 size-24 overflow-hidden rounded-full ring-2">
-                  <Image src={member.image} alt={member.name} width={96} height={96} className="size-full object-cover" />
+                  <Image
+                    src={member.image}
+                    alt={member.name}
+                    width={96}
+                    height={96}
+                    className="size-full object-cover"
+                  />
                 </div>
                 <h3 className="text-base font-bold tracking-tight">{member.name}</h3>
                 <p className="text-muted-foreground mb-3 text-xs font-medium">{member.role}</p>

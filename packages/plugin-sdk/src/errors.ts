@@ -1,7 +1,12 @@
 export class BillingError extends Error {
   constructor(
     message: string,
-    public readonly code: "INSUFFICIENT_CREDITS" | "INVALID_CUSTOMER" | "PRODUCT_NOT_FOUND" | "INVALID_PRODUCT_TYPE" | "UNKNOWN"
+    public readonly code:
+      | "INSUFFICIENT_CREDITS"
+      | "INVALID_CUSTOMER"
+      | "PRODUCT_NOT_FOUND"
+      | "INVALID_PRODUCT_TYPE"
+      | "UNKNOWN"
   ) {
     super(message);
     this.name = "BillingError";

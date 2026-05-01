@@ -91,10 +91,9 @@ export const createWebhookSchema = z.object({
   name: z.string(),
   url: z.string(),
   description: z.string().optional(),
-  events: z.array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType))).refine(
-    (e) => e.length > 0,
-    { message: "At least one event is required" }
-  ),
+  events: z
+    .array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType)))
+    .refine((e) => e.length > 0, { message: "At least one event is required" }),
 });
 
 export type CreateWebhook = z.infer<typeof createWebhookSchema>;
