@@ -36,18 +36,15 @@ console.log(result);`,
     code: `import { createMeteredAISDK } from "@stellartools/aisdk-adapter";
 import { openai } from "@ai-sdk/openai";
 
-const ai = createMeteredAISDK({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY,
-  productId: "prod_llm_metered",
-});
-
-const customerId = "cust_xxx";
-const { text, usage } = await ai.generateText(customerId, {
+const response = await generateText({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  productId: "prod_llm_ai",
+  customerId: "cust_xxx",
   model: openai("gpt-4o"),
   prompt: "Write a haiku about Stellar"
 });
 
-console.log(text, usage);`,
+console.log(response);`,
   },
 
   {

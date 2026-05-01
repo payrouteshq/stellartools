@@ -5,27 +5,28 @@ import { Star } from "lucide-react";
 const testimonials = [
   {
     quote:
-      "I built a metered billing system for my AI app in an afternoon. The LangChain adapter is wild — every chain call just bills automatically. This is what I always wanted Stripe to do.",
+      "Tested the metered billing flow on testnet — built a working prototype for my AI app in an afternoon. The LangChain adapter just handles every charge automatically. Can't wait to go mainnet with this.",
     name: "Alex K.",
     role: "Founder, AI tooling startup",
     initial: "A",
+    tag: "Testnet Early Tester",
   },
   {
     quote:
-      "Finally a payments solution that actually works for African markets. My customers in Lagos scan the QR code and it's done in seconds. No more Stripe friction, no more failed cards.",
+      "Been running testnet transactions for our Lagos user base and the UX is already miles ahead. QR scan, done in seconds. Can't wait to get this in mainnet — my customers are ready.",
     name: "Temi O.",
     role: "SaaS founder, Lagos",
     initial: "T",
+    tag: "Testnet Early Tester",
   },
   {
     quote:
-      "The DX is genuinely comparable to Stripe. I integrated StellarTools into my Medusa store in a few hours. Subscriptions, refunds, the whole thing — just works.",
+      "Integrated StellarTools into a Medusa sandbox in a few hours. Subscriptions, refunds, webhooks — all working on testnet. Genuinely can't wait for mainnet, this will replace Stripe for us.",
     name: "Marcus L.",
     role: "Engineer, e-commerce",
     initial: "M",
   },
 ];
-
 function StarRating() {
   return (
     <div className="flex gap-0.5 text-yellow-400">

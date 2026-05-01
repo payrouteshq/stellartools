@@ -30,9 +30,6 @@ export default function CTASection() {
             Read the docs →
           </Link>
         </div>
-        <p className="text-muted-foreground/70 mt-5 text-[13px]">
-          No credit card required · Testnet sandbox included · Docs in 5 minutes
-        </p>
       </div>
     </section>
   );

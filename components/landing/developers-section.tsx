@@ -3,6 +3,12 @@
 import React from "react";
 
 import { CodeBlock } from "@/components/code-block";
+import {
+  UnderlineTabs,
+  UnderlineTabsContent,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+} from "@/components/underline-tabs";
 import { FlaskConical, Key, Webhook } from "lucide-react";
 
 const features = [
@@ -28,40 +34,70 @@ const features = [
 
 const codeExamples = [
   {
-    filename: "create-subscription.ts",
-    code: `import { StellarTools } from '@stellartools/sdk';
+    filename: "create-checkout-session.ts",
+    code: `import { StellarTools } from '@stellartools/core';
 
 const st = new StellarTools({
-  apiKey: process.env.STELLAR_API_KEY,
+  apiKey: process.env.STELLAR_TOOLS_API_KEY,
 });
 
 // Create a customer
 const customer = await st.customers.create({
-  email: 'user@example.com',
+  email: 'odii@stellartools.dev',
   name: 'Emmanuel Odii',
+  phone: '+2348123456789',
 });
 
-// Generate a hosted checkout link
-const link = await st.checkout.create({
+const checkout = await st.checkout.create({
   customerId: customer.id,
+  productId: 'prod_xxx',
   redirectUrl: 'https://yourapp.com/success',
 });
 
-console.log(link.url); // → share with customer`,
+// → ${process.env.NEXT_PUBLIC_CHECKOUT_URL}/checkout/xxx
+redirect(checkout.paymentUrl);`,
   },
   {
-    filename: "langchain-metered.ts",
-    code: `import { stellarMeter } from '@stellartools/langchain';
+    filename: "webhook/route.ts",
+    code: /**ts */ `import { StellarTools } from '@stellartools/core';
+import { NextRequest, NextResponse } from "next/server";
 
-// Wrap any LangChain chain with automatic
-// per-token billing on Stellar
-const chain = stellarMeter(yourLangChainChain, {
-  customerId: 'cus_abc123',
-  meterId: 'tokens_used',
-  pricePerUnit: 0.00001, // XLM per token
+const client = new StellarTools({ 
+  apiKey: process.env.STELLARTOOLS_API_KEY!,
 });
 
-// Every chain.invoke() now bills automatically 🎉`,
+export async function POST(req: NextRequest) {
+  const body = await req.text();
+  const signature = req.headers.get("X-StellarTools-Signature")!;
+
+  const event = client.webhooks.constructEvent(body, signature, process.env.STELLARTOOLS_WEBHOOK_SECRET!);
+
+  if (event.type === "customer.created") {
+    const customer = event.data.object;
+    console.dir(customer, { depth: 100 });
+  } else {
+    console.dir(event, { depth: 100 });
+  }
+      
+  return NextResponse.json({ received: true });
+}
+    `,
+  },
+  {
+    filename: "ai.ts",
+    code: `import { generateText } from '@stellartools/aisdk-adapter';
+import { openai } from "@ai-sdk/openai";
+
+const response = await generateText({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  productId: "prod_llm_ai",
+  customerId: "cust_xxx",
+  model: openai("gpt-4o"),
+  prompt: "Write a haiku about Stellar"
+});
+
+console.log(response);
+`,
   },
 ];
 
@@ -96,19 +132,22 @@ export default function DevelopersSection() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <UnderlineTabs defaultValue={codeExamples[0].filename}>
+          <UnderlineTabsList className="border-white/10">
+            {codeExamples.map((example) => (
+              <UnderlineTabsTrigger key={example.filename} value={example.filename} className="text-xs text-white/50">
+                {example.filename}
+              </UnderlineTabsTrigger>
+            ))}
+          </UnderlineTabsList>
           {codeExamples.map((example) => (
-            <CodeBlock
-              key={example.filename}
-              language="typescript"
-              filename={example.filename}
-              showCopyButton
-              theme="dark"
-            >
-              {example.code}
-            </CodeBlock>
+            <UnderlineTabsContent key={example.filename} value={example.filename} className="mt-0">
+              <CodeBlock language="typescript" filename={example.filename} showCopyButton theme="dark">
+                {example.code}
+              </CodeBlock>
+            </UnderlineTabsContent>
           ))}
-        </div>
+        </UnderlineTabs>
       </div>
     </section>
   );
