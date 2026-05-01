@@ -4,6 +4,7 @@ import { CodeBlock } from "@/components/code-block";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const integrations = [
@@ -155,14 +156,14 @@ export function AppConnectionWidget() {
                   <span>{integration.name}</span>
                 </TabsTrigger>
               ))}
-              <TabsTrigger
-                value="request"
-                className="w-full justify-start gap-2 data-[state=active]:shadow-none sm:w-auto sm:justify-center"
-                onClick={() => router.push("/book-call")}
+              <Link
+                prefetch
+                href="/book-call"
+                className="text-foreground dark:text-muted-foreground hover:bg-background relative z-10 inline-flex h-[calc(100%-1px)] w-full items-center justify-start gap-2 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-colors sm:w-auto sm:justify-center"
               >
                 <Plus className="size-4" />
                 <span>Request</span>
-              </TabsTrigger>
+              </Link>
             </TabsList>
             <span className="text-muted-foreground text-center text-sm whitespace-nowrap sm:text-left">
               + many more

@@ -1,4 +1,4 @@
-import { StellarTools } from "@/components/icon";
+import { Discord, Linkedin, StellarTools, XIcon } from "@/components/icon";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 
@@ -39,6 +39,32 @@ export const FooterSection = () => {
             Payment infrastructure for the Stellar blockchain. Accept payments, manage subscriptions, and withdraw to
             local currency, all from one platform.
           </p>
+          <div className="mt-5 flex items-center gap-4">
+            <Link
+              href="https://x.com/stellartoolsorg"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/40 transition-colors hover:text-white"
+            >
+              <XIcon className="size-4" />
+            </Link>
+            <Link
+              href="https://www.linkedin.com/company/stellartoolsorg"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/40 transition-colors hover:text-white"
+            >
+              <Linkedin className="size-4" />
+            </Link>
+            <Link
+              href="https://discord.gg/fNtD7Q9tPK"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/40 transition-colors hover:text-white"
+            >
+              <Discord className="size-4" />
+            </Link>
+          </div>
         </div>
         <div>
           <div className="mb-4 text-xs font-bold tracking-widest text-white/40 uppercase">Product</div>

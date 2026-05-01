@@ -3,7 +3,6 @@
 import React from "react";
 
 import { Timeline, TimelineEntry } from "@/components/timeline";
-import { Banknote } from "lucide-react";
 
 const steps = [
   {
@@ -52,18 +51,8 @@ export default function HowItWorks() {
           payments in <em className="text-primary">minutes.</em>
         </h2>
 
-        <div className="mt-16 grid items-center gap-12 md:grid-cols-2 md:gap-20">
+        <div className="mt-16 max-w-xl">
           <Timeline items={steps} renderItem={renderStep} />
-
-          <div>
-            <div className="from-primary/5 to-primary/15 border-primary/30 flex h-[420px] flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed bg-linear-to-br p-8 text-center">
-              <Banknote className="text-primary/60 h-12 w-12" />
-              <strong className="text-primary text-sm font-semibold">Transactions / Payout Screenshot</strong>
-              <div className="text-muted-foreground text-xs">
-                Screenshot of the Transactions or Payout section showing settled payments history
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>

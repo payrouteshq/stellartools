@@ -3,6 +3,7 @@
 import { AuroraBackground } from "@/components/aurora-background";
 import { AppConnectionWidget } from "@/components/landing/app-connection-widget";
 import CheckoutSection from "@/components/landing/checkout-section";
+import CustomerPortalSection from "@/components/landing/customer-portal-section";
 import CTASection from "@/components/landing/cta-section";
 import DevelopersSection from "@/components/landing/developers-section";
 import { FooterSection } from "@/components/landing/footer-section";
@@ -28,6 +29,7 @@ export default function Home() {
       <WidgetSection />
       <HowItWorks />
       <CheckoutSection />
+      <CustomerPortalSection />
       <StatsSection />
       <AppConnectionWidget />
       <PayoutsSection />
