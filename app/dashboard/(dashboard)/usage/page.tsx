@@ -61,6 +61,7 @@ const columns: ColumnDef<UsageRecord>[] = [
               min={0}
               max={100}
               className="pointer-events-none"
+              showKnobs={false}
             />
             <span className="text-muted-foreground text-xs">{usagePercentage.toFixed(1)}%</span>
           </div>
