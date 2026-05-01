@@ -1,4 +1,10 @@
-import { Link2, Palette, QrCode, Zap } from "lucide-react";
+"use client";
+
+import { PhoneNumberField } from "@/components/phone-number-field";
+import { TextField } from "@/components/text-field";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Info, Link2, Palette, QrCode, Zap } from "lucide-react";
 
 const features = [
   {
@@ -54,19 +60,40 @@ export default function CheckoutSection() {
         </div>
 
         <div>
-          <div className="bg-card mx-auto max-w-[380px] overflow-hidden rounded-2xl shadow-[0_40px_120px_rgba(0,0,0,0.4)]">
-            <div className="bg-primary px-4 py-1.5 text-center text-[12px] text-white/85">
-              ✦ StellarTools Secure Checkout
+          <div className="bg-card mx-auto max-w-[400px] overflow-hidden rounded-2xl shadow-[0_40px_120px_rgba(0,0,0,0.4)]">
+            <div className="bg-primary border-border flex items-center justify-center gap-1.5 border-b px-4 py-1.5">
+              <Info className="text-secondary-foreground size-3" />
+              <span className="text-secondary-foreground text-xs">
+                You are in <span className="font-medium">Test mode</span>
+              </span>
             </div>
-            <div className="p-6">
-              <div className="mb-6 text-center">
-                <div className="text-foreground text-[36px] font-bold">10 XLM</div>
-                <div className="text-muted-foreground mt-0.5 text-sm">Discord Unlimited · billed monthly</div>
-              </div>
 
-              <button className="bg-primary text-primary-foreground w-full rounded-[10px] py-3.5 text-sm font-semibold">
-                Pay as GBWY…OQCH →
-              </button>
+            <div className="border-b p-6">
+              <div className="text-muted-foreground mb-1 text-[10px] font-bold tracking-widest uppercase">
+                Paying for
+              </div>
+              <div className="text-foreground text-xl font-bold">Discord Unlimited</div>
+              <div className="text-muted-foreground mt-0.5 text-xs">
+                Access to all premium features · billed monthly
+              </div>
+              <Separator className="my-4" />
+              <div className="text-foreground text-3xl font-black tracking-tighter">
+                10 <span className="text-muted-foreground text-base font-medium">XLM</span>
+                <span className="text-muted-foreground ml-1 text-sm font-normal">/ month</span>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <TextField id="email" label="Billing Email" value="jane@company.com" onChange={() => {}} error={null} />
+              <PhoneNumberField
+                id="phone"
+                label="Phone Number"
+                value={{ number: "5550000000", countryCode: "US" }}
+                onChange={() => {}}
+                groupClassName="w-full shadow-none"
+                error={null}
+              />
+              <Button className="h-12 w-full font-bold">Pay as GBWY…OQCH →</Button>
             </div>
           </div>
         </div>
