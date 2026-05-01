@@ -30,7 +30,7 @@ export const retrieveAuth = async (params: { id: string } | { accountId: string 
 
   const [response] = await db.select().from(auth).where(whereClause).limit(1);
 
-  if (!response) throw new Error("Auth not found");
+  if (!response) return null;
 
   return response;
 };
@@ -240,6 +240,8 @@ export const getCurrentUser = async () => {
 
   const authRecord = await retrieveAuth({ accountId: payload.accountId });
 
+  if (!authRecord) return null;
+
   if (authRecord.isRevoked || new Date() > authRecord.expiresAt) {
     await deleteCookies(["accessToken", "refreshToken"]);
     return null;
@@ -272,7 +274,8 @@ export const signOut = async () => {
       const payload = verifyJwt<CurrentUserPayload>(accessToken);
 
       const authRecord = await retrieveAuth({ accountId: payload.accountId });
-      await putAuth(authRecord.id, { isRevoked: true });
+
+      if (authRecord) await putAuth(authRecord.id, { isRevoked: true });
     } catch (error) {
       console.error("Error revoking token:", error);
     }

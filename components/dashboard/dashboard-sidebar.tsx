@@ -6,7 +6,6 @@ import { getCurrentUser, signOut } from "@/actions/auth";
 import { retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
 import { AppModal } from "@/components/app-modal";
 import { TestModeBanner } from "@/components/environment-mode";
-import ModeToggle from "@/components/mode-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -271,11 +270,6 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
 
           <SidebarFooter>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <div className="px-1">
-                  <ModeToggle />
-                </div>
-              </SidebarMenuItem>
               <SidebarMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
