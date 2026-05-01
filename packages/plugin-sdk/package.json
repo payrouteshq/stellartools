@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/plugin-sdk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Build metered integrations with StellarTools",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
