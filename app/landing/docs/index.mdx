@@ -17,9 +17,7 @@ StellarTools is a payments platform built on [Stellar](https://stellar.org). You
 
 Go to [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys) and create a new key. The key encodes your environment (testnet or mainnet), so you do not need to set any base URLs or environment flags.
 
-<Note>
-  Use testnet keys while building. Switch to a mainnet key when you are ready to go live.
-</Note>
+<Note>Use testnet keys while building. Switch to a mainnet key when you are ready to go live.</Note>
 
 ## Install the SDK
 
@@ -31,7 +29,7 @@ npm install @stellartools/core
 import { StellarTools } from "@stellartools/core";
 
 const st = new StellarTools({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
 });
 ```
 

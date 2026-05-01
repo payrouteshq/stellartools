@@ -4,47 +4,47 @@ export interface BillingConfig {
   /**
    * The API key for the Stellar Tools API.
    */
-  apiKey: string;
+  api_key: string;
 
   /**
    * Whether to automatically create a customer when a user is created.
    * @default false
    */
-  createCustomerOnSignUp?: boolean;
+  create_customer_on_sign_up?: boolean;
 
   /**
    * The credit low threshold
    * @default 10
    */
-  creditLowThreshold?: number;
+  credit_low_threshold?: number;
 
   /**
    * The function to call when a customer is created.
    */
-  onCustomerCreated?: (customer: Customer) => Promise<void>;
+  on_customer_created?: (customer: Customer) => Promise<void>;
 
   /**
    * The function to call when a checkout is completed.
    */
-  onCheckoutComplete?: (data: Checkout) => Promise<void>;
+  on_checkout_complete?: (data: Checkout) => Promise<void>;
 
   /**
    * The function to call when the credit balance is low.
    */
-  onCreditsLow?: (data: CreditBalance) => Promise<void>;
+  on_credits_low?: (data: CreditBalance) => Promise<void>;
 
   /**
    * The function to call when a subscription is created.
    */
-  onSubscriptionCreated?: (data: Subscription) => Promise<void>;
+  on_subscription_created?: (data: Subscription) => Promise<void>;
 
   /**
    * The function to call when a subscription is canceled.
    */
-  onSubscriptionCanceled?: (data: Subscription) => Promise<void>;
+  on_subscription_canceled?: (data: Subscription) => Promise<void>;
 
   /**
    * The function to call when a subscription is updated.
    */
-  onSubscriptionUpdated?: (data: Subscription) => Promise<void>;
+  on_subscription_updated?: (data: Subscription) => Promise<void>;
 }

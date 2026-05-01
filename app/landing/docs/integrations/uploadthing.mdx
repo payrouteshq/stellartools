@@ -14,13 +14,13 @@ npm install @stellartools/uploadthing-adapter uploadthing
 ## Usage
 
 ```ts
-import { createUploadthing } from "uploadthing/server";
 import { createMeteredUploadthing } from "@stellartools/uploadthing-adapter";
+import { createUploadthing } from "uploadthing/server";
 
 const ut = createUploadthing();
 const f = createMeteredUploadthing({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-  productId: "prod_uploads",
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  product_id: "prod_uploads",
 });
 
 export const uploadRouter = f({
@@ -34,11 +34,11 @@ Each request must include an `x-customer-id` header with the StellarTools custom
 
 ## Config options
 
-<ParamField body="apiKey" type="string" required>
+<ParamField body="api_key" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="productId" type="string" required>
+<ParamField body="product_id" type="string" required>
   Credit product ID to charge for uploads.
 </ParamField>
 

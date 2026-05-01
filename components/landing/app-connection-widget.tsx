@@ -18,8 +18,8 @@ const integrations = [
 import { ChatOpenAI } from "@langchain/openai";
 
 const model = createMeteredModel({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY,
-  productId: "prod_llm_metered",
+  api_key: process.env.STELLAR_TOOLS_API_KEY,
+  product_id: "prod_llm_metered",
 }, new ChatOpenAI({ model: "gpt-4o" }));
 
 // Use like any LangChain model; pass customerId in options
@@ -38,9 +38,9 @@ console.log(result);`,
 import { openai } from "@ai-sdk/openai";
 
 const response = await generateText({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-  productId: "prod_llm_ai",
-  customerId: "cust_xxx",
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  product_id: "prod_llm_ai",
+  customer_id: "cust_xxx",
   model: openai("gpt-4o"),
   prompt: "Write a haiku about Stellar"
 });
@@ -72,8 +72,8 @@ module.exports = defineConfig({
             resolve: "@stellartools/medusajs-adapter",
             id: "stellar",
             options: {
-              apiKey: process.env.STELLAR_TOOLS_API_KEY,
-              webhookSecret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET,
+              api_key: process.env.STELLAR_TOOLS_API_KEY,
+              webhook_secret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET,
               debug: true,
             },
           },
@@ -97,19 +97,19 @@ import { betterAuth } from "better-auth";
 export const auth = betterAuth({
   plugins: [
     stellarTools({
-      apiKey: process.env.STELLAR_API_KEY,
-      createCustomerOnSignUp: true, 
-      creditLowThreshold: 100,
-      onCustomerCreated: async (customer) => {
+      api_key: process.env.STELLAR_API_KEY,
+      create_customer_on_signup: true, 
+      credit_low_threshold: 100,
+      on_customer_created: async (customer) => {
         console.log("Customer created", customer);
       },
-      onSubscriptionCreated: async (subscription) => {
+      on_subscription_created: async (subscription) => {
         console.log("Subscription created", subscription);
       },
-      onSubscriptionCanceled: async (subscription) => {
+      on_subscription_canceled: async (subscription) => {
         console.log("Subscription canceled", subscription);
       },
-      onCreditsLow: async (creditBalance) => {
+      on_credits_low: async (creditBalance) => {
         console.log("Credits low", creditBalance);
       },
     })

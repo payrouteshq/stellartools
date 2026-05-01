@@ -16,20 +16,18 @@ npm install @stellartools/langchain-adapter @langchain/core langchain
 Pass your config and a base model to `createMeteredModel`. Then call it with a `customerId` as the first argument, followed by the usual LangChain arguments.
 
 ```ts
-import { createMeteredModel } from "@stellartools/langchain-adapter";
 import { ChatOpenAI } from "@langchain/openai";
+import { createMeteredModel } from "@stellartools/langchain-adapter";
 
 const model = createMeteredModel(
   {
-    apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-    productId: "prod_llm_metered",
+    api_key: process.env.STELLAR_TOOLS_API_KEY!,
+    product_id: "prod_llm_metered",
   },
   new ChatOpenAI({ model: "gpt-4o" })
 );
 
-const result = await model.invoke("cust_xxx", [
-  { role: "user", content: "Hello" },
-]);
+const result = await model.invoke("cust_xxx", [{ role: "user", content: "Hello" }]);
 
 console.log(result);
 ```
@@ -37,28 +35,26 @@ console.log(result);
 Streaming:
 
 ```ts
-for await (const chunk of model.stream("cust_xxx", [
-  { role: "user", content: "Hello" },
-])) {
+for await (const chunk of model.stream("cust_xxx", [{ role: "user", content: "Hello" }])) {
   process.stdout.write(chunk.content as string);
 }
 ```
 
 ## Config options
 
-<ParamField body="apiKey" type="string" required>
+<ParamField body="api_key" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="productId" type="string" required>
+<ParamField body="product_id" type="string" required>
   Credit product ID to charge for model usage.
 </ParamField>
 
 ## Available methods
 
-| Method | Description |
-|--------|-------------|
-| `invoke(customerId, input, options?)` | Single call; charges by token usage. |
-| `stream(customerId, input, options?)` | Streaming; charges after stream ends. |
-| `batch(customerId, inputs, options?)` | Batch calls; charges by total usage. |
-| `streamEvents(customerId, input, options?)` | Stream events; charges on model end. |
+| Method                                      | Description                           |
+| ------------------------------------------- | ------------------------------------- |
+| `invoke(customerId, input, options?)`       | Single call; charges by token usage.  |
+| `stream(customerId, input, options?)`       | Streaming; charges after stream ends. |
+| `batch(customerId, inputs, options?)`       | Batch calls; charges by total usage.  |
+| `streamEvents(customerId, input, options?)` | Stream events; charges on model end.  |

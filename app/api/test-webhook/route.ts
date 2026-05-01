@@ -1,7 +1,7 @@
 import { StellarTools } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new StellarTools({ apiKey: process.env.STELLARTOOLS_API_KEY! });
+const client = new StellarTools({ api_key: process.env.STELLARTOOLS_API_KEY! });
 
 export async function POST(req: NextRequest) {
   const body = await req.text();

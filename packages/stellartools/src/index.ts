@@ -36,7 +36,7 @@ export class StellarTools {
       baseUrl: process.env.STELLAR_TOOLS_BASE_URL!,
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": this.config.apiKey,
+        "x-api-key": this.config.api_key,
       },
       maxRetries: 3,
     });

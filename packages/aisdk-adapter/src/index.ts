@@ -5,15 +5,17 @@ type StellarToolsParams = {
   /**
    * The API key for the Stellar Tools API.
    */
-  apiKey: string;
+  api_key: string;
+
   /**
    * The customer ID.
    */
-  customerId: string;
+  customer_id: string;
+
   /**
    * The product ID.
    */
-  productId: string;
+  product_id: string;
 };
 
 const handleError = (err: unknown): never => {
@@ -28,18 +30,18 @@ const handleError = (err: unknown): never => {
 };
 
 export const generateText = async (params: StellarToolsParams, ...args: Parameters<typeof rawAI.generateText>) => {
-  const { apiKey, customerId, productId } = params;
+  const { api_key, customer_id, product_id } = params;
 
-  if (!customerId || !productId) {
+  if (!customer_id || !product_id) {
     return handleError(new Error("Customer ID and product ID are required"));
   }
 
-  const plugin = createMeteredPlugin({ apiKey });
+  const plugin = createMeteredPlugin({ api_key });
 
   try {
     return await plugin.meter(
-      customerId,
-      productId,
+      customer_id,
+      product_id,
       () => rawAI.generateText(...args),
       (result) => result.usage.totalTokens ?? 0,
       { operation: "generateText" }
@@ -53,18 +55,18 @@ export const generateObject = async <T>(
   params: StellarToolsParams,
   ...args: Parameters<typeof rawAI.generateObject>
 ) => {
-  const { apiKey, customerId, productId } = params;
+  const { api_key, customer_id, product_id } = params;
 
-  if (!customerId || !productId) {
+  if (!customer_id || !product_id) {
     return handleError(new Error("Customer ID and product ID are required"));
   }
 
-  const plugin = createMeteredPlugin({ apiKey });
+  const plugin = createMeteredPlugin({ api_key });
 
   try {
     return await plugin.meter(
-      customerId,
-      productId,
+      customer_id,
+      product_id,
       () => rawAI.generateObject(...args),
       (result) => result.usage.totalTokens ?? 0,
       { operation: "generateObject" }
@@ -75,22 +77,22 @@ export const generateObject = async <T>(
 };
 
 export const streamText = async (params: StellarToolsParams, ...args: Parameters<typeof rawAI.streamText>) => {
-  const { apiKey, customerId, productId } = params;
+  const { api_key, customer_id, product_id } = params;
 
-  if (!customerId || !productId) {
+  if (!customer_id || !product_id) {
     return handleError(new Error("Customer ID and product ID are required"));
   }
 
-  const plugin = createMeteredPlugin({ apiKey });
+  const plugin = createMeteredPlugin({ api_key });
 
   try {
-    await plugin.preflight(customerId, productId);
+    await plugin.preflight(customer_id, product_id);
     const originalOnFinish = args[0]?.onFinish;
 
     return rawAI.streamText({
       ...args[0],
       onFinish: async (event) => {
-        await plugin.charge(customerId, productId, event.usage.totalTokens ?? 0, {
+        await plugin.charge(customer_id, product_id, event.usage.totalTokens ?? 0, {
           operation: "streamText",
         });
         if (originalOnFinish) await originalOnFinish(event);
@@ -102,22 +104,22 @@ export const streamText = async (params: StellarToolsParams, ...args: Parameters
 };
 
 export const streamObject = async <T>(params: StellarToolsParams, ...args: Parameters<typeof rawAI.streamObject>) => {
-  const { apiKey, customerId, productId } = params;
+  const { api_key, customer_id, product_id } = params;
 
-  if (!customerId || !productId) {
+  if (!customer_id || !product_id) {
     return handleError(new Error("Customer ID and product ID are required"));
   }
 
-  const plugin = createMeteredPlugin({ apiKey });
+  const plugin = createMeteredPlugin({ api_key });
 
   try {
-    await plugin.preflight(customerId, productId);
+    await plugin.preflight(customer_id, product_id);
     const originalOnFinish = args[0]?.onFinish;
 
     return rawAI.streamObject({
       ...args[0],
       onFinish: async (event) => {
-        await plugin.charge(customerId, productId, event.usage.totalTokens ?? 0, {
+        await plugin.charge(customer_id, product_id, event.usage.totalTokens ?? 0, {
           operation: "streamObject",
         });
         if (originalOnFinish) await originalOnFinish(event);

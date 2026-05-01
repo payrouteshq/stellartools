@@ -4,7 +4,7 @@ export interface StellarToolsMedusaAdapterOptions {
   /**
    * The API key for the Stellar Tools API.
    */
-  apiKey: string;
+  api_key: string;
 
   /**
    * Whether to enable debug mode.
@@ -14,13 +14,13 @@ export interface StellarToolsMedusaAdapterOptions {
   /**
    * The webhook secret for the Stellar Tools API.
    */
-  webhookSecret?: string;
+  webhook_secret?: string;
 }
 
 export const stellarToolsMedusaAdapterOptionsSchema = schemaFor<StellarToolsMedusaAdapterOptions>()(
   Schema.object({
-    apiKey: Schema.string(),
+    api_key: Schema.string(),
     debug: Schema.boolean().default(true),
-    webhookSecret: Schema.string(),
+    webhook_secret: Schema.string(),
   })
 );

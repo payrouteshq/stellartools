@@ -10,11 +10,11 @@ export interface StellarToolsConfig {
   /**
    * The API key for the Stellar Tools API.
    */
-  apiKey: string;
+  api_key: string;
 }
 
 export const stellarToolsConfigSchema = schemaFor<StellarToolsConfig>()(
   z.object({
-    apiKey: z.string(),
+    api_key: z.string(),
   })
 );

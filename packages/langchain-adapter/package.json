@@ -1,14 +1,27 @@
 {
-  "name": "langchain-adapter",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "@stellartools/langchain-adapter",
+  "version": "0.0.1",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsup"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "stellar",
+    "tools",
+    "langchain",
+    "adapter"
+  ],
+  "author": "Emmanuel Odii",
   "license": "ISC",
-  "description": "",
+  "description": "Stellar Tools LangChain Adapter",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "dependencies": {
     "@langchain/core": "^1.1.17",
     "langchain": "^1.2.13"

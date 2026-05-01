@@ -34,8 +34,8 @@ module.exports = defineConfig({
             resolve: "@stellartools/medusajs-adapter",
             id: "stellar",
             options: {
-              apiKey: process.env.STELLAR_TOOLS_API_KEY,
-              webhookSecret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET,
+              api_key: process.env.STELLAR_TOOLS_API_KEY,
+              webhook_secret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET,
             },
           },
         ],
@@ -47,11 +47,11 @@ module.exports = defineConfig({
 
 ## Options
 
-<ParamField body="apiKey" type="string" required>
+<ParamField body="api_key" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="webhookSecret" type="string" required>
+<ParamField body="webhook_secret" type="string" required>
   Webhook signing secret for verifying incoming events.
 </ParamField>
 

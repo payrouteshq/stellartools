@@ -7,7 +7,7 @@ import type { BillingConfig } from "./types";
 
 async function syncUserWithStellar(user: User, ctx: GenericEndpointContext<BetterAuthOptions>, options: BillingConfig) {
   const logger = ctx.context.logger;
-  const client = new StellarTools({ apiKey: options.apiKey });
+  const client = new StellarTools({ api_key: options.api_key });
 
   const existing = await client.customers.list({ email: user.email });
   let customerId = existing?.[0]?.id ?? null;
@@ -29,8 +29,8 @@ async function syncUserWithStellar(user: User, ctx: GenericEndpointContext<Bette
   }
 
   await Promise.allSettled([
-    ctx.context.internalAdapter.updateUser(user.id, { stellarCustomerId: customerId }),
-    options.onCustomerCreated?.(customerData!),
+    ctx.context.internalAdapter.updateUser(user.id, { stellartools_customer_id: customerId }),
+    options.on_customer_created?.(customerData!),
   ]).catch((err) => {
     logger.error(`Failed to sync customer ${err}`);
   });
@@ -58,7 +58,7 @@ export const stellarTools = (options: BillingConfig) => {
           user: {
             create: {
               after: async (user, ctx) => {
-                const shouldSync = ctx && options.createCustomerOnSignUp && !user.stellarCustomerId;
+                const shouldSync = ctx && options.create_customer_on_sign_up && !user.stellartools_customer_id;
                 if (shouldSync) await syncUserWithStellar(user, ctx, options);
               },
             },

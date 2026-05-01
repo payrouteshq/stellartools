@@ -20,9 +20,9 @@ import { generateText } from "@stellartools/aisdk-adapter";
 import { openai } from "@ai-sdk/openai";
 
 const response = await generateText({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-  productId: "prod_llm_ai",
-  customerId: "cust_xxx",
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  product_id: "prod_llm_ai",
+  customer_id: "cust_xxx",
   model: openai("gpt-4o"),
   prompt: "Write a haiku about Stellar",
 });
@@ -37,9 +37,9 @@ import { streamText } from "@stellartools/aisdk-adapter";
 import { openai } from "@ai-sdk/openai";
 
 await streamText({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-  productId: "prod_llm_ai",
-  customerId: "cust_xxx",
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  product_id: "prod_llm_ai",
+  customer_id: "cust_xxx",
   model: openai("gpt-4o"),
   messages: [{ role: "user", content: "Hello" }],
 });
@@ -49,14 +49,14 @@ The preflight check runs before the model call. If the customer does not have en
 
 ## Options
 
-<ParamField body="apiKey" type="string" required>
+<ParamField body="api_key" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="productId" type="string" required>
+<ParamField body="product_id" type="string" required>
   The credit product ID to charge for usage.
 </ParamField>
 
-<ParamField body="customerId" type="string" required>
+<ParamField body="customer_id" type="string" required>
   The StellarTools customer ID to bill.
 </ParamField>

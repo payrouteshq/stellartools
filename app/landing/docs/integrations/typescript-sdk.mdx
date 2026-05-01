@@ -17,7 +17,7 @@ npm install @stellartools/core
 import { StellarTools } from "@stellartools/core";
 
 const st = new StellarTools({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
 });
 ```
 
@@ -39,23 +39,23 @@ const customer = await st.customers.create({
 
 ```ts
 const checkout = await st.checkout.create({
-  customerId: customer.id,
-  productId: "prod_xxx",
-  redirectUrl: "https://yourapp.com/success",
+  customer_id: customer.id,
+  product_id: "prod_xxx",
+  redirect_url: "https://yourapp.com/success",
 });
 
 // Send the customer to checkout.paymentUrl
-redirect(checkout.paymentUrl);
+redirect(checkout.payment_url);
 ```
 
 For a direct amount checkout without a product:
 
 ```ts
 const checkout = await st.checkout.create({
-  customerId: customer.id,
+  customer_d: customer.id,
   amount: 10,
-  assetCode: "XLM",
-  redirectUrl: "https://yourapp.com/success",
+  asset_code: "XLM",
+  redirect_url: "https://yourapp.com/success",
 });
 ```
 
@@ -65,9 +65,9 @@ const checkout = await st.checkout.create({
 const product = await st.products.create({
   name: "Pro Plan",
   type: "subscription",
-  assetCode: "XLM",
-  priceAmount: 10,
-  recurringPeriod: "monthly",
+  asset_code: "XLM",
+  price_amount: 10,
+  recurring_period: "monthly",
 });
 ```
 
@@ -78,8 +78,8 @@ Product types: `one_time`, `subscription`, `metered`.
 ```ts
 // Create
 const subscription = await st.subscriptions.create({
-  customerId: "cust_xxx",
-  productId: "prod_xxx",
+  customer_id: "cust_xxx",
+  product_id: "prod_xxx",
 });
 
 // Pause, resume, cancel

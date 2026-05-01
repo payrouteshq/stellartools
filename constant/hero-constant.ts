@@ -13,7 +13,7 @@ module.exports = defineConfig({
             resolve: "@stellartools/medusajs-adapter",
             id: "stellar",
             debug: true,
-            webhookSecret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET!,
+            webhook_secret: process.env.STELLAR_TOOLS_WEBHOOK_SECRET!,
           },
         ],
       },
@@ -27,9 +27,9 @@ import { createStellarToolsAISDK } from "@stellartools/aisdk-adapter";
 import { openai } from "@ai-sdk/openai";
 
 const ai = createStellarToolsAISDK({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-  customerId: "cus_erkiopiokpikopo",
-  productId: "pr_jkwheihiuhcuihewe",
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  customer_id: "cus_erkiopiokpikopo",
+  product_id: "pr_jkwheihiuhcuihewe",
 });
 
 const result = await ai.generateText({
@@ -50,16 +50,16 @@ const client = new Server("https://horizon-testnet.stellar.org");
 export const auth = betterAuth({
   plugins: [
     stellarTools({ 
-     apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-     createCustomerOnSignUp: true, 
-     creditLowThreshold: 10,
-     onCustomerCreated: async (customer) => {
+     api_key: process.env.STELLAR_TOOLS_API_KEY!,
+     create_customer_on_sign_up: true, 
+     credit_low_threshold: 10,
+     on_customer_created: async (customer) => {
       console.log("Customer created", customer);
     },
-    onCheckoutComplete: async (checkout) => {
+    on_checkout_complete: async (checkout) => {
       console.log("Checkout completed", checkout);
     },
-    onCreditsLow: async (creditBalance) => {
+    on_credits_low: async (creditBalance) => {
       console.log("Credits low", creditBalance);
     }
   }),
@@ -72,8 +72,8 @@ const UploadThingCodeSample = /* ts */ `
 import { createStellarUploadthing } from "@stellartools/uploadthing-adapter"
 
 const f = createStellarUploadthing({
-  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-  productId: "pr_jkwheihiuhcuihewe",
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  product_id: "pr_jkwheihiuhcuihewe",
 });
 
 export const fileRouter = {

@@ -6,12 +6,12 @@ export interface MeteredPluginConfig {
   /**
    * The API key for the Stellar Tools API.
    */
-  apiKey: string;
+  api_key: string;
 }
 
 export const meteredPluginConfigSchema = schemaFor<MeteredPluginConfig>()(
   Schema.object({
-    apiKey: Schema.string().min(1, "API key is required"),
+    api_key: Schema.string().min(1, "API key is required"),
   })
 );
 
@@ -34,7 +34,7 @@ export interface ChargeResult {
   /**
    * The transaction ID of the charge
    */
-  transactionId?: string;
+  transaction_id?: string;
 }
 
 export interface MeteredPlugin {
@@ -114,9 +114,9 @@ export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin 
     throw new BillingError(`Invalid config: ${response.error.message}`, "UNKNOWN");
   }
 
-  const { apiKey } = response.value;
+  const { api_key } = response.value;
 
-  const stellar = new StellarTools({ apiKey });
+  const stellar = new StellarTools({ api_key });
 
   const preflight = async (customerId: string, productId: string): Promise<void> => {
     try {
@@ -125,7 +125,7 @@ export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin 
         throw new InvalidProductTypeError(productId);
       }
 
-      const result = await stellar.credits.check(customerId, { productId, rawAmount: 1 });
+      const result = await stellar.credits.check(customerId, { product_id: productId, raw_amount: 1 });
 
       if (!result.isSufficient) {
         throw new InsufficientCreditsError("Insufficient credits", 1, 0);
@@ -147,13 +147,13 @@ export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin 
 
     try {
       const result = await stellar.credits.consume(customerId, {
-        productId,
-        rawAmount: amount,
+        product_id: productId,
+        raw_amount: amount,
         reason: "deduct",
         metadata: { source: "Plugin SDK", ...metadata },
       });
 
-      return { balance: result.balance, charged: amount, transactionId: result.id };
+      return { balance: result.balance, charged: amount, transaction_id: result.id };
     } catch (err) {
       throw new BillingError(err instanceof Error ? err.message : "Charge failed", "UNKNOWN");
     }
@@ -170,13 +170,13 @@ export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin 
 
     try {
       const result = await stellar.credits.refund(customerId, {
-        productId,
+        product_id: productId,
         amount,
         reason: reason ?? "refund",
         metadata: { source: "Plugin SDK", ...metadata },
       });
 
-      return { balance: result.balance, charged: -amount, transactionId: result.id };
+      return { balance: result.balance, charged: -amount, transaction_id: result.id };
     } catch (err) {
       throw new BillingError(err instanceof Error ? err.message : "Refund failed", "UNKNOWN");
     }
@@ -186,7 +186,7 @@ export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin 
    * @example
    * import { createMeteredPlugin } from "@stellartools/plugin-sdk";
    * import { ffmpeg } from "../lib/ffmpeg";
-   * const billing = createMeteredPlugin({ apiKey: "your-api-key", productId: "your-product-id" });
+   * const billing = createMeteredPlugin({ api_key: "your-api-key", productId: "your-product-id" });
    *
    * app.post("/transcode", async (req, res) => {
    *   const { customerId, videoUrl, format } = req.body;

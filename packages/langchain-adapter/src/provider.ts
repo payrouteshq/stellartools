@@ -33,17 +33,26 @@ export class MeteredLangChain<TModel extends BaseLanguageModel = BaseLanguageMod
     return 0;
   }
 
-  async invoke(customerId: string, ...args: Parameters<TModel["invoke"]>): Promise<ReturnType<TModel["invoke"]>> {
+  async invoke(
+    customerId: string,
+    productId: string,
+    ...args: Parameters<TModel["invoke"]>
+  ): Promise<ReturnType<TModel["invoke"]>> {
     return this.plugin.meter(
       customerId,
+      productId,
       () => this.model.invoke(args[0], args[1]) as Promise<ReturnType<TModel["invoke"]>>,
       (result) => this.extractTokens(result),
       { operation: "invoke", model: this.model.constructor.name }
     );
   }
 
-  async *stream(customerId: string, ...args: Parameters<TModel["stream"]>): AsyncGenerator<BaseMessageChunk> {
-    await this.plugin.preflight(customerId);
+  async *stream(
+    customerId: string,
+    productId: string,
+    ...args: Parameters<TModel["stream"]>
+  ): AsyncGenerator<BaseMessageChunk> {
+    await this.plugin.preflight(customerId, productId);
     const stream = await this.model.stream(args[0], args[1]);
 
     let usageFound = 0;
@@ -54,24 +63,38 @@ export class MeteredLangChain<TModel extends BaseLanguageModel = BaseLanguageMod
     }
 
     if (usageFound > 0) {
-      await this.plugin.charge(customerId, usageFound, { operation: "stream", model: this.model.constructor.name });
+      await this.plugin.charge(customerId, productId, usageFound, {
+        operation: "stream",
+        model: this.model.constructor.name,
+      });
     }
   }
 
-  async batch(customerId: string, ...args: Parameters<TModel["batch"]>): Promise<ReturnType<TModel["batch"]>> {
-    await this.plugin.preflight(customerId);
+  async batch(
+    customerId: string,
+    productId: string,
+    ...args: Parameters<TModel["batch"]>
+  ): Promise<ReturnType<TModel["batch"]>> {
+    await this.plugin.preflight(customerId, productId);
     const results = await this.model.batch(args[0], args[1]);
 
     const total = results.reduce((acc, r) => acc + this.extractTokens(r), 0);
     if (total > 0) {
-      await this.plugin.charge(customerId, total, { operation: "batch", model: this.model.constructor.name });
+      await this.plugin.charge(customerId, productId, total, {
+        operation: "batch",
+        model: this.model.constructor.name,
+      });
     }
 
     return results as ReturnType<TModel["batch"]>;
   }
 
-  async *streamEvents(customerId: string, ...args: Parameters<TModel["streamEvents"]>): AsyncGenerator<any> {
-    await this.plugin.preflight(customerId);
+  async *streamEvents(
+    customerId: string,
+    productId: string,
+    ...args: Parameters<TModel["streamEvents"]>
+  ): AsyncGenerator<any> {
+    await this.plugin.preflight(customerId, productId);
     const events = this.model.streamEvents(args[0], args[1]);
 
     let total = 0;
@@ -84,7 +107,10 @@ export class MeteredLangChain<TModel extends BaseLanguageModel = BaseLanguageMod
     }
 
     if (total > 0) {
-      await this.plugin.charge(customerId, total, { operation: "streamEvents", model: this.model.constructor.name });
+      await this.plugin.charge(customerId, productId, total, {
+        operation: "streamEvents",
+        model: this.model.constructor.name,
+      });
     }
   }
 }

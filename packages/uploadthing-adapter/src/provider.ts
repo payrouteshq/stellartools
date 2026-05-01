@@ -9,6 +9,7 @@ import type { ExpandedRouteConfig } from "uploadthing/types";
 
 interface StellarContext {
   customerId: string;
+  productId: string;
   chargedAmount: number;
 }
 
@@ -34,15 +35,21 @@ export class MeteredUploadthing {
       ) => {
         return builder.middleware(async (opts) => {
           const customerId = opts.req.headers.get("x-customer-id");
+          const productId = opts.req.headers.get("x-product-id");
+
           if (!customerId) {
             throw new UploadThingError({ code: "FORBIDDEN", message: "Missing x-customer-id header" });
+          }
+
+          if (!productId) {
+            throw new UploadThingError({ code: "FORBIDDEN", message: "Missing x-product-id header" });
           }
 
           const totalBytes = opts.files.reduce((sum, f) => sum + f.size, 0);
 
           try {
-            await this.plugin.preflight(customerId);
-            await this.plugin.charge(customerId, totalBytes, {
+            await this.plugin.preflight(customerId, productId);
+            await this.plugin.charge(customerId, productId, totalBytes, {
               operation: "upload",
               files: opts.files.map((f) => f.name),
             });
@@ -60,7 +67,7 @@ export class MeteredUploadthing {
 
           return {
             ...metadata,
-            __stellar: { customerId, chargedAmount: totalBytes } satisfies StellarContext,
+            __stellar: { customerId, chargedAmount: totalBytes, productId } satisfies StellarContext,
           };
         });
       },
@@ -70,7 +77,7 @@ export class MeteredUploadthing {
           const stellar = (opts.error.data as any)?.__stellar as StellarContext | undefined;
 
           if (stellar?.customerId && stellar.chargedAmount > 0) {
-            await this.plugin.refund(stellar.customerId, stellar.chargedAmount, "upload_failed");
+            await this.plugin.refund(stellar.customerId, stellar.productId, stellar.chargedAmount, "upload_failed");
           }
 
           await fn?.(opts);

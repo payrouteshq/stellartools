@@ -39,7 +39,7 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
   constructor(cradle: any, options: StellarToolsMedusaAdapterOptions) {
     super(cradle, options);
     this.options = options;
-    this.stellar = new StellarTools({ apiKey: options.apiKey });
+    this.stellar = new StellarTools({ api_key: options.api_key });
   }
 
   static validateOptions(options: Record<string, unknown>) {
@@ -210,7 +210,8 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
       this.log("Getting webhook action and data", { payload });
     }
 
-    const webhookSecret = this.options.webhookSecret;
+    const webhookSecret = this.options.webhook_secret;
+
     if (!webhookSecret) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, "Webhook secret is missing");
     }

@@ -14,25 +14,25 @@ npm install @stellartools/betterauth-adapter
 ## Configure
 
 ```ts
-import { betterAuth } from "better-auth";
 import { stellarTools } from "@stellartools/betterauth-adapter";
+import { betterAuth } from "better-auth";
 
 export const auth = betterAuth({
   plugins: [
     stellarTools({
-      apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-      createCustomerOnSignUp: true,
-      creditLowThreshold: 100,
-      onCustomerCreated: async (customer) => {
+      api_key: process.env.STELLAR_TOOLS_API_KEY!,
+      create_customer_on_signup: true,
+      credit_low_threshold: 100,
+      on_customer_created: async (customer) => {
         console.log("Customer created", customer);
       },
-      onSubscriptionCreated: async (subscription) => {
+      on_subscription_created: async (subscription) => {
         console.log("Subscription created", subscription);
       },
-      onSubscriptionCanceled: async (subscription) => {
+      on_subscription_canceled: async (subscription) => {
         console.log("Subscription canceled", subscription);
       },
-      onCreditsLow: async (creditBalance) => {
+      on_credits_low: async (creditBalance) => {
         console.log("Credits low", creditBalance);
       },
     }),
@@ -40,35 +40,35 @@ export const auth = betterAuth({
 });
 ```
 
-The plugin adds `stellarCustomerId` to the user schema. Run migrations after adding it so your database is up to date.
+The plugin adds `stellartools_customer_id` to the user schema. Run migrations after adding it so your database is up to date.
 
 ## Plugin options
 
-<ParamField body="apiKey" type="string" required>
+<ParamField body="api_key" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="createCustomerOnSignUp" type="boolean">
+<ParamField body="create_customer_on_signup" type="boolean">
   Create a StellarTools customer when a user signs up. Defaults to `false`.
 </ParamField>
 
-<ParamField body="creditLowThreshold" type="number">
-  Trigger `onCreditsLow` when balance is at or below this value. Defaults to `10`.
+<ParamField body="credit_low_threshold" type="number">
+  Trigger `on_credits_low` when balance is at or below this value. Defaults to `10`.
 </ParamField>
 
-<ParamField body="onCustomerCreated" type="function">
+<ParamField body="on_customer_created" type="function">
   Called when a customer is created or linked.
 </ParamField>
 
-<ParamField body="onSubscriptionCreated" type="function">
+<ParamField body="on_subscription_created" type="function">
   Called when a subscription is created.
 </ParamField>
 
-<ParamField body="onSubscriptionCanceled" type="function">
+<ParamField body="on_subscription_canceled" type="function">
   Called when a subscription is canceled.
 </ParamField>
 
-<ParamField body="onCreditsLow" type="function">
+<ParamField body="on_credits_low" type="function">
   Called when credits fall below the threshold after a consume.
 </ParamField>
 
@@ -78,28 +78,28 @@ All endpoints require a valid Better Auth session.
 
 ### Customers
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/auth/stellar/customer/create` | Create or link a StellarTools customer. |
-| `GET` | `/api/auth/stellar/customer/retrieve` | Get the current user's customer. |
-| `POST` | `/api/auth/stellar/customer/update` | Update name, email, phone, or metadata. |
+| Method | Path                                  | Description                             |
+| ------ | ------------------------------------- | --------------------------------------- |
+| `POST` | `/api/auth/stellar/customer/create`   | Create or link a StellarTools customer. |
+| `GET`  | `/api/auth/stellar/customer/retrieve` | Get the current user's customer.        |
+| `POST` | `/api/auth/stellar/customer/update`   | Update name, email, phone, or metadata. |
 
 ### Subscriptions
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/auth/stellar/subscription/create` | Create a subscription. |
-| `GET` | `/api/auth/stellar/subscription/list` | List subscriptions for the current user. |
+| Method | Path                                    | Description                              |
+| ------ | --------------------------------------- | ---------------------------------------- |
+| `POST` | `/api/auth/stellar/subscription/create` | Create a subscription.                   |
+| `GET`  | `/api/auth/stellar/subscription/list`   | List subscriptions for the current user. |
 
 ### Credits
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/auth/stellar/credits/consume` | Consume credits for a product. |
-| `GET` | `/api/auth/stellar/credits/transactions` | Get credit transaction history. |
+| Method | Path                                     | Description                     |
+| ------ | ---------------------------------------- | ------------------------------- |
+| `POST` | `/api/auth/stellar/credits/consume`      | Consume credits for a product.  |
+| `GET`  | `/api/auth/stellar/credits/transactions` | Get credit transaction history. |
 
 ### Refunds
 
-| Method | Path | Description |
-|--------|------|-------------|
+| Method | Path                              | Description                    |
+| ------ | --------------------------------- | ------------------------------ |
 | `POST` | `/api/auth/stellar/refund/create` | Create a refund for a payment. |

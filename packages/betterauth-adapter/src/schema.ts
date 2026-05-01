@@ -3,7 +3,7 @@ import { BetterAuthPluginDBSchema } from "better-auth";
 export const pluginSchema = {
   user: {
     fields: {
-      stellarCustomerId: {
+      stellartools_customer_id: {
         type: "string",
         required: false,
         unique: true,

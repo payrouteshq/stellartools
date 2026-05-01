@@ -8,8 +8,8 @@ export const getContext = (ctx: GenericEndpointContext, options: BillingConfig) 
   if (!session?.user) throw new APIError("UNAUTHORIZED");
 
   return {
-    user: session.user as typeof session.user & { stellarCustomerId: string },
-    stellar: new StellarTools({ apiKey: options.apiKey }),
+    user: session.user as typeof session.user & { stellartools_customer_id: string },
+    stellar: new StellarTools({ api_key: options.api_key }),
     adapter: ctx.context.adapter,
   };
 };

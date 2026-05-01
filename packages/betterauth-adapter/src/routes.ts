@@ -7,14 +7,14 @@ import { getContext } from "./utils";
 
 const retrieveOrCreateCustomer = async (ctx: GenericEndpointContext): Promise<string> => {
   const context = ctx?.context;
-  const { user, stellar, adapter } = getContext(ctx, { apiKey: context?.apiKey });
+  const { user, stellar, adapter } = getContext(ctx, { api_key: context?.api_key });
 
-  const dbUser = await adapter.findOne<{ stellarCustomerId: string }>({
+  const dbUser = await adapter.findOne<{ stellartools_customer_id: string }>({
     model: "user",
     where: [{ field: "id", value: user.id }],
   });
 
-  if (dbUser?.stellarCustomerId) return dbUser.stellarCustomerId;
+  if (dbUser?.stellartools_customer_id) return dbUser.stellartools_customer_id;
 
   const customer = await stellar.customers.create({
     email: user.email,
@@ -29,7 +29,7 @@ const retrieveOrCreateCustomer = async (ctx: GenericEndpointContext): Promise<st
   await adapter.update({
     model: "user",
     where: [{ field: "id", value: user.id }],
-    update: { stellarCustomerId: customer.id },
+    update: { stellartools_customer_id: customer.id },
   });
 
   return customer.id;
@@ -43,14 +43,14 @@ export const createCustomer = (options: BillingConfig) =>
     const { stellar } = getContext(ctx, options);
     const result = await stellar.customers.retrieve(customerId);
 
-    options?.onCustomerCreated?.(result);
+    options?.on_customer_created?.(result);
     return ctx.json(result);
   });
 
 export const retrieveCustomer = (options: BillingConfig) =>
   createAuthEndpoint("/stellar/customer/retrieve", { method: "GET", use: [sessionMiddleware] }, async (ctx) => {
     const { user, stellar } = getContext(ctx, options);
-    return ctx.json(await stellar.customers.retrieve(user.stellarCustomerId as string));
+    return ctx.json(await stellar.customers.retrieve(user.stellartools_customer_id as string));
   });
 
 export const updateCustomer = (options: BillingConfig) =>
@@ -68,7 +68,7 @@ export const updateCustomer = (options: BillingConfig) =>
     },
     async (ctx) => {
       const { user, stellar } = getContext(ctx, options);
-      return ctx.json(await stellar.customers.update(user.stellarCustomerId, ctx.body));
+      return ctx.json(await stellar.customers.update(user.stellartools_customer_id, ctx.body));
     }
   );
 
@@ -92,7 +92,7 @@ export const createSubscription = (options: BillingConfig) =>
       const { stellar } = getContext(ctx, options);
       const sub = await stellar.subscriptions.create({ ...ctx.body, customer_ids: [customerId] });
 
-      options?.onSubscriptionCreated?.(sub);
+      options?.on_subscription_created?.(sub);
 
       return ctx.json(sub);
     }
@@ -101,7 +101,7 @@ export const createSubscription = (options: BillingConfig) =>
 export const listSubscriptions = (options: BillingConfig) =>
   createAuthEndpoint("/stellar/subscriptions/list", { method: "GET", use: [sessionMiddleware] }, async (ctx) => {
     const { user, stellar } = getContext(ctx, options);
-    return ctx.json(await stellar.subscriptions.list(user.stellarCustomerId));
+    return ctx.json(await stellar.subscriptions.list(user.stellartools_customer_id));
   });
 
 // -- REFUNDS --
@@ -131,8 +131,8 @@ export const consumeCredits = (options: BillingConfig) =>
         metadata: { ...stringifyObjectFields(ctx.body.metadata ?? {}), source: "betterauth-adapter" },
       });
 
-      if (options.onCreditsLow && result.balance <= (options.creditLowThreshold ?? DEFAULT_CREDITS_LOW_THRESHOLD)) {
-        await options.onCreditsLow({ ...result, customer_id: customerId });
+      if (options.on_credits_low && result.balance <= (options.credit_low_threshold ?? DEFAULT_CREDITS_LOW_THRESHOLD)) {
+        await options.on_credits_low({ ...result, customer_id: customerId });
       }
 
       return ctx.json(result);
