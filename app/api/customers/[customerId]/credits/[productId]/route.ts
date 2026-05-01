@@ -9,6 +9,7 @@ export const GET = apiHandler({
   schema: { params: Schema.object({ customer_id: Schema.string(), product_id: Schema.string() }) },
   handler: async ({ params, auth }) => {
     const balance = await retrieveCreditBalance(params.customer_id, params.product_id, auth.organizationId);
+    if (balance?.isRevoked) throw new Error("Credit balance has been revoked");
     return Result.ok(balance);
   },
 });

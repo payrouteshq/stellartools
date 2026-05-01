@@ -2,7 +2,8 @@
 
 import * as React from "react";
 
-import { retrieveCreditBalances } from "@/actions/credit";
+import { putCreditBalance, retrieveCreditBalances } from "@/actions/credit";
+import { AppModal } from "@/components/app-modal";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DataTable, TableAction } from "@/components/data-table";
@@ -16,7 +17,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Slider } from "@/components/ui/slider";
-import { useOrgQuery } from "@/hooks/use-org-query";
+import { toast } from "@/components/ui/toast";
+import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, Package, Search } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +32,7 @@ type UsageRecord = {
   balance: bigint;
   consumed: bigint;
   granted: bigint;
+  isRevoked: boolean;
   createdAt: Date;
   updatedAt: Date;
   customer?: {
@@ -121,8 +125,21 @@ const columns: ColumnDef<UsageRecord>[] = [
 export default function UsagePage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
+  const invalidate = useInvalidateOrgQuery();
 
   const { data: rawBalances = [], isLoading } = useOrgQuery(["credit-balances"], () => retrieveCreditBalances());
+
+  const revokeMutation = useMutation({
+    mutationFn: async (params: { id: string; revoke: boolean }) => {
+      await putCreditBalance(params.id, { isRevoked: params.revoke });
+      return { success: true, revoke: params.revoke };
+    },
+    onSuccess: (params) => {
+      toast.success(params.revoke ? "Access revoked successfully" : "Access restored successfully");
+      invalidate(["credit-balances"]);
+    },
+    onError: (error) => toast.error(error.message ?? "Operation failed"),
+  });
 
   const usageRecords: UsageRecord[] = rawBalances.map((b) => ({
     id: b.id,
@@ -131,6 +148,7 @@ export default function UsagePage() {
     balance: b.balance,
     consumed: b.consumed,
     granted: b.granted,
+    isRevoked: b.isRevoked,
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
     customer: b.customerName ? { id: b.customerId!, name: b.customerName, email: b.customerEmail ?? "" } : undefined,
@@ -170,11 +188,39 @@ export default function UsagePage() {
       },
     },
     {
-      label: "Revoke",
+      label: "Revoke access",
       onClick: (record) => {
-        console.log("Revoke usage record:", record.id);
+        AppModal.open({
+          title: "Revoke access",
+          description:
+            "This will immediately block the customer from consuming credits for this product. You can restore access at any time from the usage record page.",
+          content: (
+            <p className="text-muted-foreground text-sm">
+              Are you sure you want to revoke access for{" "}
+              <span className="text-foreground font-medium">{record.customer?.name ?? record.id}</span>? This action
+              takes effect immediately.
+            </p>
+          ),
+          primaryButton: {
+            children: "Revoke access",
+            variant: "destructive",
+            onClick: () => revokeMutation.mutate({ id: record.id, revoke: true }),
+          },
+          secondaryButton: { children: "Cancel" },
+          size: "small",
+          showCloseButton: false,
+        });
       },
       variant: "destructive",
+      when: (record) => !record.isRevoked,
+    },
+    {
+      label: "Restore access",
+      onClick: (record) => {
+        revokeMutation.mutate({ id: record.id, revoke: false });
+      },
+      variant: "destructive",
+      when: (record) => record.isRevoked,
     },
   ];
 

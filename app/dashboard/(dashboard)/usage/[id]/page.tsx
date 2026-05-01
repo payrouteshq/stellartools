@@ -2,7 +2,8 @@
 
 import * as React from "react";
 
-import { retrieveCreditBalanceById, retrieveCreditTransactionsByBalance } from "@/actions/credit";
+import { putCreditBalance, retrieveCreditBalanceById, retrieveCreditTransactionsByBalance } from "@/actions/credit";
+import { AppModal } from "@/components/app-modal";
 import { CodeBlock } from "@/components/code-block";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -22,8 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
+import { toast } from "@/components/ui/toast";
 import { useCopy } from "@/hooks/use-copy";
-import { useOrgQuery } from "@/hooks/use-org-query";
+import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowRight, ChevronRight, Copy, Package, RefreshCw, TrendingDown, TrendingUp, User } from "lucide-react";
 import Link from "next/link";
@@ -263,8 +266,19 @@ const columns: ColumnDef<UsageRecord>[] = [
 export default function UsageDetailPage() {
   const { id } = useParams()! as { id: string };
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const invalidate = useInvalidateOrgQuery();
 
   const { data: balance } = useOrgQuery(["credit-balance", id], () => retrieveCreditBalanceById(id));
+
+  const restoreMutation = useMutation({
+    mutationFn: () => putCreditBalance(id, { isRevoked: false }),
+    onSuccess: () => {
+      toast.success("Access restored successfully");
+      invalidate(["credit-balance", id]);
+      invalidate(["credit-balances"]);
+    },
+    onError: () => toast.error("Failed to restore access"),
+  });
 
   const { data: rawTransactions = [], isLoading } = useOrgQuery(["credit-transactions", id], () =>
     retrieveCreditTransactionsByBalance(id)
@@ -441,10 +455,60 @@ export default function UsageDetailPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Usage Records</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold tracking-tight">Usage Records</h1>
+                  {balance?.isRevoked && (
+                    <Badge variant="destructive" className="text-xs">
+                      Revoked
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-muted-foreground mt-1.5 text-sm">View usage history and balance changes</p>
               </div>
+              {balance?.isRevoked && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 shadow-none"
+                  onClick={() => {
+                    AppModal.open({
+                      title: "Restore access",
+                      description: "The customer will immediately regain the ability to consume credits for this product.",
+                      content: (
+                        <p className="text-muted-foreground text-sm">
+                          Are you sure you want to restore access to this credit balance?
+                        </p>
+                      ),
+                      primaryButton: {
+                        children: "Restore access",
+                        onClick: () => restoreMutation.mutate(),
+                      },
+                      secondaryButton: { children: "Cancel" },
+                      size: "small",
+                      showCloseButton: false,
+                    });
+                  }}
+                  disabled={restoreMutation.isPending}
+                  isLoading={restoreMutation.isPending}
+                >
+                  Restore access
+                </Button>
+              )}
             </div>
+
+            {/* Revoked Banner */}
+            {balance?.isRevoked && (
+              <div className="bg-destructive/10 border-destructive/20 text-destructive flex items-start gap-3 rounded-lg border px-4 py-3 text-sm">
+                <span className="mt-0.5">⚠</span>
+                <div>
+                  <p className="font-medium">Access revoked</p>
+                  <p className="text-destructive/80 mt-0.5">
+                    This credit balance has been revoked. The customer cannot consume credits until access is restored.
+                    API calls for this balance will be rejected.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Usage Meter */}
             <div className="grid gap-4 md:grid-cols-3">
