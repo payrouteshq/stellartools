@@ -18,7 +18,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InstallAppButton } from "../install-app-button";
-import { MARKETPLACE_APP_ICON, getMarketplaceApp } from "../marketplace-apps";
+import { getMarketplaceApp } from "../marketplace-apps";
 
 function MetaBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -69,7 +69,7 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
             <div className="flex min-w-0 flex-1 gap-4">
               <div className="bg-muted relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border sm:h-20 sm:w-20">
                 <Image
-                  src={MARKETPLACE_APP_ICON}
+                  src={app.iconUrl}
                   alt=""
                   width={80}
                   height={80}
@@ -153,7 +153,7 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
                     <article key={feature.title} className="space-y-4">
                       <div className="bg-muted/40 border-border/80 relative aspect-video w-full overflow-hidden rounded-xl border">
                         <Image
-                          src={MARKETPLACE_APP_ICON}
+                          src={app.iconUrl}
                           alt=""
                           fill
                           className="object-cover"

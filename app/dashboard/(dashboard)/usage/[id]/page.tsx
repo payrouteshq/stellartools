@@ -540,7 +540,7 @@ export default function UsageDetailPage() {
                   <div className="flex flex-col gap-2">
                     <p className="text-muted-foreground text-sm font-medium">Usage Percentage</p>
                     <div className="flex items-center gap-3">
-                      <Slider value={[usageMeter.usagePercentage]} min={0} max={100} className="pointer-events-none" />
+                      <Slider value={[usageMeter.usagePercentage]} min={0} max={100} className="pointer-events-none" showKnobs={false} />
                       <span className="text-lg font-bold">{usageMeter.usagePercentage.toFixed(1)}%</span>
                     </div>
                     <p className="text-muted-foreground text-xs">

@@ -5,18 +5,18 @@ export default function HeroSection() {
   return (
     <section className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center gap-12 px-6 pt-24 pb-20 lg:gap-20">
       <div className="flex flex-col items-center text-center">
-        <div className="bg-primary/10 text-primary mb-6 flex flex-col items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold tracking-wide sm:flex-row">
-          <span className="bg-primary text-primary-foreground text-clamp(8px,1.5vw,13px) rounded-full px-1.5 py-0.5">
+        <div className="border-secondary/25 bg-secondary/10 text-foreground mb-6 flex flex-col items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-semibold tracking-wide sm:flex-row">
+          <span className="bg-secondary text-secondary-foreground text-clamp(8px,1.5vw,13px) rounded-full px-1.5 py-0.5">
             NEW
           </span>
-          Now with LangChain &amp; AI SDK support
+          <span className="text-muted-foreground font-medium">Now with LangChain &amp; AI SDK support</span>
         </div>
 
         <h1 className="text-foreground mb-6 text-[clamp(42px,5vw,62px)] leading-[1.1] font-extrabold tracking-normal">
           The financial infrastructure
           <br />
           for the
-          <span className="text-primary ml-2">Stellar economy.</span>
+          <span className="text-secondary ml-2">Stellar economy.</span>
         </h1>
 
         <p className="text-muted-foreground mx-auto mb-9 max-w-[580px] text-lg leading-relaxed font-normal">
@@ -38,20 +38,6 @@ export default function HeroSection() {
           >
             See how it works →
           </Link>
-        </div>
-
-        <div className="text-muted-foreground mt-12 flex items-center justify-center gap-4 text-[13px]">
-          <div className="flex">
-            {["P", "E", "A", "+"].map((letter, index) => (
-              <div
-                key={letter}
-                className={`border-background bg-secondary text-primary flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-semibold ${index === 0 ? "" : "-ml-2"}`}
-              >
-                {letter}
-              </div>
-            ))}
-          </div>
-          Trusted by developers building the next generation of products
         </div>
       </div>
 

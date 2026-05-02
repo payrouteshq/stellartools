@@ -6,7 +6,7 @@ import { ArrowUpRight, ChevronRight, Construction } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { MARKETPLACE_APPS, MARKETPLACE_APP_ICON } from "./marketplace-apps";
+import { MARKETPLACE_APPS } from "./marketplace-apps";
 
 export default function MarketplacePage() {
   return (
@@ -48,7 +48,7 @@ export default function MarketplacePage() {
                     <div className="flex items-start gap-3">
                       <div className="bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border">
                         <Image
-                          src={MARKETPLACE_APP_ICON}
+                          src={app.iconUrl}
                           alt=""
                           width={56}
                           height={56}

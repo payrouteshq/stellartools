@@ -1,5 +1,3 @@
-export const MARKETPLACE_APP_ICON = "https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IPsLj37o3ao8IZxzlbRpBGytrnMmufWPXUHvi";
-
 export type MarketplaceApp = {
   id: string;
   name: string;
@@ -15,6 +13,7 @@ export type MarketplaceApp = {
   companyWebsiteUrl: string;
   status: "available" | "coming-soon";
   features: { title: string; description: string }[];
+  iconUrl: string;
 };
 
 export const MARKETPLACE_APPS: MarketplaceApp[] = [
@@ -32,6 +31,7 @@ export const MARKETPLACE_APPS: MarketplaceApp[] = [
     supportSiteUrl: "https://resend.com/docs",
     companyWebsiteUrl: "https://resend.com",
     status: "coming-soon",
+    iconUrl: "https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF",
     features: [
       {
         title: "Payment receipts and invoices, automatically",
@@ -59,6 +59,7 @@ export const MARKETPLACE_APPS: MarketplaceApp[] = [
     supportSiteUrl: "https://loops.so/docs",
     companyWebsiteUrl: "https://loops.so",
     status: "coming-soon",
+    iconUrl: "https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IAZDxDCKLFrwdU65KkJi9NqmajuMtEnDOx1cT",
     features: [
       {
         title: "Sync customers the moment they pay",
@@ -86,6 +87,7 @@ export const MARKETPLACE_APPS: MarketplaceApp[] = [
     supportSiteUrl: "https://docs.firstpromoter.com",
     companyWebsiteUrl: "https://firstpromoter.com",
     status: "coming-soon",
+    iconUrl: "https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IJBKCsNfEzD8FRHNolx7X5VhkTgrbjfAZPpSa",
     features: [
       {
         title: "Commissions tied to real revenue",
@@ -102,7 +104,8 @@ export const MARKETPLACE_APPS: MarketplaceApp[] = [
   {
     id: "posthog",
     name: "PostHog",
-    tagline: "Connect your revenue data to PostHog's product analytics — see which features drive conversions and retention.",
+    tagline:
+      "Connect your revenue data to PostHog's product analytics — see which features drive conversions and retention.",
     category: "Analytics",
     publisher: "PostHog",
     visibleOn: "StellarTools Dashboard",
@@ -125,6 +128,7 @@ export const MARKETPLACE_APPS: MarketplaceApp[] = [
           "StellarTools enriches PostHog person profiles with plan, MRR, and payment status so you can filter session recordings, feature flags, and experiments by what customers actually pay.",
       },
     ],
+    iconUrl: "https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8InYN939nBaHU7t1CPbms8dX3phBTJclYyExAK",
   },
 ];
 

@@ -117,7 +117,14 @@ export default function CustomerPortalSection() {
                     <p className="text-foreground text-sm font-medium">API Credits</p>
                     <p className="text-muted-foreground text-xs">6,200 / 10,000 tokens</p>
                   </div>
-                  <Slider value={[62]} min={0} max={100} disabled className="**:data-[slot=slider-thumb]:size-3" />
+                  <Slider
+                    value={[62]}
+                    min={0}
+                    max={100}
+                    disabled
+                    className="**:data-[slot=slider-thumb]:size-3"
+                    showKnobs={false}
+                  />
                   <p className="text-muted-foreground text-xs">3,800 tokens remaining</p>
                 </div>
               </div>

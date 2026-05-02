@@ -575,7 +575,14 @@ function CreditMeter({ credit }: { credit: Credit }) {
           {credit.consumed.toLocaleString()} / {total.toLocaleString()} {unit}
         </p>
       </div>
-      <Slider value={[pct]} min={0} max={100} disabled className="**:data-[slot=slider-thumb]:size-3" />
+      <Slider
+        value={[pct]}
+        min={0}
+        max={100}
+        disabled
+        className="**:data-[slot=slider-thumb]:size-3"
+        showKnobs={false}
+      />
       <p className="text-muted-foreground text-xs">
         {credit.balance.toLocaleString()} {unit} remaining
       </p>

@@ -132,7 +132,7 @@ export default function DevelopersSection() {
           </div>
         </div>
 
-        <UnderlineTabs defaultValue={codeExamples[0].filename}>
+        <UnderlineTabs defaultValue={codeExamples[0].filename} className="min-w-0">
           <UnderlineTabsList className="border-white/10">
             {codeExamples.map((example) => (
               <UnderlineTabsTrigger key={example.filename} value={example.filename} className="text-xs text-white/50">
@@ -142,9 +142,11 @@ export default function DevelopersSection() {
           </UnderlineTabsList>
           {codeExamples.map((example) => (
             <UnderlineTabsContent key={example.filename} value={example.filename} className="mt-0">
-              <CodeBlock language="typescript" filename={example.filename} showCopyButton theme="dark">
-                {example.code}
-              </CodeBlock>
+              <div className="mx-2 sm:mx-0">
+                <CodeBlock language="typescript" filename={example.filename} showCopyButton theme="dark">
+                  {example.code}
+                </CodeBlock>
+              </div>
             </UnderlineTabsContent>
           ))}
         </UnderlineTabs>

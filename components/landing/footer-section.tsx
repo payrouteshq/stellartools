@@ -11,15 +11,15 @@ const footerLinks = {
     { name: "Payouts", href: "#payouts" },
   ],
   integrations: [
-    { name: "LangChain", href: "#" },
-    { name: "AI SDK", href: "#" },
-    { name: "MedusaJS", href: "#" },
-    { name: "BetterAuth", href: "#" },
-    { name: "UploadThing", href: "#" },
+    { name: "LangChain", href: `${process.env.NEXT_PUBLIC_DOCS_URL!}/integrations/langchain` },
+    { name: "AI SDK", href: `${process.env.NEXT_PUBLIC_DOCS_URL!}/integrations/aisdk` },
+    { name: "MedusaJS", href: `${process.env.NEXT_PUBLIC_DOCS_URL!}/integrations/medusajs` },
+    { name: "BetterAuth", href: `${process.env.NEXT_PUBLIC_DOCS_URL!}/integrations/betterauth` },
+    { name: "UploadThing", href: `${process.env.NEXT_PUBLIC_DOCS_URL!}/integrations/uploadthing` },
   ],
   developers: [
-    { name: "Documentation", href: "/docs" },
-    { name: "API Reference", href: "/docs/api" },
+    { name: "Documentation", href: process.env.NEXT_PUBLIC_DOCS_URL! },
+    { name: "API Reference", href: `${process.env.NEXT_PUBLIC_DOCS_URL!}/api-reference` },
     { name: "GitHub", href: "https://github.com/usepaykit/stellartools" },
   ],
 };
