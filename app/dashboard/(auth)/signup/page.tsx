@@ -9,6 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
+import { capture, identifyUser } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
@@ -48,7 +49,18 @@ export default function SignUp() {
         { intent: "SIGN_UP" }
       );
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      const [firstName, ...rest] = variables.name.trim().split(" ");
+      const lastName = rest.join(" ");
+      identifyUser(variables.email, {
+        email: variables.email,
+        name: variables.name,
+        firstName,
+        lastName,
+        authMethod: "local",
+        signedUpAt: new Date().toISOString(),
+      });
+      capture("user_signed_up", { email: variables.email, auth_method: "local" });
       toast.success("Account created successfully");
       window.location.href = "/";
     },

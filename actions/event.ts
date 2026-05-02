@@ -99,8 +99,6 @@ export async function withEvent<T>(
       // B. Plugin/App Webhooks (Partner servers)
       if (installedApps.length > 0) {
         installedApps.forEach(({ app, app_installation }) => {
-          if (!app?.manifest?.events?.includes(primaryEvent!.type)) return;
-
           const envelope = {
             id: webhookLogId!,
             type: primaryEvent!.type,

@@ -9,6 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
+import { capture, identifyUser } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
@@ -39,7 +40,9 @@ export default function SignIn() {
       accountValidator(data.email, { provider: "local", sub: data.password }, "SIGN_IN", undefined, {
         intent: "SIGN_IN",
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      identifyUser(variables.email, { email: variables.email, authMethod: "local" });
+      capture("user_signed_in", { email: variables.email, auth_method: "local" });
       toast.success("Logged in successfully");
       window.location.href = "/";
     },

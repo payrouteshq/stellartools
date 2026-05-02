@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { postOrganizationAndSecret, retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
+import { capture, identifyOrganization } from "@/lib/posthog";
 import { AppModal } from "@/components/app-modal";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
 import {
@@ -93,7 +94,8 @@ export default function SelectOrganizationPage() {
   }, [searchParams?.get("create"), openCreateModal]);
 
   const handleSelectOrg = React.useCallback(
-    async (orgId: string) => {
+    async (orgId: string, orgName: string) => {
+      capture("organization_selected", { org_id: orgId, org_name: orgName });
       await setCurrentOrganization(orgId);
       router.push("/");
     },
@@ -116,7 +118,7 @@ export default function SelectOrganizationPage() {
               <div
                 key={org.id}
                 className="hover:bg-accent/50 group flex cursor-pointer items-center gap-4 rounded-lg p-4 transition-all"
-                onClick={() => handleSelectOrg(org.id)}
+                onClick={() => handleSelectOrg(org.id, org.name)}
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg">
                   {org.logoUrl ? (
@@ -285,6 +287,9 @@ const CreateOrganizationModalContent = ({
     },
     onSuccess: async (org) => {
       if (org.success && "id" in org) {
+        const orgName = form.getValues("name");
+        identifyOrganization(org.id, { name: orgName, environment: "testnet", createdAt: new Date().toISOString() });
+        capture("organization_created", { org_id: org.id, org_name: orgName, environment: "testnet" });
         toast.success("Organization created successfully");
         await setCurrentOrganization(org.id);
         form.reset();

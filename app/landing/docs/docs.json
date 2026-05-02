@@ -38,6 +38,10 @@
             ]
           },
           {
+            "group": "Marketplace",
+            "pages": ["marketplace/building-apps"]
+          },
+          {
             "group": "Webhooks",
             "pages": ["webhooks"]
           }

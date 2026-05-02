@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { AppModalProvider } from "@/components/app-modal";
+import { initPostHog } from "@/lib/posthog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
@@ -19,6 +20,10 @@ const queryClient = new QueryClient({
 });
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
+  React.useEffect(() => {
+    initPostHog();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AppModalProvider>

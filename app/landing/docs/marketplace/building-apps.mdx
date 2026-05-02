@@ -1,0 +1,172 @@
+---
+title: "Building Marketplace Apps"
+description: "Ship an app that runs inside the StellarTools dashboard"
+---
+
+StellarTools marketplace apps are web apps that run inside an `iframe` embedded directly in the dashboard. Your app receives the active organization's context and can subscribe to real-time payment events.
+
+## Install the bridge
+
+The only frontend dependency you need:
+
+```bash
+npm install @stellartools/app-embed-bridge
+```
+
+## Initialize in your React app
+
+Call `stellar.init()` once on mount. It reads context from URL params injected by StellarTools, starts an auto-resize observer so your iframe fits its content, and returns the context object.
+
+```tsx
+import { useEffect, useState } from "react";
+
+import { stellar } from "@stellartools/app-embed-bridge";
+
+export default function App() {
+  const [ctx, setCtx] = useState(null);
+
+  useEffect(() => {
+    const context = stellar.init((update) => {
+      // called whenever the host broadcasts a context change
+      setCtx((prev) => ({ ...prev, ...update }));
+    });
+    setCtx(context);
+  }, []);
+
+  if (!ctx) return null;
+
+  return (
+    <div>
+      Org: {ctx.organizationId} · Env: {ctx.environment}
+    </div>
+  );
+}
+```
+
+### Context fields
+
+| Field            | Type                     | Description                                                                |
+| ---------------- | ------------------------ | -------------------------------------------------------------------------- |
+| `organizationId` | `string`                 | The active organization                                                    |
+| `environment`    | `"testnet" \| "mainnet"` | Which network the org is on                                                |
+| `theme`          | `"light" \| "dark"`      | The dashboard theme                                                        |
+| `pathname`       | `string`                 | The current dashboard route                                                |
+| `installationId` | `string`                 | Unique ID for this org's installation — use it to key your backend records |
+
+### Host communication
+
+```ts
+stellar.navigate("/payments"); // push the user to a dashboard route
+stellar.reload(); // tell the host to refetch its data
+```
+
+## Define your manifest
+
+When submitting your app you provide a manifest that declares exactly what it needs. Users see your scopes and events before they install.
+
+```json
+{
+  "name": "My App",
+  "description": "A short description shown in the marketplace (max 200 chars).",
+  "homepageUrl": "https://myapp.com",
+  "baseUrl": "https://myapp.com/stellartools",
+  "webhookUrl": "https://myapp.com/webhooks/stellar",
+  "scopes": ["read:customers", "read:payments"],
+  "version": "1.0.0"
+}
+```
+
+<ParamField body="name" type="string" required>
+  Display name shown in the marketplace. 2–50 characters.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Short description shown on the listing card. Max 200 characters.
+</ParamField>
+
+<ParamField body="homepageUrl" type="string" required>
+  Your app's public homepage.
+</ParamField>
+
+<ParamField body="baseUrl" type="string" required>
+  The URL StellarTools loads inside the iframe. Context params are appended as query strings automatically.
+</ParamField>
+
+<ParamField body="webhookUrl" type="string">
+  If provided, StellarTools will POST signed event payloads here. Omit if you don't need event subscriptions.
+</ParamField>
+
+<ParamField body="scopes" type="string[]" required>
+  At least one scope is required. Declare only what your app actually needs — users see the full list before installing.
+</ParamField>
+
+<ParamField body="events" type="string[]">
+  Event types to subscribe to. Only relevant if you have a `webhookUrl`.
+</ParamField>
+
+<ParamField body="version" type="string">
+  Semantic version of your app. Defaults to `1.0.0`.
+</ParamField>
+
+## Scopes
+
+Scopes follow the pattern `read:resource` or `write:resource`.
+
+| Scope                                            | What it grants                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| `read:customers` / `write:customers`             | Customer records                                                   |
+| `read:payments` / `write:payments`               | Payment history and status                                         |
+| `read:subscriptions` / `write:subscriptions`     | Subscription lifecycle                                             |
+| `read:checkouts` / `write:checkouts`             | Checkout sessions                                                  |
+| `read:payouts` / `write:payouts`                 | Payout records                                                     |
+| `read:refunds` / `write:refunds`                 | Refund records                                                     |
+| `read:payment_methods` / `write:payment_methods` | Saved payment methods                                              |
+| `read:products` / `write:products`               | Product catalog                                                    |
+| `read:portal`                                    | Customer portal sessions                                           |
+| `*`                                              | All resources, shown prominently to users and to be used sparingly |
+
+## Webhook events
+
+When a matching event fires, StellarTools POSTs a signed payload to your `webhookUrl`.
+
+```ts
+import type { WebhookEvent } from "@stellartools/core";
+
+app.post("/webhooks/stellar", (req, res) => {
+  const event = req.body as WebhookEvent;
+
+  switch (event.type) {
+    case "payment.confirmed":
+      await syncPayment(event.data.object);
+      break;
+    case "subscription.canceled":
+      await handleChurn(event.data.object);
+      break;
+  }
+
+  res.status(200).send("ok");
+});
+```
+
+### Available events
+
+| Event                    | Fires when                      |
+| ------------------------ | ------------------------------- |
+| `payment.confirmed`      | A payment is confirmed on-chain |
+| `payment.pending`        | A payment is pending            |
+| `payment.failed`         | A payment fails                 |
+| `customer.created`       | A new customer is created       |
+| `customer.updated`       | Customer details change         |
+| `customer.deleted`       | A customer is deleted           |
+| `checkout.created`       | A checkout session opens        |
+| `subscription.created`   | A subscription starts           |
+| `subscription.updated`   | A subscription is modified      |
+| `subscription.canceled`  | A subscription is canceled      |
+| `refund.succeeded`       | A refund is issued              |
+| `refund.failed`          | A refund fails                  |
+| `payment_method.created` | A payment method is saved       |
+| `payment_method.deleted` | A payment method is removed     |
+
+## Submit your app
+
+App submission is not yet open. Email [odii@stellartools.dev](odii@setellartools.dev) to join the early-access list for publishers.

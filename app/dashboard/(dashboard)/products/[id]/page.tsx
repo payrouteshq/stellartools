@@ -366,7 +366,6 @@ export default function ProductDetailPage() {
               </BreadcrumbList>
             </Breadcrumb>
 
-            {/* Header: icon, name, status, main price, actions */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4">
                 <div className="bg-muted/50 flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border">
@@ -433,10 +432,8 @@ export default function ProductDetailPage() {
 
             <Separator />
 
-            {/* Two columns: left (Pricing, Cross-sells, Features) | right (Details, Metadata) */}
             <div className="grid gap-8 lg:grid-cols-5">
               <div className="space-y-8 lg:col-span-3">
-                {/* Pricing */}
                 <section>
                   <div className="flex items-center justify-between">
                     <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">Pricing</h2>
@@ -474,7 +471,6 @@ export default function ProductDetailPage() {
                   </div>
                 </section>
 
-                {/* Cross-sells */}
                 <section>
                   <div className="flex items-center gap-2">
                     <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">Cross-sells</h2>

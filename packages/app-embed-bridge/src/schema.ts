@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { APP_CONFIG, AppResource, eventTypeEnum } from "./base";
+import { APP_CONFIG, AppResource } from "./base";
 
 export const appManifestSchema = z.object({
   name: z.string().min(2).max(50),
@@ -26,8 +26,6 @@ export const appManifestSchema = z.object({
       )
     )
     .min(1, "At least one scope is required"),
-
-  events: z.array(z.enum(eventTypeEnum)).default([]),
 
   version: z
     .string()

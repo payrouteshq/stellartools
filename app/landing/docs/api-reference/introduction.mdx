@@ -5,7 +5,7 @@ description: "The StellarTools REST API"
 
 The StellarTools API lets you manage customers, products, checkouts, subscriptions, payments, refunds, and webhooks over plain HTTP. Every operation maps to a resource with predictable endpoints and consistent response shapes.
 
-**If you're building in TypeScript or JavaScript**, the [TypeScript SDK](/integrations/typescript-sdk) is the faster path — it wraps these endpoints with full type safety and handles auth automatically. The raw API is the right choice when you're working in another language, integrating from a backend that can't run Node, or need low-level control.
+**If you're building in TypeScript or JavaScript**, the [TypeScript SDK](/integrations/typescript-sdk) is the faster path as it wraps these endpoints with full type safety and handles auth automatically. The raw API is the right choice when you're working in another language, integrating from a backend that can't run Node, or need low-level control.
 
 ## Base URL
 
@@ -24,6 +24,7 @@ https://api.stellartools.dev
     ```
 
     Every resource includes an `object` field identifying its type — e.g. `"customer"`, `"payment"`, `"subscription"`.
+
   </Tab>
   <Tab title="Error">
     Returns a non-2xx status with an `error` string.
@@ -31,6 +32,7 @@ https://api.stellartools.dev
     ```json
     { "error": "Customer not found" }
     ```
+
   </Tab>
 </Tabs>
 
