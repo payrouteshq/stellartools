@@ -6,6 +6,7 @@ import CheckoutSection from "@/components/landing/checkout-section";
 import CTASection from "@/components/landing/cta-section";
 import CustomerPortalSection from "@/components/landing/customer-portal-section";
 import DevelopersSection from "@/components/landing/developers-section";
+import MarketplaceSection from "@/components/landing/marketplace-section";
 import { FooterSection } from "@/components/landing/footer-section";
 import HeroSection from "@/components/landing/hero-section";
 import HowItWorks from "@/components/landing/how-it-works";
@@ -34,6 +35,7 @@ export default function Home() {
       <AppConnectionWidget />
       <PayoutsSection />
       <DevelopersSection />
+      <MarketplaceSection />
       <SubscriptionsSection />
       <TestimonialsSection />
       <CTASection />
