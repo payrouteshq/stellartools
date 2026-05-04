@@ -114,6 +114,18 @@ export default function TeamPage() {
               </div>
             ))}
           </div>
+          <div className="mt-16 flex flex-col items-center gap-4 text-center">
+            <h2 className="text-foreground text-2xl font-bold tracking-tight">Want to meet us?</h2>
+            <p className="text-muted-foreground max-w-md text-base">
+              Have a question or want to explore how StellarTools can work for you? Book a call with the team.
+            </p>
+            <Link
+              href="/book-call"
+              className="bg-primary text-primary-foreground mt-2 rounded-[9px] px-6 py-3 text-[14.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
+            >
+              Book a call →
+            </Link>
+          </div>
         </main>
       </div>
       <FooterSection />

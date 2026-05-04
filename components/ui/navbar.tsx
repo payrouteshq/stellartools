@@ -26,7 +26,6 @@ import { useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "#integrations", label: "Integrations" },
-  { href: "#developers", label: "Developers" },
   { href: process.env.NEXT_PUBLIC_DOCS_URL!, label: "Docs" },
   { href: "/pricing", label: "Pricing" },
   { href: "/team", label: "Team" },
@@ -117,6 +116,13 @@ export function Header() {
           </nav>
 
           <div className="flex flex-col gap-3 px-8 pb-12">
+            <Link
+              href="/book-call"
+              onClick={() => setMenuOpen(false)}
+              className="border-border block rounded-xl border px-5 py-4 text-center text-[15px] font-semibold no-underline"
+            >
+              Talk to us →
+            </Link>
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
@@ -180,6 +186,12 @@ export function Header() {
           </ul>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/book-call"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-4 py-2 text-[14.5px] font-medium no-underline transition-colors"
+            >
+              Talk to us →
+            </Link>
             {isLoading ? (
               <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />
             ) : isAuthenticated ? (

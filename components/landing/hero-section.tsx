@@ -48,7 +48,7 @@ export default function HeroSection() {
             <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]"></div>
             <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]"></div>
             <div className="bg-muted text-muted-foreground ml-3 flex-1 rounded-md px-3 py-1 font-mono text-[12px]">
-              https://app.stellartools.dev/
+              https://dashboard.stellartools.dev/
             </div>
           </div>
           <Image
