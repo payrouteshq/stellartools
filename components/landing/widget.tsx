@@ -78,21 +78,21 @@ export default function WidgetSection() {
                 feature.wide && "md:col-span-2",
                 feature.dark
                   ? "bg-foreground border-foreground/10"
-                  : "bg-secondary border-border hover:border-primary/30 hover:shadow-[0_8px_40px_rgba(0,0,0,0.08)]"
+                  : "border-border hover:border-primary/20 bg-white hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)]"
               )}
             >
               <div
                 className={cn(
                   "mb-5 flex h-11 w-11 items-center justify-center rounded-xl",
-                  feature.dark ? "bg-white/10" : "bg-primary/10"
+                  feature.dark ? "bg-white/10" : "bg-primary/8 ring-primary/15 ring-1"
                 )}
               >
-                <feature.icon className={cn("h-5 w-5", feature.dark ? "text-background" : "text-primary")} />
+                <feature.icon className={cn("h-5 w-5", feature.dark ? "text-white" : "text-primary")} />
               </div>
               <div
                 className={cn(
                   "mb-2.5 text-lg font-semibold tracking-tight",
-                  feature.dark ? "text-background" : "text-foreground"
+                  feature.dark ? "text-white" : "text-foreground"
                 )}
               >
                 {feature.title}
@@ -100,14 +100,14 @@ export default function WidgetSection() {
               <div
                 className={cn(
                   "text-[14.5px] leading-relaxed",
-                  feature.dark ? "text-background/65" : "text-muted-foreground"
+                  feature.dark ? "text-white/60" : "text-muted-foreground"
                 )}
               >
                 {feature.description}
               </div>
 
               {feature.hasScreenshot && (
-                <div className="border-border mt-4 overflow-hidden rounded-xl border">
+                <div className="relative mt-4 overflow-hidden rounded-xl">
                   <Image
                     src="/images/overview-customer.png"
                     alt="Customers Overview"
@@ -115,6 +115,8 @@ export default function WidgetSection() {
                     height={300}
                     className="h-auto w-full object-cover"
                   />
+                  <div className="bg-primary absolute top-0 right-0 left-0 h-[3px]" />
+                  <div className="absolute right-0 bottom-0 left-0 h-[20%] bg-linear-to-t from-white via-white/80 to-transparent" />
                 </div>
               )}
             </div>

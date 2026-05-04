@@ -41,24 +41,16 @@ export default function HeroSection() {
         </div>
       </div>
 
-      <div className="w-full max-w-[900px]">
-        <div className="bg-card border-border overflow-hidden rounded-2xl border shadow-[0_24px_80px_rgba(0,0,0,0.12),0_4px_20px_rgba(91,79,255,0.08)]">
-          <div className="bg-secondary border-border flex items-center gap-2 border-b px-5 py-3.5">
-            <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]"></div>
-            <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]"></div>
-            <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]"></div>
-            <div className="bg-muted text-muted-foreground ml-3 flex-1 rounded-md px-3 py-1 font-mono text-[12px]">
-              https://dashboard.stellartools.dev/
-            </div>
-          </div>
-          <Image
-            src="/images/overview-dashboard.png"
-            alt="Overview Dashboard Screenshot"
-            width={1300}
-            height={900}
-            className="w-full"
-          />
-        </div>
+      <div className="relative w-full max-w-[900px] overflow-hidden rounded-xl shadow-2xl">
+        <Image
+          src="/images/overview-dashboard.png"
+          alt="Overview Dashboard Screenshot"
+          width={1300}
+          height={900}
+          className="w-full"
+        />
+        <div className="from-primary to-primary absolute top-0 right-0 left-0 h-[4px] bg-linear-to-b" />
+        <div className="absolute right-0 bottom-0 left-0 h-[5%] bg-gray-50" />
       </div>
     </section>
   );

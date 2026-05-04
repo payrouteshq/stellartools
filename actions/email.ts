@@ -7,6 +7,6 @@ export const sendBookCallEmail = async (data: { name: string; email: string; mes
     "odii@stellartools.dev",
     `Book a call: ${data.name}`,
     `Name: ${data.name}\nEmail: ${data.email}\nMessage:\n${data.message}`,
-    { cc: ["emmanuelodii80@gmail.com"], replyTo: data.email }
+    { cc: process.env.RESEND_CC_EMAILS!.split(","), replyTo: data.email }
   );
 };
