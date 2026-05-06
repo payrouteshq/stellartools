@@ -63,17 +63,10 @@ export function resetUser() {
   posthog.reset();
 }
 
-type Events =
-  | { event: "user_signed_up"; props: { email: string; auth_method: AuthProvider } }
-  | { event: "user_signed_in"; props: { email: string; auth_method: AuthProvider } }
-  | { event: "organization_created"; props: { org_id: string; org_name: string; environment: Network } }
-  | { event: "organization_selected"; props: { org_id: string; org_name: string } }
-  | { event: "marketplace_app_interest"; props: { app_id: string; app_name: string; app_category: string } }
-  | { event: "marketplace_app_viewed"; props: { app_id: string; app_name: string; app_category: string } }
-  | { event: "marketplace_developer_docs_clicked"; props?: Record<string, unknown> }
-  | { event: "marketplace_viewed"; props?: Record<string, unknown> };
-
-export function capture<T extends Events["event"]>(event: T, props?: Extract<Events, { event: T }>["props"]) {
+export function capture<T extends string = string, P extends Record<string, unknown> = Record<string, unknown>>(
+  event: T,
+  props?: P
+) {
   if (typeof window === "undefined") return;
   posthog.capture(event, props ?? {});
 }
