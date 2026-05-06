@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     description: "The financial infrastructure for the Stellar economy.",
     images: [
       {
-        url: "/images/og-image.jpeg",
+        url: "/images/og-image.png",
         width: 1200,
         height: 630,
         alt: "Stellar Tools - The financial infrastructure for the Stellar economy",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Stellar Tools",
     description: "The financial infrastructure for the Stellar economy.",
-    images: ["/images/og-image.jpeg"],
+    images: ["/images/og-image.png"],
   },
 };
 export default function RootLayout({
