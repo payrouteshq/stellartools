@@ -17,10 +17,12 @@ import SubscriptionsSection from "@/components/landing/subscriptions-section";
 import TestimonialsSection from "@/components/landing/testimonials-section";
 import WidgetSection from "@/components/landing/widget";
 import { Header } from "@/components/ui/navbar";
+import { LaunchBanner } from "@/components/landing/launch-banner";
 
 export default function Home() {
   return (
     <div className="bg-background min-h-screen scroll-smooth">
+      <LaunchBanner />
       <AuroraBackground className="bg-background">
         <Header />
         <HeroSection />
