@@ -8,8 +8,7 @@ const steps = [
   {
     number: "01",
     title: "Create your account & add your first product",
-    description:
-      "Sign up, create a product (one-time or subscription), and set your price in XLM or a stable coin like USDC",
+    description: "Sign up, create a product (one-time or subscription), and set your price in any currency.",
   },
   {
     number: "02",
@@ -19,15 +18,15 @@ const steps = [
   },
   {
     number: "03",
-    title: "Customer scans QR or connects wallet",
+    title: "Customer pays in seconds",
     description:
-      "Your customer sees a Stripe-like checkout. They scan the QR (opens Solar or xBull wallet with pre-filled amount) or connect their wallet directly.",
+      "Your customer sees a clean, familiar checkout. Payment settles in 3–5 seconds — no waiting, no friction.",
   },
   {
     number: "04",
-    title: "Get paid. Withdraw to local currency.",
+    title: "Get paid. Withdraw globally.",
     description:
-      "Funds settle to your StellarTools account instantly. Withdraw to your Stellar wallet or convert to NGN, KES, GHS, and more.",
+      "Funds settle to your StellarTools account instantly. Withdraw to any wallet or bank account worldwide.",
   },
 ];
 

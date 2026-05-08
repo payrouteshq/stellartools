@@ -8,13 +8,12 @@ export default function CTASection() {
       <div className="mx-auto max-w-2xl">
         <div className="text-primary mb-4 text-[12.5px] font-bold tracking-[1.2px] uppercase">Get started today</div>
         <h2 className="text-foreground mb-5 text-[clamp(34px,4vw,50px)] leading-[1.15] font-bold tracking-tight">
-          Ready to accept payments
+          Start accepting
           <br />
-          <em className="text-primary italic">on the Stellar network?</em>
+          <em className="text-primary italic">global payments today.</em>
         </h2>
         <p className="text-muted-foreground mb-10 text-[17px] leading-relaxed">
-          Create your account, add your first product, and start accepting payments in minutes. No blockchain knowledge
-          required. Free to start.
+          Create your account, add your first product, and start accepting payments in minutes. Free to start.
         </p>
         <div className="flex flex-row items-center justify-center gap-3.5">
           <Link

@@ -1,28 +1,74 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import * as CountryFlags from "country-flag-icons/react/3x2";
+import type { TCountryCode } from "countries-list";
+
+const FLAG_CODES: TCountryCode[] = [
+  "US", "GB", "NG", "IN", "DE", "BR", "JP", "KE", "FR", "AU",
+  "CA", "SG", "ZA", "MX", "KR", "AE", "ID", "SE", "GH", "NL",
+  "AR", "EG", "IT", "ES", "PH",
+];
+
+function FlagStrip() {
+  const flags = [...FLAG_CODES, ...FLAG_CODES];
+
+  return (
+    <div className="relative w-full max-w-[640px] overflow-hidden">
+      <style>{`
+        @keyframes flag-marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        .flag-marquee { animation: flag-marquee 28s linear infinite; }
+      `}</style>
+
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16"
+        style={{ background: "linear-gradient(to right, var(--color-background), transparent)" }}
+      />
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16"
+        style={{ background: "linear-gradient(to left, var(--color-background), transparent)" }}
+      />
+
+      <div className="flag-marquee flex gap-3">
+        {flags.map((code, i) => {
+          const Flag = CountryFlags[code];
+          return Flag ? (
+            <Flag
+              key={`${code}-${i}`}
+              className="border-border/30 h-4 w-6 shrink-0 rounded border object-cover opacity-70"
+            />
+          ) : null;
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function HeroSection() {
   return (
     <section className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center gap-12 px-6 pt-24 pb-20 lg:gap-20">
       <div className="flex flex-col items-center text-center">
-        <div className="border-secondary/25 bg-secondary/10 text-foreground mb-6 flex flex-col items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-semibold tracking-wide sm:flex-row">
-          <span className="bg-secondary text-secondary-foreground text-clamp(8px,1.5vw,13px) rounded-full px-1.5 py-0.5">
-            NEW
-          </span>
-          <span className="text-muted-foreground font-medium">Now with LangChain &amp; AI SDK support</span>
-        </div>
-
-        <h1 className="text-foreground mb-6 text-[clamp(42px,5vw,62px)] leading-[1.1] font-extrabold tracking-normal">
-          The financial infrastructure
+        <h1 className="text-foreground mb-6 text-[clamp(38px,5vw,62px)] leading-[1.1] font-extrabold tracking-normal">
+          Global payments shouldn&apos;t
           <br />
-          for the
-          <span className="text-secondary ml-2">Stellar economy.</span>
+          take days and cost a fortune.
+          <br />
+          <span className="text-secondary">Now they don&apos;t.</span>
         </h1>
 
-        <p className="text-muted-foreground mx-auto mb-9 max-w-[580px] text-lg leading-relaxed font-normal">
-          Accept payments, manage subscriptions, issue refunds, and automate billing, all on the Stellar network. A
-          complete payments platform your customers interact with in seconds.
+        <p className="text-muted-foreground mx-auto mb-6 max-w-[580px] text-lg leading-relaxed font-normal">
+          Accept payments, manage subscriptions, issue refunds, and automate billing. A complete payments platform your
+          customers interact with in seconds.
         </p>
+
+        <div className="mb-8 flex flex-col items-center gap-2">
+          <FlagStrip />
+          <p className="text-muted-foreground text-xs">Customers from every corner of the world</p>
+        </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3.5">
           <Link

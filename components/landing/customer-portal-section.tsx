@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { CreditCard, FileText, Info, LayoutDashboard, RefreshCw, Wallet } from "lucide-react";
+import { CreditCard, FileText, Info, LayoutDashboard, RefreshCw } from "lucide-react";
 
 const features = [
   {
@@ -14,9 +14,9 @@ const features = [
     description: "Customers can pause, resume, or cancel subscriptions themselves — no support tickets.",
   },
   {
-    icon: Wallet,
-    title: "Connected wallets",
-    description: "View and remove linked Stellar wallets. Wallets tied to active subscriptions are protected.",
+    icon: CreditCard,
+    title: "Payment methods",
+    description: "View and update saved payment methods. Cards or wallets tied to active subscriptions are protected.",
   },
   {
     icon: LayoutDashboard,
@@ -42,7 +42,7 @@ export default function CustomerPortalSection() {
             <em className="text-primary italic">your customers.</em>
           </h2>
           <p className="text-muted-foreground mb-10 text-[17px] leading-relaxed">
-            Every customer gets a hosted portal to manage their own subscriptions, wallets, usage, and invoices.
+            Every customer gets a hosted portal to manage their own subscriptions, payment methods, usage, and invoices.
           </p>
           <div className="flex flex-col gap-7">
             {features.map((feature) => (
@@ -96,7 +96,7 @@ export default function CustomerPortalSection() {
                         <Badge className="text-[10px]">Active</Badge>
                       </div>
                       <p className="text-muted-foreground text-xs">Renews Jun 1, 2026</p>
-                      <p className="text-muted-foreground font-mono text-xs">GBWY…OQCH</p>
+                      <p className="text-muted-foreground text-xs">Visa •••• 4242</p>
                     </div>
                     <div className="flex gap-1.5">
                       <Button variant="ghost" size="sm" disabled className="h-7 text-xs">
@@ -133,8 +133,8 @@ export default function CustomerPortalSection() {
                 <p className="text-foreground mb-2 text-xs font-medium">Invoices</p>
                 <div className="border-border divide-border divide-y rounded-xl border">
                   {[
-                    { amount: "10 XLM", date: "May 1, 2026", hash: "a3f92c…" },
-                    { amount: "10 XLM", date: "Apr 1, 2026", hash: "b81d04…" },
+                    { amount: "$9.99", date: "May 1, 2026", hash: "a3f92c…" },
+                    { amount: "$9.99", date: "Apr 1, 2026", hash: "b81d04…" },
                   ].map((inv) => (
                     <div key={inv.hash} className="flex items-center justify-between px-4 py-2.5">
                       <div className="space-y-0.5">

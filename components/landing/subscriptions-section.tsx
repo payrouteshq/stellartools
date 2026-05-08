@@ -5,7 +5,7 @@ import { CheckList } from "@/components/checklist";
 const features = [
   "Free trials with automatic conversion",
   "Prorate upgrades and downgrades",
-  "Smart contract-enforced renewal logic",
+  "Automatic renewals and failed-payment handling",
   "Flexible billing cycles e.g hourly, daily, etc",
   "Webhook on every lifecycle event",
 ];
@@ -18,11 +18,11 @@ export default function SubscriptionsSection() {
         <h2 className="text-foreground mb-5 text-[clamp(34px,4vw,50px)] leading-[1.15] font-bold tracking-tight">
           Recurring revenue,
           <br />
-          <em className="text-primary italic">enforced on-chain.</em>
+          <em className="text-primary italic">on autopilot.</em>
         </h2>
         <p className="text-muted-foreground mb-7 text-[17px] leading-relaxed">
-          Our Soroban smart contracts handle subscription state, renewals, cancellations, upgrades transparently and
-          automatically. You set the rules once. The blockchain enforces them forever.
+          Set up subscription billing once and let StellarTools handle renewals, cancellations, upgrades, and failed
+          payments automatically. You focus on your product — we handle the billing.
         </p>
         <CheckList items={features} className="text-[15px]" />
       </div>

@@ -4,24 +4,23 @@ import { PhoneNumberField } from "@/components/phone-number-field";
 import { TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Info, Link2, Palette, QrCode, Zap } from "lucide-react";
+import { CreditCard, Info, Link2, Palette, Zap } from "lucide-react";
 
 const features = [
   {
-    icon: QrCode,
-    title: "QR code that just works",
-    description:
-      "Deep links into Lobstr, xBull or other Stellar wallets with amount, memo, and destination pre-filled. One scan, one tap.",
+    icon: Link2,
+    title: "Hosted checkout or API",
+    description: "Share a payment link or integrate directly via our REST API and JS SDK. We handle the UI.",
   },
   {
-    icon: Link2,
-    title: "Wallet connect",
-    description: "Customers can connect their wallet directly in the browser without leaving your checkout flow.",
+    icon: CreditCard,
+    title: "Fiat & crypto",
+    description: "Accept card payments, bank transfers, or crypto. One integration, every payment method.",
   },
   {
     icon: Zap,
     title: "3-5 second settlement",
-    description: "Stellar's consensus means payments are final in seconds — not minutes, not days.",
+    description: "Payments are final in seconds — not minutes, not days.",
   },
   {
     icon: Palette,
@@ -40,8 +39,8 @@ export default function CheckoutSection() {
             A checkout your customers will <em className="text-primary italic">actually use.</em>
           </h2>
           <p className="mb-10 text-lg leading-relaxed text-white/60">
-            No wallet setup guides. Your customers see a clean, familiar payment screen. Scan the QR and it opens their
-            Stellar wallet pre-filled, ready to confirm in one tap.
+            No complex integrations. Your customers see a clean, familiar payment screen and complete their purchase in
+            seconds — whether they pay with a card or crypto.
           </p>
 
           <div className="flex flex-col gap-5">
@@ -78,8 +77,7 @@ export default function CheckoutSection() {
               </div>
               <Separator className="my-4" />
               <div className="text-foreground text-3xl font-black tracking-tighter">
-                10 <span className="text-muted-foreground text-base font-medium">XLM</span>
-                <span className="text-muted-foreground ml-1 text-sm font-normal">/ month</span>
+                $9.99 <span className="text-muted-foreground ml-1 text-sm font-normal">/ month</span>
               </div>
             </div>
 
@@ -93,7 +91,7 @@ export default function CheckoutSection() {
                 groupClassName="w-full shadow-none"
                 error={null}
               />
-              <Button className="h-12 w-full font-bold">Pay as GBWY…OQCH →</Button>
+              <Button className="h-12 w-full font-bold">Pay now →</Button>
             </div>
           </div>
         </div>

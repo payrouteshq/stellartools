@@ -6,8 +6,8 @@ const stats = [
     label: "Settlement time",
   },
   {
-    value: "3",
-    label: "Fiat payout currencies (growing)",
+    value: "~$0.00",
+    label: "Transaction fees",
   },
   {
     value: "6+",
