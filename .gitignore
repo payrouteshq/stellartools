@@ -52,4 +52,7 @@ packages/*/node_modules
 /better-auth-test
 /.pnpm-store
 
+# mcp (WIP)
+/mcp-server
+
 MEMORY.md

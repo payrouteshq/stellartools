@@ -31,7 +31,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
-  SidebarRail,
+
 } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/toast";
 import { useOrgContext } from "@/hooks/use-org-query";
@@ -343,7 +343,6 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
-          <SidebarRail />
         </Sidebar>
         {children}
       </SidebarProvider>

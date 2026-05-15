@@ -193,7 +193,7 @@ export const forgotPassword = async (email: string) => {
     expiresAt: moment().add(1, "hours").toDate(),
   });
 
-  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken.token}`;
+  const resetLink = `${process.env.NEXT_PUBLIC_DASHBOARD_URL}/reset-password?token=${resetToken.token}`;
 
   await sendEmail(email, "Reset Password", `<a href="${resetLink}">Reset Password</a>`);
 
