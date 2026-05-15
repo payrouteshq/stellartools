@@ -17,8 +17,7 @@ export const DashboardSidebarInset = ({ children }: { children: React.ReactNode 
       )}
     >
       <DashboardHeader />
-      {/* Shell border + radius: stroke follows the curve (no sharp corner miter) */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[1.75rem] rounded-bl-[1.75rem] bg-sidebar-border p-px">
+      <div className="bg-sidebar-border flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[1.75rem] rounded-bl-[1.75rem] p-px">
         <div className="bg-card flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-tl-[calc(1.75rem-1px)] rounded-bl-[calc(1.75rem-1px)]">
           {children}
         </div>

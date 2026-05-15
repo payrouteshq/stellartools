@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import { postOrganizationAndSecret, retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
-import { capture, identifyOrganization } from "@/lib/posthog";
 import { AppModal } from "@/components/app-modal";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
 import {
@@ -16,6 +15,7 @@ import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Building2, ChevronRight, Plus } from "lucide-react";

@@ -11,7 +11,7 @@ import { X } from "lucide-react";
 const POPUP_W = 272;
 const GAP = 6;
 const AW = 10; // arrow half-width
-const AH = 8;  // arrow height
+const AH = 8; // arrow height
 const POPUP_H_EST = 140;
 
 function Arrow({ side, x }: { side: "top" | "bottom"; x: number }) {
@@ -22,16 +22,45 @@ function Arrow({ side, x }: { side: "top" | "bottom"; x: number }) {
   // For "top" (popup above target) → arrow points DOWN (▼) → sits below the card
   const outer: React.CSSProperties =
     side === "bottom"
-      ? { borderLeft: `${AW}px solid transparent`, borderRight: `${AW}px solid transparent`, borderBottom: `${AH}px solid hsl(var(--border))` }
-      : { borderLeft: `${AW}px solid transparent`, borderRight: `${AW}px solid transparent`, borderTop: `${AH}px solid hsl(var(--border))` };
+      ? {
+          borderLeft: `${AW}px solid transparent`,
+          borderRight: `${AW}px solid transparent`,
+          borderBottom: `${AH}px solid hsl(var(--border))`,
+        }
+      : {
+          borderLeft: `${AW}px solid transparent`,
+          borderRight: `${AW}px solid transparent`,
+          borderTop: `${AH}px solid hsl(var(--border))`,
+        };
 
   const inner: React.CSSProperties =
     side === "bottom"
-      ? { borderLeft: `${AW - 1}px solid transparent`, borderRight: `${AW - 1}px solid transparent`, borderBottom: `${AH - 1}px solid hsl(var(--card))`, top: 1, left: -(AW - 1) }
-      : { borderLeft: `${AW - 1}px solid transparent`, borderRight: `${AW - 1}px solid transparent`, borderTop: `${AH - 1}px solid hsl(var(--card))`, top: -1, left: -(AW - 1) };
+      ? {
+          borderLeft: `${AW - 1}px solid transparent`,
+          borderRight: `${AW - 1}px solid transparent`,
+          borderBottom: `${AH - 1}px solid hsl(var(--card))`,
+          top: 1,
+          left: -(AW - 1),
+        }
+      : {
+          borderLeft: `${AW - 1}px solid transparent`,
+          borderRight: `${AW - 1}px solid transparent`,
+          borderTop: `${AH - 1}px solid hsl(var(--card))`,
+          top: -1,
+          left: -(AW - 1),
+        };
 
   return (
-    <div style={{ position: "absolute", left: clamped - AW, [side === "bottom" ? "bottom" : "top"]: "100%", width: 0, height: 0, ...outer }}>
+    <div
+      style={{
+        position: "absolute",
+        left: clamped - AW,
+        [side === "bottom" ? "bottom" : "top"]: "100%",
+        width: 0,
+        height: 0,
+        ...outer,
+      }}
+    >
       <div style={{ position: "absolute", width: 0, height: 0, ...inner }} />
     </div>
   );
@@ -81,10 +110,7 @@ export function GuidedFlowUI({ flows }: { flows: GuidedFlowInstance[] }) {
   const spaceBelow = window.innerHeight - (coords.top - window.scrollY) - coords.height;
   const side = spaceBelow < POPUP_H_EST + GAP + AH + 16 ? "top" : "bottom";
 
-  const popupTop =
-    side === "bottom"
-      ? coords.top + coords.height + GAP + AH
-      : coords.top - GAP - AH - POPUP_H_EST;
+  const popupTop = side === "bottom" ? coords.top + coords.height + GAP + AH : coords.top - GAP - AH - POPUP_H_EST;
 
   return createPortal(
     <>
@@ -107,7 +133,7 @@ export function GuidedFlowUI({ flows }: { flows: GuidedFlowInstance[] }) {
 
       {/* Card with arrow attached */}
       <div
-        className="bg-card border rounded-xl shadow-2xl"
+        className="bg-card rounded-xl border shadow-2xl"
         style={{ position: "absolute", top: popupTop, left: popupLeft, width: POPUP_W, zIndex: 9999 }}
       >
         {/* The arrow sits outside the card via position:absolute + bottom/top:100% */}
@@ -117,7 +143,7 @@ export function GuidedFlowUI({ flows }: { flows: GuidedFlowInstance[] }) {
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="bg-primary mt-0.5 size-1.5 shrink-0 animate-pulse rounded-full" />
-              <span className="text-sm font-semibold leading-tight">{currentStep.title}</span>
+              <span className="text-sm leading-tight font-semibold">{currentStep.title}</span>
             </div>
             <button
               onClick={dismiss}

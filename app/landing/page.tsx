@@ -6,18 +6,18 @@ import CheckoutSection from "@/components/landing/checkout-section";
 import CTASection from "@/components/landing/cta-section";
 import CustomerPortalSection from "@/components/landing/customer-portal-section";
 import DevelopersSection from "@/components/landing/developers-section";
-import MarketplaceSection from "@/components/landing/marketplace-section";
 import { FooterSection } from "@/components/landing/footer-section";
 import HeroSection from "@/components/landing/hero-section";
 import HowItWorks from "@/components/landing/how-it-works";
+import { LaunchBanner } from "@/components/landing/launch-banner";
 import LogosBelt from "@/components/landing/logos-belt";
+import MarketplaceSection from "@/components/landing/marketplace-section";
 import PayoutsSection from "@/components/landing/payouts-section";
 import StatsSection from "@/components/landing/stats-section";
 import SubscriptionsSection from "@/components/landing/subscriptions-section";
 import TestimonialsSection from "@/components/landing/testimonials-section";
 import WidgetSection from "@/components/landing/widget";
 import { Header } from "@/components/ui/navbar";
-import { LaunchBanner } from "@/components/landing/launch-banner";
 
 export default function Home() {
   return (
