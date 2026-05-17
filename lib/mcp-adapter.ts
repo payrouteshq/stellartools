@@ -3,6 +3,8 @@ import "server-only";
 import { z as Schema } from "@stellartools/core";
 import { NextRequest } from "next/server";
 
+import { HandlerConfig } from "./api-handler";
+
 export function getMcpSchema(config: any) {
   const shapes: any = {};
 
@@ -19,7 +21,7 @@ export function getMcpSchema(config: any) {
   return Schema.object(shapes);
 }
 
-export async function executeHandlerAsTool(config: any, args: any, auth: any) {
+export async function executeHandlerAsTool(config: HandlerConfig<any, any, any>, args: any, auth: any) {
   const params: any = args;
   const query: any = args;
   const body: any = args;
