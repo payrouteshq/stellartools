@@ -1,0 +1,99 @@
+---
+title: "MCP Server"
+description: "Connect AI agents to your StellarTools account"
+---
+
+StellarTools exposes a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server so agents in Cursor, Claude Desktop, and other MCP clients can work with your customers, products, checkouts, subscriptions, payments, and refunds. The tools map to the same REST handlers you already use — auth, validation, and business logic stay in one place.
+
+You need an API key from [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys). The key sets your environment (testnet or mainnet), same as the REST API.
+
+## Endpoint
+
+```
+https://api.stellartools.dev/mcp
+```
+
+The server uses **SSE transport**: the client opens a long-lived `GET` stream, then sends JSON-RPC messages over `POST` with a `sessionId` query parameter. You do not configure that yourself — MCP clients handle it.
+
+<Note>
+  While building locally, use your API host (for example `http://api.localhost:3000/mcp`) if you run the app on a custom subdomain.
+</Note>
+
+## Authentication
+
+Send your API key on every connection in the `x-api-key` header. StellarTools resolves the key to your organization and environment before any tool runs.
+
+```bash
+x-api-key: sk_test_...
+```
+
+If the key is missing or invalid, tool calls return an error result. Use a testnet key while developing and switch to mainnet when you go live.
+
+## Connect in Cursor
+
+Add this to your project or user MCP config (`.cursor/mcp.json` or Cursor Settings → MCP):
+
+```json
+{
+  "mcpServers": {
+    "stellartools": {
+      "url": "https://api.stellartools.dev/mcp",
+      "transport": "sse",
+      "headers": {
+        "x-api-key": "sk_test_your_key_here"
+      }
+    }
+  }
+}
+```
+
+Replace the key with yours. Restart Cursor or reload MCP servers after saving.
+
+## Connect in Claude Desktop
+
+In `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "stellartools": {
+      "url": "https://api.stellartools.dev/mcp",
+      "transport": "sse",
+      "headers": {
+        "x-api-key": "sk_test_your_key_here"
+      }
+    }
+  }
+}
+```
+
+## Available tools
+
+Tool names and inputs mirror the REST API. Arguments are merged into the shape expected by each route (path params, query, and body fields in one object).
+
+| Tool | Description |
+| --- | --- |
+| `create_customers` | Create one or more customers |
+| `create_product` | Create a product |
+| `create_refund` | Create a refund |
+| `delete_checkout` | Delete a checkout (`id`) |
+| `delete_customer` | Delete a customer (`customerId`) |
+| `delete_product` | Delete a product (`id`) |
+| `get_balance` | Stellar account balance for your org wallet |
+| `get_checkout` | Get a checkout (`id`) |
+| `get_customer` | Get one customer by ID (`customerId`) |
+| `get_customers` | List customers for your organization |
+| `get_payment` | Get one payment (`id`) |
+| `get_payments` | List payments |
+| `get_subscriptions` | List subscriptions |
+| `update_checkout` | Update a checkout (`id` + fields) |
+| `update_customer` | Update a customer (`customerId` + fields) |
+| `update_product` | Update a product (`id` + fields) |
+
+Successful tool calls return JSON in the MCP text content. For field-level detail on each resource, see the [API Reference](/api-reference/introduction).
+
+## Related
+
+- [Authentication](/api-reference/authentication) — API keys and headers
+- [TypeScript SDK](/integrations/typescript-sdk) — programmatic access without an agent
+- [API Reference](/api-reference/introduction) — full REST surface
