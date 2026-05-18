@@ -30,7 +30,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     ".d.ts/**/*.d.ts",
-    ".d.ts/index.ts"
-, "mcp-server/tsconfig.json"  ],
+    ".d.ts/index.ts",
+    "mcp-server/tsconfig.json"
+  ],
   "exclude": ["node_modules", "packages"]
 }

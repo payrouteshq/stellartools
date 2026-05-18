@@ -1,10 +1,10 @@
 import "server-only";
 
+import { AuthContext } from "@/types";
 import { z as Schema } from "@stellartools/core";
 import { NextRequest } from "next/server";
 
 import { HandlerConfig } from "./api-handler";
-import { AuthContext } from "@/types";
 
 export function getMcpSchema(config: any) {
   const shapes: any = {};
@@ -22,7 +22,7 @@ export function getMcpSchema(config: any) {
   return Schema.object(shapes);
 }
 
-export async function executeHandlerAsTool(config: HandlerConfig<any, any, any>, args: any, auth: AuthContext ) {
+export async function executeHandlerAsTool(config: HandlerConfig<any, any, any>, args: any, auth: AuthContext) {
   const params: any = args;
   const query: any = args;
   const body: any = args;
