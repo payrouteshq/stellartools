@@ -82,6 +82,12 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         }
 
         authResult = await resolveAuthContext(authParams);
+        if (!authResult) {
+          return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: corsHeaders }
+          );
+        }
 
         if (authResult.type === "app" && config.requiredAppScope) {
           const hasPermission =

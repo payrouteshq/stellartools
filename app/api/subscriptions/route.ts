@@ -7,6 +7,7 @@ export const OPTIONS = createOptionsHandler();
 export const GET = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "read:subscriptions",
+  mcp: { name: "get_subscriptions", description: "Get subscriptions" },
   schema: { query: Schema.object({ customerId: Schema.string() }) },
   handler: async ({ query: { customerId }, auth: { environment } }) => {
     const result = await listSubscriptions(customerId, environment).then(Result.ok);

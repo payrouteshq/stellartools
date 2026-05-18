@@ -18,16 +18,24 @@ export async function GET(req: NextRequest) {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
   const encoder = new TextEncoder();
+  const apiKey = req.headers.get("x-api-key");
+
 
   const server = new McpServer({ name: "StellarTools", version: "1.0.0" });
 
   mcpToolsRegistry.forEach((config, name) => {
     server.tool(name, getMcpSchema(config).shape, async (args, extra: any) => {
-      const auth = await resolveAuthContext({ apiKey: extra.apiKey });
+
+      const auth = await resolveAuthContext({ apiKey });
+      if (!auth) {
+        return { content: [{ type: "text", text: "Unauthorized" }] };
+      }
       const data = await executeHandlerAsTool(config, args, auth);
+     
       return { content: [{ type: "text", text: JSON.stringify(data) }] };
     });
   });
+
 
   // Simplified Node.js Response mock for GET
   const responseMock = {

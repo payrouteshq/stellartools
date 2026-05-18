@@ -42,6 +42,9 @@ export const POST = async (req: NextRequest) => {
 
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
+      if (!auth) {
+        return Result.err(new Error("Unauthorized"));
+      }
       const { customer_id, customer_email, customer_phone, metadata } = data;
       const customer = await upsertCustomer(
         { id: customer_id, email: customer_email, phone: customer_phone },

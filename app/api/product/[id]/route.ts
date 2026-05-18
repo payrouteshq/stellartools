@@ -11,6 +11,7 @@ export const PUT = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "write:products",
   schema: { body: updateProductSchema, params: paramsSchema },
+  mcp: { name: "update_product", description: "Update a product" },
   handler: async ({ body, auth: { organizationId }, params: { id } }) => {
     const product = await putProduct(
       id,
@@ -30,6 +31,7 @@ export const DELETE = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "write:products",
   schema: { params: paramsSchema },
+  mcp: { name: "delete_product", description: "Delete a product" },
   handler: async ({ params: { id }, auth: { organizationId } }) => {
     const product = await deleteProduct(id, organizationId);
     return Result.ok(product);

@@ -8,6 +8,7 @@ export const OPTIONS = createOptionsHandler();
 export const POST = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "write:products",
+  mcp: { name: "create_product", description: "Create a product" },
   schema: { body: createProductSchema },
   handler: async ({ body, auth: { organizationId, environment } }) => {
     console.log(body);

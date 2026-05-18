@@ -18,6 +18,7 @@ export const POST = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "write:refunds",
   schema: { body: createRefundSchema.extend({ wallet_address: Schema.string().optional() }) },
+  mcp: { name: "create_refund", description: "Create a refund" },
   handler: async ({ body: rawBody, auth: { organizationId, environment } }) => {
     const { paymentId: payment_id, reason, metadata, walletAddress: wallet_address } = toCamelCase<any>(rawBody);
     const { payment, secret } = await all({
