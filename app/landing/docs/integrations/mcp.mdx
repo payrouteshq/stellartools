@@ -3,9 +3,9 @@ title: "MCP Server"
 description: "Connect AI agents to your StellarTools account"
 ---
 
-StellarTools exposes a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server so agents in Cursor, Claude Desktop, and other MCP clients can work with your customers, products, checkouts, subscriptions, payments, and refunds. The tools map to the same REST handlers you already use — auth, validation, and business logic stay in one place.
+StellarTools exposes a [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server so agents in Cursor, Claude Desktop, and other MCP clients can work with your customers, products, checkouts, subscriptions, payments, and refunds. The tools map to the same REST handlers you already use  auth, validation, and business logic stay in one place.
 
-You need an API key from [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys). The key sets your environment (testnet or mainnet), same as the REST API.
+You need an API key from [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys).
 
 ## Endpoint
 
@@ -13,11 +13,6 @@ You need an API key from [dashboard.stellartools.dev/api-keys](https://dashboard
 https://api.stellartools.dev/mcp
 ```
 
-The server uses **SSE transport**: the client opens a long-lived `GET` stream, then sends JSON-RPC messages over `POST` with a `sessionId` query parameter. You do not configure that yourself — MCP clients handle it.
-
-<Note>
-  While building locally, use your API host (for example `http://api.localhost:3000/mcp`) if you run the app on a custom subdomain.
-</Note>
 
 ## Authentication
 
@@ -38,7 +33,6 @@ Add this to your project or user MCP config (`.cursor/mcp.json` or Cursor Settin
   "mcpServers": {
     "stellartools": {
       "url": "https://api.stellartools.dev/mcp",
-      "transport": "sse",
       "headers": {
         "x-api-key": "sk_test_your_key_here"
       }
@@ -58,7 +52,6 @@ In `claude_desktop_config.json`:
   "mcpServers": {
     "stellartools": {
       "url": "https://api.stellartools.dev/mcp",
-      "transport": "sse",
       "headers": {
         "x-api-key": "sk_test_your_key_here"
       }
