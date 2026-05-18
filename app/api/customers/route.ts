@@ -8,6 +8,7 @@ export const POST = apiHandler({
   auth: ["session", "apikey", "app"],
   schema: { body: Schema.array(createCustomerSchema) },
   requiredAppScope: "write:customers",
+  mcp: { name: "create_customers", description: "Create one or more customers" },
   handler: async ({ body, auth: { organizationId, environment }, req }) => {
     const arrayBody = Array.isArray(body) ? body : [body];
     const source = req.headers.get("x-source") ?? "API";
@@ -32,6 +33,7 @@ export const POST = apiHandler({
 export const GET = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "read:customers",
+  mcp: { name: "get_customers", description: "Get all customers for an organization" },
   schema: {},
   handler: async ({ auth: { organizationId, environment } }) => {
     const customers = await retrieveCustomers(undefined, { withWallets: true }, organizationId, environment);

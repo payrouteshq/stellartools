@@ -428,14 +428,16 @@ export function ProductsModalContent({
           <div className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
               <Label className="font-medium">Pricing Model</Label>
-              <Link
-                target="_blank"
-                className="text-primary flex h-auto items-center gap-1.5 px-2 py-1 text-xs no-underline hover:underline hover:underline-offset-2"
-                href={process.env.NEXT_PUBLIC_DOCS_URL!}
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-                Learn about metered billing
-              </Link>
+              {process.env.NEXT_PUBLIC_DOCS_URL ? (
+                <Link
+                  target="_blank"
+                  className="text-primary flex h-auto items-center gap-1.5 px-2 py-1 text-xs no-underline hover:underline hover:underline-offset-2"
+                  href={process.env.NEXT_PUBLIC_DOCS_URL}
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  Learn about metered billing
+                </Link>
+              ) : null}
             </div>
             <RHF.Controller
               control={form.control}

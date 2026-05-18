@@ -8,6 +8,8 @@ import { AppScope } from "@stellartools/app-embed-bridge";
 import { Result, z as Schema, validateSchema } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 
+export const mcpToolsRegistry = new Map<string, HandlerConfig<any, any, any>>();
+
 export type AuthScope = "session" | "apikey" | "portal" | "app";
 
 const AUTH_SCOPE_LABELS: Record<AuthScope, string> = {
@@ -22,12 +24,13 @@ function authRequiredMessage(scopes: Array<AuthScope>): string {
   return `${labels.join(" or ")} required`;
 }
 
-type HandlerConfig<TBody, TParams, TQuery> = {
+export type HandlerConfig<TBody, TParams, TQuery> = {
   schema?: {
     body?: Schema.ZodSchema<TBody>;
     params?: Schema.ZodSchema<TParams>;
     query?: Schema.ZodSchema<TQuery>;
   };
+  mcp?: { name: string; description: string };
   auth?: Array<AuthScope> | null;
   requiredAppScope?: AppScope;
   handler: (args: {
@@ -43,6 +46,10 @@ type HandlerConfig<TBody, TParams, TQuery> = {
 };
 
 export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: HandlerConfig<TBody, TParams, TQuery>) => {
+  if (config.mcp) {
+    mcpToolsRegistry.set(config.mcp.name, config);
+  }
+
   return async (req: NextRequest, context: { params: Promise<any> }) => {
     const origin = req.headers.get("origin");
     const corsHeaders = getCorsHeaders(origin);
@@ -75,6 +82,9 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         }
 
         authResult = await resolveAuthContext(authParams);
+        if (!authResult) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+        }
 
         if (authResult.type === "app" && config.requiredAppScope) {
           const hasPermission =

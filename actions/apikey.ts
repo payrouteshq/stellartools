@@ -74,7 +74,7 @@ export const resolveAuthContext = async (params: {
   sessionToken?: string | null;
   portalToken?: string | null;
   appToken?: string | null;
-}): Promise<AuthContext> => {
+}): Promise<AuthContext | null> => {
   const { apiKey, sessionToken, portalToken, appToken } = params;
 
   // 1. Portal Degree (End-user/Customer)
@@ -117,14 +117,18 @@ export const resolveAuthContext = async (params: {
   }
 
   // 4. API Key Degree (Standard Developer Access)
+  if (!apiKey?.trim()) {
+    return null;
+  }
+
   const [row] = await db
     .select({ organizationId: organizations.id, environment: apiKeys.environment, apiKeyId: apiKeys.id })
     .from(apiKeys)
     .innerJoin(organizations, eq(apiKeys.organizationId, organizations.id))
-    .where(apiKey ? eq(apiKeys.token, apiKey) : undefined)
+    .where(eq(apiKeys.token, apiKey))
     .limit(1);
 
-  if (!row) throw new Error("Invalid API Key");
+  if (!row) return null;
 
   return { ...row, type: "apikey" };
 };

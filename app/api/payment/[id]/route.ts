@@ -6,6 +6,7 @@ import { resolvePublicPayments } from "../shared";
 export const GET = apiHandler({
   auth: ["apikey", "app"],
   requiredAppScope: "read:payments",
+  mcp: { name: "get_payment", description: "Get a payment" },
   schema: { params: Schema.object({ id: Schema.string() }) },
   handler: async ({ params, auth }) => {
     const { data } = await resolvePublicPayments(auth.organizationId, auth.environment, {

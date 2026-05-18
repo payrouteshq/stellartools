@@ -12,6 +12,7 @@ const querySchema = Schema.object({
 export const GET = apiHandler({
   auth: ["apikey", "app"],
   requiredAppScope: "read:payments",
+  mcp: { name: "get_payments", description: "Get payments" },
   schema: { query: querySchema },
   handler: async ({ query, auth }) => {
     const results = await resolvePublicPayments(auth.organizationId, auth.environment, {
