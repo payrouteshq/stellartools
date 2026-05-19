@@ -26,6 +26,7 @@ import * as RHF from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { z } from "zod";
 
+
 export default function SelectOrganizationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -256,9 +257,14 @@ const CreateOrganizationModalContent = ({
       name: "",
       phoneNumber: { number: "", countryCode: "US" },
       description: "",
+      physicalAddress: "",
+      supportEmail: "",
       logo: null,
     },
   });
+
+  const fieldOrder = ["name", "description", "phoneNumber", "supportEmail", "physicalAddress"] as const;
+
 
   const createOrgMutation = useMutation({
     mutationFn: async (data: CreateOrganizationFormData) => {
@@ -328,18 +334,19 @@ const CreateOrganizationModalContent = ({
     onFooterChange({ isPending: createOrgMutation.isPending });
   }, [createOrgMutation.isPending, onFooterChange]);
 
-  useHotkeys(
-    "mod+enter",
-    (e) => {
+  const focusNext = (current: (typeof fieldOrder)[number]) => {
+    const next = fieldOrder[fieldOrder.indexOf(current) + 1];
+    if (next) form.setFocus(next);
+    else void submitForm();
+  };
+
+  const onEnter =
+    (field: (typeof fieldOrder)[number]) => (e: React.KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
       e.preventDefault();
-      submitForm();
-    },
-    {
-      enabled: !createOrgMutation.isPending,
-      enableOnFormTags: ["input", "textarea"],
-    },
-    [createOrgMutation.isPending, submitForm]
-  );
+      focusNext(field);
+    };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -384,6 +391,7 @@ const CreateOrganizationModalContent = ({
                 name="name"
                 render={({ field, fieldState: { error } }) => (
                   <TextField
+                    ref={field.ref}
                     id="organization-name"
                     label="Organization Name"
                     value={field.value}
@@ -393,6 +401,7 @@ const CreateOrganizationModalContent = ({
                     labelClassName="text-sm font-medium"
                     required
                     className="w-full shadow-none"
+                    onKeyDown={onEnter("name")}
                   />
                 )}
               />
@@ -402,6 +411,7 @@ const CreateOrganizationModalContent = ({
                 name="description"
                 render={({ field, fieldState: { error } }) => (
                   <TextAreaField
+                    ref={field.ref}
                     id={field.name}
                     label="Description"
                     value={field.value || ""}
@@ -410,6 +420,7 @@ const CreateOrganizationModalContent = ({
                     error={error?.message}
                     className="w-full shadow-none"
                     rows={6}
+                    onKeyDown={onEnter("description")}
                   />
                 )}
               />
@@ -432,6 +443,7 @@ const CreateOrganizationModalContent = ({
 
                   return (
                     <PhoneNumberField
+                      ref={field.ref}
                       id={field.name}
                       label="Phone Number"
                       value={phoneValue}
@@ -439,6 +451,7 @@ const CreateOrganizationModalContent = ({
                       error={(error as any)?.number?.message}
                       disabled={createOrgMutation.isPending}
                       groupClassName="w-full shadow-none"
+                      inputOnKeyDown={onEnter("phoneNumber")}
                     />
                   );
                 }}
@@ -449,6 +462,7 @@ const CreateOrganizationModalContent = ({
                 name="supportEmail"
                 render={({ field, fieldState: { error } }) => (
                   <TextField
+                    ref={field.ref}
                     id={field.name}
                     label="Support Email"
                     type="email"
@@ -457,6 +471,7 @@ const CreateOrganizationModalContent = ({
                     placeholder="support@example.com"
                     error={error?.message}
                     className="w-full shadow-none"
+                    onKeyDown={onEnter("supportEmail")}
                   />
                 )}
               />
@@ -466,6 +481,7 @@ const CreateOrganizationModalContent = ({
                 name="physicalAddress"
                 render={({ field, fieldState: { error } }) => (
                   <TextAreaField
+                    ref={field.ref}
                     id={field.name}
                     label="Physical Address"
                     value={field.value || ""}
@@ -474,6 +490,7 @@ const CreateOrganizationModalContent = ({
                     error={error?.message}
                     className="w-full shadow-none"
                     rows={3}
+                    onKeyDown={onEnter("physicalAddress")}
                   />
                 )}
               />

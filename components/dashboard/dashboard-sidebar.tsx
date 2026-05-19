@@ -133,9 +133,9 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex h-svh flex-col overflow-hidden">
       {isTestMode && <TestModeBanner />}
-      <SidebarProvider className="min-h-0 flex-1">
+      <SidebarProvider className="min-h-0 flex-1 overflow-hidden">
         <Sidebar collapsible="icon">
           <SidebarHeader className={cn(isTestMode && "pt-8 transition-all duration-300")}>
             <SidebarMenu>

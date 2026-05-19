@@ -285,7 +285,7 @@ export const signOut = async () => {
     }
   }
 
-  await deleteCookies(["accessToken", "refreshToken"]);
+  await deleteCookies(["accessToken", "refreshToken", "selectedOrg"]);
 
   return { success: true };
 };

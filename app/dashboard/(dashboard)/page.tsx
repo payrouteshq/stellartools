@@ -20,6 +20,7 @@ import { ShareWidget } from "@/components/share-widget";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAssetRates } from "@/hooks/use-asset-rates";
@@ -235,16 +236,16 @@ function StatCardSkeleton() {
       <CardContent className="flex flex-col gap-5 p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="bg-muted/60 h-3 w-20 animate-pulse rounded" />
-            <div className="bg-muted/60 h-8 w-16 animate-pulse rounded sm:h-9" />
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-8 w-20 sm:h-9" />
             <div className="flex items-center gap-1.5">
-              <div className="bg-muted/40 size-3 animate-pulse rounded-full" />
-              <div className="bg-muted/50 h-3 w-14 animate-pulse rounded" />
+              <Skeleton className="size-3 rounded-full" />
+              <Skeleton className="h-3 w-16" />
             </div>
           </div>
-          <div className="bg-muted/60 size-10 shrink-0 animate-pulse rounded-xl" />
+          <Skeleton className="size-10 shrink-0 rounded-xl" />
         </div>
-        <div className="bg-muted/30 relative -mx-6 mt-1 h-28 animate-pulse overflow-hidden rounded-b-2xl" />
+        <Skeleton className="relative -mx-6 mt-1 h-28 rounded-b-2xl" />
       </CardContent>
     </Card>
   );
@@ -254,19 +255,16 @@ function StatCardsSkeleton() {
   return (
     <div className="flex flex-col gap-8 p-6 md:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2">
-          <div className="bg-muted/50 h-8 w-40 animate-pulse rounded-lg md:h-9 md:w-52" />
-          <div className="bg-muted/40 h-4 w-56 animate-pulse rounded" />
+        <Skeleton className="h-8 w-36 md:h-9 md:w-40" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-[140px] rounded-lg" />
+          <Skeleton className="h-9 w-[200px] rounded-lg" />
         </div>
-        <div className="bg-muted/50 h-9 w-[200px] animate-pulse rounded-lg" />
       </div>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <StatCardSkeleton key={i} />
         ))}
-      </div>
-      <div className="flex justify-center pt-2">
-        <div className="bg-muted/40 h-5 w-40 animate-pulse rounded" />
       </div>
     </div>
   );

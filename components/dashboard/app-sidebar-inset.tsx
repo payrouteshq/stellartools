@@ -12,16 +12,16 @@ export const DashboardSidebarInset = ({ children }: { children: React.ReactNode 
   return (
     <SidebarInset
       className={cn(
-        "bg-sidebar! flex min-h-svh flex-col overflow-hidden transition-all duration-300",
-        isTestMode && "mt-8"
+        "bg-sidebar m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0",
+        isTestMode && "pt-8"
       )}
     >
       <DashboardHeader />
-      <div className="bg-sidebar-border flex min-h-0 flex-1 flex-col overflow-hidden rounded-tl-[1.75rem] rounded-bl-[1.75rem] p-px">
-        <div className="bg-card flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-tl-[calc(1.75rem-1px)] rounded-bl-[calc(1.75rem-1px)]">
-          {children}
+      
+        <div className="mb-2 min-h-0 flex-1 overflow-hidden rounded-tl-4xl border-t border-l border-border bg-card ">
+          <div className="scrollbar-sidebar h-full overflow-y-auto">{children}</div>
         </div>
-      </div>
+      
     </SidebarInset>
   );
 };
