@@ -6,7 +6,7 @@ import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-mana
 import { sendEmail } from "@/integrations/email";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import moment from "moment";
 import { nanoid } from "nanoid";
 
@@ -25,10 +25,15 @@ export const postAuth = async (params: Partial<Auth>): Promise<Auth> => {
   return response;
 };
 
-export const retrieveAuth = async (params: { id: string } | { accountId: string }) => {
+export const retrieveAuth = async (
+  params: { id: string } | { accountId: string },
+  filter?: { lastActive?: boolean }
+) => {
   const whereClause = "id" in params ? eq(auth.id, params.id) : eq(auth.accountId, params.accountId);
 
-  const [response] = await db.select().from(auth).where(whereClause).limit(1);
+  const query = db.select().from(auth).where(whereClause);
+
+  const [response] = await (filter?.lastActive ? query.orderBy(desc(auth.createdAt)).limit(1) : query.limit(1));
 
   if (!response) return null;
 
@@ -238,7 +243,7 @@ export const getCurrentUser = async () => {
 
   const payload = verifyJwt<CurrentUserPayload>(accessToken);
 
-  const authRecord = await retrieveAuth({ accountId: payload.accountId });
+  const authRecord = await retrieveAuth({ accountId: payload.accountId }, { lastActive: true });
 
   if (!authRecord) return null;
 
@@ -273,7 +278,7 @@ export const signOut = async () => {
     try {
       const payload = verifyJwt<CurrentUserPayload>(accessToken);
 
-      const authRecord = await retrieveAuth({ accountId: payload.accountId });
+      const authRecord = await retrieveAuth({ accountId: payload.accountId }, { lastActive: true });
 
       if (authRecord) await putAuth(authRecord.id, { isRevoked: true });
     } catch (error) {
