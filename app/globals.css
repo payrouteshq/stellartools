@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin 'tailwind-scrollbar';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -366,6 +367,10 @@
 }
 
 @layer utilities {
+  .scrollbar-sidebar {
+    @apply scrollbar-thin scrollbar-track-sidebar scrollbar-thumb-sidebar-border scrollbar-hover:scrollbar-thumb-sidebar-primary scrollbar-active:scrollbar-thumb-sidebar-ring;
+  }
+
   .no-autofill-bg {
     &:-webkit-autofill {
       -webkit-box-shadow: 0 0 0 1000px transparent inset !important;

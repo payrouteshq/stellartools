@@ -287,6 +287,9 @@ importers:
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.5.0
+      tailwind-scrollbar:
+        specifier: ^4.0.2
+        version: 4.0.2(react@19.2.3)(tailwindcss@4.2.4)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.12)(tsx@4.21.0)(typescript@5.9.3)
@@ -3797,6 +3800,7 @@ packages:
   '@smithy/util-retry@4.3.6':
     resolution: {integrity: sha512-p6/FO1n2KxMeQyna067i0uJ6TSbb165ZhnRtCpWh4Foxqbfc6oW+XITaL8QkFJj3KFnDe2URt4gOhgU06EP9ew==}
     engines: {node: '>=18.0.0'}
+    deprecated: '@smithy/util-retry v4.3.6 contains a bug in Adaptive Retry, see https://github.com/smithy-lang/smithy-typescript/issues/1993. Upgrade to 4.3.7+'
 
   '@smithy/util-stream@4.5.25':
     resolution: {integrity: sha512-/PFpG4k8Ze8Ei+mMKj3oiPICYekthuzePZMgZbCqMiXIHHf4n2aZ4Ps0aSRShycFTGuj/J6XldmC0x0DwednIA==}
@@ -9229,6 +9233,11 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
+  prism-react-renderer@2.4.1:
+    resolution: {integrity: sha512-ey8Ls/+Di31eqzUxC46h8MksNuGx/n0AAC8uKpwFau4RPDYLuE3EXTp8N8G2vX2N7UC/+IXeNUnlWBGGcAG+Ig==}
+    peerDependencies:
+      react: '>=16.0.0'
+
   prismjs@1.30.0:
     resolution: {integrity: sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw==}
     engines: {node: '>=6'}
@@ -10174,6 +10183,12 @@ packages:
 
   tailwind-merge@3.5.0:
     resolution: {integrity: sha512-I8K9wewnVDkL1NTGoqWmVEIlUcB9gFriAEkXkfCjX5ib8ezGxtR3xD7iZIxrfArjEsH7F1CHD4RFUtxefdqV/A==}
+
+  tailwind-scrollbar@4.0.2:
+    resolution: {integrity: sha512-wAQiIxAPqk0MNTPptVe/xoyWi27y+NRGnTwvn4PQnbvB9kp8QUBiGl/wsfoVBHnQxTmhXJSNt9NHTmcz9EivFA==}
+    engines: {node: '>=12.13.0'}
+    peerDependencies:
+      tailwindcss: 4.x
 
   tailwindcss@4.2.4:
     resolution: {integrity: sha512-HhKppgO81FQof5m6TEnuBWCZGgfRAWbaeOaGT00KOy/Pf/j6oUihdvBpA7ltCeAvZpFhW3j0PTclkxsd4IXYDA==}
@@ -21940,6 +21955,12 @@ snapshots:
 
   prettier@3.8.3: {}
 
+  prism-react-renderer@2.4.1(react@19.2.3):
+    dependencies:
+      '@types/prismjs': 1.26.6
+      clsx: 2.1.1
+      react: 19.2.3
+
   prismjs@1.30.0: {}
 
   process-nextick-args@2.0.1: {}
@@ -23203,6 +23224,13 @@ snapshots:
   tailwind-merge@2.6.1: {}
 
   tailwind-merge@3.5.0: {}
+
+  tailwind-scrollbar@4.0.2(react@19.2.3)(tailwindcss@4.2.4):
+    dependencies:
+      prism-react-renderer: 2.4.1(react@19.2.3)
+      tailwindcss: 4.2.4
+    transitivePeerDependencies:
+      - react
 
   tailwindcss@4.2.4: {}
 
