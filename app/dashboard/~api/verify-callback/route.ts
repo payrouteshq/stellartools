@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const stateDataResult = Result.try<{ intent: string; redirect: string }>(() =>
+    const stateDataResult = Result.try<{ intent: string; next: string, }>(() =>
       JSON.parse(Buffer.from(state ?? "", "base64").toString())
     );
 
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
 
     console.log({ account });
 
-    return NextResponse.redirect(new URL(`/`, process.env.NEXT_PUBLIC_DASHBOARD_URL!));
+    return NextResponse.redirect(new URL(stateData.next ?? "/", process.env.NEXT_PUBLIC_DASHBOARD_URL!));
   } catch (error) {
     console.error("OAuth callback error:", error);
     console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");

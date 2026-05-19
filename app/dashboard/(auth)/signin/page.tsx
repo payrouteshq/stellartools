@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -28,7 +29,10 @@ type SignInFormData = z.infer<typeof signInSchema>;
 
 export default function SignIn() {
   const [showPassword, setShowPassword] = React.useState(false);
+  const searchParams = useSearchParams();
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
+
+  const next = searchParams.get("next");
 
   const form = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -44,7 +48,7 @@ export default function SignIn() {
       identifyUser(variables.email, { email: variables.email, authMethod: "local" });
       capture("user_signed_in", { email: variables.email, auth_method: "local" });
       toast.success("Logged in successfully");
-      window.location.href = "/";
+      window.location.href = next ?? "/";
     },
     onError: (err: any) => toast.error(err.message || "Sign-in failed"),
   });

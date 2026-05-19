@@ -124,9 +124,9 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
     try {
       await signOut();
       toast.success("Logged out successfully");
-      router.push("/signin");
+      router.push(`/signin?next=${pathname}`);
       AppModal.close();
-    } catch (error) {
+    } catch (error) { 
       toast.error("Failed to log out");
       console.error("Logout error:", error);
     }

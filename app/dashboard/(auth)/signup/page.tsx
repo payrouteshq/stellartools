@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -29,8 +30,11 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = React.useState(false);
+  const searchParams = useSearchParams();
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
 
+  
+  
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { name: "", email: "", password: "" },
