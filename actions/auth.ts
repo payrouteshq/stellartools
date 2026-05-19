@@ -253,7 +253,6 @@ export const getCurrentUser = async () => {
   }
 
   const account = await retrieveAccount({ id: payload.accountId });
-
   if (!account) {
     await deleteCookies(["accessToken", "refreshToken"]);
     return null;

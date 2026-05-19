@@ -22,7 +22,7 @@ import { CirclePlus, LogOut, Menu, Monitor, Moon, Sun } from "@aliimam/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "#integrations", label: "Integrations" },
@@ -36,6 +36,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["current-user"],
@@ -54,13 +55,13 @@ export function Header() {
     try {
       await signOut();
       toast.success("Logged out successfully");
-      router.push("/signin");
+      router.push(`/signin?next=${pathname}`);
       AppModal.close();
     } catch (error) {
       toast.error("Failed to log out");
       console.error("Logout error:", error);
     }
-  }, [router]);
+  }, [router, pathname]);
 
   useEffect(() => {
     const handleScroll = () => {

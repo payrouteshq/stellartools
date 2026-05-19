@@ -9,7 +9,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 
   let prefix = "/api";
 
-  if (url?.pathname.includes("/~api/cron")) {
+  if (url.pathname.includes("/~api/cron")) {
     prefix = "/dashboard";
   }
 
@@ -25,9 +25,12 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
     prefix = "/landing";
   }
 
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-url", `${req.nextUrl.pathname}${req.nextUrl.search}`);
+
   url.pathname = `${prefix}${url.pathname}`;
 
-  return NextResponse.rewrite(url);
+  return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
 }
 
 export const config = {

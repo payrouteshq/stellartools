@@ -12,7 +12,7 @@ export const useAuth = () => {
   const [dismissedError, setDismissedError] = React.useState(false);
 
   const error = searchParams?.get("error");
-  const redirect = searchParams?.get("redirect") ?? "/";
+  const next = searchParams?.get("next");
 
   React.useEffect(() => {
     if (dismissedError && error) {
@@ -31,10 +31,10 @@ export const useAuth = () => {
       scope: "openid profile email",
       access_type: "offline",
       prompt: "consent",
-      state: btoa(JSON.stringify({ intent: pathname.includes("signup") ? "SIGN_UP" : "SIGN_IN", redirect })),
+      state: btoa(JSON.stringify({ intent: pathname.includes("signup") ? "SIGN_UP" : "SIGN_IN", next })),
     };
     router.push(`https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams(authUrlParams)}`);
-  }, [router, redirect, pathname]);
+  }, [router, next, pathname]);
 
   return { error, handleGoogleSignIn, setDismissedError };
 };
