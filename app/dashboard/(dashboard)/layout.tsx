@@ -3,14 +3,13 @@ import { getCurrentOrganization } from "@/actions/organization";
 import { PluginLauncher } from "@/components/dashboard/plugin-launcher";
 import { MainnetReadinessModal } from "@/components/mainnet-readiness-modal";
 import { cn } from "@/lib/utils";
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   const headerlist = await headers();
   const url = headerlist.get("x-url");
-  
 
   if (!user) redirect(`/signin?next=${url}`);
 

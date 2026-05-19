@@ -22,7 +22,7 @@ import { CirclePlus, LogOut, Menu, Monitor, Moon, Sun } from "@aliimam/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "#integrations", label: "Integrations" },
@@ -36,8 +36,8 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
-  const pathname = usePathname(); 
-  
+  const pathname = usePathname();
+
   const { data: user, isLoading } = useQuery({
     queryKey: ["current-user"],
     queryFn: getCurrentUser,

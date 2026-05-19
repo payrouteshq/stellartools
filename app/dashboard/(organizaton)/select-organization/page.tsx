@@ -29,7 +29,7 @@ import { z } from "zod";
 export default function SelectOrganizationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
- const next = searchParams.get("next");
+  const next = searchParams.get("next");
   const { data: organizations, isLoading } = useQuery({
     queryKey: ["organizations"],
     queryFn: () => retrieveOrganizations(),

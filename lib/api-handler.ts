@@ -71,7 +71,6 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
           appToken: req.headers.get("x-stellartools-app-token"),
         };
 
-
         const hasAnyCreds = Object.values(authParams).some(Boolean);
         if (!hasAnyCreds) {
           return NextResponse.json(

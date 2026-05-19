@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const stateDataResult = Result.try<{ intent: string; next: string, }>(() =>
+    const stateDataResult = Result.try<{ intent: string; next: string }>(() =>
       JSON.parse(Buffer.from(state ?? "", "base64").toString())
     );
 

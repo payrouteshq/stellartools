@@ -15,7 +15,6 @@ const BCRYPT_SALT_ROUNDS = 10;
 // -- Auth --
 
 export const postAuth = async (params: Partial<Auth>): Promise<Auth> => {
-
   const [response] = await db
     .insert(auth)
     .values({ id: `au_${nanoid(25)}`, ...params } as Auth)
@@ -42,7 +41,6 @@ export const retrieveAuth = async (
 };
 
 export const putAuth = async (id: string, params: Partial<Auth>) => {
-
   const [response] = await db
     .update(auth)
     .set({ ...params, updatedAt: new Date() })
@@ -254,9 +252,9 @@ export const getCurrentUser = async () => {
     return null;
   }
 
-   const account = await retrieveAccount({ id: payload.accountId });
+  const account = await retrieveAccount({ id: payload.accountId });
   if (!account) {
-  await deleteCookies(["accessToken", "refreshToken"]);
+    await deleteCookies(["accessToken", "refreshToken"]);
     return null;
   }
 

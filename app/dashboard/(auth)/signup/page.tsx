@@ -33,8 +33,6 @@ export default function SignUp() {
   const searchParams = useSearchParams();
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
 
-  
-  
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { name: "", email: "", password: "" },
