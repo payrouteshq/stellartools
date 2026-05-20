@@ -13,22 +13,18 @@ export const AuthErrorAlert = ({ error, onDismissError }: { error?: string | nul
   if (!error) return null;
 
   return (
-    <div className="border-destructive/50 bg-destructive/10 w-full rounded-lg border p-4">
-      <div className="flex items-start gap-3">
-        <AlertCircle className="text-destructive mt-0.5 h-5 w-5 shrink-0" />
-        <div className="flex-1 space-y-1">
-          <h3 className="text-destructive text-sm font-semibold">Authentication Error</h3>
-          <p className="text-destructive/90 text-sm">An error occured during authentication. Please try again.</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
+    <div className="border-destructive/50 bg-destructive/10 flex w-full items-center rounded-lg border py-2">
+      <div className="flex w-full items-center justify-between px-2">
+        <AlertCircle className="text-destructive h-5 w-5 shrink-0" />
+        <p className="text-destructive ml-2 flex-1 text-sm font-semibold">{error}</p>
+
+        <button
           onClick={onDismissError}
-          className="text-destructive/70 hover:text-destructive shrink-0 transition-colors"
+          className="text-destructive/70 hover:text-destructive shrink-0 cursor-pointer transition-colors hover:bg-transparent"
           aria-label="Dismiss error"
         >
           <X className="h-4 w-4" />
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -102,7 +98,7 @@ export function AuthLayout({
                 type="button"
                 variant="ghost"
                 onClick={googleConfig.onClick}
-                className="hover:bg-muted flex w-full cursor-pointer items-center gap-2.5 rounded-lg border px-10 py-2.5 shadow-none transition-colors"
+                className="hover:bg-muted mt-4 flex w-full cursor-pointer items-center gap-2.5 rounded-lg border px-10 py-2.5 shadow-none transition-colors"
                 disabled={isPending}
               >
                 <Google className="h-5 w-5" />

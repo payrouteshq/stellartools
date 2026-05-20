@@ -11,13 +11,14 @@ export const useAuth = () => {
 
   const [dismissedError, setDismissedError] = React.useState(false);
 
-  const error = searchParams?.get("error");
+  const error = searchParams?.get("error_description");
   const next = searchParams?.get("next");
 
   React.useEffect(() => {
     if (dismissedError && error) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("error");
+      newParams.delete("error_description");
       router.replace(`${pathname}?${newParams.toString()}`);
       setDismissedError(false);
     }
