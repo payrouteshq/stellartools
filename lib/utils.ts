@@ -6,7 +6,7 @@ import moment from "moment";
 import { twMerge } from "tailwind-merge";
 import { z } from "zod";
 
-import { AppError } from "./error-handler";
+import { AppError } from "./action-handler";
 
 export const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 type HashAlgorithm = "shake128" | "sha256";

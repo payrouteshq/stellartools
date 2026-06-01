@@ -4,7 +4,7 @@ import { withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { Network, Refund, refunds } from "@/db";
 import { db } from "@/db";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { EventTrigger, WebhookTrigger } from "@/types";
 import { and, desc, eq } from "drizzle-orm";

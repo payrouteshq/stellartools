@@ -2,7 +2,7 @@ import "server-only";
 
 import { postWebhookLog } from "@/actions/webhook";
 import { Webhook as WebhookSchema } from "@/db/schema";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { ApiClient, WebhookEvent, WebhookEventType, WebhookSigner } from "@stellartools/core";
 
 export const deliverWebhook = async (

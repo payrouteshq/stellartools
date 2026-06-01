@@ -34,7 +34,7 @@ import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription
 import { sendEmail } from "@/integrations/email";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { generateResourceId, stroopsToXlm, toSnakeCase, xlmToStroops } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";

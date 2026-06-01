@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { Customer } from "@/db";
 import { useInvalidateOrgQuery, useOrgContext } from "@/hooks/use-org-query";
-import { AppError } from "@/lib/error-handler";
+import { AppError, execute } from "@/lib/action-handler";
 import { fileFromUrl } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -147,7 +147,7 @@ export function CustomerModalContent({
       if (data.avatar instanceof File) {
         const formdata = new FormData();
         formdata.append("image", data.avatar);
-        const uploaded = await createCustomerImage(formdata);
+        const uploaded = await execute(createCustomerImage(formdata));
         if (uploaded) imageUrl = uploaded;
       }
 

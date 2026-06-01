@@ -27,7 +27,7 @@ import { Payout } from "@/db";
 import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";

@@ -1,5 +1,5 @@
 import { Network } from "@/db";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
 

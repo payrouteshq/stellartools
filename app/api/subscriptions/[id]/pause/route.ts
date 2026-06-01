@@ -1,8 +1,8 @@
 import { retrieveCustomerWallets } from "@/actions/customers";
 import { putSubscription, retrieveSubscription } from "@/actions/subscription";
 import { pauseSubscription as pauseSorobanSubscription } from "@/integrations/soroban-contract";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { AppError } from "@/lib/error-handler";
 import { Result, z as Schema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();

@@ -2,7 +2,7 @@
 
 import { resolveOrgContext } from "@/actions/organization";
 import { Asset, Network, assets, db, products } from "@/db";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { SQL, and, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 

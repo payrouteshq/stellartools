@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { Network as StellarToolsNetwork } from "@/constant/schema.client";
 import { parseError } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import {
   AlbedoModule,
   FreighterModule,

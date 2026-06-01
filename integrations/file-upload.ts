@@ -1,4 +1,4 @@
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import sharp from "sharp";
 import { UTApi, UTFile } from "uploadthing/server";
 

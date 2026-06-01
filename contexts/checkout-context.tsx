@@ -9,7 +9,7 @@ import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString } from "@
 import { toast } from "@/components/ui/toast";
 import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { requiresTrustline, retrieveAccount } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError, execute } from "@/lib/action-handler";
 import { stroopsToXlm, xlmToStroops } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Asset, BASE_FEE, Memo, Networks, Operation, Transaction, TransactionBuilder } from "@stellar/stellar-sdk";
@@ -78,15 +78,17 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
   const updateDetails = useMutation({
     mutationFn: async (data: CheckoutFormData) =>
-      putCheckoutAndCustomerInternal(
-        checkoutId,
-        {
-          email: data.email,
-          phoneNumber: phoneNumberToString(data.phoneNumber),
-          customerId: checkout?.customerId,
-        },
-        checkout!.organizationId,
-        checkout!.environment
+      execute(
+        putCheckoutAndCustomerInternal(
+          checkoutId,
+          {
+            email: data.email,
+            phoneNumber: phoneNumberToString(data.phoneNumber),
+            customerId: checkout?.customerId,
+          },
+          checkout!.organizationId,
+          checkout!.environment
+        )
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] }),
   });

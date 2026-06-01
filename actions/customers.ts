@@ -18,7 +18,7 @@ import {
 } from "@/db";
 import { CustomerWallet as CustomerWalletSchema } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { mergeWithNullDeletes } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";

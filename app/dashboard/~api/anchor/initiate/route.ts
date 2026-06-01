@@ -1,7 +1,7 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { decrypt } from "@/integrations/encryption";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { AppError } from "@/lib/error-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result, z as Schema } from "@stellartools/core";
 

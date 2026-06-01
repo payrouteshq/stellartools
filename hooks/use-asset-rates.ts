@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { useQueries } from "@tanstack/react-query";
 
 export type AssetSpec = { code: string; issuer: string };

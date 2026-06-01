@@ -29,7 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { STROOPS_PER_XLM, cn } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";

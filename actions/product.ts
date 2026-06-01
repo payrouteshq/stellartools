@@ -5,7 +5,7 @@ import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/or
 import { Network, Product, ProductStatus, assets, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { createTrustlines } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
 

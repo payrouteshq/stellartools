@@ -18,7 +18,7 @@ import {
   products,
 } from "@/db";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError, safeAction } from "@/lib/action-handler";
 import { computeDiff, generateResourceId, stroopsToXlm } from "@/lib/utils";
 import { CheckoutStatus } from "@/packages/stellartools/dist/schema/checkout";
 import { all } from "better-all";
@@ -273,17 +273,19 @@ export const deleteCheckout = async (id: string, orgId?: string, env?: Network) 
 
 // -- INTERNAL --
 
-export const putCheckoutAndCustomerInternal = async (
-  checkoutId: string,
-  data: { email: string | null; phoneNumber: string | null; customerId?: string | null },
-  orgId: string,
-  environment: Network
-) => {
-  await runAtomic(async () => {
-    await putCheckout(checkoutId, { customerEmail: data.email, customerPhone: data.phoneNumber }, orgId, environment);
+export const putCheckoutAndCustomerInternal = safeAction(
+  async (
+    checkoutId: string,
+    data: { email: string | null; phoneNumber: string | null; customerId?: string | null },
+    orgId: string,
+    environment: Network
+  ) => {
+    await runAtomic(async () => {
+      await putCheckout(checkoutId, { customerEmail: data.email, customerPhone: data.phoneNumber }, orgId, environment);
 
-    if (data.customerId) {
-      await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber }, orgId, environment);
-    }
-  });
-};
+      if (data.customerId) {
+        await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber }, orgId, environment);
+      }
+    });
+  }
+);

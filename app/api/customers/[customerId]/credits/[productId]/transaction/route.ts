@@ -1,9 +1,9 @@
 import { postCreditTransaction, putCreditBalance, retrieveCreditBalance } from "@/actions/credit";
 import { runAtomic } from "@/actions/event";
 import { retrieveProducts } from "@/actions/product";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { calculateUsageToCredits } from "@/lib/credit-calculator";
-import { AppError } from "@/lib/error-handler";
 import { Result, z as Schema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();

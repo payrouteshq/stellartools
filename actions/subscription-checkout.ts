@@ -8,7 +8,7 @@ import { subscriptionIntervals } from "@/constant";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import { retrieveAssetContractId } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { generateResourceId, stroopsToXlm, xlmToStroops } from "@/lib/utils";
 import moment from "moment";
 

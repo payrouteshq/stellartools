@@ -6,7 +6,7 @@ import { Account, accounts, db, organizations } from "@/db";
 import { getCookie } from "@/integrations/cookie-manager";
 import { uploadFiles } from "@/integrations/file-upload";
 import { verifyJwt } from "@/integrations/jwt";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 

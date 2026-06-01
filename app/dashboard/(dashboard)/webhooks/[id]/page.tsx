@@ -24,6 +24,7 @@ import { WebhookLog } from "@/db";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCopy } from "@/hooks/use-copy";
 import { useOrgQuery } from "@/hooks/use-org-query";
+import { execute } from "@/lib/action-handler";
 import type { WebhookEvent, WebhookEventType } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
@@ -151,8 +152,8 @@ export default function WebhookLogPage() {
   );
 
   const resendMutation = useMutation({
-    mutationFn: async ({ eventType, payload }: { eventType: WebhookEventType; payload: WebhookEvent }) =>
-      resendWebhookLog(webhookId, eventType, payload),
+    mutationFn: ({ eventType, payload }: { eventType: WebhookEventType; payload: WebhookEvent }) =>
+      execute(resendWebhookLog(webhookId, eventType, payload)),
     onSuccess: () => {
       refetchWebhookLogs();
       toast.success("Webhook resent successfully");

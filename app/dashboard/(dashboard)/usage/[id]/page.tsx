@@ -26,6 +26,7 @@ import { toast } from "@/components/ui/toast";
 import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { execute } from "@/lib/action-handler";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowRight, ChevronRight, Copy, Package, RefreshCw, TrendingDown, TrendingUp, User } from "lucide-react";
@@ -271,7 +272,7 @@ export default function UsageDetailPage() {
   const { data: balance } = useOrgQuery(["credit-balance", id], () => retrieveCreditBalanceById(id));
 
   const restoreMutation = useMutation({
-    mutationFn: () => putCreditBalance(id, { isRevoked: false }),
+    mutationFn: () => execute(putCreditBalance(id, { isRevoked: false })),
     onSuccess: () => {
       toast.success("Access restored successfully");
       invalidate(["credit-balance", id]);

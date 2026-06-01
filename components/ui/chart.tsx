@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { cn } from "@/lib/utils";
 import * as RechartsPrimitive from "recharts";
 

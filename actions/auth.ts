@@ -5,7 +5,7 @@ import { Account, Auth, PasswordReset, auth, db, passwordReset } from "@/db";
 import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
 import { sendEmail } from "@/integrations/email";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
-import { AppError } from "@/lib/error-handler";
+import { AppError, safeAction } from "@/lib/action-handler";
 import bcrypt from "bcryptjs";
 import { desc, eq } from "drizzle-orm";
 import moment from "moment";
@@ -125,71 +125,73 @@ const generateAndSetSession = async (account: { id: string; email: string }) => 
   return { accessToken, refreshToken };
 };
 
-export const accountValidator = async (
-  email: string,
-  sso: Account["sso"]["values"][number],
-  intent: "SIGN_IN" | "SIGN_UP",
-  profile?: Account["profile"],
-  sessionMetadata?: Record<string, unknown>
-) => {
-  const { provider, sub: rawSub } = sso;
-  let account = await retrieveAccount({ email });
-  const isNewUser = !account;
+export const accountValidator = safeAction(
+  async (
+    email: string,
+    sso: Account["sso"]["values"][number],
+    intent: "SIGN_IN" | "SIGN_UP",
+    profile?: Account["profile"],
+    sessionMetadata?: Record<string, unknown>
+  ) => {
+    const { provider, sub: rawSub } = sso;
+    let account = await retrieveAccount({ email });
+    const isNewUser = !account;
 
-  if (!account) {
-    if (intent === "SIGN_IN" && provider === "local") {
-      throw new AppError("Account not found. Please sign up first.");
-    }
-
-    const sub = provider === "local" ? await bcrypt.hash(rawSub, BCRYPT_SALT_ROUNDS) : rawSub;
-
-    account = await postAccount({
-      email,
-      sso: { values: [{ provider, sub }] },
-      profile: profile ?? null,
-    });
-  } else {
-    const existingSso = account.sso?.values?.find((s) => s.provider === provider);
-
-    if (provider === "local") {
-      if (intent === "SIGN_UP") {
-        throw new AppError("An account with this email already exists.");
+    if (!account) {
+      if (intent === "SIGN_IN" && provider === "local") {
+        throw new AppError("Account not found. Please sign up first.");
       }
 
-      if (!existingSso) {
-        throw new AppError("This account was created using social login");
-      }
+      const sub = provider === "local" ? await bcrypt.hash(rawSub, BCRYPT_SALT_ROUNDS) : rawSub;
 
-      const isValid = await bcrypt.compare(rawSub, existingSso.sub);
-      if (!isValid) throw new AppError("Invalid email or password.");
+      account = await postAccount({
+        email,
+        sso: { values: [{ provider, sub }] },
+        profile: profile ?? null,
+      });
     } else {
-      // SSO Provider (Google, GitHub, etc.)
-      // We trust SSO providers to verify email. If account exists but this SSO isn't linked, link it.
-      if (!existingSso) {
-        await putAccount(account.id, {
-          sso: { values: [...account.sso.values, { provider, sub: rawSub }] },
-          ...(profile?.avatarUrl && { profile: { ...account.profile, avatarUrl: profile.avatarUrl } }),
-        });
+      const existingSso = account.sso?.values?.find((s) => s.provider === provider);
+
+      if (provider === "local") {
+        if (intent === "SIGN_UP") {
+          throw new AppError("An account with this email already exists.");
+        }
+
+        if (!existingSso) {
+          throw new AppError("This account was created using social login");
+        }
+
+        const isValid = await bcrypt.compare(rawSub, existingSso.sub);
+        if (!isValid) throw new AppError("Invalid email or password.");
+      } else {
+        // SSO Provider (Google, GitHub, etc.)
+        // We trust SSO providers to verify email. If account exists but this SSO isn't linked, link it.
+        if (!existingSso) {
+          await putAccount(account.id, {
+            sso: { values: [...account.sso.values, { provider, sub: rawSub }] },
+            ...(profile?.avatarUrl && { profile: { ...account.profile, avatarUrl: profile.avatarUrl } }),
+          });
+        }
       }
     }
+
+    // 3. Session Generation
+    const { accessToken, refreshToken } = await generateAndSetSession(account);
+    await postAuth({
+      accountId: account.id,
+      provider,
+      accessToken,
+      refreshToken,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      isRevoked: false,
+      ...(sessionMetadata && { metadata: sessionMetadata }),
+    });
+
+    return { accountId: account.id, accessToken, refreshToken, isNewUser };
   }
+);
 
-  // 3. Session Generation
-  const { accessToken, refreshToken } = await generateAndSetSession(account);
-  await postAuth({
-    accountId: account.id,
-    provider,
-    accessToken,
-    refreshToken,
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    isRevoked: false,
-    ...(sessionMetadata && { metadata: sessionMetadata }),
-  });
-
-  return { accountId: account.id, accessToken, refreshToken, isNewUser };
-};
-
-export const forgotPassword = async (email: string) => {
+export const forgotPassword = safeAction(async (email: string) => {
   const account = await retrieveAccount({ email });
 
   if (!account) return { success: true };
@@ -204,9 +206,9 @@ export const forgotPassword = async (email: string) => {
   await sendEmail(email, "Reset Password", `<a href="${resetLink}">Reset Password</a>`);
 
   return { success: true };
-};
+});
 
-export const resetPassword = async (token: string, newPassword: string) => {
+export const resetPassword = safeAction(async (token: string, newPassword: string) => {
   const resetTokenRecord = await retrievePasswordReset({ token });
 
   if (!resetTokenRecord) {
@@ -228,7 +230,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
   await putPasswordReset(resetTokenRecord.id, { usedAt: new Date() });
 
   return { success: true };
-};
+});
 
 interface CurrentUserPayload {
   accountId: string;

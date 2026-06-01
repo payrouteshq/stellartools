@@ -19,6 +19,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/components/ui/toast";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { execute } from "@/lib/action-handler";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, Package, Search } from "lucide-react";
@@ -131,7 +132,7 @@ export default function UsagePage() {
 
   const revokeMutation = useMutation({
     mutationFn: async (params: { id: string; revoke: boolean }) => {
-      await putCreditBalance(params.id, { isRevoked: params.revoke });
+      await execute(putCreditBalance(params.id, { isRevoked: params.revoke }));
       return { success: true, revoke: params.revoke };
     },
     onSuccess: (params) => {

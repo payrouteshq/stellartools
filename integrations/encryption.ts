@@ -1,6 +1,6 @@
 import "server-only";
 
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import crypto from "crypto";
 
 const ALGORITHM = "aes-256-gcm";

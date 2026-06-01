@@ -8,8 +8,8 @@ import {
   cancelSubscription as cancelSorobanSubscription,
   retrieveSubscription as retrieveSorobanSubscription,
 } from "@/integrations/soroban-contract";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { AppError } from "@/lib/error-handler";
 import { computeDiff, toCamelCase, toSnakeCase } from "@/lib/utils";
 import { Result, z as Schema, updateSubscriptionSchema } from "@stellartools/core";
 import { all } from "better-all";

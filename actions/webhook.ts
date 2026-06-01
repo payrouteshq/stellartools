@@ -3,7 +3,7 @@
 import { resolveOrgContext } from "@/actions/organization";
 import { Network, Webhook, WebhookLog, db, webhookLogs, webhooks } from "@/db";
 import { deliverWebhook } from "@/integrations/webhook-delivery";
-import { AppError } from "@/lib/error-handler";
+import { AppError, safeAction } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { generateResourceId } from "@/lib/utils";
 import { WebhookEvent, WebhookEventType } from "@stellartools/core";
@@ -262,17 +262,13 @@ export const triggerWebhooks = async (
   };
 };
 
-export const resendWebhookLog = async (
-  webhookId: string,
-  eventType: WebhookEventType,
-  payload: WebhookEvent,
-  orgId?: string,
-  env?: Network
-) => {
-  const [webhook] = await retrieveWebhooks(orgId, env, { id: webhookId });
-  const normalizedPayload = toSnakeCase(payload) as WebhookEvent;
+export const resendWebhookLog = safeAction(
+  async (webhookId: string, eventType: WebhookEventType, payload: WebhookEvent, orgId?: string, env?: Network) => {
+    const [webhook] = await retrieveWebhooks(orgId, env, { id: webhookId });
+    const normalizedPayload = toSnakeCase(payload) as WebhookEvent;
 
-  const logId = generateResourceId("wh_evt", webhookId, 52);
+    const logId = generateResourceId("wh_evt", webhookId, 52);
 
-  return deliverWebhook(webhook, eventType, normalizedPayload, logId);
-};
+    return deliverWebhook(webhook, eventType, normalizedPayload, logId);
+  }
+);

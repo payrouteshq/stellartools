@@ -24,6 +24,7 @@ import { ApiKey } from "@/db";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
@@ -49,7 +50,7 @@ export default function ApiKeysPage() {
   const { handleCopy } = useCopy();
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteApiKey(id),
+    mutationFn: (id: string) => execute(deleteApiKey(id)),
     onSuccess: () => {
       invalidate(["apiKeys"]);
       AppModal.close();
@@ -61,7 +62,7 @@ export default function ApiKeysPage() {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: (id: string) => putApiKey(id, { isRevoked: true }),
+    mutationFn: (id: string) => execute(putApiKey(id, { isRevoked: true })),
     onSuccess: () => {
       invalidate(["apiKeys"]);
       AppModal.close();
@@ -374,7 +375,7 @@ function ApiKeyModalContent({
   }, [keyToEdit, form]);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => putApiKey(id, { name }),
+    mutationFn: ({ id, name }: { id: string; name: string }) => execute(putApiKey(id, { name })),
     onSuccess: () => {
       toast.success("API key updated");
       onSuccess();
@@ -385,16 +386,18 @@ function ApiKeyModalContent({
   });
 
   const createApiKeyMutation = useMutation({
-    mutationFn: async (data: ApiKeyFormData) =>
-      postApiKey({
-        name: data.name,
-        scope: ["*"],
-        isRevoked: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        metadata: null,
-        lastUsedAt: null,
-      }),
+    mutationFn: (data: ApiKeyFormData) =>
+      execute(
+        postApiKey({
+          name: data.name,
+          scope: ["*"],
+          isRevoked: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metadata: null,
+          lastUsedAt: null,
+        })
+      ),
     onSuccess: (apiKey) => {
       onCreated?.();
       setCreatedApiKey(apiKey.token);

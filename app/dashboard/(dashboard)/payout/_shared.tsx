@@ -1,6 +1,6 @@
 import { PayoutReceipt } from "@/components/payout/payout-receipt";
 import { Payout } from "@/db";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { pdf } from "@react-pdf/renderer";
 import { saveAs } from "file-saver";
 

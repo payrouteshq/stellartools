@@ -15,6 +15,7 @@ import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { execute } from "@/lib/action-handler";
 import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -271,22 +272,24 @@ const CreateOrganizationModalContent = ({
 
       if (data.logo?.[0]) formData.append("logo", data.logo[0]);
 
-      return await postOrganizationAndSecret(
-        {
-          name: data.name,
-          phoneNumber: phoneNumberToString(data.phoneNumber),
-          description: data.description ?? null,
-          logoUrl: null,
-          settings: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          metadata: null,
-          address: null,
-          socialLinks: null,
-          supportEmail: null,
-        },
-        defaultEnvironment,
-        { formDataWithFiles: formData }
+      return await execute(
+        postOrganizationAndSecret(
+          {
+            name: data.name,
+            phoneNumber: phoneNumberToString(data.phoneNumber),
+            description: data.description ?? null,
+            logoUrl: null,
+            settings: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            metadata: null,
+            address: null,
+            socialLinks: null,
+            supportEmail: null,
+          },
+          defaultEnvironment,
+          { formDataWithFiles: formData }
+        )
       );
     },
     onSuccess: async (org) => {

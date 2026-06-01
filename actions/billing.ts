@@ -5,7 +5,7 @@ import { retrievePayments } from "@/actions/payment";
 import { Network, charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { sendAssetPayment } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { BPS_DENOMINATOR, FREE_THRESHOLD_USD, getVolumeTierRateBps } from "@/lib/pricing";
 import { generateResourceId } from "@/lib/utils";
 

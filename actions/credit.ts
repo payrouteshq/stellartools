@@ -11,6 +11,7 @@ import {
   db,
   products,
 } from "@/db";
+import { safeAction } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { and, desc, eq } from "drizzle-orm";
 
@@ -58,14 +59,14 @@ export const retrieveCreditBalanceById = async (id: string) => {
     .then(([creditBalance]) => creditBalance);
 };
 
-export const putCreditBalance = async (id: string, retUpdate: Partial<CreditBalance>) => {
+export const putCreditBalance = safeAction(async (id: string, retUpdate: Partial<CreditBalance>) => {
   return await db
     .update(creditBalances)
     .set({ ...retUpdate, updatedAt: new Date() })
     .where(eq(creditBalances.id, id))
     .returning()
     .then(([record]) => record);
-};
+});
 
 export const deleteCreditBalance = async (id: string) => {
   return await db

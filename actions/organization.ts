@@ -24,60 +24,62 @@ import { uploadFiles } from "@/integrations/file-upload";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { createAccount } from "@/integrations/stellar-core";
-import { AppError } from "@/lib/error-handler";
+import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, normalizeTimeSeries } from "@/lib/utils";
 import { and, eq, gte, sql } from "drizzle-orm";
 import moment from "moment";
 
-export const postOrganizationAndSecret = async (
-  params: Omit<Organization, "id" | "accountId">,
-  defaultEnvironment: Network,
-  options?: { formDataWithFiles?: FormData }
-) => {
-  const logoFile = options?.formDataWithFiles?.get("logo");
+export const postOrganizationAndSecret = safeAction(
+  async (
+    params: Omit<Organization, "id" | "accountId">,
+    defaultEnvironment: Network,
+    options?: { formDataWithFiles?: FormData }
+  ) => {
+    const logoFile = options?.formDataWithFiles?.get("logo");
 
-  if (logoFile) {
-    const logoUploadResult = await uploadFiles([logoFile as File], { maxSizeKB: 48 });
-    params.logoUrl = logoUploadResult?.[0] ?? null;
-  }
+    if (logoFile) {
+      const logoUploadResult = await uploadFiles([logoFile as File], { maxSizeKB: 48 });
+      params.logoUrl = logoUploadResult?.[0] ?? null;
+    }
 
-  const { accountId } = await resolveAccountContext();
+    const { accountId } = await resolveAccountContext();
 
-  const organizationId = generateResourceId("org", accountId, 25);
+    const organizationId = generateResourceId("org", accountId, 25);
 
-  return await runAtomic(async () => {
-    const [organization] = await db
-      .insert(organizations)
-      .values({ ...params, id: organizationId, accountId })
-      .returning();
+    return await runAtomic(async () => {
+      const [organization] = await db
+        .insert(organizations)
+        .values({ ...params, id: organizationId, accountId })
+        .returning();
 
-    // todo: drop `defaultEnvironment` prop and parallelize request for testnet and mainnet.
-    const account = await createAccount(defaultEnvironment);
+      // todo: drop `defaultEnvironment` prop and parallelize request for testnet and mainnet.
+      const account = await createAccount(defaultEnvironment);
 
-    if (account.isErr()) throw new AppError(account.error?.message);
+      if (account.isErr()) throw new AppError(account.error?.message);
 
-    postOrganizationSecretWithEncryption(
-      {
-        testnetSecret: account.value!.keypair.secret(),
-        testnetSecretVersion: parseInt(process.env.NEXT_PUBLIC_CURRENT_ENCRYPTION_KEY_VERSION!) || 1,
-        testnetPublicKey: account.value!.keypair.publicKey(),
-        mainnetSecret: null,
-        mainnetPublicKey: null,
-        mainnetSecretVersion: 0,
-      },
-      organization.id,
-      defaultEnvironment
-    );
+      postOrganizationSecretWithEncryption(
+        {
+          testnetSecret: account.value!.keypair.secret(),
+          testnetSecretVersion: parseInt(process.env.NEXT_PUBLIC_CURRENT_ENCRYPTION_KEY_VERSION!) || 1,
+          testnetPublicKey: account.value!.keypair.publicKey(),
+          mainnetSecret: null,
+          mainnetPublicKey: null,
+          mainnetSecretVersion: 0,
+        },
+        organization.id,
+        defaultEnvironment
+      );
 
-    return organization;
-  })
-    .then((organization) => {
-      return { success: true, id: organization.id };
+      return organization;
     })
-    .catch((error) => {
-      return { success: false, error: error.message };
-    });
-};
+      .then((organization) => {
+        return { success: true, id: organization.id };
+      })
+      .catch((error) => {
+        return { success: false, error: error.message };
+      });
+  }
+);
 
 export const retrieveOrganizations = async (accId?: string) => {
   const { accountId } = await resolveAccountContext(accId);

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { appendToGoogleSheet } from "@/integrations/google-sheet";
+import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Rocket, X } from "lucide-react";
@@ -43,11 +44,10 @@ export function LaunchBanner() {
   };
 
   const { mutate: submitEmail, isPending } = useMutation({
-    mutationFn: async (data: FormValues) => {
-      await appendToGoogleSheet(process.env.NEXT_PUBLIC_LEADS_SHEET_ID!, "A1:B1", [
-        [data.email, new Date().toISOString()],
-      ]);
-    },
+    mutationFn: (data: FormValues) =>
+      execute(
+        appendToGoogleSheet(process.env.NEXT_PUBLIC_LEADS_SHEET_ID!, "A1:B1", [[data.email, new Date().toISOString()]])
+      ),
     onSuccess: () => {
       form.reset();
       setTimeout(() => {

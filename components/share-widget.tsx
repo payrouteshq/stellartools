@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCookieState } from "@/hooks/use-cookie-state";
-import { AppError } from "@/lib/error-handler";
+import { AppError } from "@/lib/action-handler";
 import { type NormalizedChartPoint, cn } from "@/lib/utils";
 import { saveAs } from "file-saver";
 import { Check, Copy, Download } from "lucide-react";
