@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { AppError } from "@/lib/action-handler";
 import { cn } from "@/lib/utils";
 import * as RechartsPrimitive from "recharts";
 
@@ -25,7 +26,7 @@ function useChart() {
   const context = React.useContext(ChartContext);
 
   if (!context) {
-    throw new Error("useChart must be used within a <ChartContainer />");
+    throw new AppError("useChart must be used within a <ChartContainer />");
   }
 
   return context;

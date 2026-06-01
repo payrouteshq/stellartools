@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AppError } from "@/lib/action-handler";
 import crypto from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
@@ -12,11 +13,10 @@ const getEncryptionKey = (): Buffer => {
   const saltHex = process.env.ENCRYPTION_SALT;
 
   if (!key || !saltHex) {
-    throw new Error("Encryption configuration (KEY/SALT) not found in environment");
+    throw new AppError("Encryption configuration (KEY/SALT) not found in environment");
   }
 
   const salt = Buffer.from(saltHex, "hex");
-  // Derive a cryptographically strong key from the master key and salt
   return crypto.pbkdf2Sync(key, salt, 100000, KEY_LENGTH, "sha512");
 };
 

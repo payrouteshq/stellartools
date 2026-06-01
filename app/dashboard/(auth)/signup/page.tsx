@@ -9,6 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
+import { execute } from "@/lib/action-handler";
 import { capture, identifyUser } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -43,12 +44,14 @@ export default function SignUp() {
       const [firstName, ...lastNameParts] = data.name.split(" ");
       const lastName = lastNameParts.join(" ");
 
-      return await accountValidator(
-        data.email,
-        { provider: "local", sub: data.password },
-        "SIGN_UP",
-        { firstName, lastName, avatarUrl: undefined },
-        { intent: "SIGN_UP" }
+      return await execute(
+        accountValidator(
+          data.email,
+          { provider: "local", sub: data.password },
+          "SIGN_UP",
+          { firstName, lastName, avatarUrl: undefined },
+          { intent: "SIGN_UP" }
+        )
       );
     },
     onSuccess: (_data, variables) => {

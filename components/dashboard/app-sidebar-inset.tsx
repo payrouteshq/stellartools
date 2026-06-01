@@ -11,17 +11,13 @@ export const DashboardSidebarInset = ({ children }: { children: React.ReactNode 
 
   return (
     <SidebarInset
-      className={cn(
-        "bg-sidebar m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0",
-        isTestMode && "pt-8"
-      )}
+      className={cn("bg-sidebar m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0", isTestMode && "pt-8")}
     >
       <DashboardHeader />
-      
-        <div className="mb-2 min-h-0 flex-1 overflow-hidden rounded-tl-4xl border-t border-l border-border bg-card ">
-          <div className="scrollbar-sidebar h-full overflow-y-auto">{children}</div>
-        </div>
-      
+
+      <div className="border-border bg-card mb-2 min-h-0 flex-1 overflow-hidden rounded-tl-4xl border-t border-l">
+        <div className="scrollbar-sidebar h-full overflow-y-auto">{children}</div>
+      </div>
     </SidebarInset>
   );
 };

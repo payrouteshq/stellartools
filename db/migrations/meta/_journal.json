@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1777611127665,
-      "tag": "0000_bored_leo",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777616086135,
-      "tag": "0001_swift_paibok",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777633915325,
-      "tag": "0002_brief_gunslinger",
+      "when": 1780318416257,
+      "tag": "0000_low_landau",
       "breakpoints": true
     }
   ]

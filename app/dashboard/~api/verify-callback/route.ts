@@ -1,4 +1,5 @@
 import { accountValidator } from "@/actions/auth";
+import { AppError } from "@/lib/action-handler";
 import { Result } from "@stellartools/core";
 import { OAuth2Client } from "google-auth-library";
 import { NextRequest, NextResponse } from "next/server";
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
     );
 
     if (stateDataResult.isErr()) {
-      throw new Error("Invalid state data: " + stateDataResult.error.message);
+      throw new AppError("Invalid state data: " + stateDataResult.error.message);
     }
 
     const stateData = stateDataResult.value;
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     const { tokens } = await client.getToken(code);
 
     if (!tokens.id_token) {
-      throw new Error("No ID token received from Google");
+      throw new AppError("No ID token received from Google");
     }
 
     const ticket = await client.verifyIdToken({
@@ -62,15 +63,15 @@ export async function GET(req: NextRequest) {
     const payload = ticket.getPayload();
 
     if (!payload) {
-      throw new Error("Invalid token payload");
+      throw new AppError("Invalid token payload");
     }
 
     if (payload.aud !== process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-      throw new Error("Token audience mismatch");
+      throw new AppError("Token audience mismatch");
     }
 
     if (!payload.email) {
-      throw new Error("Email not found in token");
+      throw new AppError("Email not found in token");
     }
     const nameParts = payload.name?.split(/\s+/) || [];
     const firstName = payload.given_name || nameParts[0] || "";

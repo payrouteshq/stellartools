@@ -8,6 +8,7 @@ import { subscriptionIntervals } from "@/constant";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import { retrieveAssetContractId } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/action-handler";
 import { generateResourceId, stroopsToXlm, xlmToStroops } from "@/lib/utils";
 import moment from "moment";
 
@@ -23,7 +24,7 @@ export async function prepareSubscriptionApproval(
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
 
-    if (!checkout) throw new Error("Checkout not found");
+    if (!checkout) throw new AppError("Checkout not found");
 
     if (checkout.productType !== "subscription") {
       return { error: "Not a subscription checkout" };
@@ -78,7 +79,7 @@ export async function finalizeSubscriptionCheckout(
 ): Promise<{ success: boolean; error?: string }> {
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
 
-  if (!checkout) throw new Error("Checkout not found");
+  if (!checkout) throw new AppError("Checkout not found");
 
   const {
     status,

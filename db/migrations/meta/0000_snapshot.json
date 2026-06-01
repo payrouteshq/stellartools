@@ -1,5 +1,5 @@
 {
-  "id": "98064027-fa96-4060-9fe3-cbbb18069a72",
+  "id": "add703ca-cea1-441d-8d1e-508db7a30479",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -755,7 +755,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -2069,6 +2069,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "credit_balance_id": {
+          "name": "credit_balance_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "metadata": {
           "name": "metadata",
           "type": "jsonb",
@@ -2131,6 +2137,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "payment_credit_balance_id_credit_balance_id_fk": {
+          "name": "payment_credit_balance_id_credit_balance_id_fk",
+          "tableFrom": "payment",
+          "tableTo": "credit_balance",
+          "columnsFrom": ["credit_balance_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2163,7 +2178,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -2366,7 +2381,7 @@
         },
         "price_amount": {
           "name": "price_amount",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },

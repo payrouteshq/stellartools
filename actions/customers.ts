@@ -18,6 +18,7 @@ import {
 } from "@/db";
 import { CustomerWallet as CustomerWalletSchema } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
+import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { mergeWithNullDeletes } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
@@ -166,7 +167,7 @@ export const putCustomer = async (
         )
         .returning();
 
-      if (!customer) throw new Error("Customer not found");
+      if (!customer) throw new AppError("Customer not found");
 
       return customer;
     },
@@ -255,7 +256,7 @@ export const deleteCustomer = async (id: string, orgId?: string, env?: Network) 
         )
         .returning();
 
-      if (!customer) throw new Error("Customer not found");
+      if (!customer) throw new AppError("Customer not found");
 
       await deleteEvents({ customerId: id }, organizationId, environment);
 
@@ -564,7 +565,7 @@ export const deleteCustomerWallet = async (customerId: string, walletId: string,
         .then(([s]) => s ?? null);
 
       if (activeSubscription) {
-        throw new Error("This wallet is linked to an active subscription and cannot be removed.");
+        throw new AppError("This wallet is linked to an active subscription and cannot be removed.");
       }
 
       const [deleted] = await db
@@ -579,7 +580,7 @@ export const deleteCustomerWallet = async (customerId: string, walletId: string,
         )
         .returning();
 
-      if (!deleted) throw new Error("Wallet not found");
+      if (!deleted) throw new AppError("Wallet not found");
 
       return deleted;
     },

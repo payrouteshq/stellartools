@@ -1,5 +1,6 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { decrypt } from "@/integrations/encryption";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result, z as Schema } from "@stellartools/core";
@@ -15,7 +16,7 @@ const getAnchorDomain = (environment: "testnet" | "mainnet") => {
     return process.env.ANCHOR_DOMAIN_TESTNET ?? "testanchor.stellar.org";
   }
   const domain = process.env.ANCHOR_DOMAIN_MAINNET;
-  if (!domain) throw new Error("ANCHOR_DOMAIN_MAINNET is not configured");
+  if (!domain) throw new AppError("ANCHOR_DOMAIN_MAINNET is not configured");
   return domain;
 };
 
@@ -29,7 +30,7 @@ export const POST = apiHandler({
   },
   handler: async ({ body, auth: { organizationId, environment } }) => {
     const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
-    if (!secret) throw new Error("Organization has no Stellar account configured");
+    if (!secret) throw new AppError("Organization has no Stellar account configured");
 
     const secretKey = decrypt(secret.encrypted);
     const keypair = StellarSDK.Keypair.fromSecret(secretKey);
@@ -41,7 +42,7 @@ export const POST = apiHandler({
 
     // --- Fetch & parse stellar.toml ---
     const tomlResp = await fetch(`https://${anchorDomain}/.well-known/stellar.toml`);
-    if (!tomlResp.ok) throw new Error(`Could not reach anchor at ${anchorDomain}`);
+    if (!tomlResp.ok) throw new AppError(`Could not reach anchor at ${anchorDomain}`);
     const toml = await tomlResp.text();
 
     const webAuthEndpoint = parseToml(toml, "WEB_AUTH_ENDPOINT");
@@ -49,7 +50,7 @@ export const POST = apiHandler({
     const signingKey = parseToml(toml, "SIGNING_KEY");
 
     if (!webAuthEndpoint || !transferServer || !signingKey) {
-      throw new Error("Configured anchor does not support SEP-24 or SEP-10");
+      throw new AppError("Configured anchor does not support SEP-24 or SEP-10");
     }
 
     // --- SEP-10: Get challenge transaction ---
@@ -58,7 +59,7 @@ export const POST = apiHandler({
     const challengeJson = await challengeResp.json();
 
     if (!challengeJson.transaction) {
-      throw new Error(challengeJson.error || "Failed to get SEP-10 challenge from anchor");
+      throw new AppError(challengeJson.error || "Failed to get SEP-10 challenge from anchor");
     }
 
     // --- Sign the challenge ---
@@ -76,7 +77,7 @@ export const POST = apiHandler({
       body: JSON.stringify({ transaction: signedXdr }),
     });
     const { token: anchorJwt } = await authResp.json();
-    if (!anchorJwt) throw new Error("SEP-10 authentication failed – anchor rejected signature");
+    if (!anchorJwt) throw new AppError("SEP-10 authentication failed – anchor rejected signature");
 
     // --- Initiate SEP-24 interactive withdrawal ---
     const formData = new FormData();
@@ -93,7 +94,7 @@ export const POST = apiHandler({
     const withdrawData = await withdrawResp.json();
 
     if (!withdrawData.url || !withdrawData.id) {
-      throw new Error(withdrawData.error || "Anchor rejected the withdrawal request");
+      throw new AppError(withdrawData.error || "Anchor rejected the withdrawal request");
     }
 
     // Append postMessage callback so the popup can notify us on completion

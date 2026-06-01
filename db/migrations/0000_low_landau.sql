@@ -124,7 +124,7 @@ CREATE TABLE "checkout" (
 	"organization_id" text NOT NULL,
 	"customer_id" text,
 	"product_id" text,
-	"amount" integer,
+	"amount" bigint,
 	"description" text,
 	"status" "checkout_status" NOT NULL,
 	"expires_at" timestamp NOT NULL,
@@ -279,6 +279,7 @@ CREATE TABLE "payment" (
 	"customer_wallet_id" text,
 	"asset_id" text,
 	"subscription_id" text,
+	"credit_balance_id" text,
 	"metadata" jsonb,
 	CONSTRAINT "payment_tx_hash_unique" UNIQUE("tx_hash")
 );
@@ -286,7 +287,7 @@ CREATE TABLE "payment" (
 CREATE TABLE "payout" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
-	"amount" integer NOT NULL,
+	"amount" bigint NOT NULL,
 	"status" "payout_status" NOT NULL,
 	"wallet_address" text,
 	"asset" text,
@@ -317,7 +318,7 @@ CREATE TABLE "product" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"metadata" jsonb,
 	"network" "network" NOT NULL,
-	"price_amount" integer NOT NULL,
+	"price_amount" bigint NOT NULL,
 	"recurring_period" "recurring_period",
 	"unit" text,
 	"units_per_credit" bigint,
@@ -440,6 +441,7 @@ ALTER TABLE "payment" ADD CONSTRAINT "payment_customer_id_customer_id_fk" FOREIG
 ALTER TABLE "payment" ADD CONSTRAINT "payment_customer_wallet_id_customer_wallet_id_fk" FOREIGN KEY ("customer_wallet_id") REFERENCES "public"."customer_wallet"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment" ADD CONSTRAINT "payment_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment" ADD CONSTRAINT "payment_subscription_id_subscription_id_fk" FOREIGN KEY ("subscription_id") REFERENCES "public"."subscription"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payment" ADD CONSTRAINT "payment_credit_balance_id_credit_balance_id_fk" FOREIGN KEY ("credit_balance_id") REFERENCES "public"."credit_balance"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payout" ADD CONSTRAINT "payout_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payout" ADD CONSTRAINT "payout_asset_asset_id_fk" FOREIGN KEY ("asset") REFERENCES "public"."asset"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product" ADD CONSTRAINT "product_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

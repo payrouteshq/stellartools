@@ -5,6 +5,7 @@ import { Account, Auth, PasswordReset, auth, db, passwordReset } from "@/db";
 import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
 import { sendEmail } from "@/integrations/email";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
+import { AppError, safeAction } from "@/lib/action-handler";
 import bcrypt from "bcryptjs";
 import { desc, eq } from "drizzle-orm";
 import moment from "moment";
@@ -20,7 +21,7 @@ export const postAuth = async (params: Partial<Auth>): Promise<Auth> => {
     .values({ id: `au_${nanoid(25)}`, ...params } as Auth)
     .returning();
 
-  if (!response) throw new Error("Failed to create auth");
+  if (!response) throw new AppError("Failed to create auth");
 
   return response;
 };
@@ -47,7 +48,7 @@ export const putAuth = async (id: string, params: Partial<Auth>) => {
     .where(eq(auth.id, id))
     .returning();
 
-  if (!response) throw new Error("Failed to update auth");
+  if (!response) throw new AppError("Failed to update auth");
 
   return response;
 };
@@ -55,7 +56,7 @@ export const putAuth = async (id: string, params: Partial<Auth>) => {
 export const deleteAuth = async (id: string) => {
   const [response] = await db.delete(auth).where(eq(auth.id, id)).returning();
 
-  if (!response) throw new Error("Failed to delete auth");
+  if (!response) throw new AppError("Failed to delete auth");
 
   return response;
 };
@@ -73,7 +74,7 @@ export const createPasswordResetToken = async (params: Partial<PasswordReset>) =
     } as PasswordReset)
     .returning();
 
-  if (!result) throw new Error("Failed to create password reset token");
+  if (!result) throw new AppError("Failed to create password reset token");
 
   return result;
 };
@@ -83,7 +84,7 @@ export const retrievePasswordReset = async (params: { id: string } | { token: st
 
   const [result] = await db.select().from(passwordReset).where(whereClause).limit(1);
 
-  if (!result) throw new Error("Password reset not found");
+  if (!result) throw new AppError("Password reset not found");
 
   return result;
 };
@@ -95,7 +96,7 @@ export const putPasswordReset = async (id: string, params: Partial<PasswordReset
     .where(eq(passwordReset.id, id))
     .returning();
 
-  if (!result) throw new Error("Failed to update password reset");
+  if (!result) throw new AppError("Failed to update password reset");
 
   return result;
 };
@@ -103,7 +104,7 @@ export const putPasswordReset = async (id: string, params: Partial<PasswordReset
 export const deletePasswordReset = async (id: string) => {
   const [result] = await db.delete(passwordReset).where(eq(passwordReset.id, id)).returning();
 
-  if (!result) throw new Error("Failed to delete password reset");
+  if (!result) throw new AppError("Failed to delete password reset");
 
   return result;
 };
@@ -124,71 +125,73 @@ const generateAndSetSession = async (account: { id: string; email: string }) => 
   return { accessToken, refreshToken };
 };
 
-export const accountValidator = async (
-  email: string,
-  sso: Account["sso"]["values"][number],
-  intent: "SIGN_IN" | "SIGN_UP",
-  profile?: Account["profile"],
-  sessionMetadata?: Record<string, unknown>
-) => {
-  const { provider, sub: rawSub } = sso;
-  let account = await retrieveAccount({ email });
-  const isNewUser = !account;
+export const accountValidator = safeAction(
+  async (
+    email: string,
+    sso: Account["sso"]["values"][number],
+    intent: "SIGN_IN" | "SIGN_UP",
+    profile?: Account["profile"],
+    sessionMetadata?: Record<string, unknown>
+  ) => {
+    const { provider, sub: rawSub } = sso;
+    let account = await retrieveAccount({ email });
+    const isNewUser = !account;
 
-  if (!account) {
-    if (intent === "SIGN_IN" && provider === "local") {
-      throw new Error("Account not found. Please sign up first.");
-    }
-
-    const sub = provider === "local" ? await bcrypt.hash(rawSub, BCRYPT_SALT_ROUNDS) : rawSub;
-
-    account = await postAccount({
-      email,
-      sso: { values: [{ provider, sub }] },
-      profile: profile ?? null,
-    });
-  } else {
-    const existingSso = account.sso?.values?.find((s) => s.provider === provider);
-
-    if (provider === "local") {
-      if (intent === "SIGN_UP") {
-        throw new Error("An account with this email already exists.");
+    if (!account) {
+      if (intent === "SIGN_IN" && provider === "local") {
+        throw new AppError("Account not found. Please sign up first.");
       }
 
-      if (!existingSso) {
-        throw new Error("This account was created using social login");
-      }
+      const sub = provider === "local" ? await bcrypt.hash(rawSub, BCRYPT_SALT_ROUNDS) : rawSub;
 
-      const isValid = await bcrypt.compare(rawSub, existingSso.sub);
-      if (!isValid) throw new Error("Invalid email or password.");
+      account = await postAccount({
+        email,
+        sso: { values: [{ provider, sub }] },
+        profile: profile ?? null,
+      });
     } else {
-      // SSO Provider (Google, GitHub, etc.)
-      // We trust SSO providers to verify email. If account exists but this SSO isn't linked, link it.
-      if (!existingSso) {
-        await putAccount(account.id, {
-          sso: { values: [...account.sso.values, { provider, sub: rawSub }] },
-          ...(profile?.avatarUrl && { profile: { ...account.profile, avatarUrl: profile.avatarUrl } }),
-        });
+      const existingSso = account.sso?.values?.find((s) => s.provider === provider);
+
+      if (provider === "local") {
+        if (intent === "SIGN_UP") {
+          throw new AppError("An account with this email already exists.");
+        }
+
+        if (!existingSso) {
+          throw new AppError("This account was created using social login");
+        }
+
+        const isValid = await bcrypt.compare(rawSub, existingSso.sub);
+        if (!isValid) throw new AppError("Invalid email or password.");
+      } else {
+        // SSO Provider (Google, GitHub, etc.)
+        // We trust SSO providers to verify email. If account exists but this SSO isn't linked, link it.
+        if (!existingSso) {
+          await putAccount(account.id, {
+            sso: { values: [...account.sso.values, { provider, sub: rawSub }] },
+            ...(profile?.avatarUrl && { profile: { ...account.profile, avatarUrl: profile.avatarUrl } }),
+          });
+        }
       }
     }
+
+    // 3. Session Generation
+    const { accessToken, refreshToken } = await generateAndSetSession(account);
+    await postAuth({
+      accountId: account.id,
+      provider,
+      accessToken,
+      refreshToken,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      isRevoked: false,
+      ...(sessionMetadata && { metadata: sessionMetadata }),
+    });
+
+    return { accountId: account.id, accessToken, refreshToken, isNewUser };
   }
+);
 
-  // 3. Session Generation
-  const { accessToken, refreshToken } = await generateAndSetSession(account);
-  await postAuth({
-    accountId: account.id,
-    provider,
-    accessToken,
-    refreshToken,
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    isRevoked: false,
-    ...(sessionMetadata && { metadata: sessionMetadata }),
-  });
-
-  return { accountId: account.id, accessToken, refreshToken, isNewUser };
-};
-
-export const forgotPassword = async (email: string) => {
+export const forgotPassword = safeAction(async (email: string) => {
   const account = await retrieveAccount({ email });
 
   if (!account) return { success: true };
@@ -203,18 +206,18 @@ export const forgotPassword = async (email: string) => {
   await sendEmail(email, "Reset Password", `<a href="${resetLink}">Reset Password</a>`);
 
   return { success: true };
-};
+});
 
-export const resetPassword = async (token: string, newPassword: string) => {
+export const resetPassword = safeAction(async (token: string, newPassword: string) => {
   const resetTokenRecord = await retrievePasswordReset({ token });
 
   if (!resetTokenRecord) {
-    throw new Error("Invalid or expired reset token");
+    throw new AppError("Invalid or expired reset token");
   }
 
   const account = await retrieveAccount({ id: resetTokenRecord.accountId });
 
-  if (!account) throw new Error("Account not found");
+  if (!account) throw new AppError("Account not found");
 
   const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
 
@@ -227,7 +230,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
   await putPasswordReset(resetTokenRecord.id, { usedAt: new Date() });
 
   return { success: true };
-};
+});
 
 interface CurrentUserPayload {
   accountId: string;

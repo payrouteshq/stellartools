@@ -32,6 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/toast";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/action-handler";
 import { stroopsToXlm } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
@@ -258,14 +259,14 @@ export default function ProductDetailPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!org?.token) throw new Error("No session token");
+      if (!org?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token },
       });
-      if (!product?.organizationId) throw new Error("Product not found");
+      if (!product?.organizationId) throw new AppError("Product not found");
       const response = await api.delete<null>(`/product/${id}`);
-      if (response.isErr()) throw new Error(response.error.message);
+      if (response.isErr()) throw new AppError(response.error.message);
       return response.value;
     },
     onSuccess: () => {

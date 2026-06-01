@@ -18,6 +18,13 @@ const queryClient = new QueryClient({
       staleTime: 60 * 1000, // 1 minute
       refetchOnWindowFocus: false,
     },
+    mutations: {
+      onSettled: (data) => {
+        if (data && typeof data === "object" && "__isAppError" in data) {
+          throw new Error((data as any).message);
+        }
+      },
+    },
   },
 });
 

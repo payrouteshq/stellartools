@@ -15,6 +15,7 @@ import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
+import { execute } from "@/lib/action-handler";
 import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -25,7 +26,6 @@ import type { FileRejection } from "react-dropzone";
 import * as RHF from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { z } from "zod";
-
 
 export default function SelectOrganizationPage() {
   const router = useRouter();
@@ -265,7 +265,6 @@ const CreateOrganizationModalContent = ({
 
   const fieldOrder = ["name", "description", "phoneNumber", "supportEmail", "physicalAddress"] as const;
 
-
   const createOrgMutation = useMutation({
     mutationFn: async (data: CreateOrganizationFormData) => {
       const defaultEnvironment = "testnet" as const;
@@ -273,22 +272,24 @@ const CreateOrganizationModalContent = ({
 
       if (data.logo?.[0]) formData.append("logo", data.logo[0]);
 
-      return await postOrganizationAndSecret(
-        {
-          name: data.name,
-          phoneNumber: phoneNumberToString(data.phoneNumber),
-          description: data.description ?? null,
-          logoUrl: null,
-          settings: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          metadata: null,
-          address: null,
-          socialLinks: null,
-          supportEmail: null,
-        },
-        defaultEnvironment,
-        { formDataWithFiles: formData }
+      return await execute(
+        postOrganizationAndSecret(
+          {
+            name: data.name,
+            phoneNumber: phoneNumberToString(data.phoneNumber),
+            description: data.description ?? null,
+            logoUrl: null,
+            settings: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            metadata: null,
+            address: null,
+            socialLinks: null,
+            supportEmail: null,
+          },
+          defaultEnvironment,
+          { formDataWithFiles: formData }
+        )
       );
     },
     onSuccess: async (org) => {
@@ -340,13 +341,11 @@ const CreateOrganizationModalContent = ({
     else void submitForm();
   };
 
-  const onEnter =
-    (field: (typeof fieldOrder)[number]) => (e: React.KeyboardEvent) => {
-      if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-      e.preventDefault();
-      focusNext(field);
-    };
-
+  const onEnter = (field: (typeof fieldOrder)[number]) => (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    focusNext(field);
+  };
 
   return (
     <div className="flex flex-col gap-6">

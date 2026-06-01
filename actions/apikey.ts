@@ -4,29 +4,28 @@ import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
 import { verifyJwt } from "@/integrations/jwt";
+import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { AuthContext } from "@/types";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-export const postApiKey = async (
-  params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">,
-  orgId?: string,
-  env?: Network
-) => {
-  const { organizationId, environment } = await resolveOrgContext(orgId, env);
+export const postApiKey = safeAction(
+  async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
+    const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  return await db
-    .insert(apiKeys)
-    .values({
-      ...params,
-      id: generateResourceId("st_api", organizationId, 20),
-      organizationId,
-      environment,
-      token: generateResourceId("st_key", organizationId, 52),
-    })
-    .returning()
-    .then(([apiKey]) => apiKey);
-};
+    return await db
+      .insert(apiKeys)
+      .values({
+        ...params,
+        id: generateResourceId("st_api", organizationId, 20),
+        organizationId,
+        environment,
+        token: generateResourceId("st_key", organizationId, 52),
+      })
+      .returning()
+      .then(([apiKey]) => apiKey);
+  }
+);
 
 export const retrieveApiKeys = async (orgId?: string, env?: Network) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
@@ -48,7 +47,7 @@ export const retrieveApiKey = async (id: string, orgId?: string, env?: Network) 
     .then(([apiKey]) => apiKey);
 };
 
-export const putApiKey = async (id: string, retUpdate: Partial<ApiKey>, orgId?: string, env?: Network) => {
+export const putApiKey = safeAction(async (id: string, retUpdate: Partial<ApiKey>, orgId?: string, env?: Network) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   return await db
@@ -57,9 +56,9 @@ export const putApiKey = async (id: string, retUpdate: Partial<ApiKey>, orgId?: 
     .where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)))
     .returning()
     .then(([apiKey]) => apiKey);
-};
+});
 
-export const deleteApiKey = async (id: string, orgId?: string, env?: Network) => {
+export const deleteApiKey = safeAction(async (id: string, orgId?: string, env?: Network) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   return await db
@@ -67,7 +66,7 @@ export const deleteApiKey = async (id: string, orgId?: string, env?: Network) =>
     .where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)))
     .returning()
     .then(() => null);
-};
+});
 
 export const resolveAuthContext = async (params: {
   apiKey?: string | null;
@@ -81,7 +80,7 @@ export const resolveAuthContext = async (params: {
   if (portalToken) {
     const session = await retrieveCustomerPortalSession(portalToken);
 
-    if (!session) throw new Error("Invalid portal token");
+    if (!session) throw new AppError("Invalid portal token");
 
     return { organizationId: session.organizationId, environment: session.environment, type: "portal" };
   }
@@ -95,7 +94,7 @@ export const resolveAuthContext = async (params: {
       .where(eq(organizations.id, orgId))
       .limit(1);
 
-    if (!row) throw new Error("Invalid Session");
+    if (!row) throw new AppError("Invalid Session");
 
     return { organizationId: row.id, environment, type: "session" };
   }

@@ -7,6 +7,7 @@ import { TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
+import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
@@ -22,7 +23,7 @@ export default function ForgotPassword() {
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { email: "" } });
 
   const mutation = useMutation({
-    mutationFn: (email: string) => forgotPassword(email),
+    mutationFn: (email: string) => execute(forgotPassword(email)),
     onSuccess: () => toast.success("Reset link sent to your email"),
     onError: () => toast.error("Failed to send reset link"),
   });

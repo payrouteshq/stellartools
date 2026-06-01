@@ -5,6 +5,7 @@ import { resolveOrgContext } from "@/actions/organization";
 import { retrievePaymentCount } from "@/actions/payment";
 import { SubscriptionStatus } from "@/constant/schema.client";
 import { Network, Subscription, assets, customerWallets, customers, db, products, subscriptions } from "@/db";
+import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
@@ -207,7 +208,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
         )
         .returning();
 
-      if (!record) throw new Error("Subscription not found");
+      if (!record) throw new AppError("Subscription not found");
 
       return record;
     },

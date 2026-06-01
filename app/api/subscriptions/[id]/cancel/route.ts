@@ -1,6 +1,7 @@
 import { retrieveCustomerWallets } from "@/actions/customers";
 import { putSubscription, retrieveSubscription } from "@/actions/subscription";
 import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
 import { all } from "better-all";
@@ -31,7 +32,7 @@ export const POST = apiHandler({
       },
     });
 
-    if (!customerWallet?.address) throw new Error("Customer wallet not found");
+    if (!customerWallet?.address) throw new AppError("Customer wallet not found");
 
     const cancellationResult = await cancelSorobanSubscription(
       environment,

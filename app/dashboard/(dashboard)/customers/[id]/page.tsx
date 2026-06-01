@@ -42,6 +42,7 @@ import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { AppError } from "@/lib/action-handler";
 import { cn, formatCurrency, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, Checkout } from "@stellartools/core";
@@ -644,7 +645,7 @@ function CheckoutModalContent({
   const mutation = useMutation({
     mutationKey: ["checkout", customerId],
     mutationFn: async (data: z.infer<typeof checkoutSchema>) => {
-      if (!orgContext) throw new Error("No organization context found");
+      if (!orgContext) throw new AppError("No organization context found");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token! },
@@ -661,7 +662,7 @@ function CheckoutModalContent({
       });
 
       if (response.isErr()) {
-        throw new Error(response.error.message);
+        throw new AppError(response.error.message);
       }
 
       return response.value as Checkout;
@@ -792,7 +793,7 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
   const mutation = useMutation({
     mutationKey: ["portalLink", customerId],
     mutationFn: async () => {
-      if (!orgContext) throw new Error("Organization context not found");
+      if (!orgContext) throw new AppError("Organization context not found");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext?.token! },
@@ -803,7 +804,7 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
       );
 
       if (response.isErr()) {
-        throw new Error(response.error.message);
+        throw new AppError(response.error.message);
       }
 
       return response.value;

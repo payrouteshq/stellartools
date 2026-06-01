@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { Customer } from "@/db";
 import { useInvalidateOrgQuery, useOrgContext } from "@/hooks/use-org-query";
+import { AppError, execute } from "@/lib/action-handler";
 import { fileFromUrl } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -122,7 +123,7 @@ export function CustomerModalContent({
 
   const putCustomerMutation = useMutation({
     mutationFn: async (data: CustomerFormData) => {
-      if (!org?.token) throw new Error("No session token");
+      if (!org?.token) throw new AppError("No session token");
 
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -146,7 +147,7 @@ export function CustomerModalContent({
       if (data.avatar instanceof File) {
         const formdata = new FormData();
         formdata.append("image", data.avatar);
-        const uploaded = await createCustomerImage(formdata);
+        const uploaded = await execute(createCustomerImage(formdata));
         if (uploaded) imageUrl = uploaded;
       }
 
@@ -162,14 +163,14 @@ export function CustomerModalContent({
       if (isEditMode) {
         const response = await api.put<Customer>(`/customers/${customer?.id}`, payload);
 
-        if (response.isErr()) throw new Error(response.error.message);
+        if (response.isErr()) throw new AppError(response.error.message);
 
         return response.value;
       }
 
       const response = await api.post<Customer>("/customers", [payload]);
 
-      if (response.isErr()) throw new Error(response.error.message);
+      if (response.isErr()) throw new AppError(response.error.message);
 
       return response.value;
     },
@@ -536,7 +537,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
 
   const importCustomersMutation = useMutation({
     mutationFn: async () => {
-      if (!orgContext) throw new Error("Organization context not found.");
+      if (!orgContext) throw new AppError("Organization context not found.");
 
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -554,7 +555,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
         }))
       );
 
-      if (result.isErr()) throw new Error(result.error.message);
+      if (result.isErr()) throw new AppError(result.error.message);
 
       return result.value;
     },

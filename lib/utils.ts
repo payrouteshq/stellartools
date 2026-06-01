@@ -6,6 +6,8 @@ import moment from "moment";
 import { twMerge } from "tailwind-merge";
 import { z } from "zod";
 
+import { AppError } from "./action-handler";
+
 export const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 type HashAlgorithm = "shake128" | "sha256";
 
@@ -140,7 +142,7 @@ export function generateResourceId(
   hashAlgorithm: HashAlgorithm = "shake128"
 ): string {
   if (!baseSignature || !prefix || length <= 0) {
-    throw new Error("Invalid arguments: baseSignature, prefix, and length (> 0) are required");
+    throw new AppError("Invalid arguments: baseSignature, prefix, and length (> 0) are required");
   }
 
   const hash = crypto.createHash(hashAlgorithm, { outputLength: 3 }).update(baseSignature).digest();
@@ -223,8 +225,8 @@ export const mergeWithNullDeletes = (
 export const xlmToStroops = (xlm: string): bigint => {
   const normalized = xlm.trim();
   const [whole, frac = ""] = normalized.split(".");
-  if (!/^\d+$/.test(whole) || !/^\d*$/.test(frac)) throw new Error(`Invalid XLM amount: ${xlm}`);
-  if (frac.length > 7) throw new Error(`Too many decimals for XLM: ${xlm}`); // stroop precision
+  if (!/^\d+$/.test(whole) || !/^\d*$/.test(frac)) throw new AppError(`Invalid XLM amount: ${xlm}`);
+  if (frac.length > 7) throw new AppError(`Too many decimals for XLM: ${xlm}`); // stroop precision
   return BigInt(whole + frac.padEnd(7, "0"));
 };
 

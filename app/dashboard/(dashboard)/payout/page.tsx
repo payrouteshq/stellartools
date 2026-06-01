@@ -27,6 +27,7 @@ import { Payout } from "@/db";
 import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { AppError } from "@/lib/action-handler";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -115,7 +116,7 @@ const safeJson = async (resp: Response) => {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(`Server error (${resp.status}).`);
+    throw new AppError(`Server error (${resp.status}).`);
   }
 };
 
@@ -169,7 +170,7 @@ function BankPayoutFlow({ onClose, onSuccess, initialCurrencyCode, initialAmount
       });
 
       if (response.isErr()) {
-        throw new Error(response.error.message);
+        throw new AppError(response.error.message);
       }
 
       const data = response.value;
@@ -195,7 +196,7 @@ function BankPayoutFlow({ onClose, onSuccess, initialCurrencyCode, initialAmount
       });
 
       if (response.isErr()) {
-        throw new Error(response.error.message);
+        throw new AppError(response.error.message);
       }
 
       const tx = response.value;
@@ -366,7 +367,7 @@ function RequestPayoutModalContent({ onClose, onSuccess }: { onClose: () => void
     queryKey: ["balance", org?.id],
     queryFn: async () => {
       const response = await api.get<StellarBalance[]>("/api/balance");
-      if (response.isErr()) throw new Error(response.error.message);
+      if (response.isErr()) throw new AppError(response.error.message);
       return response.value;
     },
     enabled: !!org && method === "bank",

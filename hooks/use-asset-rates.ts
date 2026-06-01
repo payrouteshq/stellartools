@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/action-handler";
 import { useQueries } from "@tanstack/react-query";
 
 export type AssetSpec = { code: string; issuer: string };
@@ -25,14 +26,14 @@ export function useAssetRates(assets: AssetSpec[]): AssetRatesResult {
     queries: assets.map((asset) => ({
       queryKey: ["rates", asset.code, asset.issuer],
       queryFn: async () => {
-        if (!org) throw new Error("No organization found");
+        if (!org) throw new AppError("No organization found");
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/~api/rates?asset=${encodeURIComponent(asset.code)}&issuer=${encodeURIComponent(asset.issuer)}`,
           { headers: { "x-session-token": org.token } }
         );
 
-        if (!response.ok) throw new Error(await response.text());
+        if (!response.ok) throw new AppError(await response.text());
 
         const data = (await response.json()) as { assetUsd: number; fiatRates: Record<string, number> };
 

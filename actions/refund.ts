@@ -4,6 +4,7 @@ import { withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { Network, Refund, refunds } from "@/db";
 import { db } from "@/db";
+import { AppError } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { EventTrigger, WebhookTrigger } from "@/types";
 import { and, desc, eq } from "drizzle-orm";
@@ -130,7 +131,7 @@ export const getRefund = async (id: string, orgId?: string, env?: Network) => {
     .where(and(eq(refunds.id, id), eq(refunds.organizationId, organizationId), eq(refunds.environment, environment)))
     .limit(1);
 
-  if (!refund) throw new Error("Refund not found");
+  if (!refund) throw new AppError("Refund not found");
 
   return refund;
 };
@@ -144,7 +145,7 @@ export const updateRefund = async (id: string, retUpdate: Partial<Refund>, orgId
     .where(and(eq(refunds.id, id), eq(refunds.organizationId, organizationId), eq(refunds.environment, environment)))
     .returning();
 
-  if (!refund) throw new Error("Failed to update refund");
+  if (!refund) throw new AppError("Failed to update refund");
 
   return refund as Refund;
 };
@@ -165,7 +166,7 @@ export const getRefunds = async (organizationId: string) => {
     .where(eq(refunds.organizationId, organizationId))
     .orderBy(desc(refunds.createdAt));
 
-  if (!refundsList) throw new Error("Failed to get refunds");
+  if (!refundsList) throw new AppError("Failed to get refunds");
 
   return refundsList;
 };

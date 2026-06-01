@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/action-handler";
 import { STROOPS_PER_XLM, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -79,7 +80,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
 
   const mutation = useMutation({
     mutationFn: async (data: SubscriptionFormData) => {
-      if (!org) throw new Error("No organization context found");
+      if (!org) throw new AppError("No organization context found");
 
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_APP_URL!,
@@ -100,7 +101,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
         ? await api.put(`/api/subscriptions/${editingSubscription.id}`, payload)
         : await api.post("/api/subscriptions", payload);
 
-      if (res.isErr()) throw new Error(res.error.message);
+      if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
     },
     onSuccess: () => {

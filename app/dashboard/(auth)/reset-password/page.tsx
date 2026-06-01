@@ -8,6 +8,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
+import { AppError, execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
@@ -38,8 +39,8 @@ export default function UpdatePassword() {
 
   const mutation = useMutation({
     mutationFn: (data: z.infer<typeof schema>) => {
-      if (!token) throw new Error("Invalid or expired token");
-      return resetPassword(token, data.newPassword);
+      if (!token) throw new AppError("Invalid or expired token");
+      return execute(resetPassword(token, data.newPassword));
     },
     onSuccess: () => {
       toast.success("Password updated!");

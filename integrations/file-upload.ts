@@ -1,3 +1,4 @@
+import { AppError } from "@/lib/action-handler";
 import sharp from "sharp";
 import { UTApi, UTFile } from "uploadthing/server";
 
@@ -29,7 +30,7 @@ export const uploadFiles = async (filesWithMetadata: FileWithMetadata[], options
   const errors = response.filter((file) => file.error);
 
   if (errors.length > 0) {
-    throw new Error(`Failed to upload files: ${errors.map((file) => file.error?.message).join(", ")}`);
+    throw new AppError(`Failed to upload files: ${errors.map((file) => file.error?.message).join(", ")}`);
   }
 
   return response
@@ -41,7 +42,7 @@ export const deleteFiles = async (fileKeys: string[]) => {
   const response = await api.deleteFiles(fileKeys);
 
   if (!response.success) {
-    throw new Error(`Failed to delete files: ${response.deletedCount} files not deleted`);
+    throw new AppError(`Failed to delete files: ${response.deletedCount} files not deleted`);
   }
 
   return true;
@@ -51,7 +52,7 @@ export const replaceFiles = async (oldFileKeys: string[], newFilesWithMetadata: 
   const deleted = await deleteFiles(oldFileKeys);
 
   if (!deleted) {
-    throw new Error(`Failed to delete files: ${oldFileKeys.join(", ")}`);
+    throw new AppError(`Failed to delete files: ${oldFileKeys.join(", ")}`);
   }
 
   return await uploadFiles(newFilesWithMetadata);

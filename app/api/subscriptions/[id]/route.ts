@@ -8,6 +8,7 @@ import {
   cancelSubscription as cancelSorobanSubscription,
   retrieveSubscription as retrieveSorobanSubscription,
 } from "@/integrations/soroban-contract";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { computeDiff, toCamelCase, toSnakeCase } from "@/lib/utils";
 import { Result, z as Schema, updateSubscriptionSchema } from "@stellartools/core";
@@ -35,7 +36,7 @@ export const GET = apiHandler({
     });
 
     if (!customerWallet?.address) {
-      return Result.err(new Error("Customer wallet not found"));
+      return Result.err(new AppError("Customer wallet not found"));
     }
 
     const onchainSubscription = await retrieveSorobanSubscription(
@@ -113,7 +114,7 @@ export const PUT = apiHandler({
       },
     });
 
-    if (!customerWallet?.address) return Result.err(new Error("Customer wallet not found"));
+    if (!customerWallet?.address) return Result.err(new AppError("Customer wallet not found"));
 
     let cancellationResult: Awaited<ReturnType<typeof cancelSorobanSubscription>> | null = null;
 
