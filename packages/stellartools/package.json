@@ -37,7 +37,6 @@
   "dependencies": {
     "better-result": "^2.5.1",
     "ky": "^1.14.2",
-    "stellar-sdk": "^13.3.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "zod": "^4.2.1"
