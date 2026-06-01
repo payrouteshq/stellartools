@@ -2,9 +2,9 @@
 
 import * as React from "react";
 
+import { AppError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 import * as RechartsPrimitive from "recharts";
-import { AppError } from "@/lib/error-handler";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;

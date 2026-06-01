@@ -26,7 +26,6 @@ import * as RHF from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { z } from "zod";
 
-
 export default function SelectOrganizationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -265,7 +264,6 @@ const CreateOrganizationModalContent = ({
 
   const fieldOrder = ["name", "description", "phoneNumber", "supportEmail", "physicalAddress"] as const;
 
-
   const createOrgMutation = useMutation({
     mutationFn: async (data: CreateOrganizationFormData) => {
       const defaultEnvironment = "testnet" as const;
@@ -340,13 +338,11 @@ const CreateOrganizationModalContent = ({
     else void submitForm();
   };
 
-  const onEnter =
-    (field: (typeof fieldOrder)[number]) => (e: React.KeyboardEvent) => {
-      if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-      e.preventDefault();
-      focusNext(field);
-    };
-
+  const onEnter = (field: (typeof fieldOrder)[number]) => (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    focusNext(field);
+  };
 
   return (
     <div className="flex flex-col gap-6">

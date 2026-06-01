@@ -32,6 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/toast";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/error-handler";
 import { stroopsToXlm } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
@@ -42,7 +43,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { type Product, ProductsModalContent, ProductsModalFooter } from "../_shared";
-import { AppError } from "@/lib/error-handler";
 
 const productTypeLabels: Record<string, string> = {
   one_time: "One-off",

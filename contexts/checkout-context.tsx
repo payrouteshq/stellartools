@@ -9,13 +9,13 @@ import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString } from "@
 import { toast } from "@/components/ui/toast";
 import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { requiresTrustline, retrieveAccount } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import { stroopsToXlm, xlmToStroops } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Asset, BASE_FEE, Memo, Networks, Operation, Transaction, TransactionBuilder } from "@stellar/stellar-sdk";
 import { UseMutationResult, UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as RHF from "react-hook-form";
 import { z as Schema } from "zod";
-import { AppError } from "@/lib/error-handler";
 
 type Checkout = Awaited<ReturnType<typeof retrieveCheckoutAndCustomer>>;
 

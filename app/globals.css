@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@plugin 'tailwind-scrollbar';
+@plugin "tailwind-scrollbar";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -368,7 +368,7 @@
 
 @layer utilities {
   .scrollbar-sidebar {
-    @apply scrollbar-thin scrollbar-track-sidebar scrollbar-thumb-sidebar-border scrollbar-hover:scrollbar-thumb-sidebar-primary scrollbar-active:scrollbar-thumb-sidebar-ring;
+    @apply scrollbar-track-sidebar scrollbar-thumb-sidebar-border scrollbar-hover:scrollbar-thumb-sidebar-primary scrollbar-active:scrollbar-thumb-sidebar-ring scrollbar-thin;
   }
 
   .no-autofill-bg {
