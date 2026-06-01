@@ -16,7 +16,10 @@ export const POST = async (req: NextRequest) => {
   const corsHeaders = getCorsHeaders(origin);
   const type = req.nextUrl.searchParams.get("type");
 
-  const send = (data: any, status = 200) => NextResponse.json(data, { status, headers: corsHeaders });
+  const send = (data: any, status = 200) => {
+    const body = JSON.stringify(data, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+    return new NextResponse(body, { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  };
 
   try {
     if (type !== "product" && type !== "direct") {
@@ -47,6 +50,7 @@ export const POST = async (req: NextRequest) => {
         return Result.err(new AppError("Unauthorized"));
       }
       const { customer_id, customer_email, customer_phone, metadata } = data;
+      console.log({data});
       const customer = await upsertCustomer(
         { id: customer_id, email: customer_email, phone: customer_phone },
         auth.organizationId,

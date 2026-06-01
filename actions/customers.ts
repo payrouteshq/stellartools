@@ -102,26 +102,23 @@ export const retrieveCustomers = async (
 
   const lookup = Array.isArray(params) ? params : params ? [params] : [];
 
-  const filters = lookup.map((p) =>
-    "id" in p
-      ? eq(customersSchema.id, p.id!)
-      : "email" in p
-        ? eq(customersSchema.email, p.email!)
-        : "phone" in p
-          ? eq(customersSchema.phone, p.phone!)
-          : undefined
-  );
+  const filters = lookup.flatMap((p) => {
+    const conditions = [];
+    if ("id" in p && p.id != null) conditions.push(eq(customersSchema.id, p.id));
+    if ("email" in p && p.email != null) conditions.push(eq(customersSchema.email, p.email));
+    if ("phone" in p && p.phone != null) conditions.push(eq(customersSchema.phone, p.phone));
+    return conditions;
+  });
 
   if (options?.requireLookUpParams && filters.length < 1) return { data: [], has_more: false };
 
   const limit = params?.limit ?? 10;
-
   const customers = await db.query.customers.findMany({
     where: (c, { and, or }) =>
       and(
         eq(c.organizationId, organizationId),
         eq(c.environment, environment),
-        filters.length ? or(...filters) : undefined
+        filters.length ? or(...(filters as [typeof filters[0], ...typeof filters])) : undefined
       ),
     with: options?.withWallets ? { wallets: true } : undefined,
     limit,

@@ -36,6 +36,8 @@ export const parseJSON = <T>(str: string, schema: z.ZodSchema<T>): T => {
   return schema.parse(parsed);
 };
 
+const safeStringify = (v: unknown) => JSON.stringify(v, (_, val) => (typeof val === "bigint" ? val.toString() : val));
+
 export function computeDiff<T extends Record<string, any>>(
   oldData: T,
   newData: Partial<T>,
@@ -65,7 +67,7 @@ export function computeDiff<T extends Record<string, any>>(
         Object.assign(previousAttributes, nestedDiff.previous_attributes);
         Object.assign(current, nestedDiff.data);
       }
-    } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+    } else if (safeStringify(oldVal) !== safeStringify(newVal)) {
       previousAttributes[key] = oldVal ?? null;
       current[key] = newVal ?? null;
     }
