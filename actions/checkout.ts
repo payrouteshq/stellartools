@@ -176,7 +176,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     .leftJoin(customers, eq(checkouts.customerId, customers.id))
     .leftJoin(organizationSecrets, eq(checkouts.organizationId, organizationSecrets.organizationId))
     .leftJoin(products, eq(checkouts.productId, products.id))
-    .leftJoin(assets, or(eq(products.assetId, assets.id), eq(checkouts.assetCode, assets.id)))
+    .leftJoin(assets, or(eq(products.assetId, assets.id), eq(checkouts.assetCode, assets.code)))
     .leftJoin(organizations, eq(checkouts.organizationId, organizations.id))
     .leftJoin(accounts, eq(organizations.accountId, accounts.id))
     .where(eq(checkouts.id, id));
