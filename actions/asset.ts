@@ -2,6 +2,7 @@
 
 import { resolveOrgContext } from "@/actions/organization";
 import { Asset, Network, assets, db, products } from "@/db";
+import { AppError } from "@/lib/error-handler";
 import { SQL, and, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -11,7 +12,7 @@ export const postAsset = async (asset: Partial<Asset>) => {
     .values({ id: `ast_${nanoid(25)}`, ...asset } as Asset)
     .returning();
 
-  if (!newAsset) throw new Error("Failed to create asset");
+  if (!newAsset) throw new AppError("Failed to create asset");
 
   return newAsset;
 };
@@ -39,7 +40,7 @@ export const retrieveAssets = async (
   } else if ("issuer" in lookUpKey) {
     whereClause = eq(assets.issuer, lookUpKey.issuer!);
   } else {
-    throw new Error("Invalid lookup key. Must provide either id or code and issuer.");
+    throw new AppError("Invalid lookup key. Must provide either id or code and issuer.");
   }
 
   return await db
@@ -70,7 +71,7 @@ export const putAsset = async (id: string, asset: Partial<Asset>) => {
     .where(eq(assets.id, id))
     .returning();
 
-  if (!updatedAsset) throw new Error("Failed to update asset");
+  if (!updatedAsset) throw new AppError("Failed to update asset");
 
   return updatedAsset as Asset;
 };

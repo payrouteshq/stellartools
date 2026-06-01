@@ -7,6 +7,7 @@ import { decrypt } from "@/integrations/encryption";
 import { cancelSubscription as cancelSorobanSubscription, retrieveSubscription } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { AppError } from "@/lib/error-handler";
 import { generateResourceId, toCamelCase, xlmToStroops } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
@@ -31,14 +32,14 @@ export const POST = apiHandler({
           { paymentId: payment_id },
           { withWallets: true, withAsset: true }
         );
-        if (!p) throw new Error("Payment not found");
-        if (!p.asset) throw new Error("Payment asset not found");
-        if (!p.wallets?.address) throw new Error("Customer wallet address not found");
+        if (!p) throw new AppError("Payment not found");
+        if (!p.asset) throw new AppError("Payment asset not found");
+        if (!p.wallets?.address) throw new AppError("Customer wallet address not found");
         return p;
       },
       secret: async () => {
         const { secret: s } = await retrieveOrganizationIdAndSecret(organizationId, environment);
-        if (!s) throw new Error("Merchant keys not configured, please contact support");
+        if (!s) throw new AppError("Merchant keys not configured, please contact support");
         return s;
       },
     });
@@ -48,7 +49,7 @@ export const POST = apiHandler({
 
     const isValidPublicKeyResult = isValidPublicKey(wallet_address ?? payment?.wallets?.address);
 
-    if (isValidPublicKeyResult.isErr()) throw new Error(isValidPublicKeyResult.error.message);
+    if (isValidPublicKeyResult.isErr()) throw new AppError(isValidPublicKeyResult.error.message);
 
     const res = await sendAssetPayment(
       secretKey,
@@ -89,7 +90,7 @@ export const POST = apiHandler({
           limit: 1,
         });
 
-        if (!subscription) throw new Error("Subscription not found");
+        if (!subscription) throw new AppError("Subscription not found");
 
         const cancellationResult = await cancelSorobanSubscription(
           environment,
@@ -98,7 +99,7 @@ export const POST = apiHandler({
           subscription.productId!
         );
 
-        if (cancellationResult.isErr()) throw new Error(cancellationResult.error.message);
+        if (cancellationResult.isErr()) throw new AppError(cancellationResult.error.message);
 
         await putSubscription(
           payment.subscriptionId,

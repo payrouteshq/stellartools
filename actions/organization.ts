@@ -24,6 +24,7 @@ import { uploadFiles } from "@/integrations/file-upload";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { createAccount } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import { generateResourceId, normalizeTimeSeries } from "@/lib/utils";
 import { and, eq, gte, sql } from "drizzle-orm";
 import moment from "moment";
@@ -53,7 +54,7 @@ export const postOrganizationAndSecret = async (
     // todo: drop `defaultEnvironment` prop and parallelize request for testnet and mainnet.
     const account = await createAccount(defaultEnvironment);
 
-    if (account.isErr()) throw new Error(account.error?.message);
+    if (account.isErr()) throw new AppError(account.error?.message);
 
     postOrganizationSecretWithEncryption(
       {
@@ -96,7 +97,7 @@ export const retrieveOrganizations = async (accId?: string) => {
 export const retrieveOrganization = async (id: string) => {
   const [organization] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
 
-  if (!organization) throw new Error("Organization not found");
+  if (!organization) throw new AppError("Organization not found");
 
   return organization;
 };
@@ -122,7 +123,7 @@ export const retrieveOrganizationIdAndSecret = async (id: string, environment: N
     .where(eq(organizations.id, id))
     .limit(1);
 
-  if (!result) throw new Error("Organization not found");
+  if (!result) throw new AppError("Organization not found");
 
   return result;
 };
@@ -145,7 +146,7 @@ export const putOrganization = async (
     .where(eq(organizations.id, id))
     .returning();
 
-  if (!organization) throw new Error("Organization not found");
+  if (!organization) throw new AppError("Organization not found");
 
   return organization;
 };
@@ -183,7 +184,7 @@ export const switchEnvironment = async (environment: Network) => {
   const currentOrg = await getCurrentOrganization();
 
   if (!currentOrg) {
-    throw new Error("No organization selected");
+    throw new AppError("No organization selected");
   }
 
   await setCurrentOrganization(currentOrg.id, environment);
@@ -200,7 +201,7 @@ export const resolveOrgContext = async (
   const orgContext = await getCurrentOrganization();
 
   if (!orgContext) {
-    throw new Error("No organization context found");
+    throw new AppError("No organization context found");
   }
 
   return {
@@ -266,7 +267,7 @@ export const putOrganizationSecretWithEncryption = async (id: string, params: Pa
     .where(eq(organizationSecrets.id, id))
     .returning();
 
-  if (!secret) throw new Error("Secret not found");
+  if (!secret) throw new AppError("Secret not found");
 
   return secret;
 };

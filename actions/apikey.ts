@@ -4,6 +4,7 @@ import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
 import { verifyJwt } from "@/integrations/jwt";
+import { AppError } from "@/lib/error-handler";
 import { generateResourceId } from "@/lib/utils";
 import { AuthContext } from "@/types";
 import { and, eq, sql } from "drizzle-orm";
@@ -81,7 +82,7 @@ export const resolveAuthContext = async (params: {
   if (portalToken) {
     const session = await retrieveCustomerPortalSession(portalToken);
 
-    if (!session) throw new Error("Invalid portal token");
+    if (!session) throw new AppError("Invalid portal token");
 
     return { organizationId: session.organizationId, environment: session.environment, type: "portal" };
   }
@@ -95,7 +96,7 @@ export const resolveAuthContext = async (params: {
       .where(eq(organizations.id, orgId))
       .limit(1);
 
-    if (!row) throw new Error("Invalid Session");
+    if (!row) throw new AppError("Invalid Session");
 
     return { organizationId: row.id, environment, type: "session" };
   }

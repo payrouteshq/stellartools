@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Network as StellarToolsNetwork } from "@/constant/schema.client";
 import { parseError } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import {
   AlbedoModule,
   FreighterModule,
@@ -272,6 +273,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
 export const useWallet = () => {
   const context = React.use(WalletContext);
-  if (!context) throw new Error("useWallet must be used within WalletProvider");
+  if (!context) throw new AppError("useWallet must be used within WalletProvider");
   return context;
 };

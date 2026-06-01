@@ -1,4 +1,5 @@
 import { AssetCode, AssetIssuer, Network } from "@/constant/schema.client";
+import { AppError } from "@/lib/error-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
 
@@ -171,8 +172,8 @@ export const retrieveAssetContractId = async (assetCode: AssetCode, assetIssuer:
 };
 
 export const isValidPublicKey = (publicKey?: string): Result<boolean, Error> => {
-  if (!publicKey?.trim()) return Result.err(new Error("Public key is required"));
-  if (!StellarSDK.StrKey.isValidEd25519PublicKey(publicKey)) return Result.err(new Error("Invalid public key"));
+  if (!publicKey?.trim()) return Result.err(new AppError("Public key is required"));
+  if (!StellarSDK.StrKey.isValidEd25519PublicKey(publicKey)) return Result.err(new AppError("Invalid public key"));
   return Result.ok(true);
 };
 

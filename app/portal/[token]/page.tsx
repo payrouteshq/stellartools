@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/components/ui/toast";
+import { AppError } from "@/lib/error-handler";
 import { cn, fileFromUrl, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -158,7 +159,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
         const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, {
           headers: { "x-portal-token": token },
         });
-        if (response.isErr()) throw new Error(response.error.message);
+        if (response.isErr()) throw new AppError(response.error.message);
         return response.value;
       },
       onSuccess: () => {
@@ -179,7 +180,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   const { mutate: deleteWallet, isPending: deletingWallet } = useMutation({
     mutationFn: async (walletId: string) => {
       const session = await retrieveCustomerPortalSession(token);
-      if (!session) throw new Error("Invalid or expired session");
+      if (!session) throw new AppError("Invalid or expired session");
       const { customerId, organizationId, environment } = session;
       return await deleteCustomerWallet(customerId, walletId, organizationId, environment);
     },

@@ -3,6 +3,7 @@
 import { resolveOrgContext } from "@/actions/organization";
 import { Network, Webhook, WebhookLog, db, webhookLogs, webhooks } from "@/db";
 import { deliverWebhook } from "@/integrations/webhook-delivery";
+import { AppError } from "@/lib/error-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { generateResourceId } from "@/lib/utils";
 import { WebhookEvent, WebhookEventType } from "@stellartools/core";
@@ -26,7 +27,7 @@ export const postWebhook = async (
     } as Webhook)
     .returning();
 
-  if (!webhook) throw new Error("Failed to create webhook");
+  if (!webhook) throw new AppError("Failed to create webhook");
 
   return webhook as Webhook;
 };
@@ -114,7 +115,7 @@ export const putWebhook = async (id: string, data: Partial<Webhook>, orgId?: str
     .where(and(eq(webhooks.id, id), eq(webhooks.organizationId, organizationId), eq(webhooks.environment, environment)))
     .returning();
 
-  if (!webhook) throw new Error("Failed to update webhook");
+  if (!webhook) throw new AppError("Failed to update webhook");
 
   return webhook;
 };
@@ -143,7 +144,7 @@ export const postWebhookLog = async (
     .values({ ...params, webhookId, organizationId, environment } as WebhookLog)
     .returning();
 
-  if (!webhookLog) throw new Error("Failed to create webhook log");
+  if (!webhookLog) throw new AppError("Failed to create webhook log");
 
   return webhookLog;
 };
@@ -217,7 +218,7 @@ export const putWebhookLog = async (id: string, data: Partial<WebhookLog>, orgId
     )
     .returning();
 
-  if (!webhookLog) throw new Error("Failed to update webhook log");
+  if (!webhookLog) throw new AppError("Failed to update webhook log");
 
   return webhookLog;
 };

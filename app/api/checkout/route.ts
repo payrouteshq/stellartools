@@ -4,6 +4,7 @@ import { upsertCustomer } from "@/actions/customers";
 import { retrieveProducts } from "@/actions/product";
 import { getCorsHeaders, subscriptionIntervals } from "@/constant";
 import { createOptionsHandler } from "@/lib/api-handler";
+import { AppError } from "@/lib/error-handler";
 import { Result, createCheckoutSchema, createDirectCheckoutSchema, validateSchema } from "@stellartools/core";
 import moment from "moment";
 import { NextRequest, NextResponse } from "next/server";
@@ -43,7 +44,7 @@ export const POST = async (req: NextRequest) => {
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
       if (!auth) {
-        return Result.err(new Error("Unauthorized"));
+        return Result.err(new AppError("Unauthorized"));
       }
       const { customer_id, customer_email, customer_phone, metadata } = data;
       const customer = await upsertCustomer(
@@ -58,10 +59,10 @@ export const POST = async (req: NextRequest) => {
       if ("product_id" in data) {
         const [{ product }] = await retrieveProducts(auth.organizationId, auth.environment, data.product_id);
 
-        if (!product) return Result.err(new Error(`Product Not Found ${data.product_id}`));
+        if (!product) return Result.err(new AppError(`Product Not Found ${data.product_id}`));
 
         if (product.type == "subscription" && !product.recurringPeriod) {
-          return Result.err(new Error("Subscription product does not have a recurring period"));
+          return Result.err(new AppError("Subscription product does not have a recurring period"));
         }
 
         const durationDays = subscriptionIntervals[product.recurringPeriod!];

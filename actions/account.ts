@@ -6,6 +6,7 @@ import { Account, accounts, db, organizations } from "@/db";
 import { getCookie } from "@/integrations/cookie-manager";
 import { uploadFiles } from "@/integrations/file-upload";
 import { verifyJwt } from "@/integrations/jwt";
+import { AppError } from "@/lib/error-handler";
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -77,7 +78,7 @@ export const putAccount = async (id: string, params: Partial<Account>, options?:
     .where(eq(accounts.id, id))
     .returning();
 
-  if (!account) throw new Error("Account not found");
+  if (!account) throw new AppError("Account not found");
 
   return account;
 };
@@ -95,7 +96,7 @@ export const resolveAccountContext = async (accountId?: string) => {
 
   const account = await getCurrentUser();
 
-  if (!account) throw new Error("Account not found");
+  if (!account) throw new AppError("Account not found");
 
   return { accountId: account.id };
 };

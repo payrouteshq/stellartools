@@ -5,6 +5,7 @@ import { retrievePayments } from "@/actions/payment";
 import { Network, charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { sendAssetPayment } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import { BPS_DENOMINATOR, FREE_THRESHOLD_USD, getVolumeTierRateBps } from "@/lib/pricing";
 import { generateResourceId } from "@/lib/utils";
 
@@ -27,7 +28,7 @@ export async function processPaymentBilling(
 
   if (!secret || !payment || !payment.asset) {
     console.error("One of secret, payment, or asset is missing for payment", paymentId);
-    throw new Error(`One of secret, payment, or asset is missing for payment ${paymentId}`);
+    throw new AppError(`One of secret, payment, or asset is missing for payment ${paymentId}`);
   }
 
   const paymentValueCents = Number(payment.amountUsdCentsSnapshot);

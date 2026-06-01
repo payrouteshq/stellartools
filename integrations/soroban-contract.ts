@@ -1,4 +1,5 @@
 import { Network } from "@/db";
+import { AppError } from "@/lib/error-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
 
@@ -65,13 +66,13 @@ const pollSorobanTx = async (
     }
 
     if (res.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      return Result.err(new Error(`Transaction failed on-chain: ${hash}`));
+      return Result.err(new AppError(`Transaction failed on-chain: ${hash}`));
     }
 
     await new Promise((r) => setTimeout(r, 10000));
   }
 
-  return Result.err(new Error("Transaction polling timed out"));
+  return Result.err(new AppError("Transaction polling timed out"));
 };
 
 const invokeSoroban = async <T = SorobanTxResult>(
@@ -96,12 +97,12 @@ const invokeSoroban = async <T = SorobanTxResult>(
     const simulation = await server.simulateTransaction(tx);
 
     if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
-      throw new Error(`Simulation failed: ${simulation.error}`);
+      throw new AppError(`Simulation failed: ${simulation.error}`);
     }
 
     // --- READ FLOW ---
     if (options.readOnly) {
-      if (!simulation.result) throw new Error("Simulation returned no result");
+      if (!simulation.result) throw new AppError("Simulation returned no result");
       // Converts ScVal return value to native TS types (e.g. SorobanSubscription)
       return StellarSDK.scValToNative(simulation.result.retval) as T;
     }
@@ -113,7 +114,7 @@ const invokeSoroban = async <T = SorobanTxResult>(
     const response = await server.sendTransaction(assembledTx);
 
     if (response.status !== "PENDING") {
-      throw new Error(`Submission failed: ${response.status}`);
+      throw new AppError(`Submission failed: ${response.status}`);
     }
 
     const pollResult = await pollSorobanTx(response.hash, network);
@@ -149,7 +150,7 @@ export const buildSubscriptionApprovalXdr = async (
       .build();
 
     const simulation = await server.simulateTransaction(tx);
-    if (StellarSDK.rpc.Api.isSimulationError(simulation)) throw new Error(simulation.error);
+    if (StellarSDK.rpc.Api.isSimulationError(simulation)) throw new AppError(simulation.error);
 
     const prepared = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
     const envelope = StellarSDK.xdr.TransactionEnvelope.fromXDR(prepared.toXDR(), "base64");
@@ -180,7 +181,7 @@ export const submitSorobanTx = async (network: Network, signedXDR: string) => {
     const { server, passphrase } = getSorobanConfig(network);
     const tx = StellarSDK.TransactionBuilder.fromXDR(signedXDR, passphrase);
     const response = await server.sendTransaction(tx);
-    if (response.status !== "PENDING") throw new Error(`Submission failed: ${response.status}`);
+    if (response.status !== "PENDING") throw new AppError(`Submission failed: ${response.status}`);
 
     const pollResult = await pollSorobanTx(response.hash, network);
     if (pollResult.isErr()) throw pollResult.error;

@@ -2,6 +2,7 @@ import "server-only";
 
 import { postWebhookLog } from "@/actions/webhook";
 import { Webhook as WebhookSchema } from "@/db/schema";
+import { AppError } from "@/lib/error-handler";
 import { ApiClient, WebhookEvent, WebhookEventType, WebhookSigner } from "@stellartools/core";
 
 export const deliverWebhook = async (
@@ -80,7 +81,7 @@ export const deliverWebhook = async (
   if (!isSuccess) {
     console.error(`✗ Webhook failed: ${webhook.url} (${statusCode})`);
     if (result.isErr()) console.log(result.error.message);
-    throw new Error(errorMessage ?? "Delivery failed");
+    throw new AppError(errorMessage ?? "Delivery failed");
   }
 
   console.log(`✓ Webhook delivered: ${webhook.url} in ${duration}ms`);

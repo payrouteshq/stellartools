@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCookieState } from "@/hooks/use-cookie-state";
+import { AppError } from "@/lib/error-handler";
 import { type NormalizedChartPoint, cn } from "@/lib/utils";
 import { saveAs } from "file-saver";
 import { Check, Copy, Download } from "lucide-react";
@@ -312,8 +313,8 @@ export function ShareWidget({ title, value, subtitle, sparkData }: ShareWidgetPr
   const getBlob = (): Promise<Blob> =>
     new Promise((resolve, reject) => {
       const canvas = canvasRef.current;
-      if (!canvas) return reject(new Error("Canvas not ready"));
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))), "image/png");
+      if (!canvas) return reject(new AppError("Canvas not ready"));
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new AppError("toBlob failed"))), "image/png");
     });
 
   const handleDownload = async () => {

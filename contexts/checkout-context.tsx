@@ -15,6 +15,7 @@ import { Asset, BASE_FEE, Memo, Networks, Operation, Transaction, TransactionBui
 import { UseMutationResult, UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as RHF from "react-hook-form";
 import { z as Schema } from "zod";
+import { AppError } from "@/lib/error-handler";
 
 type Checkout = Awaited<ReturnType<typeof retrieveCheckoutAndCustomer>>;
 
@@ -121,7 +122,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
       if (checkout.productType === "subscription") {
         wallet.setTxStatus(TxStatus.BUILDING);
         const prepared = await prepareSubscriptionApproval(checkoutId, wallet.walletAddress);
-        if ("error" in prepared) throw new Error(prepared.error);
+        if ("error" in prepared) throw new AppError(prepared.error);
 
         const tx = new Transaction(prepared.xdr, network);
         const txResult = await wallet.signAndSubmit(tx);
@@ -162,10 +163,10 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
           if (is404) {
             const network = checkout.environment === "testnet" ? "Testnet" : "Public";
-            throw new Error(`Account not found on ${network}. Check wallet network.`);
+            throw new AppError(`Account not found on ${network}. Check wallet network.`);
           }
 
-          throw new Error(accountRes.error.message);
+          throw new AppError(accountRes.error.message);
         }
 
         console.log("accountRes", accountRes);
@@ -262,6 +263,6 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
 export const useCheckout = () => {
   const context = React.useContext(CheckoutContext);
-  if (!context) throw new Error("useCheckout must be used within a CheckoutProvider");
+  if (!context) throw new AppError("useCheckout must be used within a CheckoutProvider");
   return context;
 };

@@ -21,6 +21,7 @@ import { toast } from "@/components/ui/toast";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { AppError } from "@/lib/error-handler";
 import { cn, generateResourceId, normalizeTimeSeries } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, WEBHOOK_EVENT_TYPES, type Webhook, type WebhookEventType } from "@stellartools/core";
@@ -463,9 +464,9 @@ function WebhooksPageContent() {
 
   const toggleWebhookDisabledMutation = useMutation({
     mutationFn: async ({ id, isDisabled }: { id: string; isDisabled: boolean }) => {
-      if (!org?.token) throw new Error("No session token");
+      if (!org?.token) throw new AppError("No session token");
       const result = await api.put(`/webhooks/${id}`, { isDisabled }, { "x-session-token": org.token });
-      if (result.isErr()) throw new Error(result.error.message);
+      if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
     onSuccess: (_, { isDisabled }) => {
@@ -477,7 +478,7 @@ function WebhooksPageContent() {
 
   const deleteWebhookMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (!org?.token) throw new Error("No session token");
+      if (!org?.token) throw new AppError("No session token");
       return await api.delete<Webhook>(`/webhooks/${id}`, {
         "x-session-token": org.token,
       });
@@ -671,14 +672,14 @@ function WebhooksModalContent({
 
   const createWebhookMutation = useMutation({
     mutationFn: async (data: z.infer<typeof schema>) => {
-      if (!orgContext) throw new Error("No organization context found");
+      if (!orgContext) throw new AppError("No organization context found");
       const { destinationName: name, endpointUrl: url, description, events } = data;
       const result = await api.post(
         "/webhooks",
         { name, url, description, events, secret },
         { "x-session-token": orgContext?.token! }
       );
-      if (result.isErr()) throw new Error(result.error.message);
+      if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
     onSuccess: () => {
@@ -695,7 +696,7 @@ function WebhooksModalContent({
   const updateWebhookMutation = useMutation({
     mutationFn: async (data: z.infer<typeof schema>) => {
       if (!editingWebhook) return;
-      if (!orgContext) throw new Error("No organization context found");
+      if (!orgContext) throw new AppError("No organization context found");
       const result = await api.put<Webhook>(
         `/webhooks/${editingWebhook.id}`,
         {
@@ -706,7 +707,7 @@ function WebhooksModalContent({
         },
         { "x-session-token": orgContext?.token! }
       );
-      if (result.isErr()) throw new Error(result.error.message);
+      if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
     onSuccess: () => {

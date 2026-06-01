@@ -4,6 +4,7 @@ import { retrieveAccount } from "@/actions/account";
 import { processPaymentBilling } from "@/actions/billing";
 import { retrieveCheckout, retrieveCheckoutAndCustomer } from "@/actions/checkout";
 import { putCheckout } from "@/actions/checkout";
+import { postCreditBalance } from "@/actions/credit";
 import { retrieveCustomers, upsertCustomerWallet } from "@/actions/customers";
 import { paginate, runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganization } from "@/actions/organization";
@@ -33,13 +34,12 @@ import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription
 import { sendEmail } from "@/integrations/email";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import { generateResourceId, stroopsToXlm, toSnakeCase, xlmToStroops } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import moment from "moment";
-
-import { postCreditBalance, postCreditTransaction } from "./credit";
 
 type PaymentContext = {
   org: Organization;
@@ -408,7 +408,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
 
   const result = await verifyPaymentByPagingToken(merchantPublicKey, checkoutId, initialPagingToken!, environment);
 
-  if (result.isErr()) throw new Error(result.error.message);
+  if (result.isErr()) throw new AppError(result.error.message);
 
   if (!result.value) return checkout;
 

@@ -3,6 +3,7 @@ import { runAtomic } from "@/actions/event";
 import { retrieveProducts } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { calculateUsageToCredits } from "@/lib/credit-calculator";
+import { AppError } from "@/lib/error-handler";
 import { Result, z as Schema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
@@ -29,11 +30,11 @@ export const POST = apiHandler({
     ]);
 
     if (!productData || !creditBalance) {
-      throw new Error("Credit balance or product configuration not found");
+      throw new AppError("Credit balance or product configuration not found");
     }
 
     if (creditBalance.isRevoked) {
-      throw new Error("Credit balance has been revoked. Contact your provider to restore access.");
+      throw new AppError("Credit balance has been revoked. Contact your provider to restore access.");
     }
 
     const requiredCredits = calculateUsageToCredits(body.amount, productData.product.unitsPerCredit ?? BigInt(1));
@@ -45,7 +46,7 @@ export const POST = apiHandler({
     }
 
     if (body.type === "deduct" && !isSufficient) {
-      throw new Error(`Insufficient credits: ${creditBalance.balance} < ${requiredCredits}`);
+      throw new AppError(`Insufficient credits: ${creditBalance.balance} < ${requiredCredits}`);
     }
 
     // 3. Calculate New Totals

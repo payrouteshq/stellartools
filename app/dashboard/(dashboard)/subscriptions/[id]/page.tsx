@@ -29,6 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/error-handler";
 import { STROOPS_PER_XLM, cn } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
@@ -100,7 +101,7 @@ export default function SubscriptionDetailPage() {
   // Mutations
   const mutation = useMutation({
     mutationFn: async ({ path, method = "POST" }: { path: string; method?: "POST" | "PUT" }) => {
-      if (!orgContext?.token) throw new Error("No session token");
+      if (!orgContext?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext?.token! },
@@ -108,7 +109,7 @@ export default function SubscriptionDetailPage() {
       const res = await (method === "POST"
         ? api.post(`/api/subscriptions/${id}${path}`, {})
         : api.put(`/api/subscriptions/${id}${path}`, {}));
-      if (res.isErr()) throw new Error(res.error.message);
+      if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
     },
     onSuccess: (_, variables) => {

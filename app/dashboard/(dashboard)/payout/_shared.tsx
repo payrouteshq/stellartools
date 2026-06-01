@@ -1,5 +1,6 @@
 import { PayoutReceipt } from "@/components/payout/payout-receipt";
 import { Payout } from "@/db";
+import { AppError } from "@/lib/error-handler";
 import { pdf } from "@react-pdf/renderer";
 import { saveAs } from "file-saver";
 
@@ -26,6 +27,6 @@ export async function generateAndDownloadReceipt(
     saveAs(blob, filename);
   } catch (error) {
     console.error("Error generating receipt:", error);
-    throw new Error("Failed to generate receipt");
+    throw new AppError("Failed to generate receipt");
   }
 }

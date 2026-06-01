@@ -1,6 +1,7 @@
 "use server";
 
 import { retrieveAssets } from "@/actions/asset";
+import { putCustomer } from "@/actions/customers";
 import { runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import {
@@ -17,12 +18,11 @@ import {
   products,
 } from "@/db";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import { computeDiff, generateResourceId, stroopsToXlm } from "@/lib/utils";
 import { CheckoutStatus } from "@/packages/stellartools/dist/schema/checkout";
 import { all } from "better-all";
 import { and, eq, or, sql } from "drizzle-orm";
-
-import { putCustomer } from "./customers";
 
 export const postCheckout = async (
   params: Omit<Checkout, "id" | "organizationId" | "environment" | "createdAt" | "updatedAt" | "initialPagingToken">,
@@ -35,7 +35,7 @@ export const postCheckout = async (
     secret: async () => await retrieveOrganizationIdAndSecret(organizationId, environment),
     async token() {
       const publicKey = (await this.$.secret).secret?.publicKey;
-      if (!publicKey) throw new Error("Merchant public key not found");
+      if (!publicKey) throw new AppError("Merchant public key not found");
       return await getLatestPagingToken(publicKey, environment);
     },
   });
@@ -48,7 +48,7 @@ export const postCheckout = async (
     const asset = assetsList.find((asset) => asset.code === params.assetCode);
 
     if (!asset) {
-      throw new Error(
+      throw new AppError(
         `Invalid asset code, Only ${assetsList.map((a) => a.code).join(", ")} are supported. Got ${params.assetCode}`
       );
     }
@@ -142,7 +142,7 @@ export const retrieveCheckout = async (id: string, orgId?: string, env?: Network
       and(eq(checkouts.id, id), eq(checkouts.organizationId, organizationId), eq(checkouts.environment, environment))
     );
 
-  if (!checkout) throw new Error("Checkout not found");
+  if (!checkout) throw new AppError("Checkout not found");
 
   return checkout;
 };
@@ -195,7 +195,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     merchantEmail,
   } = result;
 
-  if (!assets$1) throw new Error(`Asset not found, Checkout must be associated with an asset`);
+  if (!assets$1) throw new AppError(`Asset not found, Checkout must be associated with an asset`);
 
   return {
     ...checkout,

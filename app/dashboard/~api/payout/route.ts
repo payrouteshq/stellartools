@@ -4,6 +4,7 @@ import { postPayout, putPayout } from "@/actions/payout";
 import { decrypt } from "@/integrations/encryption";
 import { sendAssetPayment } from "@/integrations/stellar-core";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { AppError } from "@/lib/error-handler";
 import { generateResourceId } from "@/lib/utils";
 import { Result, z as Schema } from "@stellartools/core";
 import { all } from "better-all";
@@ -27,12 +28,12 @@ export const POST = apiHandler({
     const { secret, asset } = await all({
       secret: async () => {
         const { secret: s } = await retrieveOrganizationIdAndSecret(organizationId, environment);
-        if (!s) throw new Error("Merchant keys not configured, please contact support");
+        if (!s) throw new AppError("Merchant keys not configured, please contact support");
         return s;
       },
       asset: async () => {
         const [a] = await retrieveAssets({ id: body.assetId }, environment);
-        if (!a) throw new Error("Asset not found");
+        if (!a) throw new AppError("Asset not found");
         return a;
       },
     });
@@ -42,7 +43,7 @@ export const POST = apiHandler({
     const payoutId = generateResourceId("pay", organizationId, 20);
 
     if (!body.walletAddress) {
-      throw new Error("Wallet address is required");
+      throw new AppError("Wallet address is required");
     }
 
     const sendPayoutResult = await sendAssetPayment(

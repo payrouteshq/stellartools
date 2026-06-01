@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { Product as ProductSchema } from "@/db";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/error-handler";
 import { fileFromUrl, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, RecurringPeriod } from "@stellartools/core";
@@ -178,7 +179,7 @@ export function ProductsModalContent({
 
   const putProductMutation = useMutation({
     mutationFn: async ({ data, existingImageUrls }: { data: ProductFormData; existingImageUrls?: string[] }) => {
-      if (!orgContext) throw new Error("No organization context found");
+      if (!orgContext) throw new AppError("No organization context found");
 
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -221,7 +222,7 @@ export function ProductsModalContent({
           units_per_credit: data.unitsPerCredit,
         });
 
-        if (response.isErr()) throw new Error(response.error.message);
+        if (response.isErr()) throw new AppError(response.error.message);
 
         return response.value;
       }
@@ -241,9 +242,9 @@ export function ProductsModalContent({
         status: "active",
       });
 
-      if (result.isErr()) throw new Error(result.error.message);
+      if (result.isErr()) throw new AppError(result.error.message);
 
-      if ("error" in result.value) throw new Error(result.value.error);
+      if ("error" in result.value) throw new AppError(result.value.error);
 
       return result.value;
     },

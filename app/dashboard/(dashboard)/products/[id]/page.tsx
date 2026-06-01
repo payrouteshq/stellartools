@@ -42,6 +42,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 import { type Product, ProductsModalContent, ProductsModalFooter } from "../_shared";
+import { AppError } from "@/lib/error-handler";
 
 const productTypeLabels: Record<string, string> = {
   one_time: "One-off",
@@ -258,14 +259,14 @@ export default function ProductDetailPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!org?.token) throw new Error("No session token");
+      if (!org?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token },
       });
-      if (!product?.organizationId) throw new Error("Product not found");
+      if (!product?.organizationId) throw new AppError("Product not found");
       const response = await api.delete<null>(`/product/${id}`);
-      if (response.isErr()) throw new Error(response.error.message);
+      if (response.isErr()) throw new AppError(response.error.message);
       return response.value;
     },
     onSuccess: () => {

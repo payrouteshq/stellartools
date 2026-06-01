@@ -1,4 +1,5 @@
 import { apiHandler } from "@/lib/api-handler";
+import { AppError } from "@/lib/error-handler";
 import { Result, z as Schema } from "@stellartools/core";
 
 import { resolvePublicPayments } from "../shared";
@@ -14,7 +15,7 @@ export const GET = apiHandler({
       limit: 1,
     });
 
-    if (data.length === 0) throw new Error("Payment not found");
+    if (data.length === 0) throw new AppError("Payment not found");
 
     return Result.ok(data[0]);
   },

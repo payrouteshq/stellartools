@@ -5,6 +5,7 @@ import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/or
 import { Network, Product, ProductStatus, assets, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { createTrustlines } from "@/integrations/stellar-core";
+import { AppError } from "@/lib/error-handler";
 import { generateResourceId } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
 
@@ -33,7 +34,7 @@ export const postProduct = async (
   const asset = assets.find((asset) => asset.code === params.assetCode);
 
   if (!asset) {
-    throw new Error(`Asset ${params.assetCode} not found`);
+    throw new AppError(`Asset ${params.assetCode} not found`);
   }
 
   const [product] = await db
@@ -101,7 +102,7 @@ export const putProduct = async (id: string, organizationId: string, retUpdate: 
   const asset = assets.find((asset) => asset.code === retUpdate.assetCode);
 
   if (!asset) {
-    throw new Error(`Asset ${retUpdate.assetCode} not found`);
+    throw new AppError(`Asset ${retUpdate.assetCode} not found`);
   }
 
   if (asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
