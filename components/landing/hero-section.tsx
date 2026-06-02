@@ -1,14 +1,38 @@
 "use client";
 
+import type { TCountryCode } from "countries-list";
+import * as CountryFlags from "country-flag-icons/react/3x2";
+import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import * as CountryFlags from "country-flag-icons/react/3x2";
-import type { TCountryCode } from "countries-list";
+import * as React from "react";
 
 const FLAG_CODES: TCountryCode[] = [
-  "US", "GB", "NG", "IN", "DE", "BR", "JP", "KE", "FR", "AU",
-  "CA", "SG", "ZA", "MX", "KR", "AE", "ID", "SE", "GH", "NL",
-  "AR", "EG", "IT", "ES", "PH",
+  "US",
+  "GB",
+  "NG",
+  "IN",
+  "DE",
+  "BR",
+  "JP",
+  "KE",
+  "FR",
+  "AU",
+  "CA",
+  "SG",
+  "ZA",
+  "MX",
+  "KR",
+  "AE",
+  "ID",
+  "SE",
+  "GH",
+  "NL",
+  "AR",
+  "EG",
+  "IT",
+  "ES",
+  "PH",
 ];
 
 function FlagStrip() {
@@ -48,21 +72,44 @@ function FlagStrip() {
   );
 }
 
+const WORDS = ["SaaS", "store", "startup", "API", "platform", "product"];
+
+function CyclingWord() {
+  const [index, setIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setIndex((i) => (i + 1) % WORDS.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <span className="relative inline-block">
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={WORDS[index]}
+          initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+          transition={{ duration: 0.38, ease: [0.25, 0.1, 0.25, 1] }}
+          className="text-secondary inline-block"
+        >
+          {WORDS[index]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
 export default function HeroSection() {
   return (
     <section className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center gap-12 px-6 pt-24 pb-20 lg:gap-20">
       <div className="flex flex-col items-center text-center">
-        <h1 className="text-foreground mb-6 text-[clamp(38px,5vw,62px)] leading-[1.1] font-extrabold tracking-normal">
-          Global payments shouldn&apos;t
-          <br />
-          take days and cost a fortune.
-          <br />
-          <span className="text-secondary">Now they don&apos;t.</span>
+        <h1 className="text-foreground mb-6 text-[clamp(38px,5vw,72px)] leading-[1.05] font-extrabold tracking-tight">
+          Run your <CyclingWord /> <span className="text-secondary">onchain.</span>
         </h1>
 
-        <p className="text-muted-foreground mx-auto mb-6 max-w-[580px] text-lg leading-relaxed font-normal">
-          Accept payments, manage subscriptions, issue refunds, and automate billing. A complete payments platform your
-          customers interact with in seconds.
+        <p className="text-muted-foreground mx-auto mb-6 max-w-[520px] text-lg leading-relaxed font-normal">
+          Accept payments, manage subscriptions, issue refunds, and automate billing on the Stellar blockchain.
         </p>
 
         <div className="mb-8 flex flex-col items-center gap-2">

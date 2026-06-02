@@ -8,6 +8,7 @@ import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import {
   AddUserIcon,
+  CheckMark,
   DollarIcon,
   GroupedUsersIcon,
   HourglassIcon,
@@ -76,6 +77,8 @@ export default function DashboardPage() {
 
   const { fiatRates, isLoading: isRatesLoading } = useAssetRates([{ code: "XLM", issuer: "native" }]);
 
+  console.log({ isRatesLoading, fiatRates });
+
   const currencyItems = React.useMemo<CurrencyItem[]>(() => {
     if (!fiatRates) return [];
     return Object.keys(fiatRates)
@@ -124,7 +127,9 @@ export default function DashboardPage() {
                 <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                   <PopoverTrigger asChild>
                     {isRatesLoading ? (
-                      <Spinner />
+                      <div className="flex h-9 w-max items-center justify-center">
+                        <Spinner strokeColor="var(--muted-foreground)" size={30} />
+                      </div>
                     ) : (
                       <Button
                         variant="outline"
@@ -157,6 +162,7 @@ export default function DashboardPage() {
                               <span className={cn("flex-1 truncate", selectedCode === item.code && "font-medium")}>
                                 {item.name} ({item.code})
                               </span>
+                              {selectedCode === item.code && <CheckMark className="text-foreground size-4 shrink-0" />}
                             </CommandItem>
                           ))}
                         </CommandGroup>

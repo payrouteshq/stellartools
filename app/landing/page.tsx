@@ -21,9 +21,9 @@ import { Header } from "@/components/ui/navbar";
 
 export default function Home() {
   return (
-    <div className="bg-background min-h-screen scroll-smooth">
+    <div className="force-light bg-background min-h-screen scroll-smooth">
       <LaunchBanner />
-      <AuroraBackground className="bg-background">
+      <AuroraBackground>
         <Header />
         <HeroSection />
       </AuroraBackground>
