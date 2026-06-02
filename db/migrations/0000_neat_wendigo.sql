@@ -22,6 +22,8 @@ CREATE TABLE "account" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"metadata" jsonb,
+	"two_factor_secret" text,
+	"two_factor_enabled" boolean DEFAULT false NOT NULL,
 	CONSTRAINT "account_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint

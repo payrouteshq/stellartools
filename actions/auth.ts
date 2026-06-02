@@ -175,7 +175,13 @@ export const accountValidator = safeAction(
       }
     }
 
-    // 3. Session Generation
+    // 3. Session Generation — skip if 2FA is required
+    if (account.twoFactorEnabled) {
+      const pendingToken = signJwt({ accountId: account.id, provider }, "5m");
+      await setCookies([{ key: "2fa_pending", value: pendingToken, maxAge: 5 * 60 }]);
+      return { requiresTwoFactor: true as const };
+    }
+
     const { accessToken, refreshToken } = await generateAndSetSession(account);
     await postAuth({
       accountId: account.id,
@@ -270,6 +276,7 @@ export const getCurrentUser = async () => {
       avatarUrl: account.profile?.avatarUrl || null,
     },
     createdAt: account.createdAt,
+    twoFactorEnabled: account.twoFactorEnabled,
   };
 };
 

@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
+import { disableTwoFactor, enableTwoFactor, generateTwoFactorSetup } from "@/actions/2fa";
 import { putOrganization, retrieveOrganization } from "@/actions/organization";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -24,9 +25,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { AppModal } from "@/components/app-modal";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import {
   UnderlineTabs,
@@ -37,9 +42,10 @@ import {
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext } from "@/hooks/use-org-query";
 import { fileFromUrl } from "@/lib/utils";
+import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, ChevronRight, ExternalLink, Save } from "lucide-react";
+import { Calendar, ChevronRight, ExternalLink, ShieldCheck, ShieldOff } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -396,6 +402,209 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
   );
 };
 
+const SetupModalContent = ({
+  userId,
+  setupData,
+  onSuccess,
+}: {
+  userId: string;
+  setupData: { secret: string; qrCodeDataUrl: string };
+  onSuccess: () => void;
+}) => {
+  const [code, setCode] = React.useState("");
+
+  const enableMutation = useMutation({
+    mutationFn: (c: string) => execute(enableTwoFactor(userId, setupData.secret, c)),
+    onSuccess: () => {
+      toast.success("Two-factor authentication enabled");
+      onSuccess();
+      AppModal.close();
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to enable 2FA"),
+  });
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <img src={setupData.qrCodeDataUrl} alt="2FA QR Code" className="h-48 w-48 rounded-lg border" />
+      <div className="bg-muted w-full rounded-md px-3 py-2 text-center">
+        <p className="text-muted-foreground mb-1 text-xs">Manual entry key</p>
+        <p className="break-all font-mono text-sm tracking-widest">{setupData.secret}</p>
+      </div>
+      <div className="w-full space-y-2">
+        <p className="text-center text-sm font-medium">Enter verification code</p>
+        <div className="flex justify-center">
+          <InputOTP
+            maxLength={6}
+            pattern="^[0-9]+$"
+            value={code}
+            onChange={setCode}
+            onComplete={(val) => enableMutation.mutate(val)}
+            disabled={enableMutation.isPending}
+            autoFocus
+          >
+            <InputOTPGroup>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <InputOTPSlot key={i} index={i} />
+              ))}
+            </InputOTPGroup>
+          </InputOTP>
+        </div>
+      </div>
+      <div className="flex w-full justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={() => AppModal.close()} disabled={enableMutation.isPending}>
+          Cancel
+        </Button>
+        <Button
+          onClick={() => enableMutation.mutate(code)}
+          isLoading={enableMutation.isPending}
+          disabled={code.length !== 6 || enableMutation.isPending}
+        >
+          Enable 2FA
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const DisableModalContent = ({
+  userId,
+  onSuccess,
+}: {
+  userId: string;
+  onSuccess: () => void;
+}) => {
+  const [code, setCode] = React.useState("");
+
+  const disableMutation = useMutation({
+    mutationFn: (c: string) => execute(disableTwoFactor(userId, c)),
+    onSuccess: () => {
+      toast.success("Two-factor authentication disabled");
+      onSuccess();
+      AppModal.close();
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to disable 2FA"),
+  });
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex justify-center">
+        <InputOTP
+          maxLength={6}
+          pattern="^[0-9]+$"
+          value={code}
+          onChange={setCode}
+          onComplete={(val) => disableMutation.mutate(val)}
+          disabled={disableMutation.isPending}
+          autoFocus
+        >
+          <InputOTPGroup>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <InputOTPSlot key={i} index={i} />
+            ))}
+          </InputOTPGroup>
+        </InputOTP>
+      </div>
+      <div className="flex w-full justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={() => AppModal.close()} disabled={disableMutation.isPending}>
+          Cancel
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={() => disableMutation.mutate(code)}
+          isLoading={disableMutation.isPending}
+          disabled={code.length !== 6 || disableMutation.isPending}
+        >
+          Disable 2FA
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const SecurityTabContent = ({ user }: { user: User }) => {
+  const queryClient = useQueryClient();
+
+  const setupMutation = useMutation({
+    mutationFn: () => execute(generateTwoFactorSetup(user.id)),
+    onSuccess: (data) => {
+      const setupData = data as { secret: string; qrCodeDataUrl: string };
+      AppModal.open({
+        title: "Set up two-factor authentication",
+        description:
+          "Scan the QR code with Google Authenticator (or any TOTP app), then enter the 6-digit code to confirm.",
+        size: "small",
+        content: (
+          <SetupModalContent
+            userId={user.id}
+            setupData={setupData}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["current-user"] })}
+          />
+        ),
+      });
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to generate setup"),
+  });
+
+  const isTwoFactorEnabled = user.twoFactorEnabled ?? false;
+
+  const handleToggle = (checked: boolean) => {
+    if (checked) {
+      setupMutation.mutate();
+    } else {
+      AppModal.open({
+        title: "Disable two-factor authentication",
+        description: "Enter the current 6-digit code from your authenticator app to confirm.",
+        size: "small",
+        content: (
+          <DisableModalContent
+            userId={user.id}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["current-user"] })}
+          />
+        ),
+      });
+    }
+  };
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              {isTwoFactorEnabled ? (
+                <ShieldCheck className="text-primary h-5 w-5" />
+              ) : (
+                <ShieldOff className="text-muted-foreground h-5 w-5" />
+              )}
+              Two-Factor Authentication
+            </CardTitle>
+            <CardDescription>
+              Add an extra layer of security by requiring a verification code from your authenticator app on each
+              sign-in.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={isTwoFactorEnabled}
+              onCheckedChange={handleToggle}
+              disabled={setupMutation.isPending}
+              aria-label="Toggle two-factor authentication"
+            />
+          </div>
+        </div>
+      </CardHeader>
+      {isTwoFactorEnabled && (
+        <CardContent>
+          <p className="text-muted-foreground text-sm">
+            Your account is protected with Google Authenticator (TOTP). You will need your authenticator app every time
+            you sign in.
+          </p>
+        </CardContent>
+      )}
+    </Card>
+  );
+};
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useCookieState("settings_tab", "profile");
   const { data: orgContext } = useOrgContext();
@@ -439,6 +648,7 @@ export default function SettingsPage() {
                 <UnderlineTabsTrigger value="profile">Profile</UnderlineTabsTrigger>
                 <UnderlineTabsTrigger value="organization">Organization</UnderlineTabsTrigger>
                 <UnderlineTabsTrigger value="api">API Keys</UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="security">Security</UnderlineTabsTrigger>
               </UnderlineTabsList>
 
               <UnderlineTabsContent value="profile" className="mt-6 space-y-6">
@@ -461,6 +671,14 @@ export default function SettingsPage() {
                     <Skeleton className="h-64 w-full rounded-lg" />
                   </div>
                 ) : null}
+              </UnderlineTabsContent>
+
+              <UnderlineTabsContent value="security" className="mt-6 space-y-6">
+                {user ? (
+                  <SecurityTabContent key={user.id} user={user} />
+                ) : (
+                  <Skeleton className="h-32 w-full rounded-lg" />
+                )}
               </UnderlineTabsContent>
 
               <UnderlineTabsContent value="api" className="mt-6 space-y-6">
