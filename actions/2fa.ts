@@ -12,7 +12,6 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 interface PendingTwoFactorPayload {
-  purpose: string;
   accountId: string;
   provider: string;
   iat: number;
@@ -77,10 +76,6 @@ export const completeTwoFactorSignIn = safeAction(async (code: string) => {
     throw new AppError("Session expired. Please sign in again.");
   }
 
-  if (payload.purpose !== "2fa_pending") {
-    await deleteCookies(["2fa_pending"]);
-    throw new AppError("Invalid session token. Please sign in again.");
-  }
 
   const account = await retrieveAccount({ id: payload.accountId });
   if (!account) throw new AppError("Account not found");
