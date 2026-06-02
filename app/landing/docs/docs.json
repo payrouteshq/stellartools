@@ -45,6 +45,11 @@
                   "integrations/betterauth",
                   "integrations/uploadthing"
                 ]
+              },
+              {
+                "group": "Plugins",
+                "expanded": false,
+                "pages": ["integrations/woocommerce"]
               }
             ]
           },

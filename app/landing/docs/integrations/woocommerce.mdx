@@ -1,0 +1,101 @@
+---
+title: "WooCommerce Plugin"
+description: "Accept Stellar blockchain payments in your WooCommerce store"
+---
+
+The StellarTools WooCommerce plugin adds Stellar-based payments to any WooCommerce store. Customers pay with USDC, EURC, or XLM through a hosted checkout page. Order status updates automatically when StellarTools confirms payment via webhook.
+
+## Requirements
+
+- WordPress 6.0 or later
+- WooCommerce 8.0 or later
+- A [StellarTools account](https://dashboard.stellartools.dev/signup) with an API key and webhook secret
+
+## Installation
+
+### Step 1 Navigate to Add Plugin
+
+In your WordPress admin sidebar, go to **Plugins** then click the **Add Plugin** button at the top of the page.
+
+<img src="/images/addpluginbutton.png" alt="Plugins page with Add Plugin button highlighted" />
+
+### Step 2 Upload and install
+
+On the Add Plugins screen, click **Upload Plugin**, select your `stellartools.zip` file, then click **Install Now**.
+
+<img src="/images/installplugin.png" alt="Upload Plugin form showing steps 1, 2, 3" />
+
+### Step 3 Activate the plugin
+
+After the upload completes, click **Activate Plugin**.
+
+<img src="/images/activateplugin.png" alt="Plugin installed successfully with Activate Plugin button" />
+
+StellarTools will now appear in your installed plugins list.
+
+<img src="/images/pluginactivated.png" alt="Plugins list showing StellarTools as active" />
+
+## Configuration
+
+### Step 4 Open WooCommerce payment settings
+
+In the sidebar go to **WooCommerce → Settings**, click the **Payments** tab, and find StellarTools in the list. Click **Manage** to open the gateway settings.
+
+<img src="/images/paymentoption.png" alt="WooCommerce Payments tab with StellarTools active and Manage button highlighted" />
+
+### Step 5 Enter your credentials
+
+Fill in the fields highlighted below and save.
+
+<img src="/images/keysadons.png" alt="StellarTools gateway settings panel" />
+
+<ParamField body="API Key" type="string" required>
+  Your StellarTools secret key. Test keys begin with `sk_test_`; live keys begin with `sk_live_`. Find yours in the [StellarTools dashboard](https://dashboard.stellartools.dev/api-keys).
+</ParamField>
+
+<ParamField body="StellarTools API URL" type="string">
+  Leave as `https://api.stellartools.dev` unless you are self-hosting. No trailing slash.
+</ParamField>
+
+<ParamField body="Webhook Signing Secret" type="string" required>
+  Copy the signing secret from your webhook endpoint in the [StellarTools dashboard](https://dashboard.stellartools.dev/webhooks). Your webhook URL is shown inline directly in the settings page copy it from there.
+</ParamField>
+
+<ParamField body="Payment Asset" type="string">
+  The Stellar asset customers will pay in. Options: **USDC**, **EURC**, **XLM**.
+</ParamField>
+
+<ParamField body="Order Status on Payment Confirmed" type="string">
+  WooCommerce status to set when payment is confirmed. Use **Processing** for physical goods that need fulfilment; use **Completed** for digital or virtual products.
+</ParamField>
+
+<ParamField body="Debug Logging" type="boolean">
+  Writes API requests and webhook events to WooCommerce → Status → Logs. Enable during setup, disable in production.
+</ParamField>
+
+### Step 6 Register the webhook in StellarTools
+
+Copy the webhook URL displayed in the settings panel and add it as a new endpoint in the [StellarTools dashboard](https://dashboard.stellartools.dev/webhooks). Enable at minimum the `payment.confirmed` and `payment.failed` events.
+
+## How it works
+
+Once configured, **Pay with Stellar (Crypto)** appears as a payment option on the WooCommerce checkout page.
+
+<img src="/images/checkoutoption.png" alt="WooCommerce checkout page showing Pay with Stellar option selected" />
+
+After clicking **Place Order** the customer is redirected to the StellarTools hosted payment page to complete the payment on the Stellar blockchain. On return they land on the WooCommerce order confirmation page.
+
+<img src="/images/orderconfirm.png" alt="Order received confirmation page" />
+
+StellarTools fires a `payment.confirmed` webhook to your site. The plugin verifies the signature, resolves the WooCommerce order, and updates the status automatically.
+
+<img src="/images/ordercompleted.png" alt="WooCommerce orders list showing order marked as Completed" />
+
+## Webhook events
+
+| Event | WooCommerce action |
+|---|---|
+| `payment.confirmed` | Order moves to Processing or Completed (per your setting), payment ID and transaction hash saved to order meta |
+| `payment.failed` | Order moves to Failed |
+
+Signatures are verified with HMAC-SHA256 using your webhook signing secret. Requests with invalid signatures or timestamps outside a 5-minute window are rejected with HTTP 400.
