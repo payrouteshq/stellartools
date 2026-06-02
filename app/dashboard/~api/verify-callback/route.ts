@@ -85,7 +85,10 @@ export async function GET(req: NextRequest) {
       { ...stateData }
     );
 
-    console.log({ account });
+    if (account && "requiresTwoFactor" in account && account.requiresTwoFactor) {
+      const next = stateData.next ? `?next=${encodeURIComponent(stateData.next)}` : "";
+      return NextResponse.redirect(new URL(`/2fa${next}`, process.env.NEXT_PUBLIC_DASHBOARD_URL!));
+    }
 
     return NextResponse.redirect(new URL(stateData.next ?? "/", process.env.NEXT_PUBLIC_DASHBOARD_URL!));
   } catch (error) {
