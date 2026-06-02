@@ -47,7 +47,11 @@ export default function SignIn() {
           intent: "SIGN_IN",
         })
       ),
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
+      if (data && "requiresTwoFactor" in data && data.requiresTwoFactor) {
+        window.location.href = `/2fa${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+        return;
+      }
       identifyUser(variables.email, { email: variables.email, authMethod: "local" });
       capture("user_signed_in", { email: variables.email, auth_method: "local" });
       toast.success("Logged in successfully");
