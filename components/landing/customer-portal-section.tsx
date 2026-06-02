@@ -96,7 +96,7 @@ export default function CustomerPortalSection() {
                         <Badge className="text-[10px]">Active</Badge>
                       </div>
                       <p className="text-muted-foreground text-xs">Renews Jun 1, 2026</p>
-                      <p className="text-muted-foreground text-xs">Visa •••• 4242</p>
+                      <p className="text-muted-foreground text-xs">GHX••••XTYE</p>
                     </div>
                     <div className="flex gap-1.5">
                       <Button variant="ghost" size="sm" disabled className="h-7 text-xs">
