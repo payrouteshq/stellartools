@@ -28,11 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { STROOPS_PER_XLM, cn } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import _ from "lodash";
 import { ChevronRight, Copy, ExternalLink, MoreHorizontal, Pause, Play, XCircle } from "lucide-react";
 import moment from "moment";
@@ -98,9 +98,10 @@ export default function SubscriptionDetailPage() {
 
   const subscriptionPayments = React.useMemo(() => payments.filter((p) => p.subscriptionId === id), [payments, id]);
 
-  // Mutations
-  const mutation = useMutation({
-    mutationFn: async ({ path, method = "POST" }: { path: string; method?: "POST" | "PUT" }) => {
+  const isEditMode = !!sub?.subscription.id;
+
+  const { mutate: updateSubscription } = useAction(
+    async ({ path, method = "POST" }: { path: string; method?: "POST" | "PUT" }) => {
       if (!orgContext?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -112,12 +113,8 @@ export default function SubscriptionDetailPage() {
       if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
     },
-    onSuccess: (_, variables) => {
-      toast.success(`Subscription ${variables.path.replace("/", "")}d`);
-      invalidate(["subscriptions"]);
-    },
-    onError: (e) => toast.error(e.message),
-  });
+    { successMsg: `Subscription ${isEditMode ? "updated" : "created"}`, invalidate: ["subscriptions"] }
+  );
 
   // Modal Sync
   const submitRef = React.useRef<(() => void) | null>(null);
@@ -138,10 +135,7 @@ export default function SubscriptionDetailPage() {
             productName: sub.product.name,
             productPrice: sub.product.priceAmount,
           }}
-          onSuccess={() => {
-            invalidate(["subscriptions"]);
-            AppModal.close();
-          }}
+          onSuccess={() => AppModal.close()}
           setSubmitRef={submitRef}
           onFooterChange={setFooterState}
         />
@@ -215,17 +209,20 @@ export default function SubscriptionDetailPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {["active", "trialing"].includes(s.status) && (
-                    <DropdownMenuItem onClick={() => mutation.mutate({ path: "/pause" })}>
+                    <DropdownMenuItem onClick={() => updateSubscription({ path: "/pause" })}>
                       <Pause className="mr-2 h-4 w-4" /> Pause
                     </DropdownMenuItem>
                   )}
                   {s.status === "paused" && (
-                    <DropdownMenuItem onClick={() => mutation.mutate({ path: "/resume" })}>
+                    <DropdownMenuItem onClick={() => updateSubscription({ path: "/resume" })}>
                       <Play className="mr-2 h-4 w-4" /> Resume
                     </DropdownMenuItem>
                   )}
                   {s.status !== "canceled" && (
-                    <DropdownMenuItem onClick={() => mutation.mutate({ path: "/cancel" })} className="text-destructive">
+                    <DropdownMenuItem
+                      onClick={() => updateSubscription({ path: "/cancel" })}
+                      className="text-destructive"
+                    >
                       <XCircle className="mr-2 h-4 w-4" /> Cancel
                     </DropdownMenuItem>
                   )}

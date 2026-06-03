@@ -15,13 +15,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { STROOPS_PER_XLM, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import moment from "moment";
 import * as RHF from "react-hook-form";
@@ -78,15 +77,13 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
   const price = selectedProd?.product.priceAmount ?? editingSubscription?.productPrice ?? 0;
   const billingStart = form.watch("billStarting");
 
-  const mutation = useMutation({
-    mutationFn: async (data: SubscriptionFormData) => {
+  const { mutate: createSubscriptionAction, isPending: isCreatingSubscription } = useAction(
+    async (data: SubscriptionFormData) => {
       if (!org) throw new AppError("No organization context found");
-
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_APP_URL!,
         headers: { "x-session-token": org?.token! },
       });
-
       const metadata = data.metadata.reduce(
         (acc, m) => {
           if (m.key) acc[m.key] = m.value;
@@ -104,20 +101,21 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
       if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
     },
-    onSuccess: () => {
-      toast.success(`Subscription ${isEditMode ? "updated" : "created"}`);
-      onSuccess();
-    },
-    onError: (e) => toast.error(e.message),
-  });
+    {
+      invalidate: ["subscriptions"],
+      successMsg: `Subscription ${isEditMode ? "updated" : "created"}`,
+      errorMsg: "Failed to create subscription",
+      onSuccess: onSuccess,
+    }
+  );
 
   React.useEffect(() => {
-    if (setSubmitRef) setSubmitRef.current = form.handleSubmit((d) => mutation.mutate(d));
-  }, [form, mutation, setSubmitRef]);
+    if (setSubmitRef) setSubmitRef.current = form.handleSubmit((d) => createSubscriptionAction(d));
+  }, [form, createSubscriptionAction, setSubmitRef]);
 
   React.useEffect(() => {
-    onFooterChange?.({ isPending: mutation.isPending });
-  }, [mutation.isPending, onFooterChange]);
+    onFooterChange?.({ isPending: isCreatingSubscription });
+  }, [isCreatingSubscription, onFooterChange]);
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-7">

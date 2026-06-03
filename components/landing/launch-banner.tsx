@@ -4,12 +4,10 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { appendToGoogleSheet } from "@/integrations/google-sheet";
-import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { Rocket, X } from "lucide-react";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
@@ -43,23 +41,20 @@ export function LaunchBanner() {
     setTimeout(() => setDismissed(true), 400);
   };
 
-  const { mutate: submitEmail, isPending } = useMutation({
-    mutationFn: (data: FormValues) =>
-      execute(
-        appendToGoogleSheet(process.env.NEXT_PUBLIC_LEADS_SHEET_ID!, "A1:B1", [[data.email, new Date().toISOString()]])
-      ),
-    onSuccess: () => {
-      form.reset();
-      setTimeout(() => {
-        setSubmitted(true);
-        setVisible(false);
-        setTimeout(() => setDismissed(true), 400);
-      }, 2500);
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+  const { mutate: submitEmail, isPending } = useAction(
+    (data: FormValues) =>
+      appendToGoogleSheet(process.env.NEXT_PUBLIC_LEADS_SHEET_ID!, "A1:B1", [[data.email, new Date().toISOString()]]),
+    {
+      onSuccess: () => {
+        form.reset();
+        setTimeout(() => {
+          setSubmitted(true);
+          setVisible(false);
+          setTimeout(() => setDismissed(true), 400);
+        }, 2500);
+      },
+    }
+  );
 
   if (dismissed) return null;
 

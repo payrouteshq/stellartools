@@ -17,10 +17,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Slider } from "@/components/ui/slider";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
-import { execute } from "@/lib/action-handler";
-import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, Package, Search } from "lucide-react";
 import Link from "next/link";
@@ -130,17 +128,16 @@ export default function UsagePage() {
 
   const { data: rawBalances = [], isLoading } = useOrgQuery(["credit-balances"], () => retrieveCreditBalances());
 
-  const revokeMutation = useMutation({
-    mutationFn: async (params: { id: string; revoke: boolean }) => {
-      await execute(putCreditBalance(params.id, { isRevoked: params.revoke }));
-      return { success: true, revoke: params.revoke };
+  const { mutate: revokeAccess, isPending: isRevoking } = useAction(
+    async ({ id, revoke }: { id: string; revoke: boolean }) => {
+      await putCreditBalance(id, { isRevoked: revoke });
+      return { success: true, revoke };
     },
-    onSuccess: (params) => {
-      toast.success(params.revoke ? "Access revoked successfully" : "Access restored successfully");
-      invalidate(["credit-balances"]);
-    },
-    onError: (error) => toast.error(error.message ?? "Operation failed"),
-  });
+    {
+      invalidate: ["credit-balances"],
+      successMsg: "Access revoked successfully",
+    }
+  );
 
   const usageRecords: UsageRecord[] = rawBalances.map((b) => ({
     id: b.id,
@@ -205,7 +202,7 @@ export default function UsagePage() {
           primaryButton: {
             children: "Revoke access",
             variant: "destructive",
-            onClick: () => revokeMutation.mutate({ id: record.id, revoke: true }),
+            onClick: () => revokeAccess({ id: record.id, revoke: true }),
           },
           secondaryButton: { children: "Cancel" },
           size: "small",
@@ -218,7 +215,7 @@ export default function UsagePage() {
     {
       label: "Restore access",
       onClick: (record) => {
-        revokeMutation.mutate({ id: record.id, revoke: false });
+        revokeAccess({ id: record.id, revoke: false });
       },
       variant: "destructive",
       when: (record) => record.isRevoked,
