@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { Customer } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useFilePreview } from "@/hooks/use-file-preview";
-import { useInvalidateOrgQuery, useOrgContext } from "@/hooks/use-org-query";
+import { useOrgContext } from "@/hooks/use-org-query";
 import { AppError, execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -50,7 +50,6 @@ type CustomerFormData = z.infer<typeof customerSchema>;
 
 export function CustomerModalContent({
   onClose,
-  onSuccess,
   customer,
 }: {
   onClose: () => void;
@@ -59,7 +58,6 @@ export function CustomerModalContent({
 }) {
   const isEditMode = !!customer;
   const { data: org } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
   const { file: avatarFile, isLoading: isLoadingAvatar } = useFilePreview(customer?.image);
 
   const form = RHF.useForm({

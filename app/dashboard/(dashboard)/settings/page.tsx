@@ -382,7 +382,7 @@ const $2faModal = ({
         </div>
       )}
 
-      <div className="w-full space-y-4">
+      <div className="flex w-full flex-col items-center gap-4">
         {!isEnabling && (
           <p className="text-muted-foreground text-center text-sm">Enter your code to confirm deactivation.</p>
         )}
@@ -391,38 +391,37 @@ const $2faModal = ({
           control={form.control}
           name="code"
           render={({ field, fieldState: { error } }) => (
-            <div className="flex w-full flex-col justify-center gap-2">
+            <div className="flex flex-col items-center gap-2">
               <InputOTP
                 maxLength={6}
                 value={field.value}
                 onChange={field.onChange}
-                onComplete={() => {
-                  form.handleSubmit((d) => toggle(d.code))();
-                }}
                 disabled={isPending || form.formState.isSubmitting}
               >
                 <InputOTPGroup>
                   {[...Array(6)].map((_, i) => (
-                    <InputOTPSlot key={i} index={i} className="size-12 text-lg" />
+                    <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
-
-              {error && <p className="text-destructive text-xs">{error.message}</p>}
+              {error && <p className="text-destructive text-center text-xs">{error.message}</p>}
             </div>
           )}
         />
 
-        <Button variant="outline" onClick={() => AppModal.close()} disabled={isEnabling}>
-          Cancel
-        </Button>
-        <Button
-          onClick={() => form.handleSubmit((d) => toggle(d.code))}
-          isLoading={isPending}
-          disabled={form.formState.isSubmitting || isEnabling}
-        >
-          {isEnabling ? "Verify & Enable" : "Confirm Disable"}
-        </Button>
+        <div className="flex w-full gap-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1"
+            isLoading={isPending}
+            disabled={isPending || form.formState.isSubmitting}
+          >
+            {isEnabling ? "Verify & Enable" : "Confirm Disable"}
+          </Button>
+        </div>
       </div>
     </form>
   );
