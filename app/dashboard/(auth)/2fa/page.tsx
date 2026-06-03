@@ -59,7 +59,7 @@ export default function TwoFactorPage() {
               >
                 <InputOTPGroup>
                   {[...Array(6)].map((_, i) => (
-                    <InputOTPSlot key={i} index={i} className="size-12 text-lg" />
+                    <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
@@ -68,14 +68,6 @@ export default function TwoFactorPage() {
             </div>
           )}
         />
-        <Button
-          type="submit"
-          className="w-full rounded-md font-semibold transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-          isLoading={isVerifying}
-          disabled={form.formState.isSubmitting || isVerifying}
-        >
-          Verify
-        </Button>
       </form>
 
       <p className="text-muted-foreground text-center text-sm">
