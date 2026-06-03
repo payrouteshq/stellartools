@@ -86,15 +86,17 @@ const AppModalUI = ({
                 {description && <DialogDescription className="text-base">{description}</DialogDescription>}
               </DialogHeader>
 
-              <div
-                className={cn(
-                  "min-h-0 min-w-0 px-6 py-6",
-                  size === "full" && "flex flex-1 flex-col overflow-y-auto",
-                  size !== "full" && "flex-1 overflow-auto"
-                )}
-              >
-                {content}
-              </div>
+              {content && (
+                <div
+                  className={cn(
+                    "min-h-0 min-w-0 px-6 py-6",
+                    size === "full" && "flex flex-1 flex-col overflow-y-auto",
+                    size !== "full" && "flex-1 overflow-auto"
+                  )}
+                >
+                  {content}
+                </div>
+              )}
 
               {footer && <DialogFooter className="bg-muted/30 shrink-0 border-t px-6 py-4">{footer}</DialogFooter>}
             </motion.div>

@@ -50,6 +50,10 @@ export type AccountProfile = {
   avatarUrl?: string;
 };
 
+export type AccountMetadata = {
+  pending2faSecret?: string;
+};
+
 export const accounts = pgTable("account", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -57,7 +61,7 @@ export const accounts = pgTable("account", {
   sso: jsonb("sso").$type<{ values: Array<AccountSSOOption> }>().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  metadata: jsonb("metadata").$type<object | null>(),
+  metadata: jsonb("metadata").$type<AccountMetadata | null>(),
   $2faSecret: text("$2fa_secret"),
 });
 

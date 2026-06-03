@@ -23,7 +23,16 @@ export const setup2fa = safeAction(async (accountId: string) => {
   const account = await retrieveAccount({ id: accountId });
   if (!account) throw new AppError("Account not found");
 
-  const secret = generateSecret();
+  const existingEncrypted = account.metadata?.pending2faSecret as string | undefined;
+  const secret = existingEncrypted ? decrypt(existingEncrypted) : generateSecret();
+
+  if (!existingEncrypted) {
+    await db
+      .update(accounts)
+      .set({ metadata: { ...(account.metadata ?? {}), pending2faSecret: encrypt(secret) } })
+      .where(eq(accounts.id, accountId));
+  }
+
   const otpauthUrl = generateURI({ issuer: "StellarTools", label: account.email, secret });
   const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
 
@@ -50,10 +59,13 @@ export const toggle2fa = safeAction(
 
     if (!valid) throw new AppError("Invalid verification code");
 
+    const { pending2faSecret: _drop, ...cleanMetadata } = (account.metadata ?? {}) as any;
+
     await db
       .update(accounts)
       .set({
         $2faSecret: isEnabling ? encrypt(setupSecret) : null,
+        metadata: cleanMetadata,
         updatedAt: new Date(),
       })
       .where(eq(accounts.id, accountId));
@@ -61,6 +73,20 @@ export const toggle2fa = safeAction(
     return { success: true, enabled: isEnabling };
   }
 );
+
+export const reset2fa = safeAction(async (accountId: string) => {
+  const account = await retrieveAccount({ id: accountId });
+  if (!account) throw new AppError("Account not found");
+
+  const { pending2faSecret: _drop, ...cleanMetadata } = (account.metadata ?? {}) as any;
+
+  await db
+    .update(accounts)
+    .set({ $2faSecret: null, metadata: cleanMetadata, updatedAt: new Date() })
+    .where(eq(accounts.id, accountId));
+
+  return { success: true };
+});
 
 export const complete2fa = safeAction(async (code: string) => {
   const pendingToken = await getCookie("2fa_pending");
