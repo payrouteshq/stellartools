@@ -24,6 +24,7 @@ import {
 } from "@/components/underline-tabs";
 import { PayoutStatus } from "@/constant/schema.client";
 import { Payout } from "@/db";
+import { useAction } from "@/hooks/use-action";
 import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
@@ -31,7 +32,7 @@ import { AppError } from "@/lib/action-handler";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowRight, Banknote, CheckCircle2, Clock, ExternalLink, Plus, Wallet, XCircle } from "lucide-react";
 import moment from "moment";
@@ -379,16 +380,18 @@ function RequestPayoutModalContent({ onClose, onSuccess }: { onClose: () => void
   const { fiatRates, isLoading: isRatesLoading } = useAssetRates(assetsForRates);
 
   const isBankSupported = SUPPORTED_PAYOUT_COUNTRIES.includes(bankCountry as any);
-  const mutation = useMutation({
-    mutationFn: async (data: any) => {
+
+  const { mutate: requestPayoutAction, isPending: isRequestingPayout } = useAction(
+    async (data: any) => {
       await new Promise((r) => setTimeout(r, 1000));
       return data;
     },
-    onSuccess: () => {
-      toast.success("Payout requested!");
-      onSuccess();
-    },
-  });
+    {
+      invalidate: ["payouts"],
+      successMsg: "Payout requested!",
+      errorMsg: "Failed to request payout",
+    }
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -438,7 +441,7 @@ function RequestPayoutModalContent({ onClose, onSuccess }: { onClose: () => void
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={form.handleSubmit((d) => mutation.mutate(d))} isLoading={mutation.isPending}>
+            <Button onClick={form.handleSubmit((d) => requestPayoutAction(d))} isLoading={isRequestingPayout}>
               Request Payout
             </Button>
           </div>

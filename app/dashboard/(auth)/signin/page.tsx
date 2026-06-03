@@ -7,15 +7,13 @@ import { TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useAuth } from "@/hooks/use-auth";
-import { execute } from "@/lib/action-handler";
 import { capture, identifyUser } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -30,6 +28,7 @@ type SignInFormData = z.infer<typeof signInSchema>;
 
 export default function SignIn() {
   const [showPassword, setShowPassword] = React.useState(false);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
 
@@ -40,25 +39,26 @@ export default function SignIn() {
     defaultValues: { email: "", password: "" },
   });
 
-  const signinMutation = useMutation({
-    mutationFn: (data: SignInFormData) =>
-      execute(
-        accountValidator(data.email, { provider: "local", sub: data.password }, "SIGN_IN", undefined, {
-          intent: "SIGN_IN",
-        })
-      ),
-    onSuccess: (data, variables) => {
-      if (data && "requiresTwoFactor" in data && data.requiresTwoFactor) {
-        window.location.href = `/2fa${next ? `?next=${encodeURIComponent(next)}` : ""}`;
-        return;
-      }
-      identifyUser(variables.email, { email: variables.email, authMethod: "local" });
-      capture("user_signed_in", { email: variables.email, auth_method: "local" });
-      toast.success("Logged in successfully");
-      window.location.href = next ?? "/";
-    },
-    onError: (err: any) => toast.error(err.message || "Sign-in failed"),
-  });
+  const { mutate: signin, isPending: isSigning } = useAction(
+    (data: SignInFormData) =>
+      accountValidator(data.email, { provider: "local", sub: data.password }, "SIGN_IN", undefined, {
+        intent: "SIGN_IN",
+      }),
+    {
+      onSuccess: (data, variables) => {
+        identifyUser(variables.email, { email: variables.email, authMethod: "local" });
+        capture("user_signed_in", { email: variables.email, auth_method: "local" });
+        if (data && "requires2fa" in data && data.requires2fa) {
+          router.push(`/2fa${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+          return;
+        }
+
+        router.push(next ?? "/");
+      },
+      successMsg: "Logged in successfully",
+      errorMsg: "Failed to sign in",
+    }
+  );
 
   return (
     <AuthLayout
@@ -66,9 +66,9 @@ export default function SignIn() {
       subtitle="Sign in to your StellarTools account"
       error={error}
       onDismissError={() => setDismissedError(true)}
-      isPending={signinMutation.isPending}
+      isPending={isSigning}
       googleConfig={{ onClick: handleGoogleSignIn }}
-      onSubmit={form.handleSubmit((d) => signinMutation.mutate(d))}
+      onSubmit={form.handleSubmit((d) => signin(d))}
       alternateLink={
         <p className="text-muted-foreground text-sm">
           Don’t have an account?{" "}
@@ -140,7 +140,7 @@ export default function SignIn() {
       <Button
         type="submit"
         className="w-full rounded-md font-semibold transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-        isLoading={signinMutation.isPending}
+        isLoading={isSigning}
       >
         Sign in
       </Button>

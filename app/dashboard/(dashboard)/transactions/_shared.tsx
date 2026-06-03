@@ -6,14 +6,13 @@ import { retrieveCustomerWallets } from "@/actions/customers";
 import { SelectField } from "@/components/select-field";
 import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
 import { ResolvedPayment } from "@/db";
+import { useAction } from "@/hooks/use-action";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
 
@@ -64,40 +63,34 @@ export function RefundModalContent({
     if (payment?.wallets?.address) form.setValue("walletAddress", payment?.wallets?.address);
   }, [initialPaymentId, form, payment]);
 
-  const createRefundMutation = useMutation({
-    mutationFn: async (data: RefundFormData) => {
+  const { mutate: createRefund, isPending: isCreatingRefund } = useAction(
+    async (data: RefundFormData) => {
       if (!orgContext) throw new AppError("No organization context found");
-
       if (!data.walletAddress?.trim()) throw new AppError("Wallet address is required");
-
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext?.token! },
       });
-
       const result = await api.post<{ id: string }>("/refunds", {
         payment_id: data.paymentId,
         metadata: null,
         wallet_address: data.walletAddress,
         reason: data.reason ?? null,
       });
-
       if (result.isErr()) throw new AppError(result.error.message);
-
       return result.value;
     },
-    onSuccess: () => {
-      toast.success("Refund successful");
-      invalidate(["payments"]);
-      form.reset();
-      onSuccess();
-    },
-    onError: () => toast.error("Failed to create refund"),
-  });
+    {
+      onSuccess: () => form.reset(),
+      invalidate: ["payments"],
+      successMsg: "Refund successful",
+      errorMsg: "Failed to create refund",
+    }
+  );
 
   const submitForm = React.useCallback(() => {
-    form.handleSubmit((data) => createRefundMutation.mutate(data))();
-  }, [form, createRefundMutation]);
+    form.handleSubmit((data) => createRefund(data))();
+  }, [form, createRefund]);
 
   React.useEffect(() => {
     if (!setSubmitRef) return;
@@ -108,8 +101,8 @@ export function RefundModalContent({
   }, [setSubmitRef, submitForm]);
 
   React.useEffect(() => {
-    onFooterChange?.({ isPending: createRefundMutation.isPending });
-  }, [createRefundMutation.isPending, onFooterChange]);
+    onFooterChange?.({ isPending: isCreatingRefund });
+  }, [isCreatingRefund, onFooterChange]);
 
   return (
     <div className="flex flex-col gap-6">

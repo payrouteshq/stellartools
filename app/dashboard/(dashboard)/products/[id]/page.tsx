@@ -29,13 +29,12 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { stroopsToXlm } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import { ChevronRight, Copy, Edit, ExternalLink, MoreHorizontal, Package, Pencil } from "lucide-react";
 import moment from "moment";
 import Image from "next/image";
@@ -257,8 +256,8 @@ export default function ProductDetailPage() {
     });
   }, [productModalFooterProps.isPending, productModalFooterProps.isEditMode]);
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
+  const { mutate: deleteProductAction, isPending: isDeletingProduct } = useAction(
+    async () => {
       if (!org?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -269,14 +268,13 @@ export default function ProductDetailPage() {
       if (response.isErr()) throw new AppError(response.error.message);
       return response.value;
     },
-    onSuccess: () => {
-      invalidate(["products"]);
-      toast.success("Product deleted");
-      router.push("/products");
-      AppModal.close();
-    },
-    onError: (e: Error) => toast.error(e.message ?? "Failed to delete product"),
-  });
+    {
+      invalidate: ["products"],
+      successMsg: "Product deleted",
+      errorMsg: "Failed to delete product",
+      onSuccess: () => AppModal.close(),
+    }
+  );
 
   const openDeleteModal = React.useCallback(() => {
     if (!product) return;
@@ -287,14 +285,14 @@ export default function ProductDetailPage() {
       size: "medium",
       showCloseButton: true,
       primaryButton: {
-        children: deleteMutation.isPending ? "Deleting…" : "Delete",
+        children: isDeletingProduct ? "Deleting…" : "Delete",
         variant: "destructive",
-        onClick: () => deleteMutation.mutate(),
-        disabled: deleteMutation.isPending,
+        onClick: deleteProductAction,
+        disabled: isDeletingProduct,
       },
       secondaryButton: { children: "Cancel" },
     });
-  }, [product, deleteMutation]);
+  }, [product, deleteProductAction, isDeletingProduct]);
 
   if (isLoading) {
     return (

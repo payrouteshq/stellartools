@@ -38,6 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { Payment, ResolvedPayment } from "@/db";
+import { useAction } from "@/hooks/use-action";
 import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
@@ -46,7 +47,6 @@ import { AppError } from "@/lib/action-handler";
 import { cn, formatCurrency, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, Checkout } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import _ from "lodash";
 import {
@@ -642,15 +642,13 @@ function CheckoutModalContent({
     );
   }, [productsData]);
 
-  const mutation = useMutation({
-    mutationKey: ["checkout", customerId],
-    mutationFn: async (data: z.infer<typeof checkoutSchema>) => {
+  const { mutate: createCheckoutAction, isPending: isCreatingCheckout } = useAction(
+    async (data: z.infer<typeof checkoutSchema>) => {
       if (!orgContext) throw new AppError("No organization context found");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token! },
       });
-
       const response = await api.post<Checkout>("/checkout?type=product", {
         customer_id: customerId,
         customer_email: undefined,
@@ -664,25 +662,26 @@ function CheckoutModalContent({
       if (response.isErr()) {
         throw new AppError(response.error.message);
       }
-
       return response.value as Checkout;
     },
-    onSuccess: async (data: any) => {
-      invalidate(["payments", customerId]);
-      invalidate(["customer-events", customerId]);
-      toast.success("Checkout created");
-      const baseUrl =
-        (typeof process.env.NEXT_PUBLIC_CHECKOUT_URL === "string" && process.env.NEXT_PUBLIC_CHECKOUT_URL.trim()) ||
-        (typeof window !== "undefined" ? window.location.origin : "");
-      let checkoutID = data?.data?.id;
-      const url = baseUrl ? `${baseUrl.replace(/\/$/, "")}/${checkoutID}` : checkoutID;
-      setCreatedUrl(url);
-    },
-  });
+    {
+      invalidate: [["payments"], ["customer-events", customerId]],
+      successMsg: "Checkout created",
+      errorMsg: "Failed to create checkout",
+      onSuccess: (data: any) => {
+        const baseUrl =
+          (typeof process.env.NEXT_PUBLIC_CHECKOUT_URL === "string" && process.env.NEXT_PUBLIC_CHECKOUT_URL.trim()) ||
+          (typeof window !== "undefined" ? window.location.origin : "");
+        let checkoutID = data?.data?.id;
+        const url = baseUrl ? `${baseUrl.replace(/\/$/, "")}/${checkoutID}` : checkoutID;
+        setCreatedUrl(url);
+      },
+    }
+  );
 
   const submitForm = React.useCallback(() => {
-    form.handleSubmit((d) => mutation.mutate(d))();
-  }, [form, mutation]);
+    form.handleSubmit((d) => createCheckoutAction(d))();
+  }, [form, createCheckoutAction]);
 
   React.useEffect(() => {
     if (!setSubmitRef) return;
@@ -693,8 +692,8 @@ function CheckoutModalContent({
   }, [setSubmitRef, submitForm]);
 
   React.useEffect(() => {
-    onFooterChange?.({ isPending: mutation.isPending, createdUrl });
-  }, [mutation.isPending, createdUrl, onFooterChange]);
+    onFooterChange?.({ isPending: isCreatingCheckout, createdUrl });
+  }, [isCreatingCheckout, createdUrl, onFooterChange]);
 
   const showInlineFooter = !setSubmitRef;
 
@@ -709,7 +708,7 @@ function CheckoutModalContent({
               <Button variant="ghost" type="button" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button onClick={submitForm} isLoading={mutation.isPending}>
+              <Button onClick={submitForm} isLoading={isCreatingCheckout}>
                 Create Checkout
               </Button>
             </>
@@ -790,13 +789,12 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
 
   const { copied, handleCopy } = useCopy();
 
-  const mutation = useMutation({
-    mutationKey: ["portalLink", customerId],
-    mutationFn: async () => {
+  const { mutate: generatePortalLinkAction, isPending: isGeneratingPortalLink } = useAction(
+    async () => {
       if (!orgContext) throw new AppError("Organization context not found");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-        headers: { "x-session-token": orgContext?.token! },
+        headers: { "x-session-token": orgContext.token! },
       });
 
       const response = await api.post<{ url: string; token: string; expiresAt: Date }>(
@@ -809,20 +807,15 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
 
       return response.value;
     },
-    onSuccess: (data) => {
-      console.log({ data });
-      const generatedUrl = data?.url;
-      if (generatedUrl) {
-        setUrl(generatedUrl);
-        toast.success("Portal link generated");
-      } else {
-        toast.error("Failed to extract portal link from response");
-      }
-    },
-    onError: (error) => {
-      toast.error(error.message ?? "Failed to generate link");
-    },
-  });
+    {
+      invalidate: [["customer-portal", customerId]],
+      successMsg: "Portal link generated",
+      errorMsg: "Failed to generate portal link",
+      onSuccess: (data) => {
+        if (data?.url) setUrl(data?.url);
+      },
+    }
+  );
 
   const handleClose = () => {
     onClose();
@@ -864,7 +857,7 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
             <Button variant="ghost" type="button" onClick={handleClose}>
               Cancel
             </Button>
-            <Button onClick={() => mutation.mutate()} isLoading={mutation.isPending}>
+            <Button onClick={generatePortalLinkAction} isLoading={isGeneratingPortalLink}>
               Generate link
             </Button>
           </>

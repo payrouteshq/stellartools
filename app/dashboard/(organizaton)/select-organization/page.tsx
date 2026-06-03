@@ -15,16 +15,15 @@ import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
-import { execute } from "@/lib/action-handler";
+import { useAction } from "@/hooks/use-action";
 import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Building2, ChevronRight, Plus } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { FileRejection } from "react-dropzone";
 import * as RHF from "react-hook-form";
-import { useHotkeys } from "react-hotkeys-hook";
 import { z } from "zod";
 
 export default function SelectOrganizationPage() {
@@ -49,12 +48,6 @@ export default function SelectOrganizationPage() {
       description: "Set up your workspace to get started",
       content: (
         <CreateOrganizationModalContent
-          hasOrganizations={hasOrganizations}
-          onClose={AppModal.close}
-          onSuccess={() => {
-            AppModal.close();
-            router.push("/");
-          }}
           setSubmitRef={createModalSubmitRef}
           onFooterChange={setCreateModalFooterProps}
         />
@@ -239,15 +232,9 @@ const createOrganizationSchema = z.object({
 type CreateOrganizationFormData = z.infer<typeof createOrganizationSchema>;
 
 const CreateOrganizationModalContent = ({
-  hasOrganizations,
-  onClose,
-  onSuccess,
   setSubmitRef,
   onFooterChange,
 }: {
-  hasOrganizations: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
   setSubmitRef: React.MutableRefObject<(() => void) | null>;
   onFooterChange: (props: { isPending: boolean }) => void;
 }) => {
@@ -265,51 +252,43 @@ const CreateOrganizationModalContent = ({
 
   const fieldOrder = ["name", "description", "phoneNumber", "supportEmail", "physicalAddress"] as const;
 
-  const createOrgMutation = useMutation({
-    mutationFn: async (data: CreateOrganizationFormData) => {
+  const { mutate: createOrganization, isPending: isCreatingOrganization } = useAction(
+    async (data: CreateOrganizationFormData) => {
       const defaultEnvironment = "testnet" as const;
       const formData = new FormData();
-
       if (data.logo?.[0]) formData.append("logo", data.logo[0]);
-
-      return await execute(
-        postOrganizationAndSecret(
-          {
-            name: data.name,
-            phoneNumber: phoneNumberToString(data.phoneNumber),
-            description: data.description ?? null,
-            logoUrl: null,
-            settings: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            metadata: null,
-            address: null,
-            socialLinks: null,
-            supportEmail: null,
-          },
-          defaultEnvironment,
-          { formDataWithFiles: formData }
-        )
+      return await postOrganizationAndSecret(
+        {
+          name: data.name,
+          phoneNumber: phoneNumberToString(data.phoneNumber),
+          description: data.description ?? null,
+          logoUrl: null,
+          settings: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metadata: null,
+          address: null,
+          socialLinks: null,
+          supportEmail: null,
+        },
+        defaultEnvironment,
+        { formDataWithFiles: formData }
       );
     },
-    onSuccess: async (org) => {
-      if (org.success && "id" in org) {
-        const orgName = form.getValues("name");
-        identifyOrganization(org.id, { name: orgName, environment: "testnet", createdAt: new Date().toISOString() });
-        capture("organization_created", { org_id: org.id, org_name: orgName, environment: "testnet" });
-        toast.success("Organization created successfully");
-        await setCurrentOrganization(org.id);
-        form.reset();
-        onSuccess();
-      } else if (!org.success && "error" in org) {
-        toast.error(org.error as string);
-      }
-    },
-    onError: (error) => {
-      console.error(error);
-      toast.error("Failed to create organization");
-    },
-  });
+    {
+      onSuccess: (org) => {
+        if (org.success && "id" in org) {
+          form.reset();
+          const orgName = form.getValues("name");
+          identifyOrganization(org.id, { name: orgName, environment: "testnet", createdAt: new Date().toISOString() });
+          capture("organization_created", { org_id: org.id, org_name: orgName, environment: "testnet" });
+        } else if (!org.success && "error" in org) {
+          toast.error(org.error as string);
+        }
+      },
+      errorMsg: "Failed to create organization",
+    }
+  );
 
   const handleLogoRejected = (rejections: FileRejection[]) => {
     const firstError = rejections[0]?.errors[0];
@@ -318,7 +297,7 @@ const CreateOrganizationModalContent = ({
     }
   };
 
-  const handleSubmit = form.handleSubmit((data) => createOrgMutation.mutateAsync(data));
+  const handleSubmit = form.handleSubmit((data) => createOrganization(data));
   const submitForm = React.useCallback(async () => {
     const isValid = await form.trigger();
     if (isValid) handleSubmit();
@@ -332,8 +311,8 @@ const CreateOrganizationModalContent = ({
   }, [setSubmitRef, submitForm]);
 
   React.useEffect(() => {
-    onFooterChange({ isPending: createOrgMutation.isPending });
-  }, [createOrgMutation.isPending, onFooterChange]);
+    onFooterChange({ isPending: isCreatingOrganization });
+  }, [isCreatingOrganization, onFooterChange]);
 
   const focusNext = (current: (typeof fieldOrder)[number]) => {
     const next = fieldOrder[fieldOrder.indexOf(current) + 1];
@@ -350,7 +329,7 @@ const CreateOrganizationModalContent = ({
   return (
     <div className="flex flex-col gap-6">
       <form
-        onSubmit={form.handleSubmit((data) => createOrgMutation.mutateAsync(data))}
+        onSubmit={form.handleSubmit((data) => createOrganization(data))}
         className="grid h-full w-full gap-8 lg:grid-cols-2"
         noValidate
       >
@@ -372,7 +351,7 @@ const CreateOrganizationModalContent = ({
                     onFilesRejected={handleLogoRejected}
                     placeholder="Drag & drop your logo here, or click to select"
                     description="PNG, JPG up to 5MB"
-                    disabled={createOrgMutation.isPending}
+                    disabled={isCreatingOrganization}
                     dropzoneAccept={{
                       "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"],
                     }}
@@ -448,7 +427,7 @@ const CreateOrganizationModalContent = ({
                       value={phoneValue}
                       onChange={field.onChange}
                       error={(error as any)?.number?.message}
-                      disabled={createOrgMutation.isPending}
+                      disabled={isCreatingOrganization}
                       groupClassName="w-full shadow-none"
                       inputOnKeyDown={onEnter("phoneNumber")}
                     />

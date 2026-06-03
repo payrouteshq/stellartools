@@ -18,15 +18,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
 import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
 import { WebhookLog } from "@/db";
+import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCopy } from "@/hooks/use-copy";
 import { useOrgQuery } from "@/hooks/use-org-query";
-import { execute } from "@/lib/action-handler";
 import type { WebhookEvent, WebhookEventType } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, Clock, Copy, RefreshCw, XCircle } from "lucide-react";
 import moment from "moment";
@@ -120,8 +118,6 @@ export default function WebhookLogPage() {
   const [searchQuery, _] = React.useState("");
   const [statusFilter, setStatusFilter] = useCookieState("webhook_status_filter", "all");
 
-  console.log({ eventId });
-
   const {
     data: webhookLogs,
     isLoading: isLoadingWebhookLogs,
@@ -151,17 +147,15 @@ export default function WebhookLogPage() {
     }
   );
 
-  const resendMutation = useMutation({
-    mutationFn: ({ eventType, payload }: { eventType: WebhookEventType; payload: WebhookEvent }) =>
-      execute(resendWebhookLog(webhookId, eventType, payload)),
-    onSuccess: () => {
-      refetchWebhookLogs();
-      toast.success("Webhook resent successfully");
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to resend webhook");
-    },
-  });
+  const { mutate: resendWebhookLogAction, isPending: isResendingWebhookLog } = useAction(
+    async ({ eventType, payload }: { eventType: WebhookEventType; payload: WebhookEvent }) =>
+      resendWebhookLog(webhookId, eventType, payload),
+    {
+      onSuccess: () => refetchWebhookLogs(),
+      errorMsg: "Failed to resend webhook",
+      successMsg: "Webhook resent successfully",
+    }
+  );
 
   const getResendPayload = (log: { request?: unknown }): WebhookEvent => {
     const req = log.request;
@@ -176,7 +170,6 @@ export default function WebhookLogPage() {
 
     if (eventId && logs) {
       const targetLog = logs.find((l) => l.id === eventId);
-      console.log({ targetLog, logs });
       if (targetLog) return [targetLog];
     }
 
@@ -206,13 +199,13 @@ export default function WebhookLogPage() {
           <Button
             size="sm"
             onClick={() =>
-              resendMutation.mutate({
+              resendWebhookLogAction({
                 eventType: log.eventType as WebhookEventType,
                 payload: getResendPayload(log) as WebhookEvent,
               })
             }
-            disabled={resendMutation.isPending}
-            isLoading={resendMutation.isPending}
+            disabled={isResendingWebhookLog}
+            isLoading={isResendingWebhookLog}
           >
             Resend
           </Button>

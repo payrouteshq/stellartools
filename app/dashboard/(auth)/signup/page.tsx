@@ -7,15 +7,12 @@ import { TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useAuth } from "@/hooks/use-auth";
-import { execute } from "@/lib/action-handler";
 import { capture, identifyUser } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -31,7 +28,6 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = React.useState(false);
-  const searchParams = useSearchParams();
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
 
   const form = useForm<SignUpFormData>({
@@ -39,38 +35,36 @@ export default function SignUp() {
     defaultValues: { name: "", email: "", password: "" },
   });
 
-  const signupMutation = useMutation({
-    mutationFn: async (data: SignUpFormData) => {
+  const { mutate: signup, isPending: isSigning } = useAction(
+    (data: SignUpFormData) => {
       const [firstName, ...lastNameParts] = data.name.split(" ");
       const lastName = lastNameParts.join(" ");
 
-      return await execute(
-        accountValidator(
-          data.email,
-          { provider: "local", sub: data.password },
-          "SIGN_UP",
-          { firstName, lastName, avatarUrl: undefined },
-          { intent: "SIGN_UP" }
-        )
+      return accountValidator(
+        data.email,
+        { provider: "local", sub: data.password },
+        "SIGN_UP",
+        { firstName, lastName, avatarUrl: undefined },
+        { intent: "SIGN_UP" }
       );
     },
-    onSuccess: (_data, variables) => {
-      const [firstName, ...rest] = variables.name.trim().split(" ");
-      const lastName = rest.join(" ");
-      identifyUser(variables.email, {
-        email: variables.email,
-        name: variables.name,
-        firstName,
-        lastName,
-        authMethod: "local",
-        signedUpAt: new Date().toISOString(),
-      });
-      capture("user_signed_up", { email: variables.email, auth_method: "local" });
-      toast.success("Account created successfully");
-      window.location.href = "/";
-    },
-    onError: (err: any) => toast.error(err.message || "Sign-up failed"),
-  });
+    {
+      onSuccess: (_, variables) => {
+        const [firstName, ...lastNameParts] = variables.name.split(" ");
+        const lastName = lastNameParts.join(" ");
+        identifyUser(variables.email, {
+          email: variables.email,
+          name: variables.name,
+          firstName,
+          lastName,
+          authMethod: "local",
+        });
+        capture("user_signed_up", { email: variables.email, auth_method: "local" });
+      },
+      successMsg: "Account created successfully",
+      errorMsg: "Failed to create account",
+    }
+  );
 
   return (
     <AuthLayout
@@ -78,9 +72,9 @@ export default function SignUp() {
       subtitle="Create your StellarTools account"
       error={error}
       onDismissError={() => setDismissedError(true)}
-      isPending={signupMutation.isPending}
+      isPending={isSigning}
       googleConfig={{ onClick: handleGoogleSignIn }}
-      onSubmit={form.handleSubmit((d) => signupMutation.mutate(d))}
+      onSubmit={form.handleSubmit((d) => signup(d))}
       alternateLink={
         <p className="text-muted-foreground text-sm">
           Already have an account?{" "}
@@ -159,7 +153,7 @@ export default function SignUp() {
       <Button
         type="submit"
         className="w-full rounded-md font-semibold transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-        isLoading={signupMutation.isPending}
+        isLoading={isSigning}
       >
         Sign up
       </Button>

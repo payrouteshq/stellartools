@@ -22,12 +22,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { toast } from "@/components/ui/toast";
 import { UnderlineTabs, UnderlineTabsList, UnderlineTabsTrigger } from "@/components/underline-tabs";
+import { useAction } from "@/hooks/use-action";
 import { useCopy } from "@/hooks/use-copy";
-import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
-import { execute } from "@/lib/action-handler";
-import { useMutation } from "@tanstack/react-query";
+import { useOrgQuery } from "@/hooks/use-org-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowRight, ChevronRight, Copy, Package, RefreshCw, TrendingDown, TrendingUp, User } from "lucide-react";
 import Link from "next/link";
@@ -267,19 +265,19 @@ const columns: ColumnDef<UsageRecord>[] = [
 export default function UsageDetailPage() {
   const { id } = useParams()! as { id: string };
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
-  const invalidate = useInvalidateOrgQuery();
 
   const { data: balance } = useOrgQuery(["credit-balance", id], () => retrieveCreditBalanceById(id));
 
-  const restoreMutation = useMutation({
-    mutationFn: () => execute(putCreditBalance(id, { isRevoked: false })),
-    onSuccess: () => {
-      toast.success("Access restored successfully");
-      invalidate(["credit-balance", id]);
-      invalidate(["credit-balances"]);
+  const { mutate: restoreAccess, isPending: isRestoring } = useAction(
+    async ({ id, revoke }: { id: string; revoke: boolean }) => {
+      await putCreditBalance(id, { isRevoked: revoke });
+      return { success: true, revoke };
     },
-    onError: () => toast.error("Failed to restore access"),
-  });
+    {
+      invalidate: [["credit-balance", id], ["credit-balances"]],
+      successMsg: (data) => `Access ${data.revoke ? "revoked" : "restored"} successfully`,
+    }
+  );
 
   const { data: rawTransactions = [], isLoading } = useOrgQuery(["credit-transactions", id], () =>
     retrieveCreditTransactionsByBalance(id)
@@ -351,7 +349,6 @@ export default function UsageDetailPage() {
             </div>
           </LogDetailSection>
 
-          {/* Customer Information */}
           <LogDetailSection title="Customer Information">
             <div className="space-y-3">
               {record.customer ? (
@@ -375,7 +372,6 @@ export default function UsageDetailPage() {
             </div>
           </LogDetailSection>
 
-          {/* Product Information */}
           <LogDetailSection title="Product Information">
             <div className="space-y-3">
               {record.product ? (
@@ -396,7 +392,6 @@ export default function UsageDetailPage() {
             </div>
           </LogDetailSection>
 
-          {/* Record Details */}
           <LogDetailSection title="Record Details">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -418,7 +413,6 @@ export default function UsageDetailPage() {
             </div>
           </LogDetailSection>
 
-          {/* Metadata Section */}
           {record.metadata && (
             <LogDetailSection title="Metadata">
               <CodeBlock language="json" showCopyButton={true} maxHeight="300px">
@@ -436,7 +430,6 @@ export default function UsageDetailPage() {
       <DashboardSidebar>
         <DashboardSidebarInset>
           <div className="flex flex-col gap-6 p-6">
-            {/* Breadcrumbs */}
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -453,7 +446,6 @@ export default function UsageDetailPage() {
               </BreadcrumbList>
             </Breadcrumb>
 
-            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3">
@@ -483,15 +475,15 @@ export default function UsageDetailPage() {
                       ),
                       primaryButton: {
                         children: "Restore access",
-                        onClick: () => restoreMutation.mutate(),
+                        onClick: () => restoreAccess({ id, revoke: false }),
                       },
                       secondaryButton: { children: "Cancel" },
                       size: "small",
                       showCloseButton: false,
                     });
                   }}
-                  disabled={restoreMutation.isPending}
-                  isLoading={restoreMutation.isPending}
+                  disabled={isRestoring}
+                  isLoading={isRestoring}
                 >
                   Restore access
                 </Button>
@@ -620,6 +612,7 @@ export default function UsageDetailPage() {
                 detailPanelWidth={500}
                 emptyMessage="No usage records found"
                 className="h-full"
+                isLoading={isLoading}
               />
             </div>
           </div>

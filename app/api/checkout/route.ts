@@ -50,7 +50,7 @@ export const POST = async (req: NextRequest) => {
         return Result.err(new AppError("Unauthorized"));
       }
       const { customer_id, customer_email, customer_phone, metadata } = data;
-      console.log({data});
+      console.log({ data });
       const customer = await upsertCustomer(
         { id: customer_id, email: customer_email, phone: customer_phone },
         auth.organizationId,

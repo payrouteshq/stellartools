@@ -172,7 +172,7 @@ export const FileUpload = React.forwardRef<HTMLInputElement, FileUploadProps>(
 
           {isTransforming && (
             <div className="bg-background/80 absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-              <Spinner size={32} strokeColor="text-primary" />
+              <Spinner size={32} strokeColor="var(--muted-foreground)" />
               {shape == "square" && <p className="text-sm font-medium">Processing image...</p>}
             </div>
           )}

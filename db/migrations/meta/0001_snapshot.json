@@ -1,6 +1,6 @@
 {
-  "id": "9419642b-33af-45cc-9e20-fe56ac77f9c9",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "76042525-17cf-4adb-ba4a-e9af147515a4",
+  "prevId": "9419642b-33af-45cc-9e20-fe56ac77f9c9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -52,18 +52,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "two_factor_secret": {
-          "name": "two_factor_secret",
+        "$2fa_secret": {
+          "name": "$2fa_secret",
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "two_factor_enabled": {
-          "name": "two_factor_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         }
       },
       "indexes": {},

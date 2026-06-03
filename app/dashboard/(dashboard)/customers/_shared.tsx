@@ -22,14 +22,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "@/components/ui/toast";
 import { Customer } from "@/db";
-import { useInvalidateOrgQuery, useOrgContext } from "@/hooks/use-org-query";
+import { useAction } from "@/hooks/use-action";
+import { useFilePreview } from "@/hooks/use-file-preview";
+import { useOrgContext } from "@/hooks/use-org-query";
 import { AppError, execute } from "@/lib/action-handler";
-import { fileFromUrl } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import _ from "lodash";
 import { ArrowRight, Plus, Trash2 } from "lucide-react";
 import Papa from "papaparse";
@@ -51,7 +50,6 @@ type CustomerFormData = z.infer<typeof customerSchema>;
 
 export function CustomerModalContent({
   onClose,
-  onSuccess,
   customer,
 }: {
   onClose: () => void;
@@ -59,6 +57,9 @@ export function CustomerModalContent({
   customer?: Partial<Customer> | null;
 }) {
   const isEditMode = !!customer;
+  const { data: org } = useOrgContext();
+  const { file: avatarFile, isLoading: isLoadingAvatar } = useFilePreview(customer?.image);
+
   const form = RHF.useForm({
     resolver: zodResolver(customerSchema),
     defaultValues: {
@@ -68,31 +69,21 @@ export function CustomerModalContent({
       avatar: undefined,
       metadata: [],
     },
+    values: {
+      name: customer?.name ?? "",
+      email: customer?.email ?? "",
+      phoneNumber: customer?.phone ? phoneNumberFromString(customer.phone) : { number: "", countryCode: "US" },
+      avatar: avatarFile ?? undefined,
+      metadata: customer?.metadata
+        ? Object.entries(customer.metadata).map(([key, value]) => ({ key, value: String(value) }))
+        : [],
+    },
   });
-  const { data: org } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
 
   const { fields, append, remove } = RHF.useFieldArray({
     control: form.control,
     name: "metadata",
   });
-
-  React.useEffect(() => {
-    if (!customer?.image) return;
-
-    let revoked = false;
-    fileFromUrl(customer.image, "avatar.png").then((file) => {
-      if (revoked) return;
-      const withPreview = Object.assign(file, { preview: URL.createObjectURL(file) }) as FileWithPreview;
-      form.setValue("avatar", withPreview);
-    });
-
-    return () => {
-      revoked = true;
-      const current = form.getValues("avatar");
-      if (current?.preview) URL.revokeObjectURL(current.preview);
-    };
-  }, [customer?.image]);
 
   React.useEffect(() => {
     if (customer) {
@@ -121,17 +112,14 @@ export function CustomerModalContent({
     }
   }, [customer, form]);
 
-  const putCustomerMutation = useMutation({
-    mutationFn: async (data: CustomerFormData) => {
+  const { mutate: putCustomerAction, isPending: isPuttingCustomer } = useAction(
+    async (data: CustomerFormData) => {
       if (!org?.token) throw new AppError("No session token");
-
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token, "x-source": "Dashboard" },
       });
-
       const phoneString = data.phoneNumber.number ? phoneNumberToString(data.phoneNumber) : "";
-
       const metadataRecord = (data.metadata || []).reduce(
         (acc, item) => {
           if (item.key) {
@@ -141,16 +129,13 @@ export function CustomerModalContent({
         },
         {} as Record<string, string>
       );
-
       let imageUrl: string | undefined = customer?.image ?? undefined;
-
       if (data.avatar instanceof File) {
         const formdata = new FormData();
         formdata.append("image", data.avatar);
         const uploaded = await execute(createCustomerImage(formdata));
         if (uploaded) imageUrl = uploaded;
       }
-
       const payload = {
         name: data.name,
         email: data.email,
@@ -159,40 +144,28 @@ export function CustomerModalContent({
         ...(imageUrl !== undefined && { image: imageUrl }),
         wallets: [],
       };
-
       if (isEditMode) {
         const response = await api.put<Customer>(`/customers/${customer?.id}`, payload);
-
         if (response.isErr()) throw new AppError(response.error.message);
-
         return response.value;
       }
-
       const response = await api.post<Customer>("/customers", [payload]);
-
       if (response.isErr()) throw new AppError(response.error.message);
-
       return response.value;
     },
-    onSuccess: () => {
-      invalidate(["customers"]);
-      toast.success(isEditMode ? "Customer updated successfully" : "Customer created successfully");
-      form.reset();
-      onSuccess();
-    },
-    onError: (error: any) => {
-      console.error(error);
-      toast.error(isEditMode ? "Failed to update customer" : "Failed to create customer");
-    },
-  });
-
-  const onSubmit = (data: CustomerFormData) => {
-    putCustomerMutation.mutate(data);
-  };
+    {
+      invalidate: ["customers"],
+      successMsg: isEditMode ? "Customer updated successfully" : "Customer created successfully",
+      errorMsg: isEditMode ? "Failed to update customer" : "Failed to create customer",
+    }
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden">
+      <form
+        onSubmit={form.handleSubmit((data: CustomerFormData) => putCustomerAction(data))}
+        className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden"
+      >
         <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden md:flex-row">
           <div className="w-full shrink-0 space-y-6 px-1 md:min-h-0 md:flex-1 md:overflow-y-auto">
             <div>
@@ -219,6 +192,7 @@ export function CustomerModalContent({
                     shape="circle"
                     className="w-fit"
                     maxDimension={1000}
+                    isLoading={isLoadingAvatar}
                   />
                 </div>
               )}
@@ -374,11 +348,11 @@ export function CustomerModalContent({
           Cancel
         </Button>
         <Button
-          isLoading={putCustomerMutation.isPending}
+          isLoading={isPuttingCustomer}
           type="button"
-          onClick={form.handleSubmit(onSubmit)}
+          onClick={form.handleSubmit((data: CustomerFormData) => putCustomerAction(data))}
           className="gap-2 shadow-none"
-          disabled={putCustomerMutation.isPending}
+          disabled={isPuttingCustomer}
         >
           {isEditMode ? "Update customer" : "Create customer"}
         </Button>
@@ -535,15 +509,13 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
     });
   };
 
-  const importCustomersMutation = useMutation({
-    mutationFn: async () => {
+  const { mutate: importCustomersAction, isPending: isImportingCustomers } = useAction(
+    async () => {
       if (!orgContext) throw new AppError("Organization context not found.");
-
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token!, "x-source": "CSV Import" },
       });
-
       const result = await api.post<Array<Customer>>(
         "/customers",
         previewData.map((row) => ({
@@ -554,19 +526,15 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
           metadata: row.metadata,
         }))
       );
-
       if (result.isErr()) throw new AppError(result.error.message);
-
       return result.value;
     },
-    onSuccess: () => {
-      toast.success(`${previewData.length} customers imported successfully`);
-      onSuccess();
-    },
-    onError: (error) => {
-      toast.error(formatImportErrorMessage((error as any)?.message));
-    },
-  });
+    {
+      invalidate: ["customers"],
+      successMsg: `${previewData.length} customers imported successfully`,
+      errorMsg: "Failed to import customers",
+    }
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -669,15 +637,11 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
       </div>
 
       <div className="flex shrink-0 justify-end gap-2 border-t pt-4">
-        <Button variant="outline" onClick={onClose} disabled={importCustomersMutation.isPending}>
+        <Button variant="outline" onClick={onClose} disabled={isImportingCustomers}>
           Cancel
         </Button>
-        <Button
-          disabled={!rawRows.length}
-          isLoading={importCustomersMutation.isPending}
-          onClick={() => importCustomersMutation.mutate()}
-        >
-          {importCustomersMutation.isPending ? "Importing..." : "Import Data"}
+        <Button disabled={!rawRows.length} isLoading={isImportingCustomers} onClick={importCustomersAction}>
+          {isImportingCustomers ? "Importing..." : "Import Data"}
         </Button>
       </div>
 
