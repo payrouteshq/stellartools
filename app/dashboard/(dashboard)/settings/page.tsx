@@ -1,11 +1,10 @@
 "use client";
 
-import * as React from "react";
-
+import { setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
-import { disableTwoFactor, enableTwoFactor, generateTwoFactorSetup } from "@/actions/2fa";
 import { putOrganization, retrieveOrganization } from "@/actions/organization";
+import { AppModal } from "@/components/app-modal";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
@@ -25,26 +24,23 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { AppModal } from "@/components/app-modal";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "@/components/ui/toast";
 import {
   UnderlineTabs,
   UnderlineTabsContent,
   UnderlineTabsList,
   UnderlineTabsTrigger,
 } from "@/components/underline-tabs";
+import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
+import { useFilePreview } from "@/hooks/use-file-preview";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { fileFromUrl } from "@/lib/utils";
-import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, ChevronRight, ExternalLink, ShieldCheck, ShieldOff } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
@@ -73,43 +69,15 @@ type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 type Organization = Awaited<ReturnType<typeof retrieveOrganization>>;
 
 const ProfileTabContent = ({ user }: { user: User }) => {
-  const queryClient = useQueryClient();
+  const { file, isLoading: imgLoading } = useFilePreview(user.profile?.avatarUrl);
 
   const profileForm = RHF.useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: {
-      name: `${user.profile?.firstName} ${user.profile?.lastName}`.trim() || "",
-      avatar: undefined,
-    },
+    values: { name: `${user.profile?.firstName ?? ""} ${user.profile?.lastName ?? ""}`.trim(), avatar: file },
   });
 
-  const [imageLoading, setImageLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!user.profile?.avatarUrl) return;
-
-    setImageLoading(true);
-
-    let revoked = false;
-    fileFromUrl(user.profile.avatarUrl, "avatar.png")
-      .then((file) => {
-        if (revoked) return;
-        const withPreview = Object.assign(file, { preview: URL.createObjectURL(file) }) as FileWithPreview;
-        profileForm.setValue("avatar", withPreview);
-      })
-      .finally(() => {
-        setImageLoading(false);
-      });
-
-    return () => {
-      revoked = true;
-      const current = profileForm.getValues("avatar");
-      if (current?.preview) URL.revokeObjectURL(current.preview);
-    };
-  }, [user.profile?.avatarUrl]);
-
-  const { mutate: updateProfile, isPending: isSubmitting } = useMutation({
-    mutationFn: async (data: ProfileFormData) => {
+  const { mutate: updateProfile, isPending: isSubmitting } = useAction(
+    async (data: ProfileFormData) => {
       const formdata = new FormData();
 
       const file = data.avatar;
@@ -126,17 +94,11 @@ const ProfileTabContent = ({ user }: { user: User }) => {
         },
         { formDataWithFiles: formdata }
       );
-    },
 
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["current-user"] });
-      toast.success("Profile updated successfully");
+      return true;
     },
-    onError: (error) => {
-      console.error("Failed to update profile:", error);
-      toast.error("Failed to update profile");
-    },
-  });
+    { successMsg: "Profile updated successfully", invalidate: ["current-user"], errorMsg: "Failed to update profile" }
+  );
 
   const avatar = profileForm.watch("avatar");
 
@@ -153,7 +115,7 @@ const ProfileTabContent = ({ user }: { user: User }) => {
               dropzoneAccept={{ "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"] }}
               dropzoneMaxSize={5 * 1024 * 1024}
               dropzoneMultiple={false}
-              isLoading={imageLoading}
+              isLoading={imgLoading}
               enableTransformation
               targetFormat="image/png"
               error={profileForm.formState.errors.avatar?.message}
@@ -230,9 +192,9 @@ const ProfileTabContent = ({ user }: { user: User }) => {
 };
 
 const OrganizationTabContent = ({ organization }: { organization: Organization }) => {
-  const queryClient = useQueryClient();
   const { data: orgContext } = useOrgContext();
-  const [imageLoading, setImageLoading] = React.useState(false);
+
+  const { file, isLoading: imgLoading } = useFilePreview(organization.logoUrl);
 
   const organizationForm = RHF.useForm({
     resolver: zodResolver(organizationSchema),
@@ -243,57 +205,39 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
       logo: undefined,
       phoneNumber: organization.phoneNumber ? phoneNumberFromString(organization.phoneNumber) : undefined,
     },
+    values: {
+      id: organization.id,
+      name: organization.name,
+      description: organization.description ?? "",
+      logo: file,
+      phoneNumber: organization.phoneNumber ? phoneNumberFromString(organization.phoneNumber) : undefined,
+    },
   });
 
-  const { mutate: updateOrganization, isPending: isSubmitting } = useMutation({
-    mutationFn: async (data: OrganizationFormData) => {
+  const { mutate: updateOrganization, isPending: isSubmitting } = useAction(
+    async (data: OrganizationFormData) => {
       if (!orgContext?.id) return;
-
       const formData = new FormData();
       if (data.logo instanceof File) formData.set("logo", data.logo);
-
       await putOrganization(
         orgContext.id,
         { name: data.name, description: data.description || null },
         { formDataWithFiles: formData }
       );
+      return true;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["organization", orgContext?.id] });
-      queryClient.invalidateQueries({ queryKey: ["sidebar-organizations"] });
-      queryClient.invalidateQueries({ queryKey: ["org-context"] });
-      toast.success("Organization settings updated successfully");
-    },
-    onError: (error) => {
-      console.error("Failed to update organization:", error);
-      toast.error("Failed to update organization settings");
-    },
-  });
+    {
+      invalidate: [
+        ["organization", orgContext?.id ? orgContext.id : undefined],
+        ["sidebar-organizations"],
+        ["org-context"],
+      ],
+      successMsg: "Organization settings updated successfully",
+      errorMsg: "Failed to update organization settings",
+    }
+  );
 
   const logo = organizationForm.watch("logo");
-
-  React.useEffect(() => {
-    if (!organization.logoUrl) return;
-
-    setImageLoading(true);
-
-    let revoked = false;
-    fileFromUrl(organization.logoUrl, "logo.png")
-      .then((file) => {
-        if (revoked) return;
-        const withPreview = Object.assign(file, { preview: URL.createObjectURL(file) }) as FileWithPreview;
-        organizationForm.setValue("logo", withPreview);
-      })
-      .finally(() => {
-        setImageLoading(false);
-      });
-
-    return () => {
-      revoked = true;
-      const current = organizationForm.getValues("logo");
-      if (current?.preview) URL.revokeObjectURL(current.preview);
-    };
-  }, [organization.logoUrl]);
 
   return (
     <>
@@ -312,7 +256,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
               targetFormat="image/png"
               shape="circle"
               className="w-fit"
-              isLoading={imageLoading}
+              isLoading={imgLoading}
             />
 
             <div className="flex-1 space-y-2">
@@ -402,168 +346,129 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
   );
 };
 
-const SetupModalContent = ({
+const $2faSchema = Schema.object({
+  code: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers"),
+});
+
+const $2faModal = ({
   userId,
   setupData,
-  onSuccess,
 }: {
   userId: string;
-  setupData: { secret: string; qrCodeDataUrl: string };
-  onSuccess: () => void;
+  setupData?: { secret: string; qrCodeDataUrl: string };
 }) => {
-  const [code, setCode] = React.useState("");
+  const isEnabling = !!setupData;
 
-  const enableMutation = useMutation({
-    mutationFn: (c: string) => execute(enableTwoFactor(userId, setupData.secret, c)),
-    onSuccess: () => {
-      toast.success("Two-factor authentication enabled");
-      onSuccess();
-      AppModal.close();
-    },
-    onError: (err: any) => toast.error(err.message || "Failed to enable 2FA"),
+  const { mutate: toggle, isPending } = useAction((code: string) => toggle2fa(userId, code, setupData?.secret), {
+    invalidate: ["current-user"],
+    successMsg: `2FA ${isEnabling ? "enabled" : "disabled"} successfully`,
+    onSuccess: AppModal.close,
+  });
+
+  const form = RHF.useForm({
+    resolver: zodResolver($2faSchema),
+    defaultValues: { code: "" },
   });
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <img src={setupData.qrCodeDataUrl} alt="2FA QR Code" className="h-48 w-48 rounded-lg border" />
-      <div className="bg-muted w-full rounded-md px-3 py-2 text-center">
-        <p className="text-muted-foreground mb-1 text-xs">Manual entry key</p>
-        <p className="break-all font-mono text-sm tracking-widest">{setupData.secret}</p>
-      </div>
-      <div className="w-full space-y-2">
-        <p className="text-center text-sm font-medium">Enter verification code</p>
-        <div className="flex justify-center">
-          <InputOTP
-            maxLength={6}
-            pattern="^[0-9]+$"
-            value={code}
-            onChange={setCode}
-            onComplete={(val) => enableMutation.mutate(val)}
-            disabled={enableMutation.isPending}
-            autoFocus
-          >
-            <InputOTPGroup>
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <InputOTPSlot key={i} index={i} />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
+    <form onSubmit={form.handleSubmit((d) => toggle(d.code))} className="flex flex-col items-center gap-6">
+      {isEnabling && (
+        <div className="flex w-full flex-col items-center gap-4">
+          <img src={setupData.qrCodeDataUrl} alt="QR" className="h-48 w-48 rounded-lg border shadow-sm" />
+          <div className="bg-muted w-full rounded-md px-3 py-2 text-center">
+            <p className="text-muted-foreground mb-1 text-[10px] font-bold tracking-wider uppercase">Manual Key</p>
+            <p className="font-mono text-xs tracking-widest break-all select-all">{setupData.secret}</p>
+          </div>
         </div>
-      </div>
-      <div className="flex w-full justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={() => AppModal.close()} disabled={enableMutation.isPending}>
+      )}
+
+      <div className="w-full space-y-4">
+        {!isEnabling && (
+          <p className="text-muted-foreground text-center text-sm">Enter your code to confirm deactivation.</p>
+        )}
+
+        <RHF.Controller
+          control={form.control}
+          name="code"
+          render={({ field, fieldState: { error } }) => (
+            <div className="flex w-full flex-col justify-center gap-2">
+              <InputOTP
+                maxLength={6}
+                value={field.value}
+                onChange={field.onChange}
+                onComplete={() => {
+                  form.handleSubmit((d) => toggle(d.code))();
+                }}
+                disabled={isPending || form.formState.isSubmitting}
+              >
+                <InputOTPGroup>
+                  {[...Array(6)].map((_, i) => (
+                    <InputOTPSlot key={i} index={i} className="size-12 text-lg" />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+
+              {error && <p className="text-destructive text-xs">{error.message}</p>}
+            </div>
+          )}
+        />
+
+        <Button variant="outline" onClick={() => AppModal.close()} disabled={isEnabling}>
           Cancel
         </Button>
         <Button
-          onClick={() => enableMutation.mutate(code)}
-          isLoading={enableMutation.isPending}
-          disabled={code.length !== 6 || enableMutation.isPending}
+          onClick={() => form.handleSubmit((d) => toggle(d.code))}
+          isLoading={isPending}
+          disabled={form.formState.isSubmitting || isEnabling}
         >
-          Enable 2FA
+          {isEnabling ? "Verify & Enable" : "Confirm Disable"}
         </Button>
       </div>
-    </div>
-  );
-};
-
-const DisableModalContent = ({
-  userId,
-  onSuccess,
-}: {
-  userId: string;
-  onSuccess: () => void;
-}) => {
-  const [code, setCode] = React.useState("");
-
-  const disableMutation = useMutation({
-    mutationFn: (c: string) => execute(disableTwoFactor(userId, c)),
-    onSuccess: () => {
-      toast.success("Two-factor authentication disabled");
-      onSuccess();
-      AppModal.close();
-    },
-    onError: (err: any) => toast.error(err.message || "Failed to disable 2FA"),
-  });
-
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex justify-center">
-        <InputOTP
-          maxLength={6}
-          pattern="^[0-9]+$"
-          value={code}
-          onChange={setCode}
-          onComplete={(val) => disableMutation.mutate(val)}
-          disabled={disableMutation.isPending}
-          autoFocus
-        >
-          <InputOTPGroup>
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <InputOTPSlot key={i} index={i} />
-            ))}
-          </InputOTPGroup>
-        </InputOTP>
-      </div>
-      <div className="flex w-full justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={() => AppModal.close()} disabled={disableMutation.isPending}>
-          Cancel
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={() => disableMutation.mutate(code)}
-          isLoading={disableMutation.isPending}
-          disabled={code.length !== 6 || disableMutation.isPending}
-        >
-          Disable 2FA
-        </Button>
-      </div>
-    </div>
+    </form>
   );
 };
 
 const SecurityTabContent = ({ user }: { user: User }) => {
-  const queryClient = useQueryClient();
-
-  const setupMutation = useMutation({
-    mutationFn: () => execute(generateTwoFactorSetup(user.id)),
-    onSuccess: (data) => {
-      const setupData = data as { secret: string; qrCodeDataUrl: string };
-      AppModal.open({
-        title: "Set up two-factor authentication",
-        description:
-          "Scan the QR code with Google Authenticator (or any TOTP app), then enter the 6-digit code to confirm.",
-        size: "small",
-        content: (
-          <SetupModalContent
-            userId={user.id}
-            setupData={setupData}
-            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["current-user"] })}
-          />
-        ),
-      });
+  const { mutate: handleToggle, isPending: isToggling } = useAction(
+    async (checked: boolean) => {
+      if (checked) {
+        const response = await setup2fa(user.id);
+        return { ...response, isEnabling: true };
+      } else {
+        AppModal.open({
+          title: "Disable two-factor authentication",
+          description: "Enter the current 6-digit code from your authenticator app to confirm.",
+          size: "small",
+          content: <$2faModal userId={user.id} />,
+        });
+        return { isEnabling: false };
+      }
     },
-    onError: (err: any) => toast.error(err.message || "Failed to generate setup"),
-  });
 
-  const isTwoFactorEnabled = user.twoFactorEnabled ?? false;
-
-  const handleToggle = (checked: boolean) => {
-    if (checked) {
-      setupMutation.mutate();
-    } else {
-      AppModal.open({
-        title: "Disable two-factor authentication",
-        description: "Enter the current 6-digit code from your authenticator app to confirm.",
-        size: "small",
-        content: (
-          <DisableModalContent
-            userId={user.id}
-            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["current-user"] })}
-          />
-        ),
-      });
+    {
+      invalidate: ["current-user"],
+      onSuccess: (data) => {
+        if ("isEnabling" in data && data.isEnabling && "secret" in data && "qrCodeDataUrl" in data) {
+          AppModal.open({
+            title: "Set up two-factor authentication",
+            description:
+              "Scan the QR code with Google Authenticator (or any TOTP app), then enter the 6-digit code to confirm.",
+            size: "small",
+            content: <$2faModal userId={user.id} setupData={data} />,
+          });
+        } else if ("isEnabling" in data && !data.isEnabling) {
+          AppModal.open({
+            title: "Disable two-factor authentication",
+            description: "Enter the current 6-digit code from your authenticator app to confirm.",
+            size: "small",
+            content: <$2faModal userId={user.id} />,
+          });
+        }
+      },
     }
-  };
+  );
+
+  const isTwoFactorEnabled = !!user.$2faSecret;
 
   return (
     <Card className="shadow-none">
@@ -587,7 +492,7 @@ const SecurityTabContent = ({ user }: { user: User }) => {
             <Switch
               checked={isTwoFactorEnabled}
               onCheckedChange={handleToggle}
-              disabled={setupMutation.isPending}
+              disabled={isToggling}
               aria-label="Toggle two-factor authentication"
             />
           </div>

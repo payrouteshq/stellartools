@@ -1,24 +1,25 @@
 "use server";
 
 import { retrieveAccount } from "@/actions/account";
-import { Account, accounts, auth, db } from "@/db";
-import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
+import { generateAndSetSession } from "@/actions/auth";
+import { AuthProvider } from "@/constant/schema.client";
+import { accounts, db } from "@/db";
+import { deleteCookies, getCookie } from "@/integrations/cookie-manager";
 import { decrypt, encrypt } from "@/integrations/encryption";
-import { signJwt, verifyJwt } from "@/integrations/jwt";
+import { verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
+import { eq } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
-import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
 
-interface PendingTwoFactorPayload {
+interface Pending2faPayload {
   accountId: string;
-  provider: string;
+  provider: AuthProvider;
   iat: number;
   exp: number;
 }
 
-export const generateTwoFactorSetup = safeAction(async (accountId: string) => {
+export const setup2fa = safeAction(async (accountId: string) => {
   const account = await retrieveAccount({ id: accountId });
   if (!account) throw new AppError("Account not found");
 
@@ -29,83 +30,54 @@ export const generateTwoFactorSetup = safeAction(async (accountId: string) => {
   return { secret, qrCodeDataUrl };
 });
 
-export const enableTwoFactor = safeAction(async (accountId: string, plainSecret: string, code: string) => {
-  const account = await retrieveAccount({ id: accountId });
-  if (!account) throw new AppError("Account not found");
+export const toggle2fa = safeAction(
+  async (
+    accountId: string,
+    code: string,
+    setupSecret?: string // Only provided when enabling
+  ) => {
+    const account = await retrieveAccount({ id: accountId });
 
-  const { valid } = verifySync({ token: code, secret: plainSecret });
-  if (!valid) throw new AppError("Invalid verification code. Please try again.");
+    if (!account) throw new AppError("Account not found");
 
-  const encryptedSecret = encrypt(plainSecret);
+    const isEnabling = !!setupSecret;
 
-  await db
-    .update(accounts)
-    .set({ twoFactorSecret: encryptedSecret, twoFactorEnabled: true, updatedAt: new Date() })
-    .where(eq(accounts.id, accountId));
+    const secretToVerify = isEnabling ? setupSecret : account.$2faSecret ? decrypt(account.$2faSecret) : null;
 
-  return { success: true };
-});
+    if (!secretToVerify) throw new AppError("2FA configuration not found");
 
-export const disableTwoFactor = safeAction(async (accountId: string, code: string) => {
-  const account = await retrieveAccount({ id: accountId });
-  if (!account) throw new AppError("Account not found");
+    const { valid } = verifySync({ token: code, secret: secretToVerify });
 
-  if (!account.twoFactorSecret) throw new AppError("Two-factor authentication is not set up");
+    if (!valid) throw new AppError("Invalid verification code");
 
-  const secret = decrypt(account.twoFactorSecret);
-  const { valid } = verifySync({ token: code, secret });
-  if (!valid) throw new AppError("Invalid verification code. Please try again.");
+    await db
+      .update(accounts)
+      .set({
+        $2faSecret: isEnabling ? encrypt(setupSecret) : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(accounts.id, accountId));
 
-  await db
-    .update(accounts)
-    .set({ twoFactorSecret: null, twoFactorEnabled: false, updatedAt: new Date() })
-    .where(eq(accounts.id, accountId));
+    return { success: true, enabled: isEnabling };
+  }
+);
 
-  return { success: true };
-});
-
-export const completeTwoFactorSignIn = safeAction(async (code: string) => {
+export const complete2fa = safeAction(async (code: string) => {
   const pendingToken = await getCookie("2fa_pending");
+
   if (!pendingToken) throw new AppError("Session expired. Please sign in again.");
 
-  let payload: PendingTwoFactorPayload;
-  try {
-    payload = verifyJwt<PendingTwoFactorPayload>(pendingToken);
-  } catch {
-    await deleteCookies(["2fa_pending"]);
-    throw new AppError("Session expired. Please sign in again.");
-  }
-
+  const payload = verifyJwt<Pending2faPayload>(pendingToken);
 
   const account = await retrieveAccount({ id: payload.accountId });
   if (!account) throw new AppError("Account not found");
+  if (!account.$2faSecret) throw new AppError("2FA not configured");
 
-  if (!account.twoFactorSecret) throw new AppError("Two-factor authentication is not configured");
+  const { valid } = verifySync({ token: code, secret: decrypt(account.$2faSecret) });
 
-  const secret = decrypt(account.twoFactorSecret);
-  const { valid } = verifySync({ token: code, secret });
-  if (!valid) throw new AppError("Invalid code. Please check your authenticator app and try again.");
+  if (!valid) throw new AppError("Invalid verification code");
 
-  const sessionPayload = { accountId: account.id, email: account.email };
-  const accessToken = signJwt(sessionPayload, "6h");
-  const refreshToken = signJwt(sessionPayload, "30d");
-
-  await setCookies([
-    { key: "accessToken", value: accessToken, maxAge: 6 * 60 * 60 },
-    { key: "refreshToken", value: refreshToken, maxAge: 30 * 24 * 60 * 60 },
-  ]);
-
-  await db.insert(auth).values({
-    id: `au_${nanoid(25)}`,
-    accountId: account.id,
-    provider: payload.provider as Account["sso"]["values"][number]["provider"],
-    accessToken,
-    refreshToken,
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    isRevoked: false,
-  });
-
-  await deleteCookies(["2fa_pending"]);
+  await Promise.all([generateAndSetSession(account, payload.provider), deleteCookies(["2fa_pending"])]);
 
   return { success: true };
 });

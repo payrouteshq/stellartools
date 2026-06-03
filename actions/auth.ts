@@ -1,6 +1,7 @@
 "use server";
 
 import { postAccount, putAccount, retrieveAccount } from "@/actions/account";
+import { AuthProvider } from "@/constant/schema.client";
 import { Account, Auth, PasswordReset, auth, db, passwordReset } from "@/db";
 import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
 import { sendEmail } from "@/integrations/email";
@@ -111,15 +112,56 @@ export const deletePasswordReset = async (id: string) => {
 
 // -- Auth Internal --
 
-const generateAndSetSession = async (account: { id: string; email: string }) => {
+export const createSession = async (account: Account, provider: string) => {
   const payload = { accountId: account.id, email: account.email };
-
   const accessToken = signJwt(payload, "6h");
   const refreshToken = signJwt(payload, "30d");
 
+  // 1. Set Cookies
   await setCookies([
-    { key: "accessToken", value: accessToken, maxAge: 6 * 60 * 60 }, // 6 hours
-    { key: "refreshToken", value: refreshToken, maxAge: 30 * 24 * 60 * 60 }, // 30 days
+    { key: "accessToken", value: accessToken, maxAge: 21600 }, // 6h
+    { key: "refreshToken", value: refreshToken, maxAge: 2592000 }, // 30d
+  ]);
+
+  // 2. Record in DB
+  await db.insert(auth).values({
+    id: `au_${nanoid(25)}`,
+    accountId: account.id,
+    provider: provider as any,
+    accessToken,
+    refreshToken,
+    expiresAt: new Date(Date.now() + 2592000000), // 30d
+    isRevoked: false,
+  });
+
+  return { accessToken, refreshToken };
+};
+
+export const generateAndSetSession = async (
+  account: { id: string; email: string },
+  provider: AuthProvider,
+  sessionMetadata?: Record<string, unknown>
+) => {
+  const payload = { accountId: account.id, email: account.email };
+
+  const [accessToken, refreshToken] = [signJwt(payload, "6h"), signJwt(payload, "30d")];
+
+  await Promise.all([
+    setCookies([
+      { key: "accessToken", value: accessToken, maxAge: 6 * 60 * 60 }, // 6 hours
+      { key: "refreshToken", value: refreshToken, maxAge: 30 * 24 * 60 * 60 }, // 30 days
+    ]),
+
+    db.insert(auth).values({
+      id: `au_${nanoid(25)}`,
+      accountId: account.id,
+      provider,
+      accessToken,
+      refreshToken,
+      expiresAt: new Date(Date.now() + 2592000000), // 30d
+      isRevoked: false,
+      ...(sessionMetadata && { metadata: sessionMetadata }),
+    }),
   ]);
 
   return { accessToken, refreshToken };
@@ -175,23 +217,13 @@ export const accountValidator = safeAction(
       }
     }
 
-    // 3. Session Generation — skip if 2FA is required
-    if (account.twoFactorEnabled) {
+    if (account.$2faSecret) {
       const pendingToken = signJwt({ accountId: account.id, provider }, "5m");
       await setCookies([{ key: "2fa_pending", value: pendingToken, maxAge: 5 * 60 }]);
-      return { requiresTwoFactor: true as const };
+      return { requires2fa: true as const };
     }
 
-    const { accessToken, refreshToken } = await generateAndSetSession(account);
-    await postAuth({
-      accountId: account.id,
-      provider,
-      accessToken,
-      refreshToken,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      isRevoked: false,
-      ...(sessionMetadata && { metadata: sessionMetadata }),
-    });
+    const { accessToken, refreshToken } = await generateAndSetSession(account, provider, sessionMetadata);
 
     return { accountId: account.id, accessToken, refreshToken, isNewUser };
   }
@@ -276,7 +308,7 @@ export const getCurrentUser = async () => {
       avatarUrl: account.profile?.avatarUrl || null,
     },
     createdAt: account.createdAt,
-    twoFactorEnabled: account.twoFactorEnabled,
+    $2faSecret: account.$2faSecret,
   };
 };
 

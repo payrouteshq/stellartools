@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       { ...stateData }
     );
 
-    if (account && "requiresTwoFactor" in account && account.requiresTwoFactor) {
+    if (account && "requires2fa" in account && account.requires2fa) {
       const next = stateData.next ? `?next=${encodeURIComponent(stateData.next)}` : "";
       return NextResponse.redirect(new URL(`/2fa${next}`, process.env.NEXT_PUBLIC_DASHBOARD_URL!));
     }

@@ -24,9 +24,9 @@ import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/toast";
 import { Customer } from "@/db";
+import { useFilePreview } from "@/hooks/use-file-preview";
 import { useInvalidateOrgQuery, useOrgContext } from "@/hooks/use-org-query";
 import { AppError, execute } from "@/lib/action-handler";
-import { fileFromUrl } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
 import { useMutation } from "@tanstack/react-query";
@@ -59,6 +59,10 @@ export function CustomerModalContent({
   customer?: Partial<Customer> | null;
 }) {
   const isEditMode = !!customer;
+  const { data: org } = useOrgContext();
+  const invalidate = useInvalidateOrgQuery();
+  const { file: avatarFile, isLoading: isLoadingAvatar } = useFilePreview(customer?.image);
+
   const form = RHF.useForm({
     resolver: zodResolver(customerSchema),
     defaultValues: {
@@ -68,31 +72,21 @@ export function CustomerModalContent({
       avatar: undefined,
       metadata: [],
     },
+    values: {
+      name: customer?.name ?? "",
+      email: customer?.email ?? "",
+      phoneNumber: customer?.phone ? phoneNumberFromString(customer.phone) : { number: "", countryCode: "US" },
+      avatar: avatarFile ?? undefined,
+      metadata: customer?.metadata
+        ? Object.entries(customer.metadata).map(([key, value]) => ({ key, value: String(value) }))
+        : [],
+    },
   });
-  const { data: org } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
 
   const { fields, append, remove } = RHF.useFieldArray({
     control: form.control,
     name: "metadata",
   });
-
-  React.useEffect(() => {
-    if (!customer?.image) return;
-
-    let revoked = false;
-    fileFromUrl(customer.image, "avatar.png").then((file) => {
-      if (revoked) return;
-      const withPreview = Object.assign(file, { preview: URL.createObjectURL(file) }) as FileWithPreview;
-      form.setValue("avatar", withPreview);
-    });
-
-    return () => {
-      revoked = true;
-      const current = form.getValues("avatar");
-      if (current?.preview) URL.revokeObjectURL(current.preview);
-    };
-  }, [customer?.image]);
 
   React.useEffect(() => {
     if (customer) {
@@ -219,6 +213,7 @@ export function CustomerModalContent({
                     shape="circle"
                     className="w-fit"
                     maxDimension={1000}
+                    isLoading={isLoadingAvatar}
                   />
                 </div>
               )}

@@ -11,7 +11,7 @@ import { Spinner } from "@/components/spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { stroopsToXlm } from "@/lib/utils";
 import { Column, ColumnDef } from "@tanstack/react-table";
@@ -130,7 +130,6 @@ const columns: ColumnDef<Product>[] = [
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const invalidate = useInvalidateOrgQuery();
   const [selectedStatus, setSelectedStatus] = React.useState<string | null>(null);
   const productModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [productModalFooterProps, setProductModalFooterProps] = React.useState({
@@ -149,7 +148,6 @@ function ProductsPageContent() {
         <ProductsModalContent
           onClose={AppModal.close}
           onSuccess={() => {
-            invalidate(["products"]);
             AppModal.close();
           }}
           setSubmitRef={productModalSubmitRef}
@@ -170,44 +168,35 @@ function ProductsPageContent() {
         isProductModalOpenRef.current = false;
       },
     });
-  }, [invalidate]);
+  }, []);
 
-  const openEditModal = React.useCallback(
-    (product: Product) => {
-      isProductModalOpenRef.current = true;
-      setProductModalFooterProps({ isPending: false, isEditMode: true });
-      AppModal.open({
-        title: "Edit product",
-        description: undefined,
-        content: (
-          <ProductsModalContent
-            editingProduct={product}
-            onClose={AppModal.close}
-            onSuccess={() => {
-              invalidate(["products"]);
-              AppModal.close();
-            }}
-            setSubmitRef={productModalSubmitRef}
-            onFooterChange={(props) => setProductModalFooterProps((prev) => ({ ...prev, ...props }))}
-          />
-        ),
-        footer: (
-          <ProductsModalFooter
-            onClose={AppModal.close}
-            submitRef={productModalSubmitRef}
-            isPending={false}
-            isEditMode
-          />
-        ),
-        size: "full",
-        showCloseButton: true,
-        onClose: () => {
-          isProductModalOpenRef.current = false;
-        },
-      });
-    },
-    [invalidate]
-  );
+  const openEditModal = React.useCallback((product: Product) => {
+    isProductModalOpenRef.current = true;
+    setProductModalFooterProps({ isPending: false, isEditMode: true });
+    AppModal.open({
+      title: "Edit product",
+      description: undefined,
+      content: (
+        <ProductsModalContent
+          editingProduct={product}
+          onClose={AppModal.close}
+          onSuccess={() => {
+            AppModal.close();
+          }}
+          setSubmitRef={productModalSubmitRef}
+          onFooterChange={(props) => setProductModalFooterProps((prev) => ({ ...prev, ...props }))}
+        />
+      ),
+      footer: (
+        <ProductsModalFooter onClose={AppModal.close} submitRef={productModalSubmitRef} isPending={false} isEditMode />
+      ),
+      size: "full",
+      showCloseButton: true,
+      onClose: () => {
+        isProductModalOpenRef.current = false;
+      },
+    });
+  }, []);
 
   React.useEffect(() => {
     if (isProductModalOpenRef.current) {

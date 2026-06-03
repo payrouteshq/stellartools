@@ -1,54 +1,54 @@
 .st-checkout-wrap {
-	display: flex;
+  display: flex;
 }
 
 .st-checkout-btn {
-	display: inline-block;
-	padding: 12px 28px;
-	background: #FED925;
-	color: #fff;
-	border-radius: 6px;
-	text-decoration: none;
-	font-weight: 600;
-	font-size: 15px;
-	transition: background 0.2s ease;
+  display: inline-block;
+  padding: 12px 28px;
+  background: #fed925;
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  transition: background 0.2s ease;
 }
 
 .st-checkout-btn:hover {
-	background: #e5c420;
-	color: #fff;
+  background: #e5c420;
+  color: #fff;
 }
 
 /* Editor-only: Buy Now inline URL input */
 .st-buy-now-editor-wrap {
-	display: flex;
-	align-items: center;
-	gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .st-checkout-url-input {
-	flex: 1;
-	padding: 10px 14px;
-	border: 1px solid #d1d5db;
-	border-radius: 6px;
-	font-size: 14px;
-	outline: none;
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
 }
 
 .st-checkout-url-input:focus {
-	border-color: #FED925;
-	box-shadow: 0 0 0 2px rgba(254, 217, 37, 0.25);
+  border-color: #fed925;
+  box-shadow: 0 0 0 2px rgba(254, 217, 37, 0.25);
 }
 
 /* Editor-only: Place Order placeholder */
 .st-place-order-editor {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 24px;
-	border: 2px dashed #d1d5db;
-	border-radius: 6px;
-	color: #6b7280;
-	font-size: 14px;
-	font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 2px dashed #d1d5db;
+  border-radius: 6px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
 }
