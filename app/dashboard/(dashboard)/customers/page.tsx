@@ -139,15 +139,7 @@ export default function CustomersPage() {
     AppModal.open({
       title: "Create customer",
       description: "Add a new customer to your organization",
-      content: (
-        <CustomerModalContent
-          onClose={AppModal.close}
-          onSuccess={() => {
-            invalidate(["customers"]);
-            AppModal.close();
-          }}
-        />
-      ),
+      content: <CustomerModalContent onClose={AppModal.close} onSuccess={() => AppModal.close()} />,
       footer: null,
       size: "full",
       showCloseButton: true,
@@ -158,15 +150,7 @@ export default function CustomersPage() {
     AppModal.open({
       title: "Import Customers",
       description: "Map CSV columns to system fields or shrink them into metadata.",
-      content: (
-        <ImportCsvModalContent
-          onClose={AppModal.close}
-          onSuccess={() => {
-            invalidate(["customers"]);
-            AppModal.close();
-          }}
-        />
-      ),
+      content: <ImportCsvModalContent onClose={AppModal.close} onSuccess={() => AppModal.close()} />,
       footer: null,
       size: "full",
       showCloseButton: true,

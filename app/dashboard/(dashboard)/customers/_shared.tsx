@@ -51,6 +51,7 @@ type CustomerFormData = z.infer<typeof customerSchema>;
 export function CustomerModalContent({
   onClose,
   customer,
+  onSuccess,
 }: {
   onClose: () => void;
   onSuccess: () => void;
@@ -154,6 +155,7 @@ export function CustomerModalContent({
       return response.value;
     },
     {
+      onSuccess,
       invalidate: ["customers"],
       successMsg: isEditMode ? "Customer updated successfully" : "Customer created successfully",
       errorMsg: isEditMode ? "Failed to update customer" : "Failed to create customer",
@@ -530,6 +532,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
       return result.value;
     },
     {
+      onSuccess,
       invalidate: ["customers"],
       successMsg: `${previewData.length} customers imported successfully`,
       errorMsg: "Failed to import customers",

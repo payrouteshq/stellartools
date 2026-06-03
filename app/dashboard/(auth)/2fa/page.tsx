@@ -1,7 +1,6 @@
 "use client";
 
 import { complete2fa } from "@/actions/2fa";
-import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useAction } from "@/hooks/use-action";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -64,7 +63,7 @@ export default function TwoFactorPage() {
                 </InputOTPGroup>
               </InputOTP>
 
-              {fieldState.error && <p className="text-destructive text-sm">{fieldState.error?.message}</p>}
+              {fieldState.error && <p className="text-destructive text-xs">{fieldState.error?.message}</p>}
             </div>
           )}
         />
