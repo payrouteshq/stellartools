@@ -6,11 +6,9 @@ import { resetPassword } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useAuth } from "@/hooks/use-auth";
-import { AppError, execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -37,17 +35,13 @@ export default function UpdatePassword() {
   const { error, setDismissedError } = useAuth();
   const form = useForm({ resolver: zodResolver(schema), defaultValues: { newPassword: "", confirmPassword: "" } });
 
-  const mutation = useMutation({
-    mutationFn: (data: z.infer<typeof schema>) => {
-      if (!token) throw new AppError("Invalid or expired token");
-      return execute(resetPassword(token, data.newPassword));
-    },
-    onSuccess: () => {
-      toast.success("Password updated!");
-      router.push("/signin");
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+  const { mutate: resetPasswordAction, isPending: isResetting } = useAction(
+    ({ token, newPassword }: { token: string; newPassword: string }) => resetPassword(token, newPassword),
+    {
+      successMsg: "Password updated!",
+      errorMsg: "Failed to update password",
+    }
+  );
 
   return (
     <AuthLayout
@@ -55,8 +49,8 @@ export default function UpdatePassword() {
       subtitle="Choose a new password for your account."
       error={!token ? "Token missing. Please request a new link." : error}
       onDismissError={() => setDismissedError(true)}
-      isPending={mutation.isPending}
-      onSubmit={form.handleSubmit((d) => mutation.mutate(d))}
+      isPending={isResetting}
+      onSubmit={form.handleSubmit((d) => resetPasswordAction({ token: token!, newPassword: d.newPassword }))}
     >
       <div className="space-y-4">
         <div className="space-y-2">
@@ -103,7 +97,7 @@ export default function UpdatePassword() {
         </div>
       </div>
 
-      <Button type="submit" className="w-full font-semibold" isLoading={mutation.isPending} disabled={!token}>
+      <Button type="submit" className="w-full font-semibold" isLoading={isResetting} disabled={!token}>
         Update password
       </Button>
     </AuthLayout>

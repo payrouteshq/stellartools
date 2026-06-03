@@ -21,12 +21,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ApiKey } from "@/db";
+import { useAction } from "@/hooks/use-action";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { execute } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, Copy, Info, Plus } from "lucide-react";
 import Link from "next/link";
@@ -49,29 +49,25 @@ export default function ApiKeysPage() {
   const { data: apiKeys = [], isLoading } = useOrgQuery(["apiKeys"], () => retrieveApiKeys());
   const { handleCopy } = useCopy();
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => execute(deleteApiKey(id)),
-    onSuccess: () => {
-      invalidate(["apiKeys"]);
-      AppModal.close();
-      toast.success("API key deleted");
-    },
-    onError: (e: Error) => {
-      toast.error(e.message ?? "Failed to delete API key");
-    },
+  const { mutate: deleteApiKeyAction, isPending: isDeletingApiKey } = useAction(deleteApiKey, {
+    invalidate: ["apikeys"],
+    onSuccess: () => AppModal.close(),
+    successMsg: "API key deleted",
+    errorMsg: "Failed to delete API key",
   });
 
-  const revokeMutation = useMutation({
-    mutationFn: (id: string) => execute(putApiKey(id, { isRevoked: true })),
-    onSuccess: () => {
-      invalidate(["apiKeys"]);
-      AppModal.close();
-      toast.success("API key revoked");
+  const { mutate: revokeApiKeyAction, isPending: isRevokingApiKey } = useAction(
+    async (id: string) => {
+      await putApiKey(id, { isRevoked: true });
+      return { success: true, isRevoked: true };
     },
-    onError: (e: Error) => {
-      toast.error(e.message ?? "Failed to revoke API key");
-    },
-  });
+    {
+      invalidate: ["apiKeys"],
+      onSuccess: () => AppModal.close(),
+      successMsg: "API key revoked",
+      errorMsg: "Failed to revoke API key",
+    }
+  );
 
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
 
@@ -199,10 +195,7 @@ export default function ApiKeysPage() {
               mode="edit"
               keyToEdit={key}
               onClose={AppModal.close}
-              onSuccess={() => {
-                invalidate(["apiKeys"]);
-                AppModal.close();
-              }}
+              onSuccess={() => AppModal.close()}
             />
           ),
           footer: null,
@@ -227,9 +220,9 @@ export default function ApiKeysPage() {
           description: "This key will immediately stop working. You can create a new key anytime.",
           content: null,
           primaryButton: {
-            children: revokeMutation.isPending ? "Revoking..." : "Revoke",
-            onClick: () => revokeMutation.mutate(key.id),
-            disabled: revokeMutation.isPending,
+            children: isRevokingApiKey ? "Revoking..." : "Revoke",
+            onClick: () => revokeApiKeyAction(key.id),
+            disabled: isRevokingApiKey,
           },
           secondaryButton: { children: "Cancel" },
           size: "small",
@@ -245,10 +238,10 @@ export default function ApiKeysPage() {
           description: "This key will be permanently removed. This action cannot be undone.",
           content: null,
           primaryButton: {
-            children: deleteMutation.isPending ? "Deleting..." : "Delete",
+            children: isDeletingApiKey ? "Deleting..." : "Delete",
             variant: "destructive",
-            onClick: () => deleteMutation.mutate(key.id),
-            disabled: deleteMutation.isPending,
+            onClick: () => deleteApiKeyAction(key.id),
+            disabled: isDeletingApiKey,
           },
           secondaryButton: { children: "Cancel" },
           size: "small",
@@ -312,14 +305,7 @@ export default function ApiKeysPage() {
                       title: "Create secret key",
                       description:
                         "Create a key that unlocks full API access, enabling extensive interaction with your account.",
-                      content: (
-                        <ApiKeyModalContent
-                          mode="create"
-                          onClose={AppModal.close}
-                          onCreated={() => invalidate(["apiKeys"])}
-                          onSuccess={() => {}}
-                        />
-                      ),
+                      content: <ApiKeyModalContent mode="create" onClose={AppModal.close} />,
                       footer: null,
                       size: "small",
                       showCloseButton: true,
@@ -352,13 +338,11 @@ function ApiKeyModalContent({
   keyToEdit,
   onClose,
   onSuccess,
-  onCreated,
 }: {
   mode: "create" | "edit";
   keyToEdit?: ApiKey | null;
   onClose: () => void;
-  onSuccess: () => void;
-  onCreated?: () => void;
+  onSuccess?: () => void;
 }) {
   const { handleCopy, copied } = useCopy();
   const [createdApiKey, setCreatedApiKey] = React.useState<string | null>(null);
@@ -374,37 +358,38 @@ function ApiKeyModalContent({
     if (keyToEdit) form.reset({ name: keyToEdit.name });
   }, [keyToEdit, form]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => execute(putApiKey(id, { name })),
-    onSuccess: () => {
-      toast.success("API key updated");
-      onSuccess();
+  const { mutate: updateApiKeyAction, isPending: isUpdatingApiKey } = useAction(
+    async ({ id, name }: { id: string; name: string }) => {
+      await putApiKey(id, { name });
+      return { success: true, name };
     },
-    onError: (e: Error) => {
-      toast.error(e.message ?? "Failed to update API key");
-    },
-  });
+    {
+      invalidate: ["apikeys"],
+      errorMsg: "Failed to update API key",
+      successMsg: "API key updated",
+      onSuccess: () => onSuccess?.(),
+    }
+  );
 
-  const createApiKeyMutation = useMutation({
-    mutationFn: (data: ApiKeyFormData) =>
-      execute(
-        postApiKey({
-          name: data.name,
-          scope: ["*"],
-          isRevoked: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          metadata: null,
-          lastUsedAt: null,
-        })
-      ),
-    onSuccess: (apiKey) => {
-      onCreated?.();
-      setCreatedApiKey(apiKey.token);
-      toast.success("API key created");
+  const { mutate: createApiKeyAction, isPending: isCreatingApiKey } = useAction(
+    async (data: ApiKeyFormData) => {
+      const apiKey = await postApiKey({
+        name: data.name,
+        scope: ["*"],
+        isRevoked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: null,
+        lastUsedAt: null,
+      });
+      return { success: true, token: apiKey.token };
     },
-    onError: () => toast.error("Failed to create API key"),
-  });
+    {
+      invalidate: ["apikeys"],
+      errorMsg: "Failed to create API key",
+      successMsg: "API key created",
+    }
+  );
 
   const handleCopyKey = () => {
     if (createdApiKey) handleCopy({ text: createdApiKey, message: "API key copied to clipboard" });
@@ -416,32 +401,32 @@ function ApiKeyModalContent({
     <div className="flex w-full items-center justify-end gap-3 border-t pt-4">
       {isEditMode ? (
         <>
-          <Button variant="outline" onClick={onClose} disabled={updateMutation.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={isUpdatingApiKey}>
             Cancel
           </Button>
           <Button
             onClick={form.handleSubmit(
-              (data) => keyToEdit && updateMutation.mutate({ id: keyToEdit.id, name: data.name })
+              (data) => keyToEdit && updateApiKeyAction({ id: keyToEdit.id, name: data.name })
             )}
-            disabled={updateMutation.isPending}
-            isLoading={updateMutation.isPending}
+            disabled={isUpdatingApiKey}
+            isLoading={isUpdatingApiKey}
           >
-            {updateMutation.isPending ? "Saving..." : "Save"}
+            {isUpdatingApiKey ? "Saving..." : "Save"}
           </Button>
         </>
       ) : createdApiKey ? (
         <Button onClick={onClose}>Continue</Button>
       ) : (
         <>
-          <Button variant="outline" onClick={onClose} disabled={createApiKeyMutation.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={isCreatingApiKey}>
             Cancel
           </Button>
           <Button
-            onClick={form.handleSubmit((data) => createApiKeyMutation.mutate(data))}
-            disabled={createApiKeyMutation.isPending}
-            isLoading={createApiKeyMutation.isPending}
+            onClick={form.handleSubmit((data) => createApiKeyAction(data))}
+            disabled={isCreatingApiKey}
+            isLoading={isCreatingApiKey}
           >
-            {createApiKeyMutation.isPending ? "Creating..." : "Create key"}
+            {isCreatingApiKey ? "Creating..." : "Create key"}
           </Button>
         </>
       )}
@@ -453,7 +438,7 @@ function ApiKeyModalContent({
       {isEditMode ? (
         <form
           onSubmit={form.handleSubmit((data) => {
-            if (keyToEdit) updateMutation.mutate({ id: keyToEdit.id, name: data.name });
+            if (keyToEdit) updateApiKeyAction({ id: keyToEdit.id, name: data.name });
           })}
           className="space-y-6"
           id="edit-api-key-form"
@@ -497,11 +482,7 @@ function ApiKeyModalContent({
           </div>
         </div>
       ) : (
-        <form
-          onSubmit={form.handleSubmit((data) => createApiKeyMutation.mutate(data))}
-          className="space-y-6"
-          id="api-key-form"
-        >
+        <form onSubmit={form.handleSubmit((data) => createApiKeyAction(data))} className="space-y-6" id="api-key-form">
           <RHF.Controller
             control={form.control}
             name="name"

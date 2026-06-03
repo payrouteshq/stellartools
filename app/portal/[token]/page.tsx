@@ -26,12 +26,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useFilePreview } from "@/hooks/use-file-preview";
 import { AppError } from "@/lib/action-handler";
 import { cn, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
@@ -130,44 +131,36 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
   const [actionId, setActionId] = React.useState<string | null>(null);
 
-  const makeSubscriptionMutation = (path: string, successMessage: string) =>
-    useMutation({
-      mutationFn: async (subscriptionId: string) => {
-        setActionId(subscriptionId);
-        const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, {
-          headers: { "x-portal-token": token },
-        });
-        if (response.isErr()) throw new AppError(response.error.message);
-        return response.value;
-      },
-      onSuccess: () => {
-        toast.success(successMessage);
-        queryClient.invalidateQueries({ queryKey: ["customer-portal", token] });
-        setActionId(null);
-      },
-      onError: (error: Error) => {
-        toast.error(error.message);
-        setActionId(null);
-      },
-    });
+  const { mutate: makeSubscriptionMutation, isPending: isMakingSubscription } = useAction(
+    async ({ path, subscriptionId }: { path: string; subscriptionId: string; successMessage: string }) => {
+      setActionId(subscriptionId);
+      const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, {
+        headers: { "x-portal-token": token },
+      });
+      if (response.isErr()) throw new AppError(response.error.message);
+      return response.value;
+    },
+    {
+      onSuccess: () => setActionId(null),
+      onError: () => setActionId(null),
+      invalidate: ["customer-portal", token],
+      successMsg: (_, args) => args.successMessage,
+    }
+  );
 
-  const { mutate: cancelSubscription } = makeSubscriptionMutation("cancel", "Subscription canceled");
-  const { mutate: pauseSubscription } = makeSubscriptionMutation("pause", "Subscription paused");
-  const { mutate: resumeSubscription } = makeSubscriptionMutation("resume", "Subscription resumed");
-
-  const { mutate: deleteWallet, isPending: deletingWallet } = useMutation({
-    mutationFn: async (walletId: string) => {
+  const { mutate: deleteWalletAction, isPending: isDeletingWallet } = useAction(
+    async (walletId: string) => {
       const session = await retrieveCustomerPortalSession(token);
       if (!session) throw new AppError("Invalid or expired session");
       const { customerId, organizationId, environment } = session;
       return await deleteCustomerWallet(customerId, walletId, organizationId, environment);
     },
-    onSuccess: () => {
-      toast.success("Wallet removed");
-      queryClient.invalidateQueries({ queryKey: ["customer-portal", token] });
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
+    {
+      invalidate: ["customer-portal", token],
+      successMsg: "Wallet removed",
+      errorMsg: "Failed to remove wallet",
+    }
+  );
 
   const handleCancel = (subscriptionId: string) => {
     AppModal.open({
@@ -186,7 +179,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
         variant: "destructive",
         onClick: () => {
           AppModal.close();
-          cancelSubscription(subscriptionId);
+          makeSubscriptionMutation({ path: "cancel", subscriptionId, successMessage: "Subscription canceled" });
         },
       },
     });
@@ -208,7 +201,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
         children: "Pause",
         onClick: () => {
           AppModal.close();
-          pauseSubscription(subscriptionId);
+          makeSubscriptionMutation({ path: "pause", subscriptionId, successMessage: "Subscription paused" });
         },
       },
     });
@@ -231,7 +224,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
         variant: "destructive",
         onClick: () => {
           AppModal.close();
-          deleteWallet(wallet.id);
+          deleteWalletAction(wallet.id);
         },
       },
     });
@@ -378,7 +371,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                   key={wallet.id}
                   wallet={wallet}
                   isLinkedToActiveSubscription={activeWalletIds.has(wallet.id)}
-                  deleting={deletingWallet}
+                  isDeleting={isDeletingWallet}
                   onDelete={() => handleDeleteWallet(wallet)}
                 />
               ))}
@@ -404,7 +397,13 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                   busy={actionId === sub.id}
                   onCancel={() => handleCancel(sub.id)}
                   onPause={() => handlePause(sub.id)}
-                  onResume={() => resumeSubscription(sub.id)}
+                  onResume={() =>
+                    makeSubscriptionMutation({
+                      path: "resume",
+                      subscriptionId: sub.id,
+                      successMessage: "Subscription resumed",
+                    })
+                  }
                 />
               ))}
             </div>
@@ -443,12 +442,12 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 function WalletRow({
   wallet,
   isLinkedToActiveSubscription,
-  deleting,
+  isDeleting,
   onDelete,
 }: {
   wallet: Wallet;
   isLinkedToActiveSubscription: boolean;
-  deleting: boolean;
+  isDeleting: boolean;
   onDelete: () => void;
 }) {
   return (
@@ -469,7 +468,7 @@ function WalletRow({
         size="icon"
         className="text-muted-foreground hover:text-destructive size-8 shrink-0"
         onClick={onDelete}
-        disabled={deleting || isLinkedToActiveSubscription}
+        disabled={isDeleting || isLinkedToActiveSubscription}
         title={
           isLinkedToActiveSubscription ? "Cannot remove a wallet linked to an active subscription" : "Remove wallet"
         }

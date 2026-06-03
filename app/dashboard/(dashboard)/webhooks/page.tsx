@@ -17,7 +17,7 @@ import { ChartConfig } from "@/components/ui/chart";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/toast";
+import { useAction } from "@/hooks/use-action";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
@@ -25,7 +25,6 @@ import { AppError } from "@/lib/action-handler";
 import { cn, generateResourceId, normalizeTimeSeries } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, WEBHOOK_EVENT_TYPES, type Webhook, type WebhookEventType } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowDown,
@@ -348,6 +347,36 @@ function WebhooksPageContent() {
     },
   });
 
+  const { mutate: toggleWebhookDisabledAction, isPending: isTogglingWebhookDisabled } = useAction(
+    async ({ id, isDisabled }: { id: string; isDisabled: boolean }) => {
+      if (!org?.token) throw new AppError("No session token");
+      const result = await api.put(`/webhooks/${id}`, { isDisabled }, { "x-session-token": org.token });
+      if (result.isErr()) throw new AppError(result.error.message);
+      return result.value;
+    },
+    {
+      invalidate: ["webhooks"],
+      successMsg: `Webhook updated`,
+      errorMsg: "Failed to update webhook",
+    }
+  );
+
+  const { mutate: deleteWebhookAction, isPending: isDeletingWebhook } = useAction(
+    async (id: string) => {
+      if (!org?.token) throw new AppError("No session token");
+      const result = await api.delete<Webhook>(`/webhooks/${id}`, {
+        "x-session-token": org.token,
+      });
+      if (result.isErr()) throw new AppError(result.error.message);
+      return result.value;
+    },
+    {
+      invalidate: ["webhooks"],
+      successMsg: "Webhook deleted",
+      errorMsg: "Failed to delete webhook",
+    }
+  );
+
   const openCreateModal = React.useCallback(() => {
     isWebhookModalOpenRef.current = true;
     setWebhookModalFooterProps({ isPending: false, isEditMode: false });
@@ -370,7 +399,7 @@ function WebhooksPageContent() {
         <WebhooksModalFooter
           onClose={AppModal.close}
           submitRef={webhookModalSubmitRef}
-          isPending={false}
+          isPending={webhookModalFooterProps.isPending}
           isEditMode={false}
         />
       ),
@@ -380,7 +409,7 @@ function WebhooksPageContent() {
         isWebhookModalOpenRef.current = false;
       },
     });
-  }, [invalidateOrgQuery]);
+  }, [deleteWebhookAction, isDeletingWebhook]);
 
   const openEditModal = React.useCallback(
     (webhook: WebhookDestination) => {
@@ -405,7 +434,7 @@ function WebhooksPageContent() {
           <WebhooksModalFooter
             onClose={AppModal.close}
             submitRef={webhookModalSubmitRef}
-            isPending={false}
+            isPending={webhookModalFooterProps.isPending}
             isEditMode
           />
         ),
@@ -416,7 +445,7 @@ function WebhooksPageContent() {
         },
       });
     },
-    [invalidateOrgQuery]
+    [toggleWebhookDisabledAction, isTogglingWebhookDisabled]
   );
 
   React.useEffect(() => {
@@ -447,51 +476,20 @@ function WebhooksPageContent() {
         size: "small",
         showCloseButton: true,
         primaryButton: {
-          children: deleteWebhookMutation.isPending ? "Deleting…" : "Delete",
+          children: isDeletingWebhook ? "Deleting…" : "Delete",
           variant: "destructive",
-          onClick: () => deleteWebhookMutation.mutate(webhook.id),
-          disabled: deleteWebhookMutation.isPending,
+          onClick: () => deleteWebhookAction(webhook.id),
+          disabled: isDeletingWebhook,
         },
         secondaryButton: { children: "Cancel" },
       });
     },
-    [invalidateOrgQuery]
+    [deleteWebhookAction]
   );
 
   React.useEffect(() => {
     if (searchParams?.get("create") === "true") openCreateModal();
   }, [searchParams?.get("create"), openCreateModal]);
-
-  const toggleWebhookDisabledMutation = useMutation({
-    mutationFn: async ({ id, isDisabled }: { id: string; isDisabled: boolean }) => {
-      if (!org?.token) throw new AppError("No session token");
-      const result = await api.put(`/webhooks/${id}`, { isDisabled }, { "x-session-token": org.token });
-      if (result.isErr()) throw new AppError(result.error.message);
-      return result.value;
-    },
-    onSuccess: (_, { isDisabled }) => {
-      invalidateOrgQuery(["webhooks"]);
-      toast.success(isDisabled ? "Webhook disabled" : "Webhook enabled");
-    },
-    onError: () => toast.error("Failed to update webhook"),
-  });
-
-  const deleteWebhookMutation = useMutation({
-    mutationFn: async (id: string) => {
-      if (!org?.token) throw new AppError("No session token");
-      return await api.delete<Webhook>(`/webhooks/${id}`, {
-        "x-session-token": org.token,
-      });
-    },
-    onSuccess: () => {
-      invalidateOrgQuery(["webhooks"]);
-      AppModal.close();
-      toast.success("Webhook deleted");
-    },
-    onError: () => {
-      toast.error("Failed to delete webhook");
-    },
-  });
 
   const tableActions: TableAction<WebhookDestination>[] = [
     {
@@ -500,7 +498,7 @@ function WebhooksPageContent() {
     },
     {
       label: (webhook) => (webhook.is_disabled ? "Enable" : "Disable"),
-      onClick: (webhook) => toggleWebhookDisabledMutation.mutate({ id: webhook.id, isDisabled: !webhook.is_disabled }),
+      onClick: (webhook) => toggleWebhookDisabledAction({ id: webhook.id, isDisabled: !webhook.is_disabled }),
     },
     {
       label: "Delete",
@@ -670,56 +668,39 @@ function WebhooksModalContent({
     }
   }, [editingWebhook, form]);
 
-  const createWebhookMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof schema>) => {
+  const { mutate: createWebhookAction, isPending: isCreatingWebhook } = useAction(
+    async (data: z.infer<typeof schema>) => {
       if (!orgContext) throw new AppError("No organization context found");
-      const { destinationName: name, endpointUrl: url, description, events } = data;
-      const result = await api.post(
-        "/webhooks",
-        { name, url, description, events, secret },
-        { "x-session-token": orgContext?.token! }
-      );
+      const result = await api.post("/webhooks", data, { "x-session-token": orgContext?.token! });
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
-    onSuccess: () => {
-      invalidateOrgQuery(["webhooks"]);
-      toast.success("Webhook destination created successfully");
-      form.reset();
-      onSuccess();
-    },
-    onError: () => {
-      toast.error("Failed to create webhook destination");
-    },
-  });
+    {
+      invalidate: ["webhooks"],
+      successMsg: "Webhook destination created successfully",
+      errorMsg: "Failed to create webhook destination",
+    }
+  );
 
-  const updateWebhookMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof schema>) => {
-      if (!editingWebhook) return;
+  const { mutate: updateWebhookAction, isPending: isUpdatingWebhook } = useAction(
+    async (data: z.infer<typeof schema>) => {
       if (!orgContext) throw new AppError("No organization context found");
-      const result = await api.put<Webhook>(
-        `/webhooks/${editingWebhook.id}`,
-        {
-          name: data.destinationName,
-          url: data.endpointUrl,
-          description: data.description ?? null,
-          events: data.events,
-        },
-        { "x-session-token": orgContext?.token! }
-      );
+      const result = await api.put<Webhook>(`/webhooks/${editingWebhook?.id}`, data, {
+        "x-session-token": orgContext?.token!,
+      });
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
-    onSuccess: () => {
-      invalidateOrgQuery(["webhooks"]);
-      toast.success("Webhook destination updated successfully");
-      form.reset();
-      onSuccess();
-    },
-    onError: () => {
-      toast.error("Failed to update webhook destination");
-    },
-  });
+    {
+      invalidate: ["webhooks"],
+      successMsg: "Webhook destination updated successfully",
+      errorMsg: "Failed to update webhook destination",
+      onSuccess: () => {
+        form?.reset();
+        onSuccess?.();
+      },
+    }
+  );
 
   const handleSelectAll = () => {
     if (events.length === WEBHOOK_EVENTS.length) {
@@ -734,13 +715,13 @@ function WebhooksModalContent({
 
   const onSubmit = async (data: z.infer<typeof schema>) => {
     if (isEditMode) {
-      updateWebhookMutation.mutate(data);
+      updateWebhookAction(data);
     } else {
-      createWebhookMutation.mutate(data);
+      createWebhookAction(data);
     }
   };
 
-  const isPending = createWebhookMutation.isPending || updateWebhookMutation.isPending;
+  const isPending = isCreatingWebhook || isUpdatingWebhook;
 
   React.useEffect(() => {
     if (!setSubmitRef) return;
