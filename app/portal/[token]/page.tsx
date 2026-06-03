@@ -26,8 +26,9 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/components/ui/toast";
+import { useFilePreview } from "@/hooks/use-file-preview";
 import { AppError } from "@/lib/action-handler";
-import { cn, fileFromUrl, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
+import { cn, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,7 +59,6 @@ type PortalFormData = Schema.infer<typeof portalFormSchema>;
 
 export default function PortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = React.use(params);
-  const [imageLoading, setImageLoading] = React.useState(false);
 
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -66,6 +66,8 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
     queryFn: () => getCustomerPortalData(token),
     enabled: !!token,
   });
+
+  const { file: imageFile, isLoading: isLoadingImage } = useFilePreview(data?.customer?.image ?? null);
 
   const form = RHF.useForm({
     resolver: zodResolver(portalFormSchema),
@@ -76,40 +78,16 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
           phoneNumber: data.customer.phone
             ? phoneNumberFromString(data.customer.phone)
             : { number: "", countryCode: "US" },
-          image: undefined,
+          image: imageFile ?? undefined,
         }
       : undefined,
     defaultValues: {
       name: "",
       email: "",
       phoneNumber: { number: "", countryCode: "US" },
-      image: undefined,
+      image: imageFile ?? undefined,
     },
   });
-
-  React.useEffect(() => {
-    if (!data?.customer?.image) return;
-
-    setImageLoading(true);
-
-    let revoked = false;
-
-    fileFromUrl(data.customer.image, "avatar.png")
-      .then((file) => {
-        if (revoked) return;
-        const withPreview = Object.assign(file, { preview: URL.createObjectURL(file) }) as FileWithPreview;
-        form.setValue("image", withPreview);
-      })
-      .finally(() => {
-        setImageLoading(false);
-      });
-
-    return () => {
-      revoked = true;
-      const current = form.getValues("image");
-      if (current?.preview) URL.revokeObjectURL(current.preview);
-    };
-  }, [data?.customer?.image, form]);
 
   const [saving, startSave] = React.useTransition();
 
@@ -316,11 +294,11 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             <FileUpload
               label={null}
               shape="circle"
+              isLoading={isLoadingImage}
               value={image ? [image] : undefined}
               onFilesChange={(files) => form.setValue("image", files[0], { shouldDirty: true })}
               enableTransformation
               disabled={saving}
-              isLoading={imageLoading}
               dropzoneAccept={{ "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"] }}
               dropzoneMaxSize={5 * 1024 * 1024}
               dropzoneMultiple={false}

@@ -13,14 +13,14 @@ import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/toast";
 import { Product as ProductSchema } from "@/db";
-import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { useAction } from "@/hooks/use-action";
+import { useFilePreview } from "@/hooks/use-file-preview";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { fileFromUrl, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, RecurringPeriod } from "@stellartools/core";
-import { useMutation } from "@tanstack/react-query";
 import { HelpCircle, Info, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -90,26 +90,26 @@ export function ProductsModalContent({
   onFooterChange?: (props: { isPending: boolean }) => void;
 }) {
   const isEditMode = !!editingProduct;
-  const invalidateOrgQuery = useInvalidateOrgQuery();
   const { data: orgContext } = useOrgContext();
   const { data: assets, isLoading: isLoadingAssets } = useOrgQuery(
     ["assets"],
     () => retrieveAssets(null, orgContext?.environment!),
     { enabled: !!orgContext?.environment }
   );
+  const { file: imagesFile, isLoading: isLoadingImages } = useFilePreview(editingProduct?.images?.[0] ?? null);
 
   const form = RHF.useForm<ProductFormData>({
     resolver: zodResolver(productSchema) as RHF.Resolver<ProductFormData>,
-    defaultValues: {
+    values: {
       name: "",
       description: "",
-      images: [],
       type: "one_time",
       recurringPeriod: "month",
       price: { amount: "", asset: "XLM" },
       totalCredits: 0,
       unitsPerCredit: 1,
       metadata: [],
+      images: imagesFile ? [imagesFile] : [],
     },
   });
 
@@ -177,8 +177,8 @@ export function ProductsModalContent({
     }
   }, [editingProduct, form]);
 
-  const putProductMutation = useMutation({
-    mutationFn: async ({ data, existingImageUrls }: { data: ProductFormData; existingImageUrls?: string[] }) => {
+  const { mutate: putProductAction, isPending: isPendingPutProduct } = useAction(
+    async ({ data, existingImageUrls }: { data: ProductFormData; existingImageUrls?: string[] }) => {
       if (!orgContext) throw new AppError("No organization context found");
 
       const api = new ApiClient({
@@ -246,25 +246,24 @@ export function ProductsModalContent({
 
       if ("error" in result.value) throw new AppError(result.value.error);
 
-      return result.value;
+      return result.value as Product;
     },
-    onSuccess: (product) => {
-      invalidateOrgQuery(isEditMode ? ["products", product?.id] : ["products"]);
-      toast.success(isEditMode ? "Product updated successfully!" : "Product created!");
-      form.reset();
-      onSuccess();
-    },
-    onError: (error: unknown) => {
-      console.error(error);
-      toast.error(isEditMode ? "Failed to update product" : "Failed to create product");
-    },
-  });
+    {
+      invalidate: ["products", ...(isEditMode ? [editingProduct?.id] : [])],
+      onSuccess: () => {
+        form.reset();
+        onSuccess();
+      },
+      successMsg: isEditMode ? "Product updated successfully!" : "Product created!",
+      errorMsg: isEditMode ? "Failed to update product" : "Failed to create product",
+    }
+  );
 
   const watched = useWatch({ control: form.control });
   const total = parseFloat(watched.price?.amount || "0") || 0;
 
   const onSubmit = async (data: ProductFormData) => {
-    putProductMutation.mutate({
+    putProductAction({
       data,
       existingImageUrls: isEditMode && editingProduct?.images?.length ? editingProduct.images : undefined,
     });
@@ -284,8 +283,8 @@ export function ProductsModalContent({
   }, [setSubmitRef, submitForm]);
 
   React.useEffect(() => {
-    onFooterChange?.({ isPending: putProductMutation.isPending });
-  }, [putProductMutation.isPending, onFooterChange]);
+    onFooterChange?.({ isPending: isPendingPutProduct });
+  }, [isPendingPutProduct, onFooterChange]);
 
   const showInlineActions = !setSubmitRef;
 
@@ -293,10 +292,10 @@ export function ProductsModalContent({
     <div className="flex flex-col gap-6">
       {showInlineActions && (
         <div className="flex justify-end gap-3 border-b pb-4">
-          <Button variant="outline" onClick={onClose} disabled={putProductMutation.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={isPendingPutProduct}>
             Cancel
           </Button>
-          <Button onClick={submitForm} disabled={putProductMutation.isPending} isLoading={putProductMutation.isPending}>
+          <Button onClick={submitForm} disabled={isPendingPutProduct} isLoading={isPendingPutProduct}>
             {isEditMode ? "Update product" : "Add product"}
           </Button>
         </div>
@@ -340,6 +339,7 @@ export function ProductsModalContent({
             render={({ field }) => (
               <FileUpload
                 value={field.value}
+                isLoading={isLoadingImages}
                 onFilesChange={field.onChange}
                 enableTransformation
                 targetFormat="image/png"

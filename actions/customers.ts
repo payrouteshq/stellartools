@@ -118,7 +118,7 @@ export const retrieveCustomers = async (
       and(
         eq(c.organizationId, organizationId),
         eq(c.environment, environment),
-        filters.length ? or(...(filters as [typeof filters[0], ...typeof filters])) : undefined
+        filters.length ? or(...(filters as [(typeof filters)[0], ...typeof filters])) : undefined
       ),
     with: options?.withWallets ? { wallets: true } : undefined,
     limit,

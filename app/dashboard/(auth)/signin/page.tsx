@@ -48,7 +48,7 @@ export default function SignIn() {
         })
       ),
     onSuccess: (data, variables) => {
-      if (data && "requiresTwoFactor" in data && data.requiresTwoFactor) {
+      if (data && "requires2fa" in data && data.requires2fa) {
         window.location.href = `/2fa${next ? `?next=${encodeURIComponent(next)}` : ""}`;
         return;
       }

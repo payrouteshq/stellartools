@@ -58,8 +58,7 @@ export const accounts = pgTable("account", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   metadata: jsonb("metadata").$type<object | null>(),
-  twoFactorSecret: text("two_factor_secret"),
-  twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
+  $2faSecret: text("$2fa_secret"),
 });
 
 export const auth = pgTable("auth", {
