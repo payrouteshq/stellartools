@@ -390,7 +390,7 @@ export default function CustomerDetailPage() {
             <div className="flex items-start gap-3">
               <Avatar className="border-border h-12 w-12 rounded-full border sm:h-14 sm:w-14">
                 {imageUrl ? (
-                  <AvatarImage src={imageUrl} alt={customer.name ?? "Customer avatar"} />
+                  <AvatarImage className="object-cover" src={imageUrl} alt={customer.name ?? "Customer avatar"} />
                 ) : (
                   <AvatarFallback className="text-muted-foreground text-lg font-semibold">{initials}</AvatarFallback>
                 )}

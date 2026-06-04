@@ -4,11 +4,12 @@ import * as React from "react";
 
 import { Spinner } from "@/components/spinner";
 import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { type MixinProps, splitProps } from "@/lib/mixin";
 import { cn } from "@/lib/utils";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, Search } from "lucide-react";
 
 type ResourceState = "summary" | "detail";
 
@@ -82,19 +83,23 @@ export function ResourceField<T>({
       className={cn("w-full p-0", popProps.className)}
       style={{ width: "var(--radix-popover-trigger-width)" }}
       onOpenAutoFocus={(e) => {
-        // Force focus on input when popover opens
+        e.preventDefault();
         inputRef.current?.focus();
       }}
       {...popProps}
     >
-      <div className="border-b px-3 py-2">
-        <input
-          ref={inputRef}
-          className="placeholder:text-muted-foreground w-full bg-transparent text-sm outline-none"
-          placeholder={placeholder}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="border-b">
+        <InputGroup className="rounded-sm border-0 shadow-none">
+          <InputGroupAddon align="inline-start">
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            ref={inputRef}
+            placeholder={placeholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </InputGroup>
       </div>
 
       <div className="max-h-[300px] overflow-y-auto">
@@ -136,9 +141,9 @@ export function ResourceField<T>({
     <button
       type="button"
       className={cn(
-        "border-input hover:bg-accent/30 focus-visible:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none",
+        "border-input hover:bg-accent/30 flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 text-sm transition-colors outline-none",
         !value && "text-muted-foreground",
-        !!error && "border-destructive focus-visible:ring-destructive/50"
+        !!error && "border-destructive"
       )}
     >
       <span className="truncate">{text}</span>

@@ -474,3 +474,23 @@ export const Discord = (props: SVGProps<SVGSVGElement>) => {
     </svg>
   );
 };
+
+export const PencilIcon = (props: SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      aria-hidden="true"
+      width={props.width}
+      height={props.height}
+      viewBox="0 0 12 12"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="currentColor"
+      {...props}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M.975 7.875a1 1 0 0 1 .29-.64L7.44 1.06a1.5 1.5 0 0 1 2.122 0l1.378 1.378a1.5 1.5 0 0 1 0 2.122l-6.173 6.173a1 1 0 0 1-.64.291l-3.09.206a.25.25 0 0 1-.267-.266l.206-3.09Zm1.386 1.764.098-1.477L6.53 4.091 7.91 5.47 3.838 9.54l-1.477.1ZM8.97 4.41l.909-.909L8.5 2.121l-.909.91L8.97 4.408Z"
+      />
+    </svg>
+  );
+};
