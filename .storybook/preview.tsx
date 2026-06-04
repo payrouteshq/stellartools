@@ -3,6 +3,7 @@ import React from "react";
 import type { Preview } from "@storybook/react";
 
 import "../app/globals.css";
+import "./preview.css";
 
 const preview: Preview = {
   parameters: {
@@ -28,7 +29,16 @@ const preview: Preview = {
   },
   decorators: [
     (Story) => (
-      <div className="antialiased">
+      <div
+        className="bg-background text-foreground antialiased"
+        style={
+          {
+            "--font-dm-sans": '"DM Sans", sans-serif',
+            "--font-instrument-serif": '"Instrument Serif", serif',
+            "--font-jetbrains-mono": '"JetBrains Mono", monospace',
+          } as React.CSSProperties
+        }
+      >
         <Story />
       </div>
     ),

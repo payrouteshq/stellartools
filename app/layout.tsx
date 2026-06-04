@@ -3,7 +3,7 @@ import ThemeProvider from "@/providers";
 import { Providers } from "@/providers";
 import "katex/dist/katex.min.css";
 import type { Metadata } from "next";
-import { DM_Sans, Instrument_Serif, Inter, JetBrains_Mono, Lora } from "next/font/google";
+import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 
