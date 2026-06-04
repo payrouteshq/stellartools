@@ -1,352 +1,123 @@
-import { useState } from "react";
+"use client";
+
+import * as React from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
+import { Plus } from "lucide-react";
 
-import { ResourceField, ResourceFieldItem } from "./resource-field";
+import { ResourceField } from "./resource-field";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
 
-type SampleResource = {
-  id: string;
-  name: string;
-  description?: string;
-  image?: string;
-  email?: string;
-  phone?: string;
-  disabled?: boolean;
+type Sample = { id: string; name: string; email?: string; desc?: string; img?: string; disabled?: boolean };
+
+const customers: Sample[] = [
+  { id: "c1", name: "Alice Johnson", email: "alice@ironkey.investments", img: "https://i.pravatar.cc/150?u=1" },
+  { id: "c2", name: "Jayson Quinones", email: "jayson@ironkey.investments", img: "https://i.pravatar.cc/150?u=2" },
+  { id: "c3", name: "Bryan Mayorga", email: "mayorga101@gmail.com", img: "https://i.pravatar.cc/150?u=3" },
+  { id: "c4", name: "Reginald Bishop", email: "johnsonladray@gmail.com", img: "https://i.pravatar.cc/150?u=4" },
+];
+
+const customerConfig = {
+  items: customers,
+  pickerLabel: "Customer",
+  getItemTitle: (i: Sample) => i.name,
+  searchFilter: (i: Sample, q: string) =>
+    i.name.toLowerCase().includes(q.toLowerCase()) || (i.email?.toLowerCase().includes(q.toLowerCase()) ?? false),
+
+  renderSearchItem: (i: Sample) => (
+    <div className="flex cursor-pointer items-center gap-3 p-2.5 transition-colors">
+      <img src={i.img} className="size-7 rounded-full" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] leading-none font-semibold">{i.name}</p>
+        <p className="text-muted-foreground truncate text-[11px] leading-relaxed">{i.email}</p>
+      </div>
+    </div>
+  ),
+
+  renderSummary: (i: Sample) => (
+    <div className="flex items-center gap-3">
+      <img src={i.img} className="size-10 rounded-full" />
+      <div>
+        <p className="text-sm font-bold">{i.name}</p>
+        <p className="text-muted-foreground text-xs">{i.email}</p>
+      </div>
+    </div>
+  ),
+
+  renderDetail: (i: Sample, { close, remove, picker }: any) => (
+    <div className="space-y-5 pt-4">
+      {picker}
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Email</Label>
+          <p className="text-[13px]">{i.email}</p>
+        </div>
+        <div>
+          <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Invoice Prefix</Label>
+          <p className="font-mono text-[13px]">5D9MEYQR</p>
+        </div>
+      </div>
+      <div className="flex justify-between border-t pt-4">
+        <Button variant="destructive" size="sm" onClick={remove}>
+          Remove
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={close}>
+            Edit
+          </Button>
+          <Button size="sm" className="bg-primary" onClick={close}>
+            Confirm
+          </Button>
+        </div>
+      </div>
+    </div>
+  ),
+
+  renderActions: (
+    <button
+      onClick={() => alert("Create Modal")}
+      className="text-foreground hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-[13px] transition-colors"
+    >
+      <Plus className="size-3.5" />
+      New customer
+    </button>
+  ),
+  recentLabel: "Recent customers",
 };
 
-const sampleItems: SampleResource[] = [
-  { id: "1", name: "Project Alpha", description: "Main dashboard project" },
-  { id: "2", name: "Project Beta", description: "API integration" },
-  { id: "3", name: "Project Gamma", description: "Mobile app" },
-  { id: "4", name: "Project Delta", description: "Analytics pipeline" },
-  { id: "5", name: "Project Epsilon", description: "Customer portal" },
-];
-
-const sampleCustomers: SampleResource[] = [
-  {
-    id: "c1",
-    name: "Alice Johnson",
-    email: "alice@example.com",
-    phone: "+1 555 0101",
-    image: "https://i.pravatar.cc/150?u=alice",
-  },
-  {
-    id: "c2",
-    name: "Bob Smith",
-    email: "bob@example.com",
-    phone: "+1 555 0102",
-    image: "https://i.pravatar.cc/150?u=bob",
-  },
-  {
-    id: "c3",
-    name: "Carol White",
-    email: "carol@example.com",
-    image: "https://i.pravatar.cc/150?u=carol",
-  },
-  {
-    id: "c4",
-    name: "David Brown",
-    email: "david@example.com",
-    image: "https://i.pravatar.cc/150?u=david",
-  },
-];
-
-const sampleWithDisabled: SampleResource[] = [
-  { id: "1", name: "Project Alpha", description: "Available" },
-  { id: "2", name: "Project Beta", description: "Unavailable", disabled: true },
-  { id: "3", name: "Project Gamma", description: "Available" },
-  { id: "4", name: "Project Delta", description: "Unavailable", disabled: true },
-  { id: "5", name: "Project Epsilon", description: "Available" },
-];
-
-const renderItem = (item: SampleResource): ResourceFieldItem => ({
-  id: item.id,
-  title: item.name,
-  subtitle: item.description,
-  searchValue: [item.name, item.description].filter(Boolean).join(" "),
-  disabled: item.disabled,
-});
-
-const renderCustomerItem = (item: SampleResource): ResourceFieldItem => ({
-  id: item.id,
-  title: item.name,
-  subtitle: item.email,
-  searchValue: [item.name, item.email].filter(Boolean).join(" "),
-  image: item.image ? { src: item.image, alt: item.name } : undefined,
-});
-
-const meta: Meta = {
-  title: "Components/ResourceField",
-  component: ResourceField,
-  parameters: { layout: "centered" },
-  tags: ["autodocs"],
-};
-
-export default meta;
-type Story = StoryObj;
-
-const Wrapper = ({ args, initialValue = [] }: { args: any; initialValue?: string[] }) => {
-  const [value, setValue] = useState<string[]>(initialValue);
+const FieldDemo = ({ initialValue = null, ...props }: any) => {
+  const [val, setVal] = React.useState<Sample | null>(initialValue);
   return (
     <div className="w-[420px]">
-      <ResourceField {...args} value={value} onChange={setValue} />
+      <ResourceField {...props} value={val} onChange={setVal} />
     </div>
   );
 };
 
-export const Default: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-      }}
-    />
-  ),
+const meta: Meta<typeof ResourceField> = {
+  title: "Components/ResourceField",
+  component: ResourceField,
+  parameters: { layout: "centered" },
 };
 
-export const WithInitialValue: Story = {
-  render: () => (
-    <Wrapper
-      initialValue={["1"]}
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-      }}
-    />
-  ),
+export default meta;
+type Story = StoryObj<typeof ResourceField>;
+
+export const SpecImplementation: Story = {
+  render: () => <FieldDemo label="Customer" placeholder="Select customer" {...customerConfig} />,
 };
 
-export const SearchHighlight: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-        searchHighlight: true,
-      }}
-    />
-  ),
-};
-
-export const WithDisabledItems: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleWithDisabled,
-        renderItem,
-      }}
-    />
-  ),
-};
-
-export const WithAddNew: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-        onAddNew: () => alert("Create new clicked"),
-        addNewLabel: "New resource",
-      }}
-    />
-  ),
-};
-
-export const WithDetailPanel: Story = {
-  render: () => (
-    <Wrapper
-      initialValue={["1"]}
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-        renderSelected: (item: ResourceFieldItem) => (
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-semibold">Title</p>
-              <p className="text-sm text-muted-foreground">{item.title}</p>
-            </div>
-            {item.subtitle && (
-              <div>
-                <p className="text-sm font-semibold">Description</p>
-                <p className="text-sm text-muted-foreground">{item.subtitle}</p>
-              </div>
-            )}
-          </div>
-        ),
-      }}
-    />
-  ),
-};
-
-export const WithAsyncDetailPanel: Story = {
-  render: () => (
-    <Wrapper
-      initialValue={["c1"]}
-      args={{
-        label: "Customer",
-        placeholder: "Select customer...",
-        items: sampleCustomers,
-        renderItem: renderCustomerItem,
-        imgClassName: "object-cover",
-        renderSelected: async (item: ResourceFieldItem) => {
-          await new Promise((r) => setTimeout(r, 1200));
-          const customer = sampleCustomers.find((c) => c.id === item.id);
-          if (!customer) return null;
-          return (
-            <div className="space-y-3">
-              {customer.email && (
-                <div>
-                  <p className="text-sm font-semibold">Email</p>
-                  <p className="text-sm text-muted-foreground">{customer.email}</p>
-                </div>
-              )}
-              {customer.phone && (
-                <div>
-                  <p className="text-sm font-semibold">Phone</p>
-                  <p className="text-sm text-muted-foreground">{customer.phone}</p>
-                </div>
-              )}
-            </div>
-          );
-        },
-      }}
-    />
-  ),
-};
-
-export const WithRemove: Story = {
-  render: () => {
-    const [value, setValue] = useState<string[]>(["c2"]);
-    return (
-      <div className="w-[420px]">
-        <ResourceField
-          label="Customer"
-          placeholder="Select customer..."
-          items={sampleCustomers}
-          value={value}
-          onChange={setValue}
-          renderItem={renderCustomerItem}
-          imgClassName="object-cover"
-          renderSelected={(item) => (
-            <div>
-              <p className="text-sm font-semibold">Email</p>
-              <p className="text-sm text-muted-foreground">
-                {sampleCustomers.find((c) => c.id === item.id)?.email}
-              </p>
-            </div>
-          )}
-          onRemove={() => setValue([])}
-        />
-      </div>
-    );
-  },
-};
-
-export const Loading: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: [],
-        renderItem,
-        isLoading: true,
-      }}
-    />
-  ),
-};
-
-export const Empty: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: [],
-        renderItem,
-      }}
-    />
-  ),
-};
-
-export const EmptyWithAddNew: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: [],
-        renderItem,
-        onAddNew: () => alert("Create new clicked"),
-        addNewLabel: "New resource",
-      }}
-    />
-  ),
-};
-
-export const CustomEmptyText: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: [],
-        renderItem,
-        emptyText: "Nothing here yet. Create your first resource.",
-      }}
-    />
-  ),
+export const ActiveLifecycle: Story = {
+  render: () => <FieldDemo label="Customer" initialValue={customers[1]} {...customerConfig} />,
 };
 
 export const WithError: Story = {
   render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-        error: "Please select a resource",
-      }}
-    />
+    <FieldDemo label="Customer" error="You must select a customer to generate an invoice" {...customerConfig} />
   ),
 };
 
-export const WithoutLabel: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-      }}
-    />
-  ),
-};
-
-export const CustomRecentLabel: Story = {
-  render: () => (
-    <Wrapper
-      args={{
-        label: "Resource",
-        placeholder: "Search resources...",
-        items: sampleItems,
-        renderItem,
-        recentLabel: "All resources",
-      }}
-    />
-  ),
+export const LoadingState: Story = {
+  render: () => <FieldDemo {...customerConfig} label="Customer" items={[]} />,
 };
