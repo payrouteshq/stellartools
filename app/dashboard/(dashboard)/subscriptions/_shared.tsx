@@ -131,9 +131,68 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                 items={customers?.data ?? []}
                 value={field.value}
                 onChange={field.onChange}
-                multiple
-                placeholder="Find or add a customer..."
-                renderItem={(c) => ({ searchValue: c.name!, id: c.id, title: c.name!, subtitle: c.email! })}
+                imgClassName="object-cover"
+                placeholder="Select customer"
+                recentLabel="Recent"
+                addNewLabel="New customer"
+                label="Customer"
+                renderItem={(c) => ({
+                    searchValue: c.name!,
+                    id: c.id,
+                    title: c.name!,
+                    subtitle: c.email!,
+                    image: c.image ? { src: c.image, alt: c.name ?? undefined } : undefined,
+                  })}
+                renderSelected={async (item) => {
+                  const result = await retrieveCustomers(
+                    { id: item.id },
+                    { withWallets: true, requireLookUpParams: true },
+                    org?.id,
+                    org?.environment
+                  );
+                  const customer = result.data[0];
+                  if (!customer) return null;
+                  return (
+                    <div className="space-y-4">
+                      {customer.email && (
+                        <div>
+                          <p className="text-sm font-semibold">Email</p>
+                          <p className="text-sm text-muted-foreground">{customer.email}</p>
+                        </div>
+                      )}
+                      {customer.phone && (
+                        <div>
+                          <p className="text-sm font-semibold">Phone</p>
+                          <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                        </div>
+                      )}
+                      {customer.wallets && customer.wallets.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {customer.wallets.length === 1 ? "Wallet" : "Wallets"}
+                          </p>
+                          {customer.wallets.map((w, i) => (
+                            <p key={i} className="truncate font-mono text-xs text-muted-foreground">
+                              {w.address}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {customer.metadata && Object.keys(customer.metadata).length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold">Metadata</p>
+                          {Object.entries(customer.metadata).map(([key, val]) => (
+                            <div key={key} className="flex gap-2 text-sm">
+                              <span className="font-medium">{key}:</span>
+                              <span className="text-muted-foreground">{String(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }}
+                onRemove={() => field.onChange([])}
               />
             )}
           />

@@ -24,7 +24,7 @@ import { mergeWithNullDeletes } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { MaybeArray } from "@stellartools/core";
 import crypto from "crypto";
-import { SQL, and, desc, eq, gt, inArray, or } from "drizzle-orm";
+import { SQL, and, desc, eq, gt, inArray } from "drizzle-orm";
 import moment from "moment";
 
 export const createCustomerImage = async (formData: FormData): Promise<string | undefined> => {
