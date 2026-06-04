@@ -2,241 +2,212 @@
 
 import * as React from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
-import { MixinProps, splitProps } from "@/lib/mixin";
+import { Spinner } from "@/components/spinner";
+import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { type MixinProps, splitProps } from "@/lib/mixin";
 import { cn } from "@/lib/utils";
-import { Check, Plus, Search, X } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 
-import { Label } from "./ui/label";
+type ResourceState = "summary" | "detail";
 
-type ErrorProps = React.ComponentProps<"p">;
-type LabelProps = React.ComponentProps<"label">;
-
-export interface ResourceFieldItem {
-  id: string;
-  title: string;
-  subtitle?: string;
-  searchValue: string;
-}
-
-export interface ResourceFieldProps<T> extends MixinProps<"error", Omit<ErrorProps, "children">> {
+export interface ResourceFieldProps<T>
+  extends
+    MixinProps<"container", React.ComponentProps<"div">>,
+    MixinProps<"card", React.ComponentProps<"div">>,
+    MixinProps<"popover", React.ComponentProps<typeof PopoverContent>>,
+    MixinProps<"label", Omit<React.ComponentProps<typeof Label>, "children">>,
+    MixinProps<"error", Omit<React.ComponentProps<"p">, "children">> {
+  value: T | null;
+  onChange: (val: T | null) => void;
   items: T[];
-  value: string[];
-  onChange: (value: string[]) => void;
-  renderItem: (item: T) => ResourceFieldItem;
+  getItemTitle: (item: T) => string;
+  renderSearchItem: (item: T, isSelected: boolean) => React.ReactNode;
+  renderSummary: (item: T) => React.ReactNode;
+  renderDetail: (
+    item: T,
+    helpers: {
+      close: () => void;
+      remove: () => void;
+      picker: React.ReactNode;
+    }
+  ) => React.ReactNode;
+  searchFilter: (item: T, query: string) => boolean;
+  renderActions?: React.ReactNode;
+  recentLabel?: string;
+  label?: React.ReactNode;
+  pickerLabel?: string;
+  error?: React.ReactNode;
   placeholder?: string;
-  multiple?: boolean;
   isLoading?: boolean;
-  onAddNew?: () => void;
-  className?: string;
-  maxHeight?: string;
-  skeletonRowCount?: number;
-  error?: ErrorProps["children"];
-  label?: LabelProps["children"];
 }
-
-// --- Internal Components ---
-
-const SelectionRibbon = ({ items, onRemove, onClear }: any) => (
-  <div className="animate-in fade-in slide-in-from-top-1 flex flex-wrap items-center gap-1.5 duration-200">
-    {items.map((item: ResourceFieldItem) => (
-      <Badge
-        key={item.id}
-        variant="secondary"
-        className="bg-secondary/50 border-secondary-foreground/10 hover:bg-secondary h-6 gap-1 pr-1 pl-2 transition-colors"
-      >
-        <span className="max-w-[150px] truncate text-[11px] font-semibold tracking-tight">{item.title}</span>
-        <button type="button" onClick={() => onRemove(item.id)} className="hover:bg-foreground/10 rounded-full p-0.5">
-          <X className="size-3 cursor-pointer" />
-        </button>
-      </Badge>
-    ))}
-    <button
-      type="button"
-      onClick={onClear}
-      className="text-muted-foreground hover:text-primary ml-1 text-[10px] font-bold uppercase transition-colors"
-    >
-      Clear All
-    </button>
-  </div>
-);
-
-const ResourceFieldRow = React.memo(({ item, isSelected, onClick }: any) => (
-  <div
-    onClick={() => onClick(item.id)}
-    className={cn(
-      "group hover:bg-accent/50 flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors",
-      isSelected && "bg-primary/5"
-    )}
-  >
-    <div className="flex min-w-0 flex-1 flex-col">
-      <span
-        className={cn(
-          "truncate text-sm font-semibold tracking-tight transition-colors",
-          isSelected ? "text-primary" : "text-foreground/90 group-hover:text-foreground"
-        )}
-      >
-        {item.title}
-      </span>
-      {item.subtitle && (
-        <span className="text-muted-foreground/60 group-hover:text-muted-foreground/80 truncate text-[11px] font-medium">
-          {item.subtitle}
-        </span>
-      )}
-    </div>
-    <div
-      className={cn(
-        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
-        isSelected
-          ? "border-primary bg-primary text-primary-foreground scale-105 shadow-sm"
-          : "border-muted-foreground/20 opacity-40 group-hover:opacity-100"
-      )}
-    >
-      {isSelected && <Check className="h-3 w-3 stroke-[3.5]" />}
-    </div>
-  </div>
-));
-ResourceFieldRow.displayName = "ResourceFieldRow";
-
-// --- Main Component ---
 
 export function ResourceField<T>({
-  items,
   value,
   onChange,
-  renderItem,
-  placeholder = "Search resources...",
-  multiple = false,
-  isLoading = false,
-  onAddNew,
-  className,
-  maxHeight = "300px",
-  skeletonRowCount = 5,
-  error,
+  items,
+  getItemTitle,
+  renderSearchItem,
+  renderSummary,
+  renderDetail,
+  searchFilter,
+  renderActions,
+  recentLabel = "Recent",
   label,
+  pickerLabel,
+  error,
+  placeholder = "Search...",
+  isLoading = false,
   ...mixProps
 }: ResourceFieldProps<T>) {
+  const {
+    container,
+    card,
+    label: labelProps,
+    error: errorProps,
+    popover: popProps,
+  } = splitProps(mixProps, "container", "card", "label", "error", "popover");
+
+  const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
-  const [isFocused, setIsFocused] = React.useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const { error: errorProps, label: labelProps } = splitProps(mixProps, "error", "label");
+  const [view, setView] = React.useState<ResourceState>("summary");
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setIsFocused(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const filtered = React.useMemo(() => items.filter((i) => searchFilter(i, query)), [items, query, searchFilter]);
 
-  const mappedItems = React.useMemo(() => items.map(renderItem), [items, renderItem]);
+  const renderPickerContent = () => (
+    <PopoverContent
+      align="start"
+      className={cn("w-full p-0", popProps.className)}
+      style={{ width: "var(--radix-popover-trigger-width)" }}
+      onOpenAutoFocus={(e) => {
+        // Force focus on input when popover opens
+        inputRef.current?.focus();
+      }}
+      {...popProps}
+    >
+      <div className="border-b px-3 py-2">
+        <input
+          ref={inputRef}
+          className="placeholder:text-muted-foreground w-full bg-transparent text-sm outline-none"
+          placeholder={placeholder}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
-  const filteredItems = React.useMemo(() => {
-    const q = query.toLowerCase().trim();
-    return q ? mappedItems.filter((i) => i.searchValue.toLowerCase().includes(q)) : mappedItems;
-  }, [mappedItems, query]);
+      <div className="max-h-[300px] overflow-y-auto">
+        {renderActions && !query && (
+          <div className="bg-background/50 border-b">
+            <div className="text-muted-foreground px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase">
+              Create
+            </div>
+            {renderActions}
+          </div>
+        )}
 
-  const selectedItems = React.useMemo(() => mappedItems.filter((i) => value.includes(i.id)), [mappedItems, value]);
+        {filtered.length > 0 && !query && (
+          <div className="text-muted-foreground border-b px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase">
+            {recentLabel}
+          </div>
+        )}
 
-  const handleSelect = (id: string) => {
-    if (multiple) {
-      onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
-    } else {
-      onChange([id]);
-      setQuery("");
-      setIsFocused(false);
-    }
+        {filtered.map((item, idx) => (
+          <div
+            key={idx}
+            className="cursor-pointer border-b last:border-0"
+            onClick={() => {
+              onChange(item);
+              setOpen(false);
+              setQuery("");
+            }}
+          >
+            {renderSearchItem(item, value === item)}
+          </div>
+        ))}
+
+        {filtered.length === 0 && <div className="text-muted-foreground p-4 text-center text-xs">No results found</div>}
+      </div>
+    </PopoverContent>
+  );
+
+  const triggerButton = (text: string) => (
+    <button
+      type="button"
+      className={cn(
+        "border-input hover:bg-accent/30 focus-visible:ring-ring flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none",
+        !value && "text-muted-foreground",
+        !!error && "border-destructive focus-visible:ring-destructive/50"
+      )}
+    >
+      <span className="truncate">{text}</span>
+      {isLoading ? <Spinner size={20} /> : <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
+    </button>
+  );
+
+  const handleRemove = () => {
+    onChange(null);
+    setView("summary");
+    setTimeout(() => setOpen(true), 10);
   };
 
-  const showResults = isFocused || query.length > 0;
+  if (!value) {
+    return (
+      <div className={cn("w-full space-y-2", container.className)} {...container}>
+        {label && <Label {...labelProps}>{label}</Label>}
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>{triggerButton(placeholder)}</PopoverTrigger>
+          {renderPickerContent()}
+        </Popover>
+        {error && (
+          <p className={cn("text-destructive text-sm", errorProps.className)} {...errorProps}>
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const embeddedPicker = (
+    <div className="space-y-1.5">
+      {pickerLabel && (
+        <Label className="text-muted-foreground text-[11px] font-bold tracking-tight uppercase">{pickerLabel}</Label>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>{triggerButton(getItemTitle(value))}</PopoverTrigger>
+        {renderPickerContent()}
+      </Popover>
+    </div>
+  );
 
   return (
-    <div ref={containerRef} className={cn("relative w-full space-y-3", className)}>
+    <div className={cn("w-full space-y-2", container.className)} {...container}>
       {label && <Label {...labelProps}>{label}</Label>}
 
-      {selectedItems.length > 0 && (
-        <SelectionRibbon
-          items={selectedItems}
-          onRemove={(id: string) => onChange(value.filter((v) => v !== id))}
-          onClear={() => onChange([])}
-        />
-      )}
-
-      <InputGroup
-        className={cn("h-10 bg-transparent transition-all", isFocused && "ring-primary/20 border-primary ring-2")}
-      >
-        <InputGroupAddon>
-          <Search className={cn("size-4 transition-colors", isFocused ? "text-primary" : "text-muted-foreground")} />
-        </InputGroupAddon>
-        <InputGroupInput
-          value={query}
-          onFocus={() => setIsFocused(true)}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={placeholder}
-          aria-invalid={!!error}
-        />
-        {!isFocused && value.length > 0 && (
-          <InputGroupAddon align="inline-end" className="animate-in fade-in pointer-events-none scale-95">
-            <Badge variant="default" className="h-5 px-1.5 text-[10px] font-black uppercase">
-              {value.length} {multiple ? "Selected" : "Picked"}
-            </Badge>
-          </InputGroupAddon>
-        )}
-      </InputGroup>
-
-      {showResults && (
-        <div className="animate-in fade-in slide-in-from-top-2 absolute z-50 w-full pt-1 duration-200">
-          <div className="bg-card flex flex-col overflow-hidden rounded-xl border shadow-xl ring-1 ring-black/5">
-            <ScrollArea style={{ maxHeight }} className="bg-background">
-              {isLoading ? (
-                <div className="divide-border/40 divide-y">
-                  {Array.from({ length: skeletonRowCount }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-2.5">
-                      <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-4 w-2/3" />
-                        <Skeleton className="h-3 w-1/2" />
-                      </div>
-                      <Skeleton className="size-5 rounded-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className="space-y-2 py-10 text-center">
-                  <p className="text-muted-foreground text-sm">No matches for &quot;{query}&quot;</p>
-                  {onAddNew && (
-                    <Button variant="link" size="sm" onClick={onAddNew} className="h-auto gap-1 p-0">
-                      <Plus className="size-3" /> Create new
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="divide-border/40 divide-y">
-                  {filteredItems.map((item) => (
-                    <ResourceFieldRow
-                      key={item.id}
-                      item={item}
-                      multiple={multiple}
-                      isSelected={value.includes(item.id)}
-                      onClick={handleSelect}
-                    />
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-            <div className="bg-muted/5 text-muted-foreground/40 flex items-center justify-between border-t px-4 py-2 text-[10px] font-bold tracking-widest uppercase">
-              <span>{filteredItems.length} Available</span>
-              {multiple && <span>{value.length} Selected</span>}
+      <div className={cn("bg-card overflow-hidden rounded-lg border shadow-sm", card.className)} {...card}>
+        <Accordion type="single" value={view} onValueChange={(v) => setView(v as ResourceState)}>
+          <AccordionItem value="detail" className="border-none">
+            <div
+              className={cn("hover:bg-accent/30 cursor-pointer p-4 transition-colors", view === "detail" && "hidden")}
+              onClick={() => setView("detail")}
+            >
+              {renderSummary(value)}
             </div>
-          </div>
-        </div>
-      )}
+
+            <AccordionContent className="p-4 pt-0">
+              {renderDetail(value, {
+                close: () => setView("summary"),
+                remove: handleRemove,
+                picker: embeddedPicker,
+              })}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
 
       {error && (
-        <p {...errorProps} className={cn("text-destructive -mt-1 text-sm", errorProps.className)}>
+        <p className={cn("text-destructive text-sm", errorProps.className)} {...errorProps}>
           {error}
         </p>
       )}

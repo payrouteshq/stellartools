@@ -8,6 +8,7 @@ import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DataTable, TableAction } from "@/components/data-table";
 import { Spinner } from "@/components/spinner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,9 +84,12 @@ const columns: ColumnDef<Product>[] = [
     header: ({ column }) => <SortableHeader column={column} title="Name" />,
     cell: ({ row }) => (
       <div className="flex items-center gap-3 py-1">
-        <div className="bg-muted/50 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
-          <Package className="text-muted-foreground h-4 w-4" />
-        </div>
+        <Avatar className="rounded-lg border">
+          <AvatarImage src={row.original.images?.[0] ?? ""} alt={row.original.name} className="object-cover" />
+          <AvatarFallback className="bg-muted/50 rounded-lg">
+            <Package className="text-muted-foreground h-4 w-4" />
+          </AvatarFallback>
+        </Avatar>
         <div className="font-medium">{row.original.name}</div>
       </div>
     ),
