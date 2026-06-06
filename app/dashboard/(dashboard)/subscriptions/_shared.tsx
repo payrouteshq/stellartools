@@ -19,15 +19,13 @@ import { ResolvedCustomer } from "@/db/schema";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
-import { STROOPS_PER_XLM, stroopsToXlm, truncate } from "@/lib/utils";
+import { truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
 import { Trash2 } from "lucide-react";
 import moment from "moment";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
-
-export const formatXLM = (s: number) => (s / STROOPS_PER_XLM).toLocaleString(undefined, { minimumFractionDigits: 2 });
 
 const subscriptionFormSchema = z.object({
   customerId: z.string().min(1, "Select a customer"),
@@ -151,13 +149,13 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
 
   const watch = form.watch();
   const selectedCustomer = (customers?.data ?? []).find((c) => c.id === watch.customerId);
-  const selectedProduct = products.find((p) => p.product.id === watch.productId);
+  const selectedProduct = products.find((p) => p.id === watch.productId);
   const ready = !!selectedCustomer && !!selectedProduct;
 
   const timelineItems = React.useMemo(() => {
     if (!ready) return [];
 
-    const amount = formatXLM(Number(stroopsToXlm(BigInt(selectedProduct.product.priceAmount))));
+    const amount = selectedProduct.priceCents;
     const chargeMsg = `${selectedCustomer.name || selectedCustomer.email} will be charged ${amount} XLM`;
 
     const start = { date: moment().format("MMM D, YYYY"), events: ["Subscription starts"] };
@@ -265,25 +263,25 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
             render={({ field, fieldState: { error } }) => (
               <ResourceField
                 isLoading={isLoadingProducts}
-                items={products.filter((p) => p.product.type === "subscription")}
+                items={products.filter((p) => p.type === "subscription")}
                 value={selectedProduct || null}
-                onChange={(p) => field.onChange(p?.product.id ?? "")}
-                getItemTitle={(p) => p.product.name}
-                searchFilter={(p, q) => p.product.name.toLowerCase().includes(q.toLowerCase())}
+                onChange={(p) => field.onChange(p?.id ?? "")}
+                getItemTitle={(p) => p.name}
+                searchFilter={(p, q) => p.name.toLowerCase().includes(q.toLowerCase())}
                 error={error?.message}
                 renderSearchItem={(p) => (
                   <div className="p-2.5">
-                    <p className="text-[13px] font-semibold">{p.product.name}</p>
+                    <p className="text-[13px] font-semibold">{p.name}</p>
                     <p className="text-muted-foreground text-[11px]">
-                      {formatXLM(Number(stroopsToXlm(BigInt(p.product.priceAmount))))} XLM / {p.product.recurringPeriod}
+                      $${p.priceCents.toFixed(2)} / {p.recurringPeriod}
                     </p>
                   </div>
                 )}
                 renderSummary={(p) => (
                   <div>
-                    <p className="text-sm font-semibold">{p.product.name}</p>
+                    <p className="text-sm font-semibold">{p.name}</p>
                     <p className="text-muted-foreground text-xs">
-                      {formatXLM(Number(stroopsToXlm(BigInt(p.product.priceAmount))))} XLM / {p.product.recurringPeriod}
+                      $${p.priceCents.toFixed(2)} / {p.recurringPeriod}
                     </p>
                   </div>
                 )}
@@ -295,15 +293,13 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                         <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                           Price
                         </Label>
-                        <p className="text-[13px]">
-                          {formatXLM(Number(stroopsToXlm(BigInt(p.product.priceAmount))))} XLM
-                        </p>
+                        <p className="text-[13px]">$${p.priceCents.toFixed(2)}</p>
                       </div>
                       <div>
                         <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
                           Billing
                         </Label>
-                        <p className="text-[13px] capitalize">{p.product.recurringPeriod}</p>
+                        <p className="text-[13px] capitalize">{p.recurringPeriod}</p>
                       </div>
                     </div>
                     <div className="flex justify-between border-t pt-3">

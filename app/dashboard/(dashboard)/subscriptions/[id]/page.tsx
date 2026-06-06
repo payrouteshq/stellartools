@@ -31,7 +31,7 @@ import { toast } from "@/components/ui/toast";
 import { useAction } from "@/hooks/use-action";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
-import { STROOPS_PER_XLM, cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import _ from "lodash";
 import { ChevronRight, Copy, ExternalLink, MoreHorizontal, Pause, Play, XCircle } from "lucide-react";
@@ -41,7 +41,6 @@ import { useParams, useRouter } from "next/navigation";
 
 import { SubscriptionModalContent, SubscriptionModalFooter } from "../_shared";
 
-const formatXLM = (s: number) => (s / STROOPS_PER_XLM).toLocaleString(undefined, { minimumFractionDigits: 2 });
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
 const getExplorerUrl = (h: string, e: string) =>
@@ -187,7 +186,7 @@ export default function SubscriptionDetailPage() {
                 <span>Started {formatDate(s.currentPeriodStart)}</span>
                 <span>&middot;</span>
                 <span>
-                  Next billing {formatXLM(p.priceAmount)} XLM on {formatDate(s.currentPeriodEnd)}
+                  Next billing {formatCurrency(p.priceAmount)} XLM on {formatDate(s.currentPeriodEnd)}
                 </span>
                 {s.cancelAtPeriodEnd && (
                   <>
@@ -245,11 +244,11 @@ export default function SubscriptionDetailPage() {
                   <div className="grid grid-cols-4 gap-4 px-4 py-3">
                     <div>
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-muted-foreground text-xs">{formatXLM(p.priceAmount)} XLM / mo</div>
+                      <div className="text-muted-foreground text-xs">{formatCurrency(p.priceAmount, "XLM")} / mo</div>
                     </div>
-                    <div className="text-sm">{formatXLM(p.priceAmount)} XLM</div>
+                    <div className="text-sm">{formatCurrency(p.priceAmount, "XLM")}</div>
                     <div className="text-right text-sm">1</div>
-                    <div className="text-right font-medium">{formatXLM(p.priceAmount)} XLM / mo</div>
+                    <div className="text-right font-medium">{formatCurrency(p.priceAmount, "XLM")} / mo</div>
                   </div>
                 </div>
               </section>

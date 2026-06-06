@@ -8,7 +8,7 @@ export interface MerchantMeteredFirstPurchaseEmailProps {
   organizationName: string;
   organizationLogo?: string | null;
   productName: string;
-  totalCredits: bigint;
+  totalCredits: number;
   customerEmail?: string;
 }
 

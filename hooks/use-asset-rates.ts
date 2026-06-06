@@ -2,7 +2,6 @@
 
 import * as React from "react";
 
-import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { useQueries } from "@tanstack/react-query";
@@ -20,7 +19,6 @@ export type AssetRatesResult = {
 
 export function useAssetRates(assets: AssetSpec[]): AssetRatesResult {
   const { data: org } = useOrgContext();
-  const [selectedCurrency] = useCookieState("dashboard_currency", "USD");
 
   const queries = useQueries({
     queries: assets.map((asset) => ({
@@ -49,11 +47,11 @@ export function useAssetRates(assets: AssetSpec[]): AssetRatesResult {
     const map: Record<string, number> = {};
     for (const q of queries) {
       if (q.data) {
-        map[q.data.code] = (q.data?.assetUsd ?? 1) * (q.data.fiatRates?.[selectedCurrency] ?? 1);
+        map[q.data.code] = (q.data?.assetUsd ?? 1) * (q.data.fiatRates?.[org?.selectedCurrency] ?? 1);
       }
     }
     return map;
-  }, [queries, selectedCurrency]);
+  }, [queries, org?.selectedCurrency]);
 
   const fiatRates = queries.find((q) => q.data)?.data?.fiatRates ?? null;
   const isLoading = queries.some((q) => q.isLoading);
@@ -68,15 +66,15 @@ export function useAssetRates(assets: AssetSpec[]): AssetRatesResult {
       try {
         return new Intl.NumberFormat("en-US", {
           style: "currency",
-          currency: selectedCurrency,
+          currency: org?.selectedCurrency ?? "USD",
           minimumFractionDigits: 2,
         }).format(amount);
       } catch {
-        return `${selectedCurrency} ${amount.toFixed(2)}`;
+        return `${org?.selectedCurrency ?? "USD"} ${amount.toFixed(2)}`;
       }
     },
-    [selectedCurrency]
+    [org?.selectedCurrency]
   );
 
-  return { rateMap, fiatRates, selectedCurrency, isLoading, toLocal, formatLocal };
+  return { rateMap, fiatRates, selectedCurrency: org?.selectedCurrency ?? "USD", isLoading, toLocal, formatLocal };
 }

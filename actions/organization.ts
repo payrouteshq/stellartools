@@ -3,11 +3,9 @@
 import { resolveAccountContext } from "@/actions/account";
 import { runAtomic } from "@/actions/event";
 import {
-  AssetMetadata,
   Network,
   Organization,
   OrganizationSecret,
-  assets,
   charges,
   customers,
   db,
@@ -22,7 +20,6 @@ import { getCookie, setCookies } from "@/integrations/cookie-manager";
 import { encrypt } from "@/integrations/encryption";
 import { uploadFiles } from "@/integrations/file-upload";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
-import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { createAccount } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, normalizeTimeSeries } from "@/lib/utils";
@@ -179,7 +176,7 @@ export const getCurrentOrganization = async () => {
 
   const organization = await retrieveOrganization(orgId);
 
-  return { id: organization.id, environment, token: selectedOrg };
+  return { id: organization.id, environment, token: selectedOrg, selectedCurrency: organization.selectedCurrency };
 };
 
 export const switchEnvironment = async (environment: Network) => {
@@ -286,26 +283,31 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
   const { organizationId, environment } = await resolveOrgContext(options.orgId, options.env);
   const since = options.since ?? moment().subtract(28, "days").toDate();
 
-  // 1. Basic Counts
+  // ─── 1. Basic Counts ────────────────────────────────────────────────────────
   const metricsQuery = db
     .select({
       activeSubscriptions: sql<number>`count(*) FILTER (WHERE ${subscriptions.status} = 'active')`,
       activeTrials: sql<number>`count(*) FILTER (WHERE ${subscriptions.status} = 'trialing')`,
-      totalCustomers: sql<number>`(SELECT count(*) FROM ${customers} WHERE ${customers.organizationId} = ${organizationId} AND ${customers.environment} = ${environment})`,
+      totalCustomers: sql<number>`(
+        SELECT count(*)
+        FROM ${customers}
+        WHERE ${customers.organizationId} = ${organizationId}
+        AND ${customers.environment} = ${environment}
+      )`,
     })
     .from(subscriptions)
     .where(and(eq(subscriptions.organizationId, organizationId), eq(subscriptions.environment, environment)))
     .then((r) => r[0]);
 
-  // 2. MRR (Based on active product prices)
+  // ─── 2. MRR ─────────────────────────────────────────────────────────────────
+  // Products now store priceCents (integer, USD cents).
+  // No more asset join, no more async rate conversion.
   const mrrQuery = db
     .select({
-      assetMetadata: assets.metadata,
-      totalAmount: sql<number>`coalesce(sum(${products.priceAmount}), 0)::bigint`,
+      mrr: sql<number>`coalesce(sum(${products.priceCents}), 0)::int`,
     })
     .from(subscriptions)
     .innerJoin(products, eq(subscriptions.productId, products.id))
-    .innerJoin(assets, eq(products.assetId, assets.id))
     .where(
       and(
         eq(subscriptions.organizationId, organizationId),
@@ -313,19 +315,22 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         eq(subscriptions.status, "active")
       )
     )
-    .groupBy(assets.id);
+    .then((r) => r[0]);
 
-  // 3. Gross Revenue (Confirmed payments minus successful refunds)
-  const excludeRefunded = sql`${payments.id} NOT IN (SELECT ${refunds.paymentId} FROM ${refunds} WHERE ${refunds.status} = 'succeeded')`;
+  // ─── 3. Gross Revenue (confirmed, non-refunded) ──────────────────────────────
+  // payments.amountUsdCents is the locked-in USD value set at payment time.
+  // No more bigint stroops, no more asset join, no more rate conversion.
+  const excludeRefunded = sql`${payments.id} NOT IN (
+    SELECT ${refunds.paymentId}
+    FROM ${refunds}
+    WHERE ${refunds.status} = 'succeeded'
+  )`;
 
-  const revenueQuery = db
+  const grossRevenueQuery = db
     .select({
-      date: sql<string>`date_trunc('day', ${payments.createdAt})::text`,
-      assetMetadata: assets.metadata,
-      amount: sql<number>`sum(${payments.amount})::bigint`,
+      totalCents: sql<number>`coalesce(sum(${payments.amountUsdCents}), 0)::int`,
     })
     .from(payments)
-    .leftJoin(assets, eq(payments.assetId, assets.id))
     .where(
       and(
         eq(payments.organizationId, organizationId),
@@ -335,14 +340,13 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         excludeRefunded
       )
     )
-    .groupBy(sql`date_trunc('day', ${payments.createdAt})`, assets.id);
+    .then((r) => r[0]);
 
-  // 4. Platform Fees (Used to calculate Net Revenue)
-  // query by day to align with the revenue chart
-  const feesChartQuery = db
+  // ─── 4. Platform Fees (to calculate Net Revenue) ────────────────────────────
+  // Already stored as amountUsdCents, no change needed here.
+  const totalFeesQuery = db
     .select({
-      date: sql<string>`date_trunc('day', ${charges.createdAt})::text`,
-      amountUsd: sql<number>`sum(${charges.amountUsdCents})::int`,
+      totalFees: sql<number>`coalesce(sum(${charges.amountUsdCents}), 0)::int`,
     })
     .from(charges)
     .where(
@@ -353,12 +357,51 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         gte(charges.createdAt, since)
       )
     )
-    .groupBy(sql`date_trunc('day', ${charges.createdAt})`);
+    .then((r) => r[0]);
 
-  // 5. Chart Data (Customers, Trials, Subscriptions)
+  // ─── 5. Revenue Chart (net per day, pure SQL) ────────────────────────────────
+  // Left join fees by day so we can subtract in one pass.
+  // Gross revenue per day:
+  const revenueChartQuery = db
+    .select({
+      date: sql<string>`date_trunc('day', ${payments.createdAt})::date::text`,
+      grossCents: sql<number>`coalesce(sum(${payments.amountUsdCents}), 0)::int`,
+    })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.organizationId, organizationId),
+        eq(payments.environment, environment),
+        eq(payments.status, "confirmed"),
+        gte(payments.createdAt, since),
+        excludeRefunded
+      )
+    )
+    .groupBy(sql`date_trunc('day', ${payments.createdAt})::date`)
+    .orderBy(sql`1`);
+
+  // Platform fees per day (to subtract for net revenue chart):
+  const feesChartQuery = db
+    .select({
+      date: sql<string>`date_trunc('day', ${charges.createdAt})::date::text`,
+      feeCents: sql<number>`coalesce(sum(${charges.amountUsdCents}), 0)::int`,
+    })
+    .from(charges)
+    .where(
+      and(
+        eq(charges.organizationId, organizationId),
+        eq(charges.environment, environment),
+        eq(charges.status, "succeeded"),
+        gte(charges.createdAt, since)
+      )
+    )
+    .groupBy(sql`date_trunc('day', ${charges.createdAt})::date`)
+    .orderBy(sql`1`);
+
+  // ─── 6. Customers Chart ──────────────────────────────────────────────────────
   const customersChartQuery = db
     .select({
-      date: sql<string>`date_trunc('day', ${customers.createdAt})::text`,
+      date: sql<string>`date_trunc('day', ${customers.createdAt})::date::text`,
       count: sql<number>`count(*)::int`,
     })
     .from(customers)
@@ -372,9 +415,10 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .groupBy(sql`1`)
     .orderBy(sql`1`);
 
+  // ─── 7. Trials Chart ─────────────────────────────────────────────────────────
   const trialsChartQuery = db
     .select({
-      date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::text`,
+      date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::date::text`,
       count: sql<number>`count(*)::int`,
     })
     .from(subscriptions)
@@ -389,9 +433,10 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .groupBy(sql`1`)
     .orderBy(sql`1`);
 
+  // ─── 8. Subscriptions Chart ──────────────────────────────────────────────────
   const subscriptionsChartQuery = db
     .select({
-      date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::text`,
+      date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::date::text`,
       count: sql<number>`count(*)::int`,
     })
     .from(subscriptions)
@@ -406,79 +451,64 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .groupBy(sql`1`)
     .orderBy(sql`1`);
 
-  const [metrics, mrrData, revenueData, feesChartData, customersChart, trialsChart, subscriptionsChart] =
-    await Promise.all([
-      metricsQuery,
-      mrrQuery,
-      revenueQuery,
-      feesChartQuery,
-      customersChartQuery,
-      trialsChartQuery,
-      subscriptionsChartQuery,
-    ]);
-
-  const convertToUsdCents = async (rows: { totalAmount?: number; amount?: number; assetMetadata: AssetMetadata }[]) => {
-    let total = 0;
-    for (const row of rows) {
-      const amount = row.totalAmount ?? row.amount ?? 0;
-      const price = await getAssetUsdPrice(row.assetMetadata ?? {});
-      total += (Number(amount) / 1e7) * price * 100;
-    }
-    return Math.round(total);
-  };
-
-  const [mrrCents, grossRevenueCents] = await Promise.all([
-    convertToUsdCents(mrrData as any),
-    convertToUsdCents(revenueData as any),
+  // ─── Fire all queries in parallel ────────────────────────────────────────────
+  const [
+    metrics,
+    mrrResult,
+    grossRevenueResult,
+    totalFeesResult,
+    revenueChart,
+    feesChart,
+    customersChart,
+    trialsChart,
+    subscriptionsChart,
+  ] = await Promise.all([
+    metricsQuery,
+    mrrQuery,
+    grossRevenueQuery,
+    totalFeesQuery,
+    revenueChartQuery,
+    feesChartQuery,
+    customersChartQuery,
+    trialsChartQuery,
+    subscriptionsChartQuery,
   ]);
 
-  const totalFeesCents = feesChartData.reduce((acc, curr) => acc + (curr.amountUsd ?? 0), 0);
+  // ─── Build net revenue chart points (gross - fees per day) ───────────────────
+  // No async loop, no rate fetching — pure in-memory merge of two sorted arrays.
+  const feesByDate = new Map<string, number>(feesChart.map((f) => [f.date, f.feeCents]));
 
-  const revenueChartPoints = await (async () => {
-    const netByDate = new Map<string, number>();
+  const revenueChartPoints = revenueChart.map((r) => ({
+    date: r.date,
+    value: r.grossCents - (feesByDate.get(r.date) ?? 0),
+  }));
 
-    // Add Gross Revenue
-    for (const r of revenueData) {
-      const date = r.date.split(" ")[0];
-      const price = await getAssetUsdPrice(r.assetMetadata ?? {});
-      const cents = (Number(r.amount) / 1e7) * price * 100;
-      netByDate.set(date, (netByDate.get(date) ?? 0) + cents);
-    }
-
-    // Subtract Platform Fees
-    for (const f of feesChartData) {
-      const date = f.date.split(" ")[0];
-      const feeCents = f.amountUsd ?? 0;
-      netByDate.set(date, (netByDate.get(date) ?? 0) - feeCents);
-    }
-
-    return Array.from(netByDate.entries()).map(([date, value]) => ({
-      date,
-      value: Math.round(value),
-    }));
-  })();
+  // ─── Scalar totals ────────────────────────────────────────────────────────────
+  const grossRevenueCents = grossRevenueResult.totalCents;
+  const totalFeesCents = totalFeesResult.totalFees;
+  const netRevenueCents = grossRevenueCents - totalFeesCents;
 
   return {
     activeTrials: Number(metrics.activeTrials),
     activeSubscriptions: Number(metrics.activeSubscriptions),
-    mrr: mrrCents,
-    revenue: grossRevenueCents - totalFeesCents, // NET REVENUE
+    mrr: mrrResult.mrr,
+    revenue: netRevenueCents,
     totalCustomers: Number(metrics.totalCustomers),
     newCustomers: customersChart.reduce((acc, curr) => acc + curr.count, 0),
     charts: {
       revenue: normalizeTimeSeries(revenueChartPoints, 28, "day"),
       customers: normalizeTimeSeries(
-        customersChart.map((c) => ({ date: c.date.split(" ")[0], count: c.count })),
+        customersChart.map((c) => ({ date: c.date, value: c.count })),
         28,
         "day"
       ),
       subscriptions: normalizeTimeSeries(
-        subscriptionsChart.map((s) => ({ date: s.date.split(" ")[0], count: s.count })),
+        subscriptionsChart.map((s) => ({ date: s.date, value: s.count })),
         28,
         "day"
       ),
       trials: normalizeTimeSeries(
-        trialsChart.map((t) => ({ date: t.date.split(" ")[0], count: t.count })),
+        trialsChart.map((t) => ({ date: t.date, value: t.count })),
         28,
         "day"
       ),

@@ -1,10 +1,8 @@
 "use server";
 
-import { retrieveAssets } from "@/actions/asset";
-import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
-import { Network, Product, ProductStatus, assets, db, products } from "@/db";
+import { resolveOrgContext } from "@/actions/organization";
+import { Network, Product, ProductStatus, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
-import { createTrustlines } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
@@ -20,41 +18,25 @@ export const createProductImage = async (formData: FormData) => {
 };
 
 export const postProduct = async (
-  params: Omit<Product, "id" | "organizationId" | "environment" | "assetId">,
+  params: Omit<Product, "id" | "organizationId" | "environment">,
   orgId?: string,
   env?: Network
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  const [assets, { secret }] = await Promise.all([
-    retrieveAssets(null, environment),
-    retrieveOrganizationIdAndSecret(organizationId, environment),
-  ]);
-
-  const asset = assets.find((asset) => asset.code === params.assetCode);
-
-  if (!asset) {
-    throw new AppError(`Asset ${params.assetCode} not found`);
+  if (!Number.isInteger(params.priceCents) || params.priceCents <= 0) {
+    throw new AppError("Price must be a positive integer in cents");
   }
 
   const [product] = await db
     .insert(products)
     .values({
       ...params,
-      assetId: asset.id,
       id: generateResourceId("prod", organizationId, 16),
       organizationId,
       environment,
     })
     .returning();
-
-  if (params.assetCode) {
-    if (asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
-      createTrustlines(secret.publicKey, [{ code: asset.code, issuer: asset.issuer }], environment).catch((err) => {
-        console.error("Failed to create trustline for asset", asset.code, asset.issuer, err);
-      });
-    }
-  }
 
   return product;
 };
@@ -67,10 +49,7 @@ export const retrieveProducts = async (
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   const productsList = await db
-    .select({
-      product: products,
-      asset: assets,
-    })
+    .select()
     .from(products)
     .where(
       and(
@@ -79,8 +58,7 @@ export const retrieveProducts = async (
         ...(filters.productId ? [eq(products.id, filters.productId)] : []),
         ...(filters.status ? [eq(products.status, filters.status)] : [])
       )
-    )
-    .innerJoin(assets, eq(products.assetId, assets.id));
+    );
 
   return productsList;
 };
@@ -92,26 +70,7 @@ export const putProduct = async (id: string, organizationId: string, retUpdate: 
     .where(and(eq(products.id, id), eq(products.organizationId, organizationId)))
     .returning();
 
-  if (!product) return;
-
-  const [assets, { secret }] = await Promise.all([
-    retrieveAssets({ id: retUpdate.assetId }, product.environment),
-    retrieveOrganizationIdAndSecret(organizationId, product.environment),
-  ]);
-
-  const asset = assets.find((asset) => asset.code === retUpdate.assetCode);
-
-  if (!asset) {
-    throw new AppError(`Asset ${retUpdate.assetCode} not found`);
-  }
-
-  if (asset.issuer && asset.code !== "XLM" && secret?.publicKey) {
-    createTrustlines(secret.publicKey, [{ code: asset.code, issuer: asset.issuer }], product.environment).catch(
-      (err) => {
-        console.error("Failed to create trustline for asset", asset.code, asset.issuer, err);
-      }
-    );
-  }
+  if (!product) throw new AppError("Product not found");
 
   return product;
 };

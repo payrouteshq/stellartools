@@ -7,7 +7,7 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { AppManifest, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-embed-bridge";
+import { type AppManifest, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-embed-bridge";
 import {
   ProductStatus,
   ProductType,
@@ -17,11 +17,11 @@ import {
   productStatusEnum as productStatusEnum$1,
   productTypeEnum as productTypeEnum$1,
   recurringPeriodEnum as recurringPeriodEnum$1,
+  refundStatusEnum as refundStatusEnum$1,
   subscriptionStatusEnum as subscriptionStatusEnum$1,
 } from "@stellartools/core";
 import { InferSelectModel, relations, sql } from "drizzle-orm";
 import {
-  bigint,
   boolean,
   check,
   index,
@@ -98,6 +98,10 @@ export const organizations = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     supportEmail: text("support_email"),
+    payoutAssetCode: text("payout_asset_code").$type<AssetCode>().default("USDC"),
+    payoutAssetIssuer: text("payout_asset_issuer"),
+    payoutFiatOptions: jsonb("payout_fiat_options").$type<Record<string, unknown> | null>(),
+    selectedCurrency: text("selected_currency").notNull(),
   },
   (table) => ({
     idxOrgCreatedAt: index("idx_org_created_at").on(table.accountId, table.createdAt),
@@ -163,19 +167,21 @@ export type AssetMetadata = {
   fiatPeg?: string; // Pegged to a fiat currency, ISO 4217 (e.g. "EUR" for EURC)
 };
 
-export const assets = pgTable(
+export const supportedAssets = pgTable(
   "asset",
   {
     id: text("id").primaryKey(),
     code: text("code").notNull().$type<AssetCode>(),
-    issuer: text("issuer").$type<AssetIssuer>(),
+    issuers: text("issuers").$type<AssetIssuer[]>().array(),
+    description: text("description"),
     environment: networkEnum("network").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     metadata: jsonb("metadata").$type<AssetMetadata | null>(),
+    images: text("images").array(),
   },
   (table) => ({
-    uniqueCodeIssuerEnvironment: unique().on(table.code, table.issuer, table.environment),
+    uniqueCodeIssuerEnvironment: unique().on(table.code, table.issuers, table.environment),
   })
 );
 
@@ -256,26 +262,18 @@ export const products = pgTable("product", {
     .references(() => organizations.id),
   name: text("name").notNull(),
   description: text("description"),
+  priceCents: integer("price_cents").notNull(), // $10.00 = 1000
+  type: productTypeEnum("type").notNull().default("one_time"),
+  recurringPeriod: recurringPeriodEnum("recurring_period"),
+  status: productStatusEnum("status").notNull().default("active"),
   images: text("images").array(),
-  status: productStatusEnum("status").notNull(),
-  assetId: text("asset_id")
-    .notNull()
-    .references(() => assets.id),
-  assetCode: text("asset_code").$type<AssetCode>(),
-  type: productTypeEnum("type").notNull(),
+  metadata: jsonb("metadata"),
+  unit: text("unit"),
+  totalCredits: integer("total_credits"),
+  unitsPerCredit: integer("units_per_credit"),
+  environment: networkEnum("environment").notNull().default("testnet"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-  environment: networkEnum("network").notNull(),
-  priceAmount: bigint("price_amount", { mode: "bigint" }).notNull(),
-
-  // Subscription
-  recurringPeriod: recurringPeriodEnum("recurring_period"),
-
-  // Metered billing
-  unit: text("unit"), // The human label: "tokens", "MB", "minutes"
-  unitsPerCredit: bigint("units_per_credit", { mode: "bigint" }),
-  totalCredits: bigint("total_credits", { mode: "bigint" }),
 });
 
 export const checkoutStatusEnum = pgEnum("checkout_status", checkoutStatusEnum$1.enum);
@@ -289,7 +287,7 @@ export const checkouts = pgTable(
       .references(() => organizations.id),
     customerId: text("customer_id").references(() => customers.id),
     productId: text("product_id").references(() => products.id),
-    amount: bigint("amount", { mode: "bigint" }),
+    amountCents: integer("amount_cents"), // $10.00 = 1000
     description: text("description"),
     status: checkoutStatusEnum("status").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
@@ -298,17 +296,19 @@ export const checkouts = pgTable(
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     environment: networkEnum("network").notNull(),
     redirectUrl: text("redirect_url"),
-    // Store data captured during the checkout session
+    /**
+     * @overrides the customer email and phone number from the customer profile
+     * or makes a new customer with the given email and phone number
+     */
     customerEmail: text("customer_email"),
     customerPhone: text("customer_phone"),
     subscriptionData: jsonb("subscription_data").$type<SubscriptionData | null>(),
     initialPagingToken: text("initial_paging_token"),
-    assetCode: text("asset_code").$type<AssetCode>(),
   },
   (table) => ({
     amountOrProductCheck: check(
       "amount_or_product_check",
-      sql`${table.productId} IS NOT NULL OR ${table.amount} IS NOT NULL`
+      sql`(${table.productId} IS NOT NULL OR ${table.amountCents} IS NOT NULL)`
     ),
   })
 );
@@ -349,37 +349,39 @@ export const payments = pgTable("payment", {
     .references(() => organizations.id),
   checkoutId: text("checkout_id").references(() => checkouts.id),
   customerId: text("customer_id").references(() => customers.id),
-  amount: bigint("amount", { mode: "bigint" }).notNull(), // Use BigInt for Stroops
-  amountUsdCentsSnapshot: bigint("amount_usd_cents_snapshot", { mode: "bigint" }).notNull(), // Use BigInt for USD Cents
+  subscriptionId: text("subscription_id").references(() => subscriptions.id),
+  customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
+  creditBalanceId: text("credit_balance_id"),
+  amountUsdCents: integer("amount_usd_cents").notNull(), // $10.00 = 1000, LOCKED IN at payment time
+  cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
+  selectedAssetCode: text("selected_asset_code").notNull(), // "XLM", "USDC", "EURC"
+  selectedAssetIssuer: text("selected_asset_issuer"), // null for native XLM
   transactionHash: text("tx_hash").notNull().unique(),
-  status: paymentStatusEnum("status").notNull(),
+  status: paymentStatusEnum("status").notNull().default("pending"),
+  metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+  failureReason: text("failure_reason"),
+  environment: networkEnum("network").notNull().default("testnet"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  environment: networkEnum("network").notNull(),
-  customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
-  assetId: text("asset_id").references(() => assets.id),
-  subscriptionId: text("subscription_id").references(() => subscriptions.id),
-  creditBalanceId: text("credit_balance_id").references(() => creditBalances.id),
-  metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
 });
 
 export const chargeTypeEnum = pgEnum("charge_type", ["platform_fee", "payout_fee"]);
+
 export const chargeStatusEnum = pgEnum("charge_status", ["pending", "succeeded", "failed"]);
 
 export const charges = pgTable("charge", {
-  id: text("id").primaryKey(), // ch_...
+  id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
     .references(() => organizations.id),
   paymentId: text("payment_id").references(() => payments.id),
-  amount: bigint("amount", { mode: "bigint" }).notNull(), // Fee in Stroops
-  amountUsdCents: bigint("amount_usd_cents", { mode: "bigint" }).notNull(), // Fee in USD Cents for reporting
-  assetId: text("asset_id")
-    .notNull()
-    .references(() => assets.id),
+  amountUsdCents: integer("amount_usd_cents").notNull(),
+  cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
+  selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
+  selectedAssetIssuer: text("selected_asset_issuer"),
   type: chargeTypeEnum("type").notNull(),
   status: chargeStatusEnum("status").notNull(),
-  transactionHash: text("tx_hash"), // The Stellar hash of the fee payment to US
+  transactionHash: text("tx_hash"),
   error: text("error"),
   environment: networkEnum("network").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -394,27 +396,24 @@ export const payouts = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id),
-    amount: bigint("amount", { mode: "bigint" }).notNull(),
+    amountUsdCents: integer("amount_usd_cents").notNull(),
+    cryptoAmount: text("crypto_amount").notNull(),
+    selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
+    selectedAssetIssuer: text("selected_asset_issuer"),
     status: payoutStatusEnum("status").notNull(),
     walletAddress: text("wallet_address"),
-    asset: text("asset").references(() => assets.id),
     memo: text("memo"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     environment: networkEnum("network").notNull(),
     transactionHash: text("transaction_hash").unique(),
-    stringifiedBankAccount: text("stringified_bank_account"),
-    withdrawalReceiptUrl: text("withdrawal_receipt_url"),
+    bankAccount: jsonb("bank_account").$type<Record<string, unknown> | null>(), // withdawal receipts, account number etc.
   },
   (table) => ({
-    assetOrStringifiedBankAccountCheck: check(
-      "asset_or_stringified_bank_account_check",
-      sql`${table.asset} IS NOT NULL OR ${table.stringifiedBankAccount} IS NOT NULL`
-    ),
-    transactionHashOrWithdrawalReceiptUrlCheck: check(
-      "transaction_hash_or_withdrawal_receipt_url_check",
-      sql`${table.transactionHash} IS NOT NULL OR ${table.withdrawalReceiptUrl} IS NOT NULL`
+    cryptoOrFiatConstraint: check(
+      "crypto_or_fiat_constraint",
+      sql`(${table.selectedAssetCode} IS NOT NULL AND ${table.transactionHash} IS NOT NULL) OR (${table.bankAccount} IS NOT NULL)`
     ),
   })
 );
@@ -456,28 +455,29 @@ export const webhookLogs = pgTable("webhook_log", {
   description: text("description").notNull(),
 });
 
-export const refundStatusEnum = pgEnum("refund_status", ["succeeded", "failed"]);
+export const refundStatusEnum = pgEnum("refund_status", refundStatusEnum$1.enum);
 
 export const refunds = pgTable(
   "refund",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
     paymentId: text("payment_id")
       .notNull()
       .references(() => payments.id),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
     customerId: text("customer_id").references(() => customers.id),
-    amount: bigint("amount", { mode: "bigint" }).notNull(),
+    amountUsdCents: integer("amount_usd_cents").notNull(),
+    cryptoAmount: text("crypto_amount").notNull(),
+    selectedAssetCode: text("selected_asset_code").notNull(),
+    selectedAssetIssuer: text("selected_asset_issuer"),
+    receiverWalletAddress: text("receiver_wallet_address").notNull(),
+    transactionHash: text("tx_hash"),
+    status: refundStatusEnum("status").notNull().default("pending"),
     reason: text("reason"),
-    status: refundStatusEnum("status").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    environment: networkEnum("network").notNull(),
-    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    receiverWalletAddress: text("receiver_public_key").notNull(),
-    assetCode: text("asset_code").$type<AssetCode>(),
   },
   (table) => ({
     uniqueSucceededRefund: uniqueIndex("unique_succeeded_refund")
@@ -497,15 +497,9 @@ export const creditBalances = pgTable(
     productId: text("product_id").references(() => products.id),
     environment: networkEnum("network").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    balance: bigint("balance", { mode: "bigint" })
-      .notNull()
-      .default(sql`0::bigint`),
-    consumed: bigint("consumed", { mode: "bigint" })
-      .notNull()
-      .default(sql`0::bigint`),
-    granted: bigint("granted", { mode: "bigint" })
-      .notNull()
-      .default(sql`0::bigint`),
+    granted: integer("granted").notNull().default(0),
+    consumed: integer("consumed").notNull().default(0),
+    balance: integer("balance").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     isRevoked: boolean("is_revoked").default(false).notNull(),
@@ -532,9 +526,9 @@ export const creditTransactions = pgTable(
       .notNull()
       .references(() => creditBalances.id),
     environment: networkEnum("network").notNull(),
-    amount: bigint("amount", { mode: "bigint" }).notNull(),
-    balanceBefore: bigint("balance_before", { mode: "bigint" }).notNull(),
-    balanceAfter: bigint("balance_after", { mode: "bigint" }).notNull(),
+    amount: integer("amount").notNull(),
+    balanceBefore: integer("balance_before").notNull(),
+    balanceAfter: integer("balance_after").notNull(),
     reason: text("reason"),
     type: creditTransactionTypeEnum("type").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
@@ -667,7 +661,7 @@ export const appLogs = pgTable("app_log", {
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;
-export type Asset = InferSelectModel<typeof assets>;
+export type SupportedAsset = InferSelectModel<typeof supportedAssets>;
 export type Customer = InferSelectModel<typeof customers>;
 export type CustomerWallet = InferSelectModel<typeof customerWallets>;
 export type Product = InferSelectModel<typeof products>;
@@ -698,5 +692,4 @@ export type ResolvedPayment = Payment & {
   wallets?: CustomerWallet | null;
   refunds?: Refund | null;
   customer?: Customer | null;
-  asset?: Asset | null;
 };

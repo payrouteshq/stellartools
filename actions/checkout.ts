@@ -1,6 +1,5 @@
 "use server";
 
-import { retrieveAssets } from "@/actions/asset";
 import { putCustomer } from "@/actions/customers";
 import { runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
@@ -9,7 +8,6 @@ import {
   Network,
   Product,
   accounts,
-  assets,
   checkouts,
   customers,
   db,
@@ -19,10 +17,10 @@ import {
 } from "@/db";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
-import { computeDiff, generateResourceId, stroopsToXlm } from "@/lib/utils";
-import { CheckoutStatus } from "@/packages/stellartools/dist/schema/checkout";
+import { computeDiff, formatCurrency, generateResourceId } from "@/lib/utils";
+import { CheckoutStatus } from "@stellartools/core";
 import { all } from "better-all";
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 export const postCheckout = async (
   params: Omit<Checkout, "id" | "organizationId" | "environment" | "createdAt" | "updatedAt" | "initialPagingToken">,
@@ -42,20 +40,6 @@ export const postCheckout = async (
 
   const checkoutId = generateResourceId("cz", organizationId, 20);
 
-  if (params.assetCode) {
-    const assetsList = await retrieveAssets(null, environment);
-
-    const asset = assetsList.find((asset) => asset.code === params.assetCode);
-
-    if (!asset) {
-      throw new AppError(
-        `Invalid asset code, Only ${assetsList.map((a) => a.code).join(", ")} are supported. Got ${params.assetCode}`
-      );
-    }
-
-    params.assetCode = asset.code;
-  }
-
   return withEvent(
     async () => {
       const [checkout] = await db
@@ -69,12 +53,12 @@ export const postCheckout = async (
       events: [
         {
           type: "checkout::created",
-          map: ({ productId, expiresAt, amount, customerId, id: checkoutId }) => ({
+          map: ({ productId, expiresAt, amountCents, customerId, id: checkoutId }) => ({
             customerId: customerId ?? undefined,
             data: {
               productId,
               expiresAt,
-              amount: amount ? Number(stroopsToXlm(BigInt(amount.toString()))) : undefined,
+              ...(amountCents ? { amount: formatCurrency(amountCents) } : {}),
               checkoutId,
               externalUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL!}/${checkoutId}`,
             },
@@ -87,8 +71,14 @@ export const postCheckout = async (
         triggers: [
           {
             event: "checkout.created",
-            map: ({ id: checkoutId, productId, expiresAt, amount, customerId }) => ({
-              object: { checkoutId, productId, expiresAt, amount, customerId },
+            map: ({ id: checkoutId, productId, expiresAt, amountCents, customerId }) => ({
+              object: {
+                checkoutId,
+                productId,
+                expiresAt,
+                amount: formatCurrency(amountCents ?? 0) ?? undefined,
+                customerId,
+              },
               previous_attributes: undefined,
             }),
           },
@@ -154,15 +144,14 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
       customer: customers,
       product: {
         type: products.type,
-        priceAmount: products.priceAmount,
+        priceCents: products.priceCents,
         name: products.name,
         recurringPeriod: products.recurringPeriod,
         images: products.images,
         totalCredits: products.totalCredits,
         unitsPerCredit: products.unitsPerCredit,
       },
-      assets: { id: assets.id, code: assets.code, issuer: assets.issuer, metadata: assets.metadata },
-      finalAmount: sql<bigint>`COALESCE(${checkouts.amount}, ${products.priceAmount})`.as("final_amount"),
+      finalAmount: sql<number>`COALESCE(${checkouts.amountCents}, ${products.priceCents})`.as("final_amount"),
       merchantPublicKey: sql<string>`
       CASE 
         WHEN ${checkouts.environment} = 'testnet' THEN ${organizationSecrets.testnetPublicKey}
@@ -176,7 +165,6 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     .leftJoin(customers, eq(checkouts.customerId, customers.id))
     .leftJoin(organizationSecrets, eq(checkouts.organizationId, organizationSecrets.organizationId))
     .leftJoin(products, eq(checkouts.productId, products.id))
-    .leftJoin(assets, or(eq(products.assetId, assets.id), eq(checkouts.assetCode, assets.code)))
     .leftJoin(organizations, eq(checkouts.organizationId, organizations.id))
     .leftJoin(accounts, eq(organizations.accountId, accounts.id))
     .where(eq(checkouts.id, id));
@@ -189,32 +177,25 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     finalAmount,
     merchantPublicKey,
     product,
-    assets: assets$1,
     organizationName,
     organizationLogo,
     merchantEmail,
   } = result;
 
-  if (!assets$1) throw new AppError(`Asset not found, Checkout must be associated with an asset`);
-
   return {
     ...checkout,
     merchantPublicKey,
-    finalAmount: BigInt(finalAmount),
+    finalAmount,
     productType: product?.type ?? "one_time",
     productName: product?.name ?? "Payment",
     recurringPeriod: product?.recurringPeriod ?? "month",
     customerEmail: customer?.email || checkout.customerEmail,
     customerPhone: customer?.phone || checkout.customerPhone,
-    assetId: assets$1.id,
-    assetCode: assets$1.code,
-    assetIssuer: assets$1.issuer,
     productImage: product?.images?.[0] ?? null,
     customerImage: customer?.image ?? null,
     organizationName,
     organizationLogo,
     merchantEmail,
-    assetMetadata: assets$1.metadata,
     productTotalCredits: product?.totalCredits,
   };
 };

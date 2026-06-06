@@ -137,6 +137,9 @@ importers:
       better-all:
         specifier: ^0.0.7
         version: 0.0.7
+      big.js:
+        specifier: ^7.0.1
+        version: 7.0.1
       canvg:
         specifier: ^4.0.3
         version: 4.0.3
@@ -161,6 +164,9 @@ importers:
       country-flag-icons:
         specifier: ^1.6.4
         version: 1.6.17
+      country-to-currency:
+        specifier: ^3.0.1
+        version: 3.0.1
       date-fns:
         specifier: ^4.1.0
         version: 4.4.0
@@ -197,6 +203,9 @@ importers:
       katex:
         specifier: ^0.16.27
         version: 0.16.47
+      locale-currency:
+        specifier: ^1.0.0
+        version: 1.0.0
       lodash:
         specifier: ^4.17.21
         version: 4.18.1
@@ -330,6 +339,9 @@ importers:
       '@types/bcryptjs':
         specifier: ^3.0.0
         version: 3.0.0
+      '@types/big.js':
+        specifier: ^7.0.0
+        version: 7.0.0
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
@@ -4480,6 +4492,9 @@ packages:
     resolution: {integrity: sha512-WRZOuCuaz8UcZZE4R5HXTco2goQSI2XxjGY3hbM/xDvwmqFWd4ivooImsMx65OKM6CtNKbnZ5YL+YwAwK7c1dg==}
     deprecated: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.
 
+  '@types/big.js@7.0.0':
+    resolution: {integrity: sha512-WfAGp7IbJvyB8EmWK4tJD24rJRAL6uVbw3LV/hJntFNam+os9KWKj0PzXo8rRRpjupYK8U0M8FoBB8dBhWF2dg==}
+
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
 
@@ -5375,6 +5390,9 @@ packages:
     resolution: {integrity: sha512-t70bfa7HYEA1D9idDbmuv7YbsbVkQ+Hp+8KFSul4aE5e/i1bjCNIRYJZlA8Q8p0r9T8cF/RVvwUgRA//FydEyg==}
     engines: {node: '>=0.6'}
 
+  big.js@7.0.1:
+    resolution: {integrity: sha512-iFgV784tD8kq4ccF1xtNMZnXeZzVuXWWM+ERFzKQjv+A5G9HC8CY3DuV45vgzFFcW+u2tIvmF95+AzWgs6BjCg==}
+
   bignumber.js@9.3.1:
     resolution: {integrity: sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ==}
 
@@ -5842,6 +5860,9 @@ packages:
 
   country-flag-icons@1.6.17:
     resolution: {integrity: sha512-Nmik0289ZVZSI3c7mJR/amg6DyY7Z59b0sTFSKayeX72mHfPzCPJygwJs2pYgQULzuAyWeCUgwAJ+Dq8OR+JFw==}
+
+  country-to-currency@3.0.1:
+    resolution: {integrity: sha512-FAo2ga8296d0Ra6vj9TB4Kax36AmqrGEc0aoLflCx5ijMtifNwA8lCqQsFfTLP2lRVKHWh/DedSpqI6v9VHyjw==}
 
   create-hash@1.2.0:
     resolution: {integrity: sha512-z00bCGNHDG8mHAkP7CtT1qVu+bFQUPjYq/4Iv3C3kWjTFV10zIjfSoeqXo9Asws8gwSHDGj/hl2u4OGIjapeCg==}
@@ -7892,6 +7913,10 @@ packages:
   load-tsconfig@0.2.5:
     resolution: {integrity: sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  locale-currency@1.0.0:
+    resolution: {integrity: sha512-OPw/KpjqAQdk36fbBHzJxPVpFx7DGU4jFYjmJoinkvbgS/QeKtsykiXszgS/EB458eieVppo/gbP1CbtJN4E9g==}
+    engines: {node: '>=14.0.0'}
 
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
@@ -15573,6 +15598,8 @@ snapshots:
     dependencies:
       bcryptjs: 3.0.3
 
+  '@types/big.js@7.0.0': {}
+
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
@@ -16645,6 +16672,8 @@ snapshots:
 
   big-integer@1.6.36: {}
 
+  big.js@7.0.1: {}
+
   bignumber.js@9.3.1: {}
 
   bindings@1.5.0:
@@ -17195,6 +17224,8 @@ snapshots:
   countries-list@3.3.0: {}
 
   country-flag-icons@1.6.17: {}
+
+  country-to-currency@3.0.1: {}
 
   create-hash@1.2.0:
     dependencies:
@@ -19577,6 +19608,8 @@ snapshots:
       lit-html: 3.3.3
 
   load-tsconfig@0.2.5: {}
+
+  locale-currency@1.0.0: {}
 
   locate-path@5.0.0:
     dependencies:

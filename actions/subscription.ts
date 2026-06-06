@@ -4,7 +4,7 @@ import { paginate, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrievePaymentCount } from "@/actions/payment";
 import { SubscriptionStatus } from "@/constant/schema.client";
-import { Network, Subscription, assets, customerWallets, customers, db, products, subscriptions } from "@/db";
+import { Network, Subscription, customerWallets, customers, db, products, subscriptions } from "@/db";
 import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { toSnakeCase } from "@/lib/utils";
@@ -21,6 +21,7 @@ export const postSubscriptionsBulk = async (
     cancelAtPeriodEnd: boolean;
     metadata: Record<string, unknown> | null;
     trialDays?: number;
+    priceCents: number;
   },
   orgId?: string,
   env?: Network
@@ -125,7 +126,7 @@ export const retrieveSubscription = async (
 type SubscriptionRow<S extends SubscriptionStatus> = {
   subscription: OverrideProps<Subscription, { status: S }>;
   customer: { name: string | null; email: string | null };
-  product: { name: string; priceAmount: number };
+  product: { name: string; priceCents: number };
 };
 
 export const retrieveSubscriptions = async <S extends SubscriptionStatus = SubscriptionStatus>(
@@ -142,7 +143,7 @@ export const retrieveSubscriptions = async <S extends SubscriptionStatus = Subsc
     .select({
       subscription: subscriptions,
       customer: { name: customers.name, email: customers.email },
-      product: { name: products.name, priceAmount: products.priceAmount },
+      product: { name: products.name, priceAmount: products.priceCents },
     })
     .from(subscriptions)
     .innerJoin(customers, eq(subscriptions.customerId, customers.id))
@@ -333,10 +334,8 @@ export const retrieveDueSubscriptions = async () => {
         environment: subscriptions.environment,
         cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
         currentPeriodEnd: subscriptions.currentPeriodEnd,
-        assetId: products.assetId,
       },
       customer: { id: customers.id },
-      asset: { code: assets.code, issuer: assets.issuer, metadata: assets.metadata },
       wallet: customerWallets,
     })
     .from(subscriptions)
@@ -352,7 +351,6 @@ export const retrieveDueSubscriptions = async () => {
     )
     .innerJoin(customers, eq(subscriptions.customerId, customers.id))
     .innerJoin(products, eq(subscriptions.productId, products.id))
-    .innerJoin(assets, eq(products.assetId, assets.id))
     .innerJoin(customerWallets, eq(subscriptions.customerWalletId, customerWallets.id))
     .orderBy(desc(subscriptions.currentPeriodEnd));
 

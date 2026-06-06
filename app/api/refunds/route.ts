@@ -26,14 +26,8 @@ export const POST = apiHandler({
       payment: async () => {
         const {
           data: [p],
-        } = await retrievePayments(
-          organizationId,
-          environment,
-          { paymentId: payment_id },
-          { withWallets: true, withAsset: true }
-        );
+        } = await retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true });
         if (!p) throw new AppError("Payment not found");
-        if (!p.asset) throw new AppError("Payment asset not found");
         if (!p.wallets?.address) throw new AppError("Customer wallet address not found");
         return p;
       },
@@ -54,9 +48,9 @@ export const POST = apiHandler({
     const res = await sendAssetPayment(
       secretKey,
       payment.wallets!.address,
-      payment.asset!.code,
-      payment.asset!.issuer!,
-      String(payment.amount),
+      payment.selectedAssetCode,
+      payment.selectedAssetIssuer!,
+      String(payment.cryptoAmount),
       environment,
       refundId
     );
@@ -66,12 +60,16 @@ export const POST = apiHandler({
         id: refundId,
         paymentId: payment_id,
         reason,
-        metadata,
         status: res.isOk() ? "succeeded" : "failed",
         receiverWalletAddress: wallet_address ?? payment.wallets!.address,
         customerId: payment.customerId,
-        amount: xlmToStroops(payment.amount.toString()),
-        assetCode: payment.asset!.code,
+        cryptoAmount: payment.cryptoAmount,
+        selectedAssetCode: payment.selectedAssetCode,
+        selectedAssetIssuer: payment.selectedAssetIssuer,
+        transactionHash: res.isOk() ? res.value?.hash : null,
+        amountUsdCents: payment.amountUsdCents,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       organizationId,
       environment,

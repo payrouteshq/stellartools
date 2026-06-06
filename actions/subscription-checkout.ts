@@ -9,7 +9,7 @@ import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import { retrieveAssetContractId } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
-import { generateResourceId, stroopsToXlm, xlmToStroops } from "@/lib/utils";
+import { generateResourceId } from "@/lib/utils";
 import moment from "moment";
 
 /**
@@ -84,7 +84,6 @@ export async function finalizeSubscriptionCheckout(
   const {
     status,
     productType,
-    assetCode,
     productId,
     merchantPublicKey,
     organizationId,
@@ -113,7 +112,6 @@ export async function finalizeSubscriptionCheckout(
   const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
 
   const durationSeconds = durationDays * 86400;
-  const amountStroops = xlmToStroops(checkout.finalAmount.toString());
 
   const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);
   if (approvalResult.isErr()) {
@@ -125,7 +123,7 @@ export async function finalizeSubscriptionCheckout(
     merchantAddress: merchantPublicKey,
     tokenContractId,
     productId,
-    amountStroops,
+    amountCents: checkout.finalAmount,
     durationSeconds,
   });
 

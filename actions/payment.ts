@@ -20,7 +20,6 @@ import {
   Payment,
   Product,
   ResolvedPayment,
-  assets,
   customerWallets,
   customers,
   db,
@@ -35,7 +34,7 @@ import { sendEmail } from "@/integrations/email";
 import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
-import { generateResourceId, stroopsToXlm, toSnakeCase, xlmToStroops } from "@/lib/utils";
+import { generateResourceId, toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
 import { and, count, desc, eq, sql } from "drizzle-orm";
@@ -74,7 +73,7 @@ async function loadPaymentContext(
     async product() {
       const productId = (await this.$.checkout)?.productId ?? undefined;
       if (!productId) return undefined;
-      return retrieveProducts(organizationId, environment, { productId }).then((res) => res[0]?.product);
+      return retrieveProducts(organizationId, environment, { productId }).then(([res]) => res);
     },
     lifeTimeVolumeUsdCents: async () => {
       return retrieveLifetimeVolumeCents(organizationId, environment);
@@ -94,8 +93,8 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
       productName: ctx.product.name || ctx.checkout.description || "Payment",
-      amount: `${p.amount} ${p.metadata?.assetCode}`,
-      assetCode: p.metadata?.assetCode as string,
+      amount: `${p.amountUsdCents} ${p.selectedAssetCode}`,
+      assetCode: p.selectedAssetCode,
       transactionHash: p.transactionHash,
     }),
   }),
@@ -105,7 +104,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
       productName: ctx.product.name || ctx.checkout.description || "Payment",
-      totalCredits: ctx.product.totalCredits ?? BigInt(0),
+      totalCredits: ctx.product.totalCredits ?? 0,
       customerEmail: ctx.customer.email ?? ctx.checkout.customerEmail ?? undefined,
     }),
   }),
@@ -114,8 +113,8 @@ const MERCHANT_EMAIL_TEMPLATES = {
     component: MerchantSubscriptionStartedEmail({
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
-      amount: `${p.amount} ${p.metadata?.assetCode}`,
-      assetCode: p.metadata?.assetCode as string,
+      amount: `${p.amountUsdCents} ${p.selectedAssetCode}`,
+      assetCode: p.selectedAssetCode,
       currentPeriodEnd: moment(ctx.checkout.subscriptionData?.period_end).format("MMMM DD, YYYY [at] h:mm A"),
       productName: ctx.product.name || ctx.checkout.description || "Payment",
     }),
@@ -135,7 +134,7 @@ const paymentActionHandler = async (
     const webhooks: WebhookTrigger<typeof payment>[] = [];
     const sideEffects: (() => Promise<void>)[] = [];
 
-    const rawAmount = `${stroopsToXlm(payment.amount)} ${payment.metadata?.assetCode}`;
+    const rawAmount = `${payment.amountUsdCents} ${payment.selectedAssetCode}`;
 
     const basePayload = {
       id: payment.id,
@@ -247,7 +246,7 @@ export const postPayment = async (
   params: Omit<Payment, "id" | "organizationId" | "environment" | "createdAt" | "updatedAt" | "customerWalletId">,
   orgId?: string,
   env?: Network,
-  options?: { customerWalletAddress?: string; assetCode?: string; assetId?: string | null; failErrorMessage?: string }
+  options?: { customerWalletAddress?: string; failErrorMessage?: string }
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
@@ -272,8 +271,8 @@ export const postPayment = async (
           organizationId,
           environment,
           customerWalletId,
-          assetId: options?.assetId ?? null,
-          metadata: { ...(params.metadata ?? {}), assetCode: options?.assetCode },
+          metadata: params.metadata ?? null,
+          ...(options?.failErrorMessage ? { failureReason: options.failErrorMessage } : {}),
         })
         .returning();
       return payment;
@@ -300,7 +299,7 @@ export const retrievePayments = async (
   orgId?: string,
   env?: Network,
   params?: { customerId?: string; paymentId?: string; subscriptionId?: string } & ApiListParams,
-  options?: { withCustomer?: boolean; withWallets?: boolean; withRefunds?: boolean; withAsset?: boolean }
+  options?: { withCustomer?: boolean; withWallets?: boolean; withRefunds?: boolean }
 ): Promise<PaginatedResult<ResolvedPayment>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
@@ -313,12 +312,10 @@ export const retrievePayments = async (
       ...(options?.withWallets && { wallets: customerWallets }),
       ...(options?.withRefunds && { refunds: refunds }),
       ...(options?.withCustomer && { customer: customers }),
-      ...(options?.withAsset && { asset: assets }),
     })
     .from(payments)
     .leftJoin(refunds, and(eq(payments.id, refunds.paymentId), eq(refunds.status, "succeeded")))
     .leftJoin(customerWallets, eq(payments.customerWalletId, customerWallets.id))
-    .leftJoin(assets, eq(payments.assetId, assets.id))
     .leftJoin(customers, eq(payments.customerId, customers.id))
     .where(
       and(
@@ -334,13 +331,12 @@ export const retrievePayments = async (
     .offset(params?.starting_after ? parseInt(params.starting_after) : 0);
 
   return await paginate(
-    rows.map(({ customer, payment, hasRefund, wallets, refunds, asset }) => ({
+    rows.map(({ customer, payment, hasRefund, wallets, refunds }) => ({
       ...payment,
       refunded: !!hasRefund,
       wallets,
       refunds,
       customer,
-      asset,
     })),
     limit
   );
@@ -395,7 +391,7 @@ export const deletePayment = async (id: string, organizationId: string) => {
   return null;
 };
 
-export const sweepAndProcessPayment = async (checkoutId: string) => {
+export const sweepAndProcessPayment = async (checkoutId: string, failureReason?: string) => {
   console.log("sweeping and processing payment", checkoutId);
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
 
@@ -403,8 +399,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
     return checkout;
   }
 
-  const { organizationId, environment, initialPagingToken, merchantPublicKey, customerId, assetId, assetCode } =
-    checkout;
+  const { organizationId, environment, initialPagingToken, merchantPublicKey, customerId } = checkout;
 
   const result = await verifyPaymentByPagingToken(merchantPublicKey, checkoutId, initialPagingToken!, environment);
 
@@ -412,7 +407,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
 
   if (!result.value) return checkout;
 
-  const { hash, amount, successful, from: payerAddress } = result.value;
+  const { hash, amount, successful, from: payerAddress, assetCode, assetIssuer } = result.value;
 
   if (!successful) {
     await runAtomic(async () => {
@@ -422,17 +417,19 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
           subscriptionId: null,
           checkoutId,
           customerId,
-          amount: xlmToStroops(amount),
+          cryptoAmount: amount,
+          amountUsdCents: checkout.finalAmount,
           transactionHash: hash,
           status: "failed",
           metadata: null,
-          assetId,
-          amountUsdCentsSnapshot: BigInt(0),
+          selectedAssetCode: assetCode!,
+          selectedAssetIssuer: assetIssuer ?? null,
           creditBalanceId: null,
+          failureReason: "Failed to retrieve payment from horizon paging token",
         },
         organizationId,
         environment,
-        { assetId, assetCode: assetCode ?? undefined, customerWalletAddress: payerAddress }
+        { customerWalletAddress: payerAddress }
       );
     });
 
@@ -448,8 +445,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
     );
 
     const amountUsdCentsSnapshot = BigInt(
-      Math.round((await getAssetUsdPrice(checkout.assetMetadata ?? {})) * Number(stroopsToXlm(checkout.finalAmount))) *
-        100
+      Math.round((await getAssetUsdPrice({ coingeckoId: assetCode })) * Number(checkout.finalAmount)) * 100
     );
 
     const isMeteredProduct = checkout.productType == "metered" && checkout.productTotalCredits;
@@ -464,7 +460,7 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
           customerId,
           productId: checkout.productId,
           balance: checkout.productTotalCredits!,
-          consumed: BigInt(0),
+          consumed: 0,
           granted: checkout.productTotalCredits!,
           metadata: null,
         },
@@ -478,18 +474,19 @@ export const sweepAndProcessPayment = async (checkoutId: string) => {
         subscriptionId: null,
         customerId,
         checkoutId,
-        amount: xlmToStroops(amount),
+        amountUsdCents: checkout.finalAmount,
+        cryptoAmount: amount,
         transactionHash: hash,
         status: "confirmed",
         metadata: null,
-        assetId,
-        amountUsdCentsSnapshot,
+        selectedAssetCode: assetCode!,
+        selectedAssetIssuer: assetIssuer ?? null,
         creditBalanceId: creditBalance?.id ?? null,
+        failureReason: null,
       },
-
       organizationId,
       environment,
-      { assetId, assetCode: assetCode ?? undefined, customerWalletAddress: payerAddress }
+      { customerWalletAddress: payerAddress }
     );
   });
 

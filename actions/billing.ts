@@ -18,22 +18,18 @@ export async function processPaymentBilling(
   console.log("Processing payment billing for payment", paymentId);
 
   const [payment, secret] = await Promise.all([
-    retrievePayments(organizationId, environment, { paymentId, limit: 1 }, { withAsset: true }).then(
-      (res) => res.data[0]
-    ),
+    retrievePayments(organizationId, environment, { paymentId, limit: 1 }).then((res) => res.data[0]),
     retrieveOrganizationIdAndSecret(organizationId, environment).then((res) => res.secret),
   ]);
 
   if (!payment || payment.status !== "confirmed") return;
 
-  if (!secret || !payment || !payment.asset) {
+  if (!secret || !payment || !payment.selectedAssetCode) {
     console.error("One of secret, payment, or asset is missing for payment", paymentId);
     throw new AppError(`One of secret, payment, or asset is missing for payment ${paymentId}`);
   }
 
-  const paymentValueCents = Number(payment.amountUsdCentsSnapshot);
-
-  console.log("Payment value cents", paymentValueCents);
+  const paymentAmountUsdCents = Number(payment.amountUsdCents);
 
   const lifetimeVolumeUsd = lifeTimeVolumeUsdCents / 100;
 
@@ -50,13 +46,11 @@ export async function processPaymentBilling(
 
   if (rateBps === 0) return;
 
-  const feeStroops = (payment.amount * BigInt(rateBps)) / BigInt(BPS_DENOMINATOR);
-  const feeUsdCents = (feeStroops * BigInt(paymentValueCents)) / BigInt(1e7);
+  const feeCryptoAmountUsdCents = (paymentAmountUsdCents * rateBps) / BPS_DENOMINATOR;
 
   const chargeId = generateResourceId("ch", paymentId, 20);
 
-  console.log("Fee Stroops", feeStroops);
-  console.log("Fee USD Cents", feeUsdCents);
+  console.log("Fee Crypto Amount USD Cents", feeCryptoAmountUsdCents);
 
   try {
     const secretKey = decrypt(secret.encrypted);
@@ -65,9 +59,9 @@ export async function processPaymentBilling(
     const res = await sendAssetPayment(
       secretKey,
       keeperKey,
-      payment.asset.code,
-      payment.asset.issuer!,
-      feeStroops.toString(),
+      payment.selectedAssetCode,
+      payment.selectedAssetIssuer!,
+      payment.cryptoAmount.toString(),
       payment.environment,
       `Fee: ${paymentId}`
     );
@@ -78,14 +72,16 @@ export async function processPaymentBilling(
       id: chargeId,
       organizationId: payment.organizationId,
       paymentId: payment.id,
-      amount: feeStroops,
-      amountUsdCents: feeUsdCents,
-      assetId: payment.asset.id,
+      amountUsdCents: feeCryptoAmountUsdCents,
+      cryptoAmount: payment.cryptoAmount,
+      selectedAssetCode: payment.selectedAssetCode,
+      selectedAssetIssuer: payment.selectedAssetIssuer,
       type: "platform_fee",
       status: res.isOk() ? "succeeded" : "failed",
       transactionHash: res.isOk() ? res.value?.hash : null,
       error: res.isErr() ? res.error.message : null,
       environment: payment.environment,
+      createdAt: new Date(),
     });
   } catch (err: any) {
     console.error("[Billing Error]", err);

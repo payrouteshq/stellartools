@@ -2,7 +2,6 @@
 
 import * as React from "react";
 
-import { retrieveAssets } from "@/actions/asset";
 import { createProductImage } from "@/actions/product";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
 import { NumberField } from "@/components/number-field";
@@ -17,16 +16,33 @@ import { Label } from "@/components/ui/label";
 import { Product as ProductSchema } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useFilePreview } from "@/hooks/use-file-preview";
-import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
-import { fileFromUrl, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ApiClient, RecurringPeriod } from "@stellartools/core";
+import { ApiClient } from "@stellartools/core";
 import { Info, Trash2 } from "lucide-react";
 import Image from "next/image";
 import * as RHF from "react-hook-form";
 import { useFieldArray, useWatch } from "react-hook-form";
 import { z } from "zod";
+
+export interface ProductEsque extends Pick<
+  ProductSchema,
+  | "id"
+  | "name"
+  | "description"
+  | "priceCents"
+  | "type"
+  | "recurringPeriod"
+  | "status"
+  | "createdAt"
+  | "updatedAt"
+  | "images"
+  | "metadata"
+  | "unit"
+  | "unitsPerCredit"
+  | "totalCredits"
+> {}
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -35,13 +51,7 @@ const productSchema = z.object({
   type: z.enum(["one_time", "subscription", "metered"]),
   recurringInterval: z.number().min(1).optional(),
   recurringPeriod: z.enum(["day", "week", "month", "year"]).optional(),
-  price: z.object({
-    amount: z
-      .string()
-      .min(1, "Amount is required")
-      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Price must be greater than 0"),
-    asset: z.string().min(1, "Asset is required"),
-  }),
+  priceAmountCents: z.number().min(0).optional(),
   unit: z.string().optional(),
   totalCredits: z.number().min(0).optional(),
   unitsPerCredit: z.number().min(1).optional(),
@@ -58,22 +68,6 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
-export interface Product extends Pick<
-  ProductSchema,
-  "id" | "name" | "status" | "createdAt" | "updatedAt" | "type" | "images" | "metadata" | "assetId"
-> {
-  description?: string | null;
-  pricing: {
-    amount: number;
-    asset: string;
-    isRecurring?: boolean;
-    period: RecurringPeriod | undefined;
-  };
-  unit?: string | null;
-  unitsPerCredit?: bigint | null;
-  totalCredits?: bigint | null;
-}
-
 // --- Modal Component  ---
 
 export function ProductsModalContent({
@@ -85,17 +79,12 @@ export function ProductsModalContent({
 }: {
   onClose: () => void;
   onSuccess: () => void;
-  editingProduct?: Product | null;
+  editingProduct?: ProductEsque | null;
   setSubmitRef?: React.MutableRefObject<(() => void) | null>;
   onFooterChange?: (props: { isPending: boolean }) => void;
 }) {
   const isEditMode = !!editingProduct;
   const { data: orgContext } = useOrgContext();
-  const { data: assets, isLoading: isLoadingAssets } = useOrgQuery(
-    ["assets"],
-    () => retrieveAssets(null, orgContext?.environment!),
-    { enabled: !!orgContext?.environment }
-  );
   const { file: imagesFile, isLoading: isLoadingImages } = useFilePreview(editingProduct?.images?.[0] ?? null);
 
   const form = RHF.useForm<ProductFormData>({
@@ -104,8 +93,8 @@ export function ProductsModalContent({
       name: editingProduct?.name ?? "",
       description: editingProduct?.description ?? "",
       type: editingProduct?.type ?? "one_time",
-      recurringPeriod: editingProduct?.pricing.period ?? "month",
-      price: { amount: "", asset: "XLM" },
+      recurringPeriod: editingProduct?.recurringPeriod ?? "month",
+      priceAmountCents: 0,
       totalCredits: 0,
       unitsPerCredit: 1,
       metadata: editingProduct?.metadata
@@ -136,36 +125,18 @@ export function ProductsModalContent({
             }))
           : [];
 
-      const displayAmount =
-        editingProduct.pricing.amount != null ? stroopsToXlm(BigInt(editingProduct.pricing.amount.toString())) : "";
-
       form.reset({
         name: editingProduct.name,
         description: editingProduct?.description ?? "",
         images: [],
         type: editingProduct.type,
-        recurringPeriod: editingProduct.pricing.period ?? "month",
-        price: {
-          amount: displayAmount,
-          asset: editingProduct.pricing.asset,
-        },
+        recurringPeriod: editingProduct.recurringPeriod ?? "month",
+        priceAmountCents: editingProduct.priceCents,
         unit: editingProduct.unit ?? "",
         totalCredits: Number(editingProduct.totalCredits ?? 0),
         unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
         metadata: metadataArray,
       });
-
-      if (editingProduct.images?.length && editingProduct.images[0]) {
-        fileFromUrl(editingProduct.images[0], "existing-image.png").then((file) => {
-          form.setValue("images", [
-            {
-              ...file,
-              type: file.type || "image/png",
-              preview: URL.createObjectURL(file),
-            } as FileWithPreview,
-          ]);
-        });
-      }
     } else {
       form.reset({
         name: "",
@@ -173,7 +144,7 @@ export function ProductsModalContent({
         images: [],
         type: "one_time",
         recurringPeriod: "month",
-        price: { amount: "", asset: "XLM" },
+        priceAmountCents: 0,
         metadata: [],
       });
     }
@@ -212,12 +183,12 @@ export function ProductsModalContent({
       );
 
       if (isEditMode && editingProduct?.id) {
-        const response = await api.put<Product>(`/product/${editingProduct.id}`, {
+        const response = await api.put<ProductEsque>(`/product/${editingProduct.id}`, {
           name: data.name,
           description: data?.description,
           images: imageResults,
           metadata: metadataRecord,
-          price_amount: parseFloat(data.price.amount),
+          price_amount_cents: data.priceAmountCents,
           recurring_period: data.recurringPeriod,
           unit: data.unit,
           total_credits: data.totalCredits,
@@ -229,13 +200,12 @@ export function ProductsModalContent({
         return response.value;
       }
 
-      const result = await api.post<Product | { error: string }>("/product", {
+      const result = await api.post<ProductEsque | { error: string }>("/product", {
         name: data.name,
         description: data.description,
         images: imageResults,
         type: data.type,
-        price_amount: parseFloat(data.price.amount),
-        asset_code: data.price.asset.split(":")[0],
+        price_amount_cents: data.priceAmountCents,
         recurring_period: data.recurringPeriod,
         unit: data.unit,
         total_credits: data.totalCredits,
@@ -248,7 +218,7 @@ export function ProductsModalContent({
 
       if ("error" in result.value) throw new AppError(result.value.error);
 
-      return result.value as Product;
+      return result.value as ProductEsque;
     },
     {
       invalidate: ["products", ...(isEditMode ? [editingProduct?.id] : [])],
@@ -262,7 +232,7 @@ export function ProductsModalContent({
   );
 
   const watched = useWatch({ control: form.control });
-  const total = parseFloat(watched.price?.amount || "0") || 0;
+  const total = watched.priceAmountCents || 0;
 
   const onSubmit = async (data: ProductFormData) => {
     putProductAction({
@@ -528,16 +498,14 @@ export function ProductsModalContent({
             <div className="flex gap-2">
               <RHF.Controller
                 control={form.control}
-                name="price"
+                name="priceAmountCents"
                 render={({ field, fieldState: { error } }) => (
                   <SelectInput
-                    id="price"
-                    isLoading={isLoadingAssets}
+                    id="priceAmountCents"
                     className="flex-1"
-                    value={{ amount: field.value.amount, option: field.value.asset }}
-                    onChange={(value) => field.onChange({ ...field.value, amount: value.amount, asset: value.option })}
-                    options={assets?.map((asset) => `${asset.code}:${asset.id}`) ?? []}
-                    error={(error as any)?.asset?.message ?? (error as any)?.amount?.message}
+                    value={field.value?.toString() || "0"}
+                    onChange={field.onChange}
+                    error={error?.message}
                     disabled={isEditMode}
                   />
                 )}
@@ -596,9 +564,7 @@ export function ProductsModalContent({
               <div className="border-t pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground font-medium">Total Price</span>
-                  <span className="font-bold">
-                    {total.toFixed(2)} {watched.price?.asset?.split(":")?.[0] ?? "XLM"}
-                  </span>
+                  <span className="font-bold">${total.toFixed(2)}</span>
                 </div>
                 {watched.type === "subscription" && (
                   <p className="text-muted-foreground mt-1 text-right text-xs">

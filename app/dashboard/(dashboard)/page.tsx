@@ -2,7 +2,7 @@
 
 import React from "react";
 
-import { retrieveOverviewStats } from "@/actions/organization";
+import { putOrganization, retrieveOverviewStats } from "@/actions/organization";
 import { AppModal } from "@/components/app-modal";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -24,9 +24,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAction } from "@/hooks/use-action";
 import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useCookieState } from "@/hooks/use-cookie-state";
-import { useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
 import Link from "next/link";
@@ -63,9 +64,10 @@ const SPARKLINE_CONFIG = {
 };
 
 export default function DashboardPage() {
-  const [selectedCode, setSelectedCode] = useCookieState("dashboard_currency", "USD");
   const [countryOpen, setCountryOpen] = React.useState(false);
   const [period, setPeriod] = useCookieState("dashboard_period", "30");
+
+  const { data: org } = useOrgContext();
 
   const since = React.useMemo(() => new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000), [period]);
 
@@ -86,7 +88,15 @@ export default function DashboardPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [fiatRates]);
 
-  const selectedItem = currencyItems.find((c) => c.code === selectedCode) ?? null;
+  const { mutate: updateOrganizationCurrency, isPending: isUpdatingOrganizationCurrency } = useAction(
+    async (code: string) => {
+      if (!org?.id) return;
+      return await putOrganization(org.id, { selectedCurrency: code });
+    },
+    { invalidate: ["*"], successMsg: "Currency updated successfully", errorMsg: "Failed to update currency" }
+  );
+
+  const selectedItem = currencyItems.find((c) => c.code === org?.selectedCurrency) ?? null;
 
   if (isStatsLoading || !stats) {
     return (
@@ -152,17 +162,22 @@ export default function DashboardPage() {
                         <CommandGroup>
                           {currencyItems.map((item) => (
                             <CommandItem
+                              disabled={isUpdatingOrganizationCurrency}
                               key={item.code}
                               value={`${item.name} ${item.code}`.toLowerCase()}
                               onSelect={() => {
-                                setSelectedCode(item.code);
+                                updateOrganizationCurrency(item.code);
                                 setCountryOpen(false);
                               }}
                             >
-                              <span className={cn("flex-1 truncate", selectedCode === item.code && "font-medium")}>
+                              <span
+                                className={cn("flex-1 truncate", org?.selectedCurrency === item.code && "font-medium")}
+                              >
                                 {item.name} ({item.code})
                               </span>
-                              {selectedCode === item.code && <CheckMark className="text-foreground size-4 shrink-0" />}
+                              {org?.selectedCurrency === item.code && (
+                                <CheckMark className="text-foreground size-4 shrink-0" />
+                              )}
                             </CommandItem>
                           ))}
                         </CommandGroup>

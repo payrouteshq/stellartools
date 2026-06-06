@@ -19,7 +19,10 @@ import { useAction } from "@/hooks/use-action";
 import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
+import countryToCurrency from "country-to-currency";
+import { getCurrency as getCurrencyFromLocale$AcceptHeaders } from "locale-currency";
 import { Building2, ChevronRight, Plus } from "lucide-react";
+import { headers } from "next/headers";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { FileRejection } from "react-dropzone";
@@ -257,6 +260,26 @@ const CreateOrganizationModalContent = ({
       const defaultEnvironment = "testnet" as const;
       const formData = new FormData();
       if (data.logo?.[0]) formData.append("logo", data.logo[0]);
+
+      const headersList = await headers();
+      const xVercelIpCountry = headersList.get("x-vercel-ip-country");
+      const acceptLanguage = headersList.get("accept-language");
+
+      let selectedCurrency = null;
+
+      if (data.phoneNumber.countryCode) {
+        selectedCurrency =
+          countryToCurrency[data.phoneNumber.countryCode.toUpperCase() as keyof typeof countryToCurrency];
+      } else if (xVercelIpCountry) {
+        selectedCurrency = countryToCurrency[xVercelIpCountry.toUpperCase() as keyof typeof countryToCurrency];
+      } else if (acceptLanguage) {
+        selectedCurrency = getCurrencyFromLocale$AcceptHeaders(
+          acceptLanguage.split(",")[0]?.split(";")[0]?.trim() ?? ""
+        );
+      }
+
+      console.log({ selectedCurrency });
+
       return await postOrganizationAndSecret(
         {
           name: data.name,
@@ -270,6 +293,10 @@ const CreateOrganizationModalContent = ({
           address: null,
           socialLinks: null,
           supportEmail: null,
+          selectedCurrency: selectedCurrency ?? "USD",
+          payoutAssetCode: null,
+          payoutAssetIssuer: null,
+          payoutFiatOptions: null,
         },
         defaultEnvironment,
         { formDataWithFiles: formData }

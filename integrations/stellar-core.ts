@@ -108,7 +108,14 @@ export const verifyPaymentByPagingToken = async (
     );
 
     return paymentOp
-      ? { hash: match.hash, amount: paymentOp.amount, successful: match.successful, from: paymentOp.from }
+      ? {
+          hash: match.hash,
+          amount: paymentOp.amount,
+          successful: match.successful,
+          from: paymentOp.from,
+          assetCode: paymentOp.asset_code,
+          assetIssuer: paymentOp.asset_issuer,
+        }
       : null;
   });
 };
