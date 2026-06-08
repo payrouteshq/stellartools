@@ -220,7 +220,7 @@ function CreateOrganizationModalFooter({
 
 const createOrganizationSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  phoneNumber: phoneNumberSchema,
+  phoneNumber: phoneNumberSchema.optional().nullable(),
   description: z.string().optional(),
   physicalAddress: z.string().optional(),
   supportEmail: z.email(),
@@ -265,9 +265,11 @@ const CreateOrganizationModalContent = ({
       const xVercelIpCountry = headersList.get("x-vercel-ip-country");
       const acceptLanguage = headersList.get("accept-language");
 
+      console.log({ xVercelIpCountry, acceptLanguage });
+
       let selectedCurrency = null;
 
-      if (data.phoneNumber.countryCode) {
+      if (data.phoneNumber?.countryCode) {
         selectedCurrency =
           countryToCurrency[data.phoneNumber.countryCode.toUpperCase() as keyof typeof countryToCurrency];
       } else if (xVercelIpCountry) {
@@ -283,7 +285,7 @@ const CreateOrganizationModalContent = ({
       return await postOrganizationAndSecret(
         {
           name: data.name,
-          phoneNumber: phoneNumberToString(data.phoneNumber),
+          phoneNumber: data.phoneNumber ? phoneNumberToString(data.phoneNumber) : null,
           description: data.description ?? null,
           logoUrl: null,
           settings: null,

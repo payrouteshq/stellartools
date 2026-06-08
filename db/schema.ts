@@ -167,7 +167,7 @@ export type AssetMetadata = {
 };
 
 export const supportedAssets = pgTable(
-  "asset",
+  "supported_asset",
   {
     id: text("id").primaryKey(),
     code: text("code").notNull().$type<AssetCode>(),
@@ -309,7 +309,7 @@ export const checkouts = pgTable(
   (table) => ({
     amountOrProductCheck: check(
       "amount_or_product_check",
-      sql`(${table.productId} IS NOT NULL OR (${table.amountCents} AND ${table.currencyCode}) IS NOT NULL)`
+      sql`(${table.productId} IS NOT NULL OR (${table.amountCents} IS NOT NULL AND ${table.currencyCode} IS NOT NULL))`
     ),
   })
 );
