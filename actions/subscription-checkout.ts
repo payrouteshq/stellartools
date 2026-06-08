@@ -9,8 +9,13 @@ import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import { retrieveAssetContractId } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
+import { Money } from "@/lib/money";
 import { generateResourceId } from "@/lib/utils";
 import moment from "moment";
+
+const STELLAR_DECIMALS = 7;
+const toRawUnits = (decimalAmount: string): bigint =>
+  BigInt(Math.round(Number(decimalAmount) * 10 ** STELLAR_DECIMALS));
 
 /**
  * Builds a prepared (simulated) Soroban `approve` transaction XDR for the customer to sign.
@@ -19,7 +24,9 @@ import moment from "moment";
  */
 export async function prepareSubscriptionApproval(
   checkoutId: string,
-  customerAddress: string
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null
 ): Promise<{ xdr: string; periodStart: string; periodEnd: string } | { error: string }> {
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
@@ -30,24 +37,25 @@ export async function prepareSubscriptionApproval(
       return { error: "Not a subscription checkout" };
     }
 
-    if (!checkout.assetCode) {
-      return { error: "Asset not configured for this checkout" };
+    if (!selectedAssetCode) {
+      return { error: "No payment asset selected" };
     }
 
     const tokenContractId = await retrieveAssetContractId(
-      checkout.assetCode,
-      checkout.assetIssuer!,
+      selectedAssetCode,
+      selectedAssetIssuer ?? "",
       checkout.environment
     );
 
     const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
-    const amountStroops = xlmToStroops(checkout.finalAmount.toString());
+
+    const assetUsdPrice = await getAssetUsdPrice({ coingeckoId: selectedAssetCode.toLowerCase() });
+    const cryptoAmount = Money.calculateCryptoNeeded(checkout.finalAmount, assetUsdPrice);
+    const amountRaw = toRawUnits(cryptoAmount);
+    const totalAllowance = amountRaw * BigInt(200);
 
     const periodStart = new Date();
     const periodEnd = new Date(Date.now() + durationDays * 864e5);
-
-    // Approve 200 periods worth of allowance so recurring charges work without re-approval
-    const totalAllowance = amountStroops * BigInt(200);
 
     const xdrResult = await buildSubscriptionApprovalXdr(checkout.environment, {
       customerAddress,
@@ -75,32 +83,20 @@ export async function prepareSubscriptionApproval(
 export async function finalizeSubscriptionCheckout(
   checkoutId: string,
   signedApprovalXDR: string,
-  customerAddress: string
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null
 ): Promise<{ success: boolean; error?: string }> {
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
 
   if (!checkout) throw new AppError("Checkout not found");
 
-  const {
-    status,
-    productType,
-    productId,
-    merchantPublicKey,
-    organizationId,
-    environment,
-    customerId,
-    subscriptionData,
-  } = checkout;
+  const { status, productType, productId, merchantPublicKey, organizationId, environment, customerId, subscriptionData } =
+    checkout;
 
-  if (status !== "open") {
-    return { success: false, error: "Checkout is not open" };
-  }
-
-  if (productType !== "subscription") {
-    return { success: false, error: "Not a subscription checkout" };
-  }
-
-  if (!assetCode || !productId || !merchantPublicKey || !customerId) {
+  if (status !== "open") return { success: false, error: "Checkout is not open" };
+  if (productType !== "subscription") return { success: false, error: "Not a subscription checkout" };
+  if (!selectedAssetCode || !productId || !merchantPublicKey || !customerId) {
     return { success: false, error: "Missing required checkout data" };
   }
 
@@ -108,10 +104,8 @@ export async function finalizeSubscriptionCheckout(
     return { success: false, error: "Period data missing - call prepareSubscriptionApproval first" };
   }
 
-  const tokenContractId = await retrieveAssetContractId(assetCode, checkout.assetIssuer!, checkout.environment);
+  const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer ?? "", checkout.environment);
   const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
-
-  const durationSeconds = durationDays * 86400;
 
   const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);
   if (approvalResult.isErr()) {
@@ -124,7 +118,7 @@ export async function finalizeSubscriptionCheckout(
     tokenContractId,
     productId,
     amountCents: checkout.finalAmount,
-    durationSeconds,
+    durationSeconds: durationDays * 86400,
   });
 
   if (startResult.isErr()) {
@@ -132,7 +126,6 @@ export async function finalizeSubscriptionCheckout(
   }
 
   const { hash } = startResult.value;
-
   const subscriptionId = generateResourceId("sub", checkout.organizationId, 20);
 
   await runAtomic(async () => {
@@ -143,6 +136,7 @@ export async function finalizeSubscriptionCheckout(
         id: subscriptionId,
         customerIds: [customerId],
         productId: productId!,
+        priceCents: checkout.finalAmount,
         period: { from: moment().toISOString(), to: moment().add(durationDays, "days").toISOString() },
         cancelAtPeriodEnd: false,
         metadata: null,
@@ -151,33 +145,29 @@ export async function finalizeSubscriptionCheckout(
       environment
     );
 
-    const amountUsdCentsSnapshot = BigInt(
-      Math.round((await getAssetUsdPrice(checkout.assetMetadata ?? {})) * Number(stroopsToXlm(checkout.finalAmount))) *
-        100
-    );
-
-    console.log("amountUsdCentsSnapshot", amountUsdCentsSnapshot);
+    const assetUsdPrice = await getAssetUsdPrice({ coingeckoId: selectedAssetCode.toLowerCase() });
+    const cryptoAmount = Money.calculateCryptoNeeded(checkout.finalAmount, assetUsdPrice);
 
     await postPayment(
       {
         customerId: checkout.customerId,
         checkoutId,
-        amount: xlmToStroops(checkout.finalAmount.toString()),
+        productId: checkout.productId ?? null,
+        amountCents: checkout.finalAmount,
+        currencyCode: checkout.currencyCode ?? "USD",
+        cryptoAmount,
+        selectedAssetCode,
+        selectedAssetIssuer,
         transactionHash: hash,
         status: "confirmed",
         metadata: null,
-        assetId: checkout.assetId,
         subscriptionId,
-        amountUsdCentsSnapshot,
         creditBalanceId: null,
+        failureReason: null,
       },
       organizationId,
       environment,
-      {
-        assetId: checkout.assetId ?? undefined,
-        assetCode: checkout.assetCode ?? undefined,
-        customerWalletAddress: customerAddress,
-      }
+      { customerWalletAddress: customerAddress }
     );
   });
 

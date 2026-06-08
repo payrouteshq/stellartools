@@ -27,8 +27,8 @@ A checkout session is a short-lived payment page. You create one, redirect the c
   For direct checkouts. The amount to charge.
 </ResponseField>
 
-<ResponseField name="asset_code" type="string">
-  For direct checkouts. Asset code, e.g. `"XLM"`.
+<ResponseField name="currency_code" type="string">
+  For direct checkouts. Currency code, e.g. `"USD"`.
 </ResponseField>
 
 <ResponseField name="status" type="string">
@@ -117,7 +117,7 @@ curl "https://api.stellartools.dev/checkout?type=direct" \
   -d '{
     "customer_id": "cus_01jx...",
     "amount": 50,
-    "asset_code": "XLM",
+    "currency_code": "NGN",
     "redirect_url": "https://yourapp.com/success"
   }'
 ```
@@ -126,8 +126,8 @@ curl "https://api.stellartools.dev/checkout?type=direct" \
   Amount to charge.
 </ParamField>
 
-<ParamField body="asset_code" type="string" required>
-  Asset code, e.g. `"XLM"`.
+<ParamField body="currency_code" type="string" required>
+  Asset code, e.g. `"NGN"`.
 </ParamField>
 
 Same optional fields as product checkout (`customer_id`, `customer_email`, `customer_phone`, `redirect_url`, `description`, `metadata`).

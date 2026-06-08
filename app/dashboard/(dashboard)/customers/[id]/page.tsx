@@ -2,7 +2,6 @@
 
 import * as React from "react";
 
-import { retrieveAssets } from "@/actions/asset";
 import { retrieveCustomers } from "@/actions/customers";
 import { retrieveEvents } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
@@ -39,12 +38,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { Payment, ResolvedPayment } from "@/db";
 import { useAction } from "@/hooks/use-action";
-import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useCopy } from "@/hooks/use-copy";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
-import { cn, formatCurrency, stroopsToXlm } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, Checkout } from "@stellartools/core";
 import { ColumnDef } from "@tanstack/react-table";
@@ -138,7 +138,7 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
     header: "Amount",
     cell: ({ row }) => (
       <span className="font-medium">
-        {formatCurrency(Number(stroopsToXlm(row.original.amount)), row.original.metadata?.assetCode as string)}
+        {Money.formatCrypto(row.original.cryptoAmount, row.original.selectedAssetCode)}
       </span>
     ),
     meta: { filterable: true, filterVariant: "number" },
@@ -330,28 +330,12 @@ export default function CustomerDetailPage() {
     [payments]
   );
 
-  const uniqueAssetCodes = React.useMemo(
-    () => [...new Set(confirmedPayments.map((p) => p.metadata?.assetCode as string).filter(Boolean))],
-    [confirmedPayments]
-  );
-
-  const { data: orgAssets } = useOrgQuery(
-    ["assets", orgContext?.environment, ...uniqueAssetCodes],
-    () => retrieveAssets({ codes: uniqueAssetCodes }, orgContext!.environment),
-    { enabled: !!orgContext && uniqueAssetCodes.length > 0 }
-  );
-
-  const { toLocal, formatLocal } = useAssetRates((orgAssets ?? []).map((a) => ({ code: a.code, issuer: a.issuer! })));
-
+  const { convertAndFormat, convertToOrgCurrency } = useCurrencyConverter();
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
 
-  const totalSpentLocal = React.useMemo(
-    () =>
-      confirmedPayments.reduce(
-        (sum, p) => sum + toLocal(Number(stroopsToXlm(p.amount)), p.metadata?.assetCode as string),
-        0
-      ),
-    [confirmedPayments, toLocal]
+  const totalSpentCents = React.useMemo(
+    () => confirmedPayments.reduce((sum, p) => sum + convertToOrgCurrency(p.amountCents ?? 0, p.currencyCode), 0),
+    [confirmedPayments, convertToOrgCurrency]
   );
 
   if (customerLoading) return <CustomerDetailSkeleton />;
@@ -520,7 +504,7 @@ export default function CustomerDetailPage() {
             <aside className="space-y-8">
               <div>
                 <h3 className="mb-2 text-lg font-semibold">Insights</h3>
-                <p className="text-xl font-bold">{formatLocal(totalSpentLocal)}</p>
+                <p className="text-xl font-bold">{convertAndFormat(totalSpentCents)}</p>
                 <p className="text-muted-foreground text-xs">Total spent</p>
               </div>
 
@@ -632,12 +616,12 @@ function CheckoutModalContent({
   const products = React.useMemo(() => {
     return (
       productsData
-        ?.filter((p) => p.product.status === "active")
+        ?.filter((p) => p.status === "active")
         .map((p) => ({
-          value: p.product.id,
-          label: `${p.product.name} - ${stroopsToXlm(p.product.priceAmount)} ${p.asset.code}`,
-          type: p.product.type,
-          recurringPeriod: p.product.recurringPeriod,
+          value: p.id,
+          label: `${p.name} - $${(p.priceCents / 100).toFixed(2)} USD`,
+          type: p.type,
+          recurringPeriod: p.recurringPeriod,
         })) ?? []
     );
   }, [productsData]);

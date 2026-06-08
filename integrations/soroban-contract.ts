@@ -13,9 +13,16 @@ export type SorobanSubscription = {
   status: "active" | "paused" | "canceled";
 };
 
+export type SorobanEvent = {
+  topic: string;
+  success: boolean;
+  data: Record<string, unknown>;
+};
+
 export type SorobanTxResult = {
   hash: string;
   sourceWalletAddress: string | undefined;
+  events: SorobanEvent[];
 };
 
 const getSorobanConfig = (network: Network) => {
@@ -34,7 +41,7 @@ const invokeSoroban = async <T = SorobanTxResult>(
   publicKey: string,
   operation: StellarSDK.xdr.Operation,
   options: { readOnly?: boolean } = {}
-): Promise<Result<T, Error>> => {
+): Promise<Result<T, AppError>> => {
   return Result.tryPromise(async () => {
     const { server, passphrase } = getSorobanConfig(network);
     const keypair = StellarSDK.Keypair.fromPublicKey(publicKey);
@@ -74,7 +81,7 @@ const invokeSoroban = async <T = SorobanTxResult>(
     const result = await server.pollTransaction(response.hash, { attempts: 15 });
 
     if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      return Result.err(new AppError(`Transaction failed on-chain: ${response.hash}`));
+      throw new AppError(`Transaction failed on-chain: ${response.hash}`);
     }
 
     const walletAddres =
@@ -82,7 +89,25 @@ const invokeSoroban = async <T = SorobanTxResult>(
         ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
         : undefined;
 
-    return Result.ok({ hash: response.hash, sourceWalletAddress: walletAddres } as unknown as T);
+    const events: SorobanEvent[] = [];
+    if ("resultMetaXdr" in result && result.resultMetaXdr) {
+      try {
+        const sorobanMeta = result.resultMetaXdr.v3().sorobanMeta();
+        for (const event of sorobanMeta?.events() ?? []) {
+          if (event.type().name !== "contract") continue;
+          const v0 = event.body().v0();
+          const topics = v0.topics().map((t) => StellarSDK.scValToNative(t));
+          const data = StellarSDK.scValToNative(v0.data()) as Record<string, unknown>;
+          const topic = typeof topics[0] === "string" ? topics[0] : String(topics[0]);
+          const success = typeof data.success === "boolean" ? data.success : true;
+          events.push({ topic, success, data });
+        }
+      } catch {
+        // event parsing is best-effort; cron caller checks for expected event by topic
+      }
+    }
+
+    return { hash: response.hash, sourceWalletAddress: walletAddres, events } as T;
   });
 };
 
@@ -146,7 +171,7 @@ export const submitSorobanTx = async (network: Network, signedXDR: string) => {
 
     const result = await server.pollTransaction(response.hash, { attempts: 15 });
     if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      return Result.err(new AppError(`Transaction failed on-chain: ${response.hash}`));
+      throw new AppError(`Transaction failed on-chain: ${response.hash}`);
     }
 
     const walletAddres =
@@ -154,7 +179,7 @@ export const submitSorobanTx = async (network: Network, signedXDR: string) => {
         ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
         : undefined;
 
-    return Result.ok({ hash: response.hash, sourceWalletAddress: walletAddres } as unknown as T);
+    return { hash: response.hash, sourceWalletAddress: walletAddres, events: [] };
   });
 };
 

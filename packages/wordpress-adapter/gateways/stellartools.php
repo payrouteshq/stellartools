@@ -24,7 +24,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$this->description    = $this->get_option( 'description' );
 		$this->api_key        = $this->get_option( 'api_key', '' );
 		$this->webhook_secret = $this->get_option( 'webhook_secret', '' );
-		$this->asset_code     = $this->get_option( 'asset_code', 'USDC' );
+		$this->currency_code     = $this->get_option( 'currency_code', 'USDC' );
 		$this->api_base_url   = untrailingslashit( $this->get_option( 'api_base_url', 'https://api.stellartools.dev' ) );
 		$this->debug_mode     = 'yes' === $this->get_option( 'debug_mode', 'no' );
 		$this->enabled        = $this->get_option( 'enabled' );
@@ -35,8 +35,68 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		);
 	}
 
+	private function get_supported_assets(): array {
+		$transient_key = 'stellartools_supported_assets_' . md5( $this->api_key );
+		$cached        = get_transient( $transient_key );
+
+		if ( false !== $cached && is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$fallback = [
+			'USDC' => 'USDC (USD Coin)',
+			'EURC' => 'EURC (Euro Coin)',
+			'XLM'  => 'XLM (Stellar Lumens)',
+		];
+
+		if ( empty( $this->api_key ) || empty( $this->api_base_url ) ) {
+			return $fallback;
+		}
+
+		$response = wp_remote_get(
+			$this->api_base_url . '/assets',
+			[
+				'timeout'     => 10,
+				'httpversion' => '1.1',
+				'headers'     => [
+					'x-api-key'  => $this->api_key,
+					'User-Agent' => 'StellarTools-WooCommerce/1.0',
+				],
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $fallback;
+		}
+
+		$http_code = wp_remote_retrieve_response_code( $response );
+		$body      = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== $http_code || ! is_array( $body['data'] ?? null ) ) {
+			return $fallback;
+		}
+
+		$options = [];
+		foreach ( $body['data'] as $asset ) {
+			$code        = sanitize_text_field( $asset['code'] ?? '' );
+			$description = sanitize_text_field( $asset['description'] ?? $code );
+			if ( $code ) {
+				$options[ $code ] = $description ? "{$code} ({$description})" : $code;
+			}
+		}
+
+		if ( empty( $options ) ) {
+			return $fallback;
+		}
+
+		set_transient( $transient_key, $options, 5 * MINUTE_IN_SECONDS );
+
+		return $options;
+	}
+
 	public function init_form_fields(): void {
-		$webhook_url = rest_url( 'stellartools/v1/webhook' );
+		$webhook_url    = rest_url( 'stellartools/v1/webhook' );
+		$currency_opts  = $this->get_supported_assets();
 
 		$this->form_fields = [
 
@@ -88,16 +148,12 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 				'custom_attributes' => [ 'required' => 'required', 'autocomplete' => 'off' ],
 			],
 
-			'asset_code' => [
-				'title'    => 'Payment Asset',
+			'currency_code' => [
+				'title'    => 'Payment Currency',
 				'type'     => 'select',
 				'desc_tip' => 'The Stellar asset customers will pay in.',
 				'default'  => 'USDC',
-				'options'  => [
-					'USDC' => 'USDC (USD Coin)',
-					'EURC' => 'EURC (Euro Coin)',
-					'XLM'  => 'XLM (Stellar Lumens)',
-				],
+				'options'  => $currency_opts,
 			],
 
 			'order_status_on_payment' => [

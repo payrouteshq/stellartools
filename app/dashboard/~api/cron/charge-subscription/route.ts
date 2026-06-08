@@ -1,13 +1,11 @@
 import { runAtomic } from "@/actions/event";
 import { postPayment } from "@/actions/payment";
 import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscription";
-import { getAssetUsdPrice } from "@/integrations/price-feed";
 import {
   cancelSubscription as cancelSoroban,
   chargeSubscription as chargeSoroban,
 } from "@/integrations/soroban-contract";
 import { apiHandler } from "@/lib/api-handler";
-import { xlmToStroops } from "@/lib/utils";
 import { Result } from "@stellartools/core";
 
 export const GET = apiHandler({
@@ -18,6 +16,7 @@ export const GET = apiHandler({
 
     for (const sub of subs) {
       const { id: subId, organizationId: orgId, environment: env, productId } = sub.subscription;
+      const { priceCents: productPriceCents, currencyCode: productCurrencyCode } = sub.product;
       const walletAddress = sub.wallet.address;
 
       if (!walletAddress) continue;
@@ -52,41 +51,46 @@ export const GET = apiHandler({
         // --- 3. ATOMIC DB SYNC ---
         await runAtomic(async () => {
           const status = payEvent.success ? "confirmed" : "failed";
-          const amount = xlmToStroops(payEvent.data.amount);
+          // payEvent.data.amount is already a Stellar decimal string (e.g. "50.0000000")
+          const cryptoAmount = String(payEvent.data.amount ?? "");
 
           if (payEvent.success) {
             await putSubscription(
               subId,
               {
                 status: "active",
-                currentPeriodEnd: new Date(payEvent.data.periodEnd),
+                currentPeriodEnd: new Date(payEvent.data.periodEnd as string | number),
               },
               orgId,
               env
             );
           }
 
-          const amountUsdCentsSnapshot = BigInt(
-            Math.round((await getAssetUsdPrice(sub.asset.metadata ?? {})) * Number(amount)) * 100
-          );
+          // Soroban events carry the asset code; fall back to XLM (native subscription token)
+          const assetCode = payEvent.data.assetCode != null ? String(payEvent.data.assetCode) : "XLM";
+          const assetIssuer = payEvent.data.assetIssuer != null ? String(payEvent.data.assetIssuer) : null;
 
           await postPayment(
             {
               subscriptionId: subId,
               checkoutId: null,
+              productId,
               customerId: sub.customer.id,
-              amount,
+              amountCents: productPriceCents,
+              currencyCode: productCurrencyCode,
+              cryptoAmount,
+              selectedAssetCode: assetCode,
+              selectedAssetIssuer: assetIssuer,
               transactionHash: chargeRes.value.hash,
               status,
               metadata: null,
-              assetId: sub.subscription.assetId,
-              amountUsdCentsSnapshot,
               creditBalanceId: null,
+              failureReason: payEvent.success ? null : "On-chain payment failure",
             },
             orgId,
             env,
             {
-              customerWalletAddress: chargeRes.value.customerWalletAddress,
+              customerWalletAddress: chargeRes.value.sourceWalletAddress,
               failErrorMessage: payEvent.success ? undefined : "On-chain payment failure",
             }
           );

@@ -335,6 +335,10 @@ export const retrieveDueSubscriptions = async () => {
         cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
         currentPeriodEnd: subscriptions.currentPeriodEnd,
       },
+      product: {
+        priceCents: products.priceCents,
+        currencyCode: products.currencyCode,
+      },
       customer: { id: customers.id },
       wallet: customerWallets,
     })

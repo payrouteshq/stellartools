@@ -31,7 +31,8 @@ import { toast } from "@/components/ui/toast";
 import { useAction } from "@/hooks/use-action";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
-import { cn, formatCurrency } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import _ from "lodash";
 import { ChevronRight, Copy, ExternalLink, MoreHorizontal, Pause, Play, XCircle } from "lucide-react";
@@ -66,7 +67,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function SubscriptionDetailPage() {
   const router = useRouter();
   const { id } = useParams() as { id: string };
-  const invalidate = useInvalidateOrgQuery();
   const { data: orgContext } = useOrgContext();
 
   const { data: allSubs, isLoading } = useOrgQuery(["subscriptions"], async () =>
@@ -88,10 +88,7 @@ export default function SubscriptionDetailPage() {
 
   const { data: payments = [], isLoading: loadingPayments } = useOrgQuery(
     ["subscription-payments", id],
-    () =>
-      retrievePayments(undefined, undefined, { customerId: sub!.subscription.customerId }, { withAsset: true }).then(
-        (res) => res.data
-      ),
+    () => retrievePayments(undefined, undefined, { customerId: sub!.subscription.customerId }).then((res) => res.data),
     { enabled: !!sub }
   );
 
@@ -132,7 +129,7 @@ export default function SubscriptionDetailPage() {
             customerName: sub.customer.name,
             customerEmail: sub.customer.email,
             productName: sub.product.name,
-            productPrice: sub.product.priceAmount,
+            productPrice: sub.product.priceCents,
           }}
           onSuccess={() => AppModal.close()}
           setSubmitRef={submitRef}
@@ -186,7 +183,7 @@ export default function SubscriptionDetailPage() {
                 <span>Started {formatDate(s.currentPeriodStart)}</span>
                 <span>&middot;</span>
                 <span>
-                  Next billing {formatCurrency(p.priceAmount)} XLM on {formatDate(s.currentPeriodEnd)}
+                  Next billing {Money.formatFiat(p.priceCents)} on {formatDate(s.currentPeriodEnd)}
                 </span>
                 {s.cancelAtPeriodEnd && (
                   <>
@@ -244,11 +241,11 @@ export default function SubscriptionDetailPage() {
                   <div className="grid grid-cols-4 gap-4 px-4 py-3">
                     <div>
                       <div className="font-medium">{p.name}</div>
-                      <div className="text-muted-foreground text-xs">{formatCurrency(p.priceAmount, "XLM")} / mo</div>
+                      <div className="text-muted-foreground text-xs">{Money.formatFiat(p.priceCents)} / mo</div>
                     </div>
-                    <div className="text-sm">{formatCurrency(p.priceAmount, "XLM")}</div>
+                    <div className="text-sm">{Money.formatFiat(p.priceCents)}</div>
                     <div className="text-right text-sm">1</div>
-                    <div className="text-right font-medium">{formatCurrency(p.priceAmount, "XLM")} / mo</div>
+                    <div className="text-right font-medium">{Money.formatFiat(p.priceCents)} / mo</div>
                   </div>
                 </div>
               </section>
@@ -274,7 +271,7 @@ export default function SubscriptionDetailPage() {
                       {subscriptionPayments.map((p) => (
                         <div key={p.id} className="hover:bg-muted/50 grid grid-cols-5 items-center gap-4 px-4 py-3">
                           <div className="text-sm font-medium">
-                            {p.amount} {(p.metadata as any)?.assetCode ?? "XLM"}
+                            {Money.formatFiat(p.amountCents, p.currencyCode ?? "USD")}
                           </div>
                           <div>
                             <Badge

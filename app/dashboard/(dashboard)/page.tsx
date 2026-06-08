@@ -25,39 +25,17 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAction } from "@/hooks/use-action";
-import { useAssetRates } from "@/hooks/use-asset-rates";
 import { useCookieState } from "@/hooks/use-cookie-state";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { cn, normalizeTimeSeries } from "@/lib/utils";
 import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
 import Link from "next/link";
 
-type CurrencyItem = { code: string; name: string; symbol: string };
+type CurrencyItem = { code: string; name: string };
 
 const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
-
-function getCurrencySymbol(code: string): string {
-  try {
-    const parts = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: code,
-      minimumFractionDigits: 0,
-    }).formatToParts(0);
-    return parts.find((p) => p.type === "currency")?.value ?? code;
-  } catch {
-    return code;
-  }
-}
-
-function usdCentsToDisplay(
-  usdCents: number,
-  item: CurrencyItem | null,
-  fiatRates: Record<string, number> | null
-): string {
-  if (!item || !fiatRates) return "—";
-  const value = (usdCents / 100) * (fiatRates[item.code] ?? 1);
-  return item.symbol + value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 const SPARKLINE_CONFIG = {
   value: { label: "", color: "hsl(var(--chart-1))" },
@@ -77,14 +55,12 @@ export default function DashboardPage() {
     { staleTime: 60 * 1000 }
   );
 
-  const { fiatRates, isLoading: isRatesLoading } = useAssetRates([{ code: "XLM", issuer: "native" }]);
-
-  console.log({ isRatesLoading, fiatRates });
+  const { convertToOrgCurrency, fiatRates, currency, isLoading: isRatesLoading } = useCurrencyConverter();
 
   const currencyItems = React.useMemo<CurrencyItem[]>(() => {
     if (!fiatRates) return [];
     return Object.keys(fiatRates)
-      .map((code) => ({ code, name: currencyNames.of(code) ?? code, symbol: getCurrencySymbol(code) }))
+      .map((code) => ({ code, name: currencyNames.of(code) ?? code }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [fiatRates]);
 
@@ -98,7 +74,32 @@ export default function DashboardPage() {
 
   const selectedItem = currencyItems.find((c) => c.code === org?.selectedCurrency) ?? null;
 
-  if (isStatsLoading || !stats) {
+  const mrrTotalCents = React.useMemo(
+    () => stats?.mrr.reduce((sum, r) => sum + convertToOrgCurrency(r.cents, r.currencyCode), 0) ?? 0,
+    [stats?.mrr, convertToOrgCurrency]
+  );
+
+  const revenueTotalCents = React.useMemo(
+    () => stats?.revenue.reduce((sum, r) => sum + convertToOrgCurrency(r.totalCents, r.currencyCode), 0) ?? 0,
+    [stats?.revenue, convertToOrgCurrency]
+  );
+
+  const revenueChartData = React.useMemo(() => {
+    if (!stats) return [];
+    const dateMap = new Map<string, number>();
+    for (const row of stats.charts.revenue.gross) {
+      const prev = dateMap.get(row.date) ?? 0;
+      dateMap.set(row.date, prev + convertToOrgCurrency(row.grossCents, row.currencyCode));
+    }
+    for (const fee of stats.charts.revenue.fees) {
+      const prev = dateMap.get(fee.date) ?? 0;
+      dateMap.set(fee.date, prev - convertToOrgCurrency(fee.feeCents, "USD"));
+    }
+    const points = Array.from(dateMap.entries()).map(([date, value]) => ({ date, value }));
+    return normalizeTimeSeries(points, 28, "day");
+  }, [stats, convertToOrgCurrency]);
+
+  if (isStatsLoading || isRatesLoading || !stats) {
     return (
       <div className="w-full">
         <DashboardSidebar>
@@ -110,8 +111,8 @@ export default function DashboardPage() {
     );
   }
 
-  const revenue28 = usdCentsToDisplay(stats.revenue, selectedItem, fiatRates);
-  const mrrDisplay = usdCentsToDisplay(stats.mrr, selectedItem, fiatRates);
+  const revenue28 = Money.formatFiat(revenueTotalCents, currency);
+  const mrrDisplay = Money.formatFiat(mrrTotalCents, currency);
 
   return (
     <div className="w-full">
@@ -212,18 +213,18 @@ export default function DashboardPage() {
                 value={mrrDisplay}
                 subtitle="Monthly Recurring Revenue"
                 icon={<LoopIcon className="text-muted-foreground size-5" />}
-                sparkData={stats.charts.revenue}
+                sparkData={revenueChartData}
                 color="var(--chart-2)"
-                tooltipValueFormatter={(v) => usdCentsToDisplay(v, selectedItem, fiatRates)}
+                tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />
               <StatCard
                 title="Revenue"
                 value={revenue28}
                 subtitle={`Last ${period} days`}
                 icon={<DollarIcon className="text-muted-foreground size-5" />}
-                sparkData={stats.charts.revenue}
+                sparkData={revenueChartData}
                 color="var(--chart-2)"
-                tooltipValueFormatter={(v) => usdCentsToDisplay(v, selectedItem, fiatRates)}
+                tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />
               <StatCard
                 title="New Customers"

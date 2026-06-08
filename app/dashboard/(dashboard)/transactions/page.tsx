@@ -16,7 +16,8 @@ import { Customer, ResolvedPayment } from "@/db";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
-import { cn, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { cn, truncate } from "@/lib/utils";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Clock, Copy, Download, Plus, Settings, Wallet, XCircle } from "lucide-react";
 import moment from "moment";
@@ -123,7 +124,7 @@ const columns: ColumnDef<Transaction>[] = [
       const transaction = row.original;
       return (
         <div className="font-semibold">
-          {formatCurrency(Number(stroopsToXlm(transaction.amount)), transaction.asset)}
+          {Money.formatCrypto(transaction.cryptoAmount, transaction.selectedAssetCode)}
         </div>
       );
     },

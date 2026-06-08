@@ -4,6 +4,7 @@ import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { Network, charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
+import { getFiatRates } from "@/integrations/price-feed";
 import { sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { BPS_DENOMINATOR, FREE_THRESHOLD_USD, getVolumeTierRateBps } from "@/lib/pricing";
@@ -29,7 +30,10 @@ export async function processPaymentBilling(
     throw new AppError(`One of secret, payment, or asset is missing for payment ${paymentId}`);
   }
 
-  const paymentAmountUsdCents = Number(payment.amountUsdCents);
+  const fiatRates = await getFiatRates();
+  const paymentCurrency = payment.currencyCode ?? "USD";
+  const currencyRate = fiatRates[paymentCurrency] ?? 1;
+  const paymentAmountUsdCents = Math.round((Number(payment.amountCents) / currencyRate) * 100) / 100;
 
   const lifetimeVolumeUsd = lifeTimeVolumeUsdCents / 100;
 

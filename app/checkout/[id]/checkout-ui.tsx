@@ -1,8 +1,11 @@
 "use client";
 
+import * as React from "react";
+
 import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark } from "@/components/icon";
 import { PhoneNumber, PhoneNumberField } from "@/components/phone-number-field";
+import { SelectField } from "@/components/select-field";
 import { TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { useCheckout } from "@/contexts/checkout-context";
-import { cn, stroopsToXlm, truncate } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { cn, truncate } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import Image from "next/image";
@@ -30,6 +34,11 @@ export default function CheckoutUI() {
     updateDetails,
     wallet,
     banner,
+    publicData,
+    publicDataLoading,
+    selectedAsset,
+    setSelectedAsset,
+    cryptoAmount,
   } = useCheckout();
 
   const handleConnectWallet = (successful: boolean) => {
@@ -40,6 +49,10 @@ export default function CheckoutUI() {
     wallet.kit.connectWallet(handleConnectWallet);
   };
 
+  const fiatDisplay = checkout?.finalAmount
+    ? Money.formatFiat(checkout.finalAmount, checkout.currencyCode ?? "USD")
+    : null;
+
   if (isLoading) return <Checkout.Skeleton />;
   if (!checkout) return notFound();
   if (isPaid) {
@@ -47,7 +60,7 @@ export default function CheckoutUI() {
       window.location.replace(checkout.redirectUrl);
       return null;
     }
-    return <Checkout.Success checkout={checkout} checkoutId={checkoutId} />;
+    return <Checkout.Success />;
   }
   if (isFailed) return <Checkout.Error checkoutId={checkoutId} onRetry={() => window.location.reload()} />;
 
@@ -61,6 +74,7 @@ export default function CheckoutUI() {
           checkout.environment === "testnet" && "pt-12 transition-all duration-300"
         )}
       >
+        {/* Left — product summary */}
         <div className="space-y-6 lg:sticky lg:top-12">
           <div className="bg-card overflow-hidden rounded-2xl border shadow-sm lg:min-w-[360px]">
             {(checkout.organizationName || checkout.organizationLogo) && (
@@ -97,17 +111,32 @@ export default function CheckoutUI() {
                 <p className="text-muted-foreground text-sm leading-relaxed">{checkout.description}</p>
               )}
               <Separator />
-              <div className="text-3xl font-black tracking-tighter sm:text-4xl">
-                {stroopsToXlm(checkout.finalAmount)}{" "}
-                <span className="text-muted-foreground text-lg font-medium">{checkout.assetCode}</span>
-                {checkout.productType === "subscription" && (
-                  <span className="text-muted-foreground ml-1 text-sm font-normal">/ {checkout.recurringPeriod}</span>
+
+              {/* Price display */}
+              <div className="space-y-1">
+                {fiatDisplay ? (
+                  <div className="text-3xl font-black tracking-tighter sm:text-4xl">
+                    {fiatDisplay}
+                    {checkout.productType === "subscription" && (
+                      <span className="text-muted-foreground ml-1 text-sm font-normal">
+                        / {checkout.recurringPeriod}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <Skeleton className="h-10 w-48 rounded-md" />
+                )}
+                {selectedAsset && cryptoAmount && (
+                  <p className="text-muted-foreground text-sm">
+                    ≈ {cryptoAmount} {selectedAsset.code}
+                  </p>
                 )}
               </div>
             </div>
           </div>
         </div>
 
+        {/* Right — payment form */}
         <Card className="border-primary/10 overflow-hidden rounded-2xl shadow-xl lg:min-w-[400px]">
           <CardContent className="space-y-8 p-6 sm:p-8 lg:p-10">
             <div className="space-y-6">
@@ -180,6 +209,32 @@ export default function CheckoutUI() {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
+                    {/* Asset picker */}
+                    <SelectField
+                      id="pay-with-asset"
+                      label="Pay with"
+                      labelClassName="text-muted-foreground text-[11px] font-bold tracking-widest uppercase"
+                      value={selectedAsset?.code ?? ""}
+                      onChange={(code) => {
+                        const asset = publicData?.assets?.find((a) => a.code === code);
+                        if (asset) setSelectedAsset({ code: asset.code, issuers: asset.issuers ?? null });
+                      }}
+                      isLoading={publicDataLoading}
+                      placeholder="Select payment asset"
+                      items={(publicData?.assets ?? []).map((asset) => {
+                        const usdPrice = publicData?.assetUsdPrices?.[asset.code] ?? 0;
+                        const cryptoNeeded =
+                          usdPrice > 0 && checkout.finalAmount
+                            ? Money.calculateCryptoNeeded(checkout.finalAmount, usdPrice)
+                            : null;
+                        return {
+                          value: asset.code,
+                          label: cryptoNeeded ? `${asset.code}  ≈ ${parseFloat(cryptoNeeded).toFixed(4)}` : asset.code,
+                        };
+                      })}
+                    />
+
+                    {/* Pay button */}
                     <div className="space-y-2">
                       <Button
                         type="button"
@@ -189,7 +244,7 @@ export default function CheckoutUI() {
                         )}
                         onClick={wallet.handleWalletPay}
                         isLoading={wallet.isProcessing}
-                        disabled={wallet.isProcessing}
+                        disabled={wallet.isProcessing || !selectedAsset}
                       >
                         {wallet.connectedAddress
                           ? `Pay as ${truncate(wallet.connectedAddress, { start: 4, end: 4 })}`
@@ -219,17 +274,15 @@ export default function CheckoutUI() {
 }
 
 const Checkout = {
-  Success: ({ checkout, checkoutId }: any) => {
-    return (
-      <div className="bg-background animate-in fade-in flex min-h-screen flex-col items-center justify-center gap-2 p-6 duration-500">
-        <AnimatedCheckmark />
-        <div className="flex w-full flex-col items-center justify-center space-y-2 text-center">
-          <h1 className="text-3xl font-extrabold tracking-normal sm:text-4xl">Payment received</h1>
-          <p className="text-muted-foreground text-lg">This checkout has been completed.</p>
-        </div>
+  Success: () => (
+    <div className="bg-background animate-in fade-in flex min-h-screen flex-col items-center justify-center gap-2 p-6 duration-500">
+      <AnimatedCheckmark />
+      <div className="flex w-full flex-col items-center justify-center space-y-2 text-center">
+        <h1 className="text-3xl font-extrabold tracking-normal sm:text-4xl">Payment received</h1>
+        <p className="text-muted-foreground text-lg">This checkout has been completed.</p>
       </div>
-    );
-  },
+    </div>
+  ),
 
   Error: ({ checkoutId, onRetry }: any) => (
     <div className="bg-background animate-in zoom-in-95 flex min-h-screen flex-col items-center justify-center p-6 text-center duration-300">

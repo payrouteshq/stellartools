@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { retrieveAssetsFromProducts } from "@/actions/asset";
+import { retrieveSupportedAssets } from "@/actions/asset";
 import { retrievePayouts } from "@/actions/payout";
 import { AppModal } from "@/components/app-modal";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
@@ -25,7 +25,7 @@ import {
 import { PayoutStatus } from "@/constant/schema.client";
 import { Payout } from "@/db";
 import { useAction } from "@/hooks/use-action";
-import { useAssetRates } from "@/hooks/use-asset-rates";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
@@ -110,35 +110,21 @@ const AnchorStatusRow = ({ done, active, label }: { done: boolean; active: boole
   </div>
 );
 
-// --- Helpers ---
-
-const safeJson = async (resp: Response) => {
-  const text = await resp.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new AppError(`Server error (${resp.status}).`);
-  }
-};
-
 // --- Flow Logic ---
 
 function BankPayoutFlow({ onClose, onSuccess, initialCurrencyCode, initialAmount, skipSelectStep }: any) {
   const { data: org } = useOrgContext();
   const { data: productAssets = [] } = useQuery({
     queryKey: ["assets-from-products", org?.id, org?.environment],
-    queryFn: () => retrieveAssetsFromProducts(org!.id, org!.environment),
+    queryFn: () => retrieveSupportedAssets(null, org!.environment),
     enabled: !!org?.id,
   });
 
   const selectedAsset = productAssets[0];
 
-  const {
-    rateMap,
-    fiatRates,
-    isLoading: isRatesLoading,
-    selectedCurrency,
-  } = useAssetRates(selectedAsset ? [{ code: selectedAsset.code, issuer: selectedAsset.issuer ?? "native" }] : []);
+  // TODO: restore per-asset rateMap when reworking payout page
+  const { fiatRates, isLoading: isRatesLoading, currency: selectedCurrency } = useCurrencyConverter();
+  const rateMap: Record<string, number> = {};
 
   const currencyCode = initialCurrencyCode ?? selectedCurrency;
   const [inputValue, setInputValue] = React.useState({ amount: initialAmount ?? "", option: currencyCode });
@@ -374,10 +360,7 @@ function RequestPayoutModalContent({ onClose, onSuccess }: { onClose: () => void
     enabled: !!org && method === "bank",
   });
 
-  const assetsForRates = balances.map((b) =>
-    b.asset_type === "native" ? { code: "XLM", issuer: "native" } : { code: b.asset_code!, issuer: b.asset_issuer! }
-  );
-  const { fiatRates, isLoading: isRatesLoading } = useAssetRates(assetsForRates);
+  const { fiatRates, isLoading: isRatesLoading } = useCurrencyConverter();
 
   const isBankSupported = SUPPORTED_PAYOUT_COUNTRIES.includes(bankCountry as any);
 
@@ -508,12 +491,12 @@ export default function PayoutPage() {
       header: "Method",
       cell: ({
         row: {
-          original: { walletAddress, stringifiedBankAccount },
+          original: { walletAddress, bankAccount },
         },
       }) => (
         <div className="flex items-center gap-2 font-mono text-sm">
           <Wallet className="h-4 w-4" />{" "}
-          {walletAddress ? walletAddress.slice(0, 8) : stringifiedBankAccount ? "Bank Account" : "N/A"}
+          {walletAddress ? walletAddress.slice(0, 8) : bankAccount ? "Bank Account" : "N/A"}
         </div>
       ),
       meta: { filterable: true, filterVariant: "text" },
@@ -533,7 +516,11 @@ export default function PayoutPage() {
     },
     {
       header: "Amount",
-      cell: ({ row }) => <div className="font-medium">{row.original.amount} XLM</div>,
+      cell: ({ row }) => (
+        <div className="font-medium">
+          {row.original.cryptoAmount} {row.original.selectedAssetCode ?? "XLM"}
+        </div>
+      ),
       meta: { filterable: true, filterVariant: "number" },
     },
   ];

@@ -83,6 +83,13 @@
               "api-reference/webhooks",
               "api-reference/usage"
             ]
+          },
+          {
+            "group": "Reference Data",
+            "pages": [
+              "api-reference/assets",
+              "api-reference/currencies"
+            ]
           }
         ]
       }

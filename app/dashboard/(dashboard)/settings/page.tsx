@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { reset2fa, setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
@@ -26,7 +28,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -38,11 +42,13 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCopy } from "@/hooks/use-copy";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useFilePreview } from "@/hooks/use-file-preview";
 import { useOrgContext } from "@/hooks/use-org-query";
+import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Check, ChevronRight, Copy, ExternalLink, RotateCcw, ShieldCheck, ShieldOff } from "lucide-react";
+import { Calendar, Check, ChevronRight, ChevronsUpDown, Copy, ExternalLink, RotateCcw, ShieldCheck, ShieldOff } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -189,6 +195,92 @@ const ProfileTabContent = ({ user }: { user: User }) => {
         </CardContent>
       </Card>
     </>
+  );
+};
+
+const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
+
+const CurrencyPickerCard = () => {
+  const { data: orgContext } = useOrgContext();
+  const [open, setOpen] = React.useState(false);
+
+  const { fiatRates, isLoading } = useCurrencyConverter();
+
+  const currencyItems = React.useMemo(() => {
+    if (!fiatRates) return [];
+    return Object.keys(fiatRates)
+      .map((code) => ({ code, name: currencyNames.of(code) ?? code }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [fiatRates]);
+
+  const { mutate: updateCurrency, isPending } = useAction(
+    async (code: string) => {
+      if (!orgContext?.id) return;
+      await putOrganization(orgContext.id, { selectedCurrency: code });
+    },
+    { invalidate: ["*"], successMsg: "Currency updated", errorMsg: "Failed to update currency" }
+  );
+
+  const selected = currencyItems.find((c) => c.code === orgContext?.selectedCurrency) ?? null;
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader>
+        <CardTitle>Display Currency</CardTitle>
+        <CardDescription>
+          This is the currency used across your dashboard and shown to customers at checkout.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            {isLoading ? (
+              <div className="flex h-9 w-full max-w-xs items-center">
+                <Skeleton className="h-9 w-full max-w-xs rounded-lg" />
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="h-9 w-full max-w-xs justify-between rounded-lg font-normal shadow-none"
+              >
+                <span className="truncate">
+                  {selected ? `${selected.name} (${selected.code})` : "Select currency"}
+                </span>
+                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+              </Button>
+            )}
+          </PopoverTrigger>
+          <PopoverContent className="w-[320px] p-0" align="start" onWheel={(e) => e.stopPropagation()}>
+            <Command>
+              <CommandInput placeholder="Search currency..." />
+              <CommandList className="max-h-[280px]">
+                <CommandEmpty>No currency found.</CommandEmpty>
+                <CommandGroup>
+                  {currencyItems.map((item) => (
+                    <CommandItem
+                      key={item.code}
+                      value={`${item.name} ${item.code}`.toLowerCase()}
+                      disabled={isPending}
+                      onSelect={() => {
+                        updateCurrency(item.code);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className={cn("flex-1 truncate", orgContext?.selectedCurrency === item.code && "font-medium")}>
+                        {item.name} ({item.code})
+                      </span>
+                      {orgContext?.selectedCurrency === item.code && <Check className="size-4 shrink-0" />}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -343,6 +435,8 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
           </form>
         </CardContent>
       </Card>
+
+      <CurrencyPickerCard />
     </>
   );
 };

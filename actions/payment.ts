@@ -31,7 +31,6 @@ import { MerchantFirstPaymentConfirmedEmail } from "@/emails/merchant-first-paym
 import { MerchantMeteredFirstPurchaseEmail } from "@/emails/merchant-metered-first-purchase";
 import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription-started";
 import { sendEmail } from "@/integrations/email";
-import { getAssetUsdPrice } from "@/integrations/price-feed";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId, toSnakeCase } from "@/lib/utils";
@@ -93,7 +92,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
       productName: ctx.product.name || ctx.checkout.description || "Payment",
-      amount: `${p.amountUsdCents} ${p.selectedAssetCode}`,
+      amount: `${p.amountCents} ${p.selectedAssetCode}`,
       assetCode: p.selectedAssetCode,
       transactionHash: p.transactionHash,
     }),
@@ -113,7 +112,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
     component: MerchantSubscriptionStartedEmail({
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
-      amount: `${p.amountUsdCents} ${p.selectedAssetCode}`,
+      amount: `${p.amountCents} ${p.selectedAssetCode}`,
       assetCode: p.selectedAssetCode,
       currentPeriodEnd: moment(ctx.checkout.subscriptionData?.period_end).format("MMMM DD, YYYY [at] h:mm A"),
       productName: ctx.product.name || ctx.checkout.description || "Payment",
@@ -134,7 +133,7 @@ const paymentActionHandler = async (
     const webhooks: WebhookTrigger<typeof payment>[] = [];
     const sideEffects: (() => Promise<void>)[] = [];
 
-    const rawAmount = `${payment.amountUsdCents} ${payment.selectedAssetCode}`;
+    const rawAmount = `${payment.amountCents} ${payment.selectedAssetCode}`;
 
     const basePayload = {
       id: payment.id,
@@ -284,7 +283,7 @@ export const postPayment = async (
 
 export const retrieveLifetimeVolumeCents = async (orgId: string, environment: Network): Promise<number> => {
   const [res] = await db
-    .select({ total: sql<number>`sum(amount_usd_cents_snapshot)::bigint` })
+    .select({ total: sql<number>`coalesce(sum(${payments.amountCents}), 0)::bigint` })
     .from(payments)
     .where(
       and(eq(payments.organizationId, orgId), eq(payments.status, "confirmed"), eq(payments.environment, environment))
@@ -417,8 +416,10 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
           subscriptionId: null,
           checkoutId,
           customerId,
+          productId: checkout.productId ?? null,
           cryptoAmount: amount,
-          amountUsdCents: checkout.finalAmount,
+          amountCents: checkout.finalAmount,
+          currencyCode: checkout.currencyCode ?? "USD",
           transactionHash: hash,
           status: "failed",
           metadata: null,
@@ -442,10 +443,6 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
       (err) => {
         console.error("Error putting checkout", err);
       }
-    );
-
-    const amountUsdCentsSnapshot = BigInt(
-      Math.round((await getAssetUsdPrice({ coingeckoId: assetCode })) * Number(checkout.finalAmount)) * 100
     );
 
     const isMeteredProduct = checkout.productType == "metered" && checkout.productTotalCredits;
@@ -474,7 +471,9 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
         subscriptionId: null,
         customerId,
         checkoutId,
-        amountUsdCents: checkout.finalAmount,
+        productId: checkout.productId ?? null,
+        amountCents: checkout.finalAmount,
+        currencyCode: checkout.currencyCode ?? "USD",
         cryptoAmount: amount,
         transactionHash: hash,
         status: "confirmed",

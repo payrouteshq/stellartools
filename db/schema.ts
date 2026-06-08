@@ -162,7 +162,6 @@ export const apiKeys = pgTable("api_key", {
 
 export type AssetMetadata = {
   coingeckoId?: string; // CoinGecko coin ID — drives live crypto price lookup
-  decimals?: number; // Token decimal places (Stellar default: 7 = stroops)
   usdPeg?: true; // Pegged 1:1 to USD (e.g. USDC, USDT)
   fiatPeg?: string; // Pegged to a fiat currency, ISO 4217 (e.g. "EUR" for EURC)
 };
@@ -262,12 +261,13 @@ export const products = pgTable("product", {
     .references(() => organizations.id),
   name: text("name").notNull(),
   description: text("description"),
-  priceCents: integer("price_cents").notNull(), // $10.00 = 1000
+  priceCents: integer("price_cents").notNull(),
+  currencyCode: text("currency_code").notNull().default("USD"),
   type: productTypeEnum("type").notNull().default("one_time"),
   recurringPeriod: recurringPeriodEnum("recurring_period"),
   status: productStatusEnum("status").notNull().default("active"),
   images: text("images").array(),
-  metadata: jsonb("metadata"),
+  metadata: jsonb("metadata").$type<Record<string, string> | null>(),
   unit: text("unit"),
   totalCredits: integer("total_credits"),
   unitsPerCredit: integer("units_per_credit"),
@@ -288,6 +288,7 @@ export const checkouts = pgTable(
     customerId: text("customer_id").references(() => customers.id),
     productId: text("product_id").references(() => products.id),
     amountCents: integer("amount_cents"), // $10.00 = 1000
+    currencyCode: text("currency_code"),
     description: text("description"),
     status: checkoutStatusEnum("status").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
@@ -308,7 +309,7 @@ export const checkouts = pgTable(
   (table) => ({
     amountOrProductCheck: check(
       "amount_or_product_check",
-      sql`(${table.productId} IS NOT NULL OR ${table.amountCents} IS NOT NULL)`
+      sql`(${table.productId} IS NOT NULL OR (${table.amountCents} AND ${table.currencyCode}) IS NOT NULL)`
     ),
   })
 );
@@ -352,7 +353,9 @@ export const payments = pgTable("payment", {
   subscriptionId: text("subscription_id").references(() => subscriptions.id),
   customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
   creditBalanceId: text("credit_balance_id"),
-  amountUsdCents: integer("amount_usd_cents").notNull(), // $10.00 = 1000, LOCKED IN at payment time
+  productId: text("product_id").references(() => products.id),
+  amountCents: integer("amount_usd_cents").notNull(),
+  currencyCode: text("currency_code").notNull().default("USD"),
   cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
   selectedAssetCode: text("selected_asset_code").notNull(), // "XLM", "USDC", "EURC"
   selectedAssetIssuer: text("selected_asset_issuer"), // null for native XLM

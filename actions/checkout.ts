@@ -1,5 +1,6 @@
 "use server";
 
+import { retrieveSupportedAssets } from "@/actions/asset";
 import { putCustomer } from "@/actions/customers";
 import { runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
@@ -15,9 +16,11 @@ import {
   organizations,
   products,
 } from "@/db";
+import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
-import { computeDiff, formatCurrency, generateResourceId } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { computeDiff, generateResourceId } from "@/lib/utils";
 import { CheckoutStatus } from "@stellartools/core";
 import { all } from "better-all";
 import { and, eq, sql } from "drizzle-orm";
@@ -58,7 +61,7 @@ export const postCheckout = async (
             data: {
               productId,
               expiresAt,
-              ...(amountCents ? { amount: formatCurrency(amountCents) } : {}),
+              ...(amountCents ? { amount: Money.formatFiat(amountCents ?? 0) } : {}),
               checkoutId,
               externalUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL!}/${checkoutId}`,
             },
@@ -76,7 +79,7 @@ export const postCheckout = async (
                 checkoutId,
                 productId,
                 expiresAt,
-                amount: formatCurrency(amountCents ?? 0) ?? undefined,
+                amount: Money.formatFiat(amountCents ?? 0),
                 customerId,
               },
               previous_attributes: undefined,
@@ -145,6 +148,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
       product: {
         type: products.type,
         priceCents: products.priceCents,
+        currencyCode: products.currencyCode,
         name: products.name,
         recurringPeriod: products.recurringPeriod,
         images: products.images,
@@ -153,12 +157,13 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
       },
       finalAmount: sql<number>`COALESCE(${checkouts.amountCents}, ${products.priceCents})`.as("final_amount"),
       merchantPublicKey: sql<string>`
-      CASE 
+      CASE
         WHEN ${checkouts.environment} = 'testnet' THEN ${organizationSecrets.testnetPublicKey}
         ELSE ${organizationSecrets.mainnetPublicKey}
       END`.as("merchant_public_key"),
       organizationName: organizations.name,
       organizationLogo: organizations.logoUrl,
+      organizationCurrency: organizations.selectedCurrency,
       merchantEmail: accounts.email,
     })
     .from(checkouts)
@@ -179,6 +184,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     product,
     organizationName,
     organizationLogo,
+    organizationCurrency,
     merchantEmail,
   } = result;
 
@@ -186,6 +192,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     ...checkout,
     merchantPublicKey,
     finalAmount,
+    currencyCode: product?.currencyCode ?? organizationCurrency ?? "USD",
     productType: product?.type ?? "one_time",
     productName: product?.name ?? "Payment",
     recurringPeriod: product?.recurringPeriod ?? "month",
@@ -197,6 +204,36 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationLogo,
     merchantEmail,
     productTotalCredits: product?.totalCredits,
+  };
+};
+
+export const retrieveCheckoutPublicData = async (checkoutId: string) => {
+  const [row] = await db
+    .select({ environment: checkouts.environment, organizationId: checkouts.organizationId })
+    .from(checkouts)
+    .where(eq(checkouts.id, checkoutId));
+
+  if (!row) return null;
+
+  const [orgRow] = await db
+    .select({ selectedCurrency: organizations.selectedCurrency })
+    .from(organizations)
+    .where(eq(organizations.id, row.organizationId));
+
+  const assets = await retrieveSupportedAssets(null, row.environment);
+
+  const [fiatRates, ...assetPriceResults] = await Promise.all([
+    getFiatRates(),
+    ...assets.map((a) => getAssetUsdPrice(a.metadata ?? {}).then((price) => ({ code: a.code, price }))),
+  ]);
+
+  const assetUsdPrices = Object.fromEntries(assetPriceResults.map((r) => [r.code, r.price]));
+
+  return {
+    assets,
+    fiatRates: fiatRates as Record<string, number>,
+    assetUsdPrices,
+    orgCurrency: orgRow?.selectedCurrency ?? "USD",
   };
 };
 

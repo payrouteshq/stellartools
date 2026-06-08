@@ -15,11 +15,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Product as ProductSchema } from "@/db";
 import { useAction } from "@/hooks/use-action";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useFilePreview } from "@/hooks/use-file-preview";
 import { useOrgContext } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ApiClient } from "@stellartools/core";
+import { ApiClient, CURRENCY_CODES } from "@stellartools/core";
 import { Info, Trash2 } from "lucide-react";
 import Image from "next/image";
 import * as RHF from "react-hook-form";
@@ -32,6 +33,7 @@ export interface ProductEsque extends Pick<
   | "name"
   | "description"
   | "priceCents"
+  | "currencyCode"
   | "type"
   | "recurringPeriod"
   | "status"
@@ -49,9 +51,8 @@ const productSchema = z.object({
   description: z.string().optional(),
   images: z.array(z.any()).transform((val) => val as FileWithPreview[]),
   type: z.enum(["one_time", "subscription", "metered"]),
-  recurringInterval: z.number().min(1).optional(),
   recurringPeriod: z.enum(["day", "week", "month", "year"]).optional(),
-  priceAmountCents: z.number().min(0).optional(),
+  pricing: z.object({ amount: z.string(), option: z.string() }).optional(),
   unit: z.string().optional(),
   totalCredits: z.number().min(0).optional(),
   unitsPerCredit: z.number().min(1).optional(),
@@ -68,8 +69,6 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
-// --- Modal Component  ---
-
 export function ProductsModalContent({
   onClose,
   onSuccess,
@@ -85,16 +84,27 @@ export function ProductsModalContent({
 }) {
   const isEditMode = !!editingProduct;
   const { data: orgContext } = useOrgContext();
+  const { currency: orgCurrency } = useCurrencyConverter();
   const { file: imagesFile, isLoading: isLoadingImages } = useFilePreview(editingProduct?.images?.[0] ?? null);
 
+  const currencyOptions = [...CURRENCY_CODES].sort();
+
+  // Edit mode: stored value is already in the product's own currency — no back-conversion needed
+  const editDisplayAmount = React.useMemo(() => {
+    if (!editingProduct?.priceCents) return "0";
+    return (editingProduct.priceCents / 100).toFixed(2);
+  }, [editingProduct?.priceCents]);
+
+  const editCurrency = editingProduct?.currencyCode ?? orgCurrency;
+
   const form = RHF.useForm<ProductFormData>({
-    resolver: zodResolver(productSchema) as RHF.Resolver<ProductFormData>,
+    resolver: zodResolver(productSchema),
     values: {
       name: editingProduct?.name ?? "",
       description: editingProduct?.description ?? "",
       type: editingProduct?.type ?? "one_time",
       recurringPeriod: editingProduct?.recurringPeriod ?? "month",
-      priceAmountCents: 0,
+      pricing: { amount: "0", option: orgCurrency },
       totalCredits: 0,
       unitsPerCredit: 1,
       metadata: editingProduct?.metadata
@@ -131,7 +141,7 @@ export function ProductsModalContent({
         images: [],
         type: editingProduct.type,
         recurringPeriod: editingProduct.recurringPeriod ?? "month",
-        priceAmountCents: editingProduct.priceCents,
+        pricing: { amount: editDisplayAmount, option: editCurrency },
         unit: editingProduct.unit ?? "",
         totalCredits: Number(editingProduct.totalCredits ?? 0),
         unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
@@ -144,7 +154,7 @@ export function ProductsModalContent({
         images: [],
         type: "one_time",
         recurringPeriod: "month",
-        priceAmountCents: 0,
+        pricing: { amount: "0", option: orgCurrency },
         metadata: [],
       });
     }
@@ -182,13 +192,18 @@ export function ProductsModalContent({
         {} as Record<string, string>
       );
 
+      const pricingAmount = parseFloat(data.pricing?.amount ?? "0") || 0;
+      const pricingCurrency = data.pricing?.option ?? "USD";
+      const priceAmountCents = Math.round(pricingAmount * 100);
+
       if (isEditMode && editingProduct?.id) {
         const response = await api.put<ProductEsque>(`/product/${editingProduct.id}`, {
           name: data.name,
           description: data?.description,
           images: imageResults,
           metadata: metadataRecord,
-          price_amount_cents: data.priceAmountCents,
+          price_amount_cents: priceAmountCents,
+          currency_code: pricingCurrency,
           recurring_period: data.recurringPeriod,
           unit: data.unit,
           total_credits: data.totalCredits,
@@ -205,7 +220,8 @@ export function ProductsModalContent({
         description: data.description,
         images: imageResults,
         type: data.type,
-        price_amount_cents: data.priceAmountCents,
+        price_amount_cents: priceAmountCents,
+        currency_code: pricingCurrency,
         recurring_period: data.recurringPeriod,
         unit: data.unit,
         total_credits: data.totalCredits,
@@ -232,7 +248,8 @@ export function ProductsModalContent({
   );
 
   const watched = useWatch({ control: form.control });
-  const total = watched.priceAmountCents || 0;
+  const pricingPreviewAmount = parseFloat(watched.pricing?.amount ?? "0") || 0;
+  const pricingPreviewCurrency = watched.pricing?.option ?? orgCurrency;
 
   const onSubmit = async (data: ProductFormData) => {
     putProductAction({
@@ -495,45 +512,50 @@ export function ProductsModalContent({
               </div>
             )}
 
-            <div className="flex gap-2">
-              <RHF.Controller
-                control={form.control}
-                name="priceAmountCents"
-                render={({ field, fieldState: { error } }) => (
-                  <SelectInput
-                    id="priceAmountCents"
-                    className="flex-1"
-                    value={field.value?.toString() || "0"}
-                    onChange={field.onChange}
-                    error={error?.message}
-                    disabled={isEditMode}
-                  />
-                )}
-              />
-
-              {watched.type == "subscription" && (
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
                 <RHF.Controller
-                  name="recurringPeriod"
                   control={form.control}
+                  name="pricing"
                   render={({ field, fieldState: { error } }) => (
-                    <SelectField
-                      id={field.name}
-                      value={field.value as string}
+                    <SelectInput
+                      id="pricing"
+                      className="flex-1"
+                      label="Price"
+                      value={field.value ?? { amount: "0", option: orgCurrency }}
                       onChange={field.onChange}
-                      triggerValuePlaceholder="Select recurring period"
-                      triggerClassName="mt-2.5 h-12 w-[150px]"
-                      items={[
-                        { value: "day", label: "Daily" },
-                        { value: "week", label: "Weekly" },
-                        { value: "month", label: "Monthly" },
-                        { value: "year", label: "Yearly" },
-                      ]}
+                      options={currencyOptions}
+                      isLoading={false}
                       error={error?.message}
                       disabled={isEditMode}
                     />
                   )}
                 />
-              )}
+
+                {watched.type == "subscription" && (
+                  <RHF.Controller
+                    name="recurringPeriod"
+                    control={form.control}
+                    render={({ field, fieldState: { error } }) => (
+                      <SelectField
+                        id={field.name}
+                        value={field.value as string}
+                        onChange={field.onChange}
+                        triggerValuePlaceholder="Select recurring period"
+                        triggerClassName="mt-2.5 h-12 w-[150px]"
+                        items={[
+                          { value: "day", label: "Daily" },
+                          { value: "week", label: "Weekly" },
+                          { value: "month", label: "Monthly" },
+                          { value: "year", label: "Yearly" },
+                        ]}
+                        error={error?.message}
+                        disabled={isEditMode}
+                      />
+                    )}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -564,7 +586,13 @@ export function ProductsModalContent({
               <div className="border-t pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground font-medium">Total Price</span>
-                  <span className="font-bold">${total.toFixed(2)}</span>
+                  <span className="font-bold">
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: pricingPreviewCurrency,
+                      minimumFractionDigits: 2,
+                    }).format(pricingPreviewAmount)}
+                  </span>
                 </div>
                 {watched.type === "subscription" && (
                   <p className="text-muted-foreground mt-1 text-right text-xs">

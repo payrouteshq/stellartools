@@ -300,11 +300,11 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .then((r) => r[0]);
 
   // ─── 2. MRR ─────────────────────────────────────────────────────────────────
-  // Products now store priceCents (integer, USD cents).
-  // No more asset join, no more async rate conversion.
+  // Group by currency so the frontend can convert each bucket to org currency.
   const mrrQuery = db
     .select({
-      mrr: sql<number>`coalesce(sum(${products.priceCents}), 0)::int`,
+      currencyCode: products.currencyCode,
+      cents: sql<number>`coalesce(sum(${products.priceCents}), 0)::int`,
     })
     .from(subscriptions)
     .innerJoin(products, eq(subscriptions.productId, products.id))
@@ -315,11 +315,9 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         eq(subscriptions.status, "active")
       )
     )
-    .then((r) => r[0]);
+    .groupBy(products.currencyCode);
 
   // ─── 3. Gross Revenue (confirmed, non-refunded) ──────────────────────────────
-  // payments.amountUsdCents is the locked-in USD value set at payment time.
-  // No more bigint stroops, no more asset join, no more rate conversion.
   const excludeRefunded = sql`${payments.id} NOT IN (
     SELECT ${refunds.paymentId}
     FROM ${refunds}
@@ -328,7 +326,8 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
 
   const grossRevenueQuery = db
     .select({
-      totalCents: sql<number>`coalesce(sum(${payments.amountUsdCents}), 0)::int`,
+      currencyCode: payments.currencyCode,
+      totalCents: sql<number>`coalesce(sum(${payments.amountCents}), 0)::int`,
     })
     .from(payments)
     .where(
@@ -340,7 +339,7 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         excludeRefunded
       )
     )
-    .then((r) => r[0]);
+    .groupBy(payments.currencyCode);
 
   // ─── 4. Platform Fees (to calculate Net Revenue) ────────────────────────────
   // Already stored as amountUsdCents, no change needed here.
@@ -365,7 +364,8 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
   const revenueChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${payments.createdAt})::date::text`,
-      grossCents: sql<number>`coalesce(sum(${payments.amountUsdCents}), 0)::int`,
+      currencyCode: payments.currencyCode,
+      grossCents: sql<number>`coalesce(sum(${payments.amountCents}), 0)::int`,
     })
     .from(payments)
     .where(
@@ -377,7 +377,7 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         excludeRefunded
       )
     )
-    .groupBy(sql`date_trunc('day', ${payments.createdAt})::date`)
+    .groupBy(sql`date_trunc('day', ${payments.createdAt})::date`, payments.currencyCode)
     .orderBy(sql`1`);
 
   // Platform fees per day (to subtract for net revenue chart):
@@ -474,29 +474,16 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     subscriptionsChartQuery,
   ]);
 
-  // ─── Build net revenue chart points (gross - fees per day) ───────────────────
-  // No async loop, no rate fetching — pure in-memory merge of two sorted arrays.
-  const feesByDate = new Map<string, number>(feesChart.map((f) => [f.date, f.feeCents]));
-
-  const revenueChartPoints = revenueChart.map((r) => ({
-    date: r.date,
-    value: r.grossCents - (feesByDate.get(r.date) ?? 0),
-  }));
-
-  // ─── Scalar totals ────────────────────────────────────────────────────────────
-  const grossRevenueCents = grossRevenueResult.totalCents;
-  const totalFeesCents = totalFeesResult.totalFees;
-  const netRevenueCents = grossRevenueCents - totalFeesCents;
-
   return {
     activeTrials: Number(metrics.activeTrials),
     activeSubscriptions: Number(metrics.activeSubscriptions),
-    mrr: mrrResult.mrr,
-    revenue: netRevenueCents,
+    mrr: mrrResult,
+    revenue: grossRevenueResult,
+    totalFeesCents: totalFeesResult.totalFees,
     totalCustomers: Number(metrics.totalCustomers),
     newCustomers: customersChart.reduce((acc, curr) => acc + curr.count, 0),
     charts: {
-      revenue: normalizeTimeSeries(revenueChartPoints, 28, "day"),
+      revenue: { gross: revenueChart, fees: feesChart },
       customers: normalizeTimeSeries(
         customersChart.map((c) => ({ date: c.date, value: c.count })),
         28,

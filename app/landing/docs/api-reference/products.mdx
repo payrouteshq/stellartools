@@ -39,8 +39,8 @@ A product defines what you're selling — a one-time item, a recurring subscript
   The asset this product is priced in.
 </ResponseField>
 
-<ResponseField name="asset_code" type="string">
-  The asset code this product is priced in, e.g "XLM"
+<ResponseField name="currency_code" type="string">
+  The currency code this product is priced in, e.g "NGN"
 </ResponseField>
 
 <ResponseField name="price_amount" type="number">
@@ -108,8 +108,8 @@ curl https://api.stellartools.dev/product \
   `one_time`, `subscription`, or `metered`.
 </ParamField>
 
-<ParamField body="asset_code" type="string" required>
-  Asset code to charge in, e.g "XLM".
+<ParamField body="currency_code" type="string" required>
+  Currency code to charge in, e.g "NGN".
 </ParamField>
 
 <ParamField body="price_amount" type="number" required>

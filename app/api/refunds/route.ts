@@ -8,7 +8,7 @@ import { cancelSubscription as cancelSorobanSubscription, retrieveSubscription }
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { generateResourceId, toCamelCase, xlmToStroops } from "@/lib/utils";
+import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { all } from "better-all";
@@ -67,7 +67,7 @@ export const POST = apiHandler({
         selectedAssetCode: payment.selectedAssetCode,
         selectedAssetIssuer: payment.selectedAssetIssuer,
         transactionHash: res.isOk() ? res.value?.hash : null,
-        amountUsdCents: payment.amountUsdCents,
+        amountUsdCents: payment.amountCents,
         createdAt: new Date(),
         updatedAt: new Date(),
       },

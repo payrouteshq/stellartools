@@ -65,6 +65,7 @@ export * from "./schema/payment";
 export * from "./schema/product";
 export * from "./schema/refund";
 export * from "./schema/shared";
+export * from "./schema/currencies";
 export * from "./schema/credits";
 export * from "./schema/subscription";
 export * from "./schema/webhooks";

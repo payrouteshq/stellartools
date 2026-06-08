@@ -198,10 +198,6 @@ export function normalizeTimeSeries<T extends RawDataPoint>(
   return result;
 }
 
-export const formatCurrency = (amt: number, currencyCode?: string) => {
-  const code = currencyCode?.trim()?.toUpperCase() ?? "USD";
-  return `${new Intl.NumberFormat("en-US", { style: "currency", currency: code, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amt)}`;
-};
 
 export const mergeWithNullDeletes = (
   base: Record<string, unknown> | null | undefined,
@@ -220,5 +216,3 @@ export const mergeWithNullDeletes = (
   return result;
 };
 
-const STELLAR_PRECISION = 7;
-const FIAT_PRECISION = 2;
