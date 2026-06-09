@@ -15,6 +15,13 @@
       "when": 1780475418921,
       "tag": "0001_massive_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780926490912,
+      "tag": "0002_furry_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

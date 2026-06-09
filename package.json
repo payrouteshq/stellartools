@@ -50,6 +50,7 @@
     "@react-email/components": "^1.0.9",
     "@react-email/render": "^2.0.4",
     "@react-pdf/renderer": "^4.3.2",
+    "@shopify/shopify-api": "^11.0.0",
     "@stellar/stellar-sdk": "14.1.1",
     "@stellartools/app-embed-bridge": "workspace:*",
     "@stellartools/core": "workspace:*",
