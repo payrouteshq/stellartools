@@ -1,0 +1,22 @@
+api_version = "2026-01"
+
+[[extensions]]
+type = "payments_extension"
+name = "StellarTools Payments"
+handle = "stellartools-payments"
+uid = "2fb41816-05b4-9fa8-02c1-cdb988e21393c48e05b3"
+
+merchant_label = "StellarTools Payments"
+payment_session_url = "https://example.com/payment-session"
+refund_session_url = "https://example.com/refund-session"
+capture_session_url = "https://example.com/capture-session"
+void_session_url = "https://example.com/void-session"
+supported_countries = ["US", "GB", "CA", "AU", "DE", "FR", "NL", "SE", "NG", "ZA", "BR", "MX", "SG", "JP"]
+supported_payment_methods = ["bitcoin", "ethereum", "usdc"]
+supports_3ds = false
+supports_installments = false
+supports_deferred_payments = false
+test_mode_available = true
+
+[[extensions.targeting]]
+target = "payments.offsite.render"
