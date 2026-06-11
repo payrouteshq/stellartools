@@ -3,10 +3,6 @@ import Big from "big.js";
 const STELLAR_PRECISION = 7;
 
 export const Money = {
-  centsToStellarString: (cents: number): string => {
-    return new Big(cents).div(100).toFixed(STELLAR_PRECISION);
-  },
-
   calculateCryptoNeeded: (usdCents: number, assetUsdPrice: number): string => {
     if (assetUsdPrice <= 0) return "0.0000000";
     return new Big(usdCents).div(100).div(assetUsdPrice).toFixed(STELLAR_PRECISION);

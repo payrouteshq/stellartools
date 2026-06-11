@@ -46,3 +46,33 @@ curl https://api.stellartools.dev/product \
 ```
 
 The price is stored as-is in the given currency. At checkout time, StellarTools fetches the live exchange rate and calculates the exact crypto amount the customer must send.
+
+---
+
+## Amount format
+
+All amounts in StellarTools (`price_amount_cents`, `amount_cents`) use a *uniform scale of 100*, the base currency amount multiplied by 100, for *every* currency:
+
+```
+stored_amount = base_amount × 100
+```
+
+| Display amount | `currency_code` | Stored value |
+| -------------- | --------------- | ------------ |
+| $9.99          | `USD`           | `999`        |
+| €25.00         | `EUR`           | `2500`       |
+| ₦15,000.00     | `NGN`           | `1500000`    |
+| ¥1,000         | `JPY`           | `100000`     |
+| 1.50 BHD       | `BHD`           | `150`        |
+
+<Note>
+  This is *not* the same as ISO 4217 minor units (Stripe's convention). In StellarTools the multiplier is always 100,
+  regardless of how many decimal places the currency uses natively. For example, ¥1,000 is `100000` here, but `1000` in
+  systems that use minor units.
+</Note>
+
+A few rules to keep in mind:
+
+- Amounts must be *positive integers*.
+- For zero-decimal currencies (JPY, KRW, VND, and similar), use whole-unit multiples of 100, e.g. ¥1,000 is `100000`, never `100050`.
+- For three-decimal currencies (BHD, KWD, OMR, and similar), amounts are limited to two decimal places of precision, e.g. `1.234 BHD` cannot be represented and should be rounded to `1.23` (`123`).

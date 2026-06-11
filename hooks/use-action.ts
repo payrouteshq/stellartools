@@ -19,7 +19,11 @@ export function useAction<TArgs, TResult>(
     onSuccess: async (data, variables) => {
       if (options.invalidate) {
         await Promise.all(
-          options.invalidate.map((key) => queryClient.invalidateQueries({ queryKey: Array.isArray(key) ? key : [key] }))
+          options.invalidate.map((key) =>
+            key === "*"
+              ? queryClient.invalidateQueries()
+              : queryClient.invalidateQueries({ queryKey: Array.isArray(key) ? key : [key] })
+          )
         );
       }
       if (options.successMsg)

@@ -29,7 +29,7 @@ import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { Money } from "@/lib/money";
-import { cn, normalizeTimeSeries } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
 import Link from "next/link";
 
@@ -50,19 +50,12 @@ export default function DashboardPage() {
   const since = React.useMemo(() => new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000), [period]);
 
   const { data: stats, isLoading: isStatsLoading } = useOrgQuery(
-    ["overview-stats", period],
-    () => retrieveOverviewStats({ since }),
+    ["overview-stats", period, org?.selectedCurrency],
+    () => retrieveOverviewStats({ since, selectedCurrency: org?.selectedCurrency ?? "USD" }),
     { staleTime: 60 * 1000 }
   );
 
-  const { convertToOrgCurrency, fiatRates, currency, isLoading: isRatesLoading } = useCurrencyConverter();
-
-  const currencyItems = React.useMemo<CurrencyItem[]>(() => {
-    if (!fiatRates) return [];
-    return Object.keys(fiatRates)
-      .map((code) => ({ code, name: currencyNames.of(code) ?? code }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [fiatRates]);
+  const { fiatRates, currency, isLoading: isRatesLoading } = useCurrencyConverter();
 
   const { mutate: updateOrganizationCurrency, isPending: isUpdatingOrganizationCurrency } = useAction(
     async (code: string) => {
@@ -72,32 +65,19 @@ export default function DashboardPage() {
     { invalidate: ["*"], successMsg: "Currency updated successfully", errorMsg: "Failed to update currency" }
   );
 
+  const currencyItems = React.useMemo<CurrencyItem[]>(() => {
+    if (!fiatRates) return [];
+
+    return Object.keys(fiatRates)
+      .map((code) => ({ code, name: currencyNames.of(code) ?? code }))
+      .sort((a, b) => {
+        if (a.code === org?.selectedCurrency) return -1;
+        if (b.code === org?.selectedCurrency) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [fiatRates, org?.selectedCurrency]);
+
   const selectedItem = currencyItems.find((c) => c.code === org?.selectedCurrency) ?? null;
-
-  const mrrTotalCents = React.useMemo(
-    () => stats?.mrr.reduce((sum, r) => sum + convertToOrgCurrency(r.cents, r.currencyCode), 0) ?? 0,
-    [stats?.mrr, convertToOrgCurrency]
-  );
-
-  const revenueTotalCents = React.useMemo(
-    () => stats?.revenue.reduce((sum, r) => sum + convertToOrgCurrency(r.totalCents, r.currencyCode), 0) ?? 0,
-    [stats?.revenue, convertToOrgCurrency]
-  );
-
-  const revenueChartData = React.useMemo(() => {
-    if (!stats) return [];
-    const dateMap = new Map<string, number>();
-    for (const row of stats.charts.revenue.gross) {
-      const prev = dateMap.get(row.date) ?? 0;
-      dateMap.set(row.date, prev + convertToOrgCurrency(row.grossCents, row.currencyCode));
-    }
-    for (const fee of stats.charts.revenue.fees) {
-      const prev = dateMap.get(fee.date) ?? 0;
-      dateMap.set(fee.date, prev - convertToOrgCurrency(fee.feeCents, "USD"));
-    }
-    const points = Array.from(dateMap.entries()).map(([date, value]) => ({ date, value }));
-    return normalizeTimeSeries(points, 28, "day");
-  }, [stats, convertToOrgCurrency]);
 
   if (isStatsLoading || isRatesLoading || !stats) {
     return (
@@ -111,8 +91,8 @@ export default function DashboardPage() {
     );
   }
 
-  const revenue28 = Money.formatFiat(revenueTotalCents, currency);
-  const mrrDisplay = Money.formatFiat(mrrTotalCents, currency);
+  const revenue28 = Money.formatFiat(stats.netRevenueCents, currency);
+  const mrrDisplay = Money.formatFiat(stats.mrrCents, currency);
 
   return (
     <div className="w-full">
@@ -137,7 +117,7 @@ export default function DashboardPage() {
                 />
                 <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                   <PopoverTrigger asChild>
-                    {isRatesLoading ? (
+                    {isRatesLoading || isUpdatingOrganizationCurrency ? (
                       <div className="flex h-9 w-max items-center justify-center">
                         <Spinner strokeColor="var(--muted-foreground)" size={30} />
                       </div>
@@ -204,7 +184,7 @@ export default function DashboardPage() {
                 value={stats.activeSubscriptions}
                 subtitle="In total"
                 icon={<SubscriptionIcon className="text-muted-foreground size-5" />}
-                sparkData={stats.charts.subscriptions}
+                sparkData={stats.charts.activeSubscriptions}
                 color="var(--chart-2)"
                 usage={stats.activeSubscriptions}
               />
@@ -213,7 +193,7 @@ export default function DashboardPage() {
                 value={mrrDisplay}
                 subtitle="Monthly Recurring Revenue"
                 icon={<LoopIcon className="text-muted-foreground size-5" />}
-                sparkData={revenueChartData}
+                sparkData={stats.charts.revenue}
                 color="var(--chart-2)"
                 tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />
@@ -222,7 +202,7 @@ export default function DashboardPage() {
                 value={revenue28}
                 subtitle={`Last ${period} days`}
                 icon={<DollarIcon className="text-muted-foreground size-5" />}
-                sparkData={revenueChartData}
+                sparkData={stats.charts.revenue}
                 color="var(--chart-2)"
                 tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />

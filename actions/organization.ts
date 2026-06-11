@@ -20,10 +20,11 @@ import { getCookie, setCookies } from "@/integrations/cookie-manager";
 import { encrypt } from "@/integrations/encryption";
 import { uploadFiles } from "@/integrations/file-upload";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
+import { getFiatRates } from "@/integrations/price-feed";
 import { createAccount } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, normalizeTimeSeries } from "@/lib/utils";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import moment from "moment";
 
 export const postOrganizationAndSecret = safeAction(
@@ -167,16 +168,20 @@ export const setCurrentOrganization = async (orgId: string, environment: Network
   ]);
 };
 
-export const getCurrentOrganization = async () => {
+export const getCurrentOrganization = async (onError?: (err: string) => Promise<void>) => {
   const selectedOrg = await getCookie("selectedOrg");
 
   if (!selectedOrg) return null;
 
   const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(selectedOrg);
 
-  const organization = await retrieveOrganization(orgId);
-
-  return { id: organization.id, environment, token: selectedOrg, selectedCurrency: organization.selectedCurrency };
+  try {
+    const organization = await retrieveOrganization(orgId);
+    return { id: organization.id, environment, token: selectedOrg, selectedCurrency: organization.selectedCurrency };
+  } catch (error) {
+    if (onError) await onError((error as Error)?.message);
+    return null;
+  }
 };
 
 export const switchEnvironment = async (environment: Network) => {
@@ -279,19 +284,44 @@ export const deleteOrganizationSecret = async (id: string) => {
 
 // -- Dashboard Internals --
 
-export const retrieveOverviewStats = async (options: { orgId?: string; env?: Network; since?: Date } = {}) => {
+/**
+ * @documentation
+ * MRR is not realized money. It's the snapshot: "if every active subscription renews this
+ * month, how much comes in?" It's a projection of future revenue, so there's nothing to
+ * deduct fees from yet.
+ *
+ * Revenue is realized money. It's the actual money that has come in, minus any fees that have been deducted.
+ */
+export const retrieveOverviewStats = async (
+  options: { selectedCurrency: string; orgId?: string; env?: Network; since?: Date } = {
+    selectedCurrency: "USD",
+  }
+) => {
+  const targetCurrency = options.selectedCurrency;
   const { organizationId, environment } = await resolveOrgContext(options.orgId, options.env);
   const since = options.since ?? moment().subtract(28, "days").toDate();
 
-  // ─── 1. Basic Counts ────────────────────────────────────────────────────────
+  const dayCount = moment().diff(moment(since), "days") + 1;
+
+  // 1. Fetch Fiat Rates and calculate the Target Rate multiplier
+  const rates = await getFiatRates();
+  const targetRate = targetCurrency === "USD" ? 1 : (rates[targetCurrency] ?? 1);
+
+  const normalize = (amount: number | string, fromCurrency: string) => {
+    const val = Number(amount);
+    if (fromCurrency === targetCurrency) return val;
+    const rateFrom = rates[fromCurrency] ?? 1;
+    return Math.round((val / rateFrom) * targetRate);
+  };
+
+  // A. Metrics: Subs, Trials, Total Customers
   const metricsQuery = db
     .select({
       activeSubscriptions: sql<number>`count(*) FILTER (WHERE ${subscriptions.status} = 'active')`,
       activeTrials: sql<number>`count(*) FILTER (WHERE ${subscriptions.status} = 'trialing')`,
       totalCustomers: sql<number>`(
-        SELECT count(*)
-        FROM ${customers}
-        WHERE ${customers.organizationId} = ${organizationId}
+        SELECT count(*) FROM ${customers} 
+        WHERE ${customers.organizationId} = ${organizationId} 
         AND ${customers.environment} = ${environment}
       )`,
     })
@@ -299,8 +329,7 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .where(and(eq(subscriptions.organizationId, organizationId), eq(subscriptions.environment, environment)))
     .then((r) => r[0]);
 
-  // ─── 2. MRR ─────────────────────────────────────────────────────────────────
-  // Group by currency so the frontend can convert each bucket to org currency.
+  // B. MRR Buckets
   const mrrQuery = db
     .select({
       currencyCode: products.currencyCode,
@@ -317,11 +346,9 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     )
     .groupBy(products.currencyCode);
 
-  // ─── 3. Gross Revenue (confirmed, non-refunded) ──────────────────────────────
+  // C. Gross Revenue Buckets (Excluding Succeeded Refunds)
   const excludeRefunded = sql`${payments.id} NOT IN (
-    SELECT ${refunds.paymentId}
-    FROM ${refunds}
-    WHERE ${refunds.status} = 'succeeded'
+    SELECT ${refunds.paymentId} FROM ${refunds} WHERE ${refunds.status} = 'succeeded'
   )`;
 
   const grossRevenueQuery = db
@@ -341,11 +368,11 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     )
     .groupBy(payments.currencyCode);
 
-  // ─── 4. Platform Fees (to calculate Net Revenue) ────────────────────────────
-  // Already stored as amountUsdCents, no change needed here.
-  const totalFeesQuery = db
+  // D. Uncleared Platform Fees Buckets
+  const feesQuery = db
     .select({
-      totalFees: sql<number>`coalesce(sum(${charges.amountUsdCents}), 0)::int`,
+      currencyCode: charges.currencyCode,
+      totalFees: sql<number>`coalesce(sum(${charges.amountCents}), 0)::int`,
     })
     .from(charges)
     .where(
@@ -353,14 +380,12 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
         eq(charges.organizationId, organizationId),
         eq(charges.environment, environment),
         eq(charges.status, "succeeded"),
-        gte(charges.createdAt, since)
+        isNull(charges.clearedAt)
       )
     )
-    .then((r) => r[0]);
+    .groupBy(charges.currencyCode);
 
-  // ─── 5. Revenue Chart (net per day, pure SQL) ────────────────────────────────
-  // Left join fees by day so we can subtract in one pass.
-  // Gross revenue per day:
+  // E. Time Series Data (Revenue, Customers, Subs, Trials)
   const revenueChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${payments.createdAt})::date::text`,
@@ -371,51 +396,32 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .where(
       and(
         eq(payments.organizationId, organizationId),
-        eq(payments.environment, environment),
         eq(payments.status, "confirmed"),
         gte(payments.createdAt, since),
         excludeRefunded
       )
     )
-    .groupBy(sql`date_trunc('day', ${payments.createdAt})::date`, payments.currencyCode)
-    .orderBy(sql`1`);
+    .groupBy(sql`1`, payments.currencyCode);
 
-  // Platform fees per day (to subtract for net revenue chart):
   const feesChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${charges.createdAt})::date::text`,
-      feeCents: sql<number>`coalesce(sum(${charges.amountUsdCents}), 0)::int`,
+      currencyCode: charges.currencyCode,
+      feeCents: sql<number>`coalesce(sum(${charges.amountCents}), 0)::int`,
     })
     .from(charges)
-    .where(
-      and(
-        eq(charges.organizationId, organizationId),
-        eq(charges.environment, environment),
-        eq(charges.status, "succeeded"),
-        gte(charges.createdAt, since)
-      )
-    )
-    .groupBy(sql`date_trunc('day', ${charges.createdAt})::date`)
-    .orderBy(sql`1`);
+    .where(and(eq(charges.organizationId, organizationId), isNull(charges.clearedAt), gte(charges.createdAt, since)))
+    .groupBy(sql`1`, charges.currencyCode);
 
-  // ─── 6. Customers Chart ──────────────────────────────────────────────────────
   const customersChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${customers.createdAt})::date::text`,
       count: sql<number>`count(*)::int`,
     })
     .from(customers)
-    .where(
-      and(
-        eq(customers.organizationId, organizationId),
-        eq(customers.environment, environment),
-        gte(customers.createdAt, since)
-      )
-    )
-    .groupBy(sql`1`)
-    .orderBy(sql`1`);
+    .where(and(eq(customers.organizationId, organizationId), gte(customers.createdAt, since)))
+    .groupBy(sql`1`);
 
-  // ─── 7. Trials Chart ─────────────────────────────────────────────────────────
   const trialsChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::date::text`,
@@ -425,16 +431,13 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .where(
       and(
         eq(subscriptions.organizationId, organizationId),
-        eq(subscriptions.environment, environment),
         eq(subscriptions.status, "trialing"),
         gte(subscriptions.createdAt, since)
       )
     )
-    .groupBy(sql`1`)
-    .orderBy(sql`1`);
+    .groupBy(sql`1`);
 
-  // ─── 8. Subscriptions Chart ──────────────────────────────────────────────────
-  const subscriptionsChartQuery = db
+  const activeSubscriptionsChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::date::text`,
       count: sql<number>`count(*)::int`,
@@ -443,60 +446,72 @@ export const retrieveOverviewStats = async (options: { orgId?: string; env?: Net
     .where(
       and(
         eq(subscriptions.organizationId, organizationId),
-        eq(subscriptions.environment, environment),
         eq(subscriptions.status, "active"),
         gte(subscriptions.createdAt, since)
       )
     )
-    .groupBy(sql`1`)
-    .orderBy(sql`1`);
+    .groupBy(sql`1`);
 
-  // ─── Fire all queries in parallel ────────────────────────────────────────────
   const [
     metrics,
     mrrResult,
-    grossRevenueResult,
-    totalFeesResult,
-    revenueChart,
-    feesChart,
-    customersChart,
+    grossResult,
+    feeResult,
+    revChart,
+    feeChart,
+    custChart,
     trialsChart,
-    subscriptionsChart,
+    activeSubscriptionsChart,
   ] = await Promise.all([
     metricsQuery,
     mrrQuery,
     grossRevenueQuery,
-    totalFeesQuery,
+    feesQuery,
     revenueChartQuery,
     feesChartQuery,
     customersChartQuery,
     trialsChartQuery,
-    subscriptionsChartQuery,
+    activeSubscriptionsChartQuery,
   ]);
+
+  const mrrCents = mrrResult.reduce((acc, b) => acc + normalize(b.cents, b.currencyCode), 0);
+  const totalGross = grossResult.reduce((acc, b) => acc + normalize(b.totalCents, b.currencyCode), 0);
+  const totalFees = feeResult.reduce((acc, b) => acc + normalize(b.totalFees, b.currencyCode), 0);
+  const netRevenueCents = totalGross - totalFees;
+
+  const netRevMap = new Map<string, number>();
+  revChart.forEach((b) =>
+    netRevMap.set(b.date, (netRevMap.get(b.date) ?? 0) + normalize(b.grossCents, b.currencyCode))
+  );
+  feeChart.forEach((b) => netRevMap.set(b.date, (netRevMap.get(b.date) ?? 0) - normalize(b.feeCents, b.currencyCode)));
 
   return {
     activeTrials: Number(metrics.activeTrials),
     activeSubscriptions: Number(metrics.activeSubscriptions),
-    mrr: mrrResult,
-    revenue: grossRevenueResult,
-    totalFeesCents: totalFeesResult.totalFees,
     totalCustomers: Number(metrics.totalCustomers),
-    newCustomers: customersChart.reduce((acc, curr) => acc + curr.count, 0),
+    newCustomers: custChart.reduce((acc, curr) => acc + curr.count, 0),
+    mrrCents,
+    netRevenueCents,
+    currency: targetCurrency,
     charts: {
-      revenue: { gross: revenueChart, fees: feesChart },
-      customers: normalizeTimeSeries(
-        customersChart.map((c) => ({ date: c.date, value: c.count })),
-        28,
+      activeSubscriptions: normalizeTimeSeries(
+        activeSubscriptionsChart.map((m) => ({ date: m.date, value: m.count })),
+        dayCount,
         "day"
       ),
-      subscriptions: normalizeTimeSeries(
-        subscriptionsChart.map((s) => ({ date: s.date, value: s.count })),
-        28,
+      revenue: normalizeTimeSeries(
+        Array.from(netRevMap.entries()).map(([date, value]) => ({ date, value })),
+        dayCount,
+        "day"
+      ),
+      customers: normalizeTimeSeries(
+        custChart.map((c) => ({ date: c.date, value: c.count })),
+        dayCount,
         "day"
       ),
       trials: normalizeTimeSeries(
         trialsChart.map((t) => ({ date: t.date, value: t.count })),
-        28,
+        dayCount,
         "day"
       ),
     },

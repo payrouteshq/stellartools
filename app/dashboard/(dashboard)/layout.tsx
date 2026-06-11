@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/actions/auth";
 import { getCurrentOrganization } from "@/actions/organization";
 import { PluginLauncher } from "@/components/dashboard/plugin-launcher";
 import { MainnetReadinessModal } from "@/components/mainnet-readiness-modal";
+import { deleteCookies } from "@/integrations/cookie-manager";
 import { cn } from "@/lib/utils";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -13,7 +14,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect(`/signin?next=${url}`);
 
-  const currentOrg = await getCurrentOrganization();
+  const currentOrg = await getCurrentOrganization(async (error) => {
+    if (error.includes("No organization context found")) {
+      await deleteCookies(["selectedOrg"]);
+    }
+  });
 
   if (!currentOrg) redirect(`/select-organization?next=${url}`);
 

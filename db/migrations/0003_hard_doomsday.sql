@@ -1,0 +1,1 @@
+ALTER TABLE "charge" ADD COLUMN "cleared_at" timestamp;

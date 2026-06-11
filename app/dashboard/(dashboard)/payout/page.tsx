@@ -10,7 +10,6 @@ import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DataTable, TableAction } from "@/components/data-table";
 import { NumberField } from "@/components/number-field";
 import { SelectInput } from "@/components/select+input";
-import { SelectNumberField } from "@/components/select+number-field";
 import { Spinner } from "@/components/spinner";
 import { TextField } from "@/components/text-field";
 import { Badge } from "@/components/ui/badge";
@@ -243,7 +242,7 @@ function BankPayoutFlow({ onClose, onSuccess, initialCurrencyCode, initialAmount
   if (step === "select")
     return (
       <div className="space-y-5">
-        <SelectNumberField
+        <SelectInput
           id="amount"
           label="How much do you want to withdraw?"
           value={inputValue}

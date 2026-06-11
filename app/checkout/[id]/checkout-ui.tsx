@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark } from "@/components/icon";
 import { PhoneNumber, PhoneNumberField } from "@/components/phone-number-field";

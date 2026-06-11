@@ -26,7 +26,7 @@ export async function prepareSubscriptionApproval(
   checkoutId: string,
   customerAddress: string,
   selectedAssetCode: string,
-  selectedAssetIssuer: string | null
+  selectedAssetIssuer: string
 ): Promise<{ xdr: string; periodStart: string; periodEnd: string } | { error: string }> {
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
@@ -41,11 +41,7 @@ export async function prepareSubscriptionApproval(
       return { error: "No payment asset selected" };
     }
 
-    const tokenContractId = await retrieveAssetContractId(
-      selectedAssetCode,
-      selectedAssetIssuer ?? "",
-      checkout.environment
-    );
+    const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
 
     const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
 
@@ -85,14 +81,22 @@ export async function finalizeSubscriptionCheckout(
   signedApprovalXDR: string,
   customerAddress: string,
   selectedAssetCode: string,
-  selectedAssetIssuer: string | null
+  selectedAssetIssuer: string
 ): Promise<{ success: boolean; error?: string }> {
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
 
   if (!checkout) throw new AppError("Checkout not found");
 
-  const { status, productType, productId, merchantPublicKey, organizationId, environment, customerId, subscriptionData } =
-    checkout;
+  const {
+    status,
+    productType,
+    productId,
+    merchantPublicKey,
+    organizationId,
+    environment,
+    customerId,
+    subscriptionData,
+  } = checkout;
 
   if (status !== "open") return { success: false, error: "Checkout is not open" };
   if (productType !== "subscription") return { success: false, error: "Not a subscription checkout" };
@@ -104,7 +108,7 @@ export async function finalizeSubscriptionCheckout(
     return { success: false, error: "Period data missing - call prepareSubscriptionApproval first" };
   }
 
-  const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer ?? "", checkout.environment);
+  const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
   const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
 
   const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);

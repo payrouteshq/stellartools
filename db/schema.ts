@@ -354,7 +354,7 @@ export const payments = pgTable("payment", {
   customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
   creditBalanceId: text("credit_balance_id"),
   productId: text("product_id").references(() => products.id),
-  amountCents: integer("amount_usd_cents").notNull(),
+  amountCents: integer("amount_cents").notNull(),
   currencyCode: text("currency_code").notNull().default("USD"),
   cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
   selectedAssetCode: text("selected_asset_code").notNull(), // "XLM", "USDC", "EURC"
@@ -378,7 +378,8 @@ export const charges = pgTable("charge", {
     .notNull()
     .references(() => organizations.id),
   paymentId: text("payment_id").references(() => payments.id),
-  amountUsdCents: integer("amount_usd_cents").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  currencyCode: text("currency_code").notNull().default("USD"),
   cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
   selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
   selectedAssetIssuer: text("selected_asset_issuer"),
@@ -387,6 +388,7 @@ export const charges = pgTable("charge", {
   transactionHash: text("tx_hash"),
   error: text("error"),
   environment: networkEnum("network").notNull(),
+  clearedAt: timestamp("cleared_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -399,7 +401,8 @@ export const payouts = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id),
-    amountUsdCents: integer("amount_usd_cents").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currencyCode: text("currency_code").notNull().default("USD"),
     cryptoAmount: text("crypto_amount").notNull(),
     selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
     selectedAssetIssuer: text("selected_asset_issuer"),
@@ -471,7 +474,8 @@ export const refunds = pgTable(
       .notNull()
       .references(() => organizations.id),
     customerId: text("customer_id").references(() => customers.id),
-    amountUsdCents: integer("amount_usd_cents").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currencyCode: text("currency_code").notNull().default("USD"),
     cryptoAmount: text("crypto_amount").notNull(),
     selectedAssetCode: text("selected_asset_code").notNull(),
     selectedAssetIssuer: text("selected_asset_issuer"),

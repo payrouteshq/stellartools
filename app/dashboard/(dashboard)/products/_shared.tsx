@@ -52,7 +52,13 @@ const productSchema = z.object({
   images: z.array(z.any()).transform((val) => val as FileWithPreview[]),
   type: z.enum(["one_time", "subscription", "metered"]),
   recurringPeriod: z.enum(["day", "week", "month", "year"]).optional(),
-  pricing: z.object({ amount: z.string(), option: z.string() }).optional(),
+  pricing: z.object({
+    amount: z
+      .string()
+      .min(1, "Price is required")
+      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, { message: "Price must be greater than 0" }),
+    option: z.string().min(1, "Currency is required"),
+  }),
   unit: z.string().optional(),
   totalCredits: z.number().min(0).optional(),
   unitsPerCredit: z.number().min(1).optional(),
@@ -87,9 +93,12 @@ export function ProductsModalContent({
   const { currency: orgCurrency } = useCurrencyConverter();
   const { file: imagesFile, isLoading: isLoadingImages } = useFilePreview(editingProduct?.images?.[0] ?? null);
 
-  const currencyOptions = [...CURRENCY_CODES].sort();
+  const currencyDisplayNames = React.useMemo(() => new Intl.DisplayNames(["en"], { type: "currency" }), []);
+  const currencyLabels = React.useMemo(
+    () => Object.fromEntries(CURRENCY_CODES.map((c) => [c, `${currencyDisplayNames.of(c) ?? c} (${c})`])),
+    [currencyDisplayNames]
+  );
 
-  // Edit mode: stored value is already in the product's own currency — no back-conversion needed
   const editDisplayAmount = React.useMemo(() => {
     if (!editingProduct?.priceCents) return "0";
     return (editingProduct.priceCents / 100).toFixed(2);
@@ -104,7 +113,7 @@ export function ProductsModalContent({
       description: editingProduct?.description ?? "",
       type: editingProduct?.type ?? "one_time",
       recurringPeriod: editingProduct?.recurringPeriod ?? "month",
-      pricing: { amount: "0", option: orgCurrency },
+      pricing: { amount: "", option: orgCurrency },
       totalCredits: 0,
       unitsPerCredit: 1,
       metadata: editingProduct?.metadata
@@ -154,7 +163,7 @@ export function ProductsModalContent({
         images: [],
         type: "one_time",
         recurringPeriod: "month",
-        pricing: { amount: "0", option: orgCurrency },
+        pricing: { amount: "", option: orgCurrency },
         metadata: [],
       });
     }
@@ -192,8 +201,8 @@ export function ProductsModalContent({
         {} as Record<string, string>
       );
 
-      const pricingAmount = parseFloat(data.pricing?.amount ?? "0") || 0;
-      const pricingCurrency = data.pricing?.option ?? "USD";
+      const pricingAmount = parseFloat(data.pricing.amount) || 0;
+      const pricingCurrency = data.pricing?.option ?? orgCurrency;
       const priceAmountCents = Math.round(pricingAmount * 100);
 
       if (isEditMode && editingProduct?.id) {
@@ -248,8 +257,20 @@ export function ProductsModalContent({
   );
 
   const watched = useWatch({ control: form.control });
-  const pricingPreviewAmount = parseFloat(watched.pricing?.amount ?? "0") || 0;
+  const pricingPreviewAmount = parseFloat(watched.pricing?.amount ?? "0");
   const pricingPreviewCurrency = watched.pricing?.option ?? orgCurrency;
+
+  const currencyOptions = React.useMemo(() => {
+    const sorted = [...CURRENCY_CODES].sort();
+    const selected = pricingPreviewCurrency;
+    const idx = sorted.findIndex((c) => c === selected);
+    if (idx > 0) {
+      const copy = [...sorted];
+      copy.splice(idx, 1);
+      return [selected, ...copy];
+    }
+    return sorted;
+  }, [pricingPreviewCurrency]);
 
   const onSubmit = async (data: ProductFormData) => {
     putProductAction({
@@ -513,23 +534,29 @@ export function ProductsModalContent({
             )}
 
             <div className="space-y-1.5">
-              <div className="flex gap-2">
+              <div className="flex items-end gap-2">
                 <RHF.Controller
                   control={form.control}
                   name="pricing"
-                  render={({ field, fieldState: { error } }) => (
-                    <SelectInput
-                      id="pricing"
-                      className="flex-1"
-                      label="Price"
-                      value={field.value ?? { amount: "0", option: orgCurrency }}
-                      onChange={field.onChange}
-                      options={currencyOptions}
-                      isLoading={false}
-                      error={error?.message}
-                      disabled={isEditMode}
-                    />
-                  )}
+                  render={({ field }) => {
+                    return (
+                      <SelectInput
+                        id="pricing"
+                        className="flex-1"
+                        mode="currency"
+                        placeholder="1,000.00"
+                        label="Price"
+                        value={field.value ?? { amount: "0", option: orgCurrency }}
+                        onChange={field.onChange}
+                        options={currencyOptions}
+                        optionLabels={currencyLabels}
+                        isLoading={false}
+                        error={form.formState.errors.pricing?.amount?.message}
+                        disabled={isEditMode}
+                        popoverContentClassName="w-[350px]"
+                      />
+                    );
+                  }}
                 />
 
                 {watched.type == "subscription" && (
@@ -542,7 +569,7 @@ export function ProductsModalContent({
                         value={field.value as string}
                         onChange={field.onChange}
                         triggerValuePlaceholder="Select recurring period"
-                        triggerClassName="mt-2.5 h-12 w-[150px]"
+                        triggerClassName="h-12 w-[150px]"
                         items={[
                           { value: "day", label: "Daily" },
                           { value: "week", label: "Weekly" },

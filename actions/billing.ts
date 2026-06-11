@@ -31,9 +31,9 @@ export async function processPaymentBilling(
   }
 
   const fiatRates = await getFiatRates();
-  const paymentCurrency = payment.currencyCode ?? "USD";
+  const paymentCurrency = payment.currencyCode;
   const currencyRate = fiatRates[paymentCurrency] ?? 1;
-  const paymentAmountUsdCents = Math.round((Number(payment.amountCents) / currencyRate) * 100) / 100;
+  const paymentAmountCents = Math.round((Number(payment.amountCents) / currencyRate) * 100) / 100;
 
   const lifetimeVolumeUsd = lifeTimeVolumeUsdCents / 100;
 
@@ -50,11 +50,11 @@ export async function processPaymentBilling(
 
   if (rateBps === 0) return;
 
-  const feeCryptoAmountUsdCents = (paymentAmountUsdCents * rateBps) / BPS_DENOMINATOR;
+  const feeCryptoAmountCents = (paymentAmountCents * rateBps) / BPS_DENOMINATOR;
 
   const chargeId = generateResourceId("ch", paymentId, 20);
 
-  console.log("Fee Crypto Amount USD Cents", feeCryptoAmountUsdCents);
+  console.log("Fee Crypto Amount Cents", feeCryptoAmountCents, paymentCurrency);
 
   try {
     const secretKey = decrypt(secret.encrypted);
@@ -76,7 +76,8 @@ export async function processPaymentBilling(
       id: chargeId,
       organizationId: payment.organizationId,
       paymentId: payment.id,
-      amountUsdCents: feeCryptoAmountUsdCents,
+      amountCents: feeCryptoAmountCents,
+      currencyCode: paymentCurrency,
       cryptoAmount: payment.cryptoAmount,
       selectedAssetCode: payment.selectedAssetCode,
       selectedAssetIssuer: payment.selectedAssetIssuer,

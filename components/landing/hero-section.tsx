@@ -1,11 +1,12 @@
 "use client";
 
+import * as React from "react";
+
 import type { TCountryCode } from "countries-list";
 import * as CountryFlags from "country-flag-icons/react/3x2";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import * as React from "react";
 
 const FLAG_CODES: TCountryCode[] = [
   "US",
@@ -72,7 +73,7 @@ function FlagStrip() {
   );
 }
 
-const WORDS = ["SaaS", "store", "startup", "API", "platform", "product"];
+const WORDS = ["SaaS", "Store", "Startup", "API", "Platform", "Product"];
 
 function CyclingWord() {
   const [index, setIndex] = React.useState(0);

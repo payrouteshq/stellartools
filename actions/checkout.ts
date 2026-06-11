@@ -233,7 +233,7 @@ export const retrieveCheckoutPublicData = async (checkoutId: string) => {
     assets,
     fiatRates: fiatRates as Record<string, number>,
     assetUsdPrices,
-    orgCurrency: orgRow?.selectedCurrency ?? "USD",
+    orgCurrency: orgRow.selectedCurrency,
   };
 };
 
