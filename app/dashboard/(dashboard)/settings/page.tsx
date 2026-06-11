@@ -351,10 +351,20 @@ const $2faSchema = Schema.object({
   code: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers"),
 });
 
+const $2faDisableCode = Schema.string()
+  .length(6, "Code must be 6 digits")
+  .regex(/^\d+$/, "Must be numbers only");
+
 const $2faDisableSchema = Schema.object({
-  totpCode: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Must be numbers only"),
-  emailCode: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Must be numbers only"),
-});
+  totpCode: Schema.string(),
+  emailCode: Schema.string(),
+})
+  .transform((data) => {
+    if (data.totpCode.length === 6) return { totpCode: data.totpCode };
+    if (data.emailCode.length === 6) return { emailCode: data.emailCode };
+    return data;
+  })
+  .pipe(Schema.object({ totpCode: $2faDisableCode }).or(Schema.object({ emailCode: $2faDisableCode })));
 type Disable2faFormData = Schema.infer<typeof $2faDisableSchema>;
 
 const $2faModal = ({
@@ -368,6 +378,7 @@ const $2faModal = ({
 }) => {
   const isEnabling = !!setupData;
   const [step, setStep] = useState<"request" | "verify">("request");
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const { mutate: toggle, isPending } = useAction((code: string) => toggle2fa(userId, code, setupData?.secret), {
     invalidate: ["current-user"],
@@ -377,11 +388,20 @@ const $2faModal = ({
 
   const { mutate: sendCode, isPending: isSending } = useAction((id: string) => initiate2faReset(id), {
     successMsg: "Verification code sent to your email",
-    onSuccess: () => setStep("verify"),
+    onSuccess: (data) => {
+      setResetToken(data.resetToken);
+      setStep("verify");
+    },
   });
 
   const { mutate: toggleDisable, isPending: isDisablePending } = useAction(
-    (data: Disable2faFormData) => toggle2fa(userId, data.totpCode, undefined, data.emailCode),
+    (data: Disable2faFormData) => {
+      if ("emailCode" in data) {
+        if (!resetToken) throw new Error("No verification code found. Please request a new one.");
+        return toggle2fa(userId, data.emailCode, undefined, resetToken);
+      }
+      return toggle2fa(userId, data.totpCode);
+    },
     { invalidate: ["current-user"], successMsg: "2FA disabled successfully", onSuccess: AppModal.close }
   );
 
@@ -435,16 +455,27 @@ const $2faModal = ({
     return (
       <div className="flex flex-col items-center gap-6 text-center">
         <p className="text-muted-foreground text-sm">
-          For your security, we will send a 6-digit code to{" "}
-          <span className="text-foreground font-medium">{userEmail}</span>. You will also need your authenticator app
-          code.
+          For your security, we can send a 6-digit code to{" "}
+          <span className="text-foreground font-medium">{userEmail}</span>, or you can use your authenticator app code
+          instead.
         </p>
-        <div className="flex w-full gap-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
-            Cancel
-          </Button>
-          <Button type="button" className="flex-1" isLoading={isSending} disabled={isSending} onClick={() => sendCode(userId)}>
-            Send Code
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex w-full gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              isLoading={isSending}
+              disabled={isSending}
+              onClick={() => sendCode(userId)}
+            >
+              Send Code
+            </Button>
+          </div>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("verify")}>
+            Use authenticator app instead
           </Button>
         </div>
       </div>
@@ -454,7 +485,7 @@ const $2faModal = ({
   return (
     <form onSubmit={disableForm.handleSubmit((d) => toggleDisable(d))} className="flex flex-col items-center gap-6">
       <p className="text-muted-foreground text-center text-sm">
-        Enter both codes to confirm. The email code expires in 10 minutes.
+        Enter your email verification code or authenticator app code. The email code expires in 10 minutes.
       </p>
 
       <div className="w-full space-y-2">
@@ -503,6 +534,7 @@ const $2faModal = ({
         disabled={isSending}
         onClick={() => {
           disableForm.setValue("emailCode", "");
+          disableForm.setValue("totpCode", "");
           sendCode(userId);
         }}
       >
