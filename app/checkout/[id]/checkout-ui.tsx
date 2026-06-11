@@ -37,6 +37,7 @@ export default function CheckoutUI() {
     selectedAsset,
     setSelectedAsset,
     cryptoAmount,
+    finalAmountUsdCents,
   } = useCheckout();
 
   const handleConnectWallet = (successful: boolean) => {
@@ -207,11 +208,10 @@ export default function CheckoutUI() {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
-                    {/* Asset picker */}
                     <SelectField
                       id="pay-with-asset"
                       label="Pay with"
-                      labelClassName="text-muted-foreground text-[11px] font-bold tracking-widest uppercase"
+                      labelClassName=" text-[11px] font-bold tracking-widest uppercase"
                       value={selectedAsset?.code ?? ""}
                       onChange={(code) => {
                         const asset = publicData?.assets?.find((a) => a.code === code);
@@ -222,17 +222,26 @@ export default function CheckoutUI() {
                       items={(publicData?.assets ?? []).map((asset) => {
                         const usdPrice = publicData?.assetUsdPrices?.[asset.code] ?? 0;
                         const cryptoNeeded =
-                          usdPrice > 0 && checkout.finalAmount
-                            ? Money.calculateCryptoNeeded(checkout.finalAmount, usdPrice)
+                          usdPrice > 0 && finalAmountUsdCents
+                            ? Money.calculateCryptoNeeded(finalAmountUsdCents, usdPrice)
                             : null;
+                        const imageUrl = asset.images?.[0];
                         return {
                           value: asset.code,
-                          label: cryptoNeeded ? `${asset.code}  ≈ ${parseFloat(cryptoNeeded).toFixed(4)}` : asset.code,
+                          label: cryptoNeeded ? `${asset.code}  ≈ ${cryptoNeeded}` : asset.code,
+                          icon: imageUrl ? (
+                            <Image
+                              src={imageUrl}
+                              alt={asset.code}
+                              width={20}
+                              height={20}
+                              className="size-5 shrink-0 rounded-full object-cover"
+                            />
+                          ) : null,
                         };
                       })}
                     />
 
-                    {/* Pay button */}
                     <div className="space-y-2">
                       <Button
                         type="button"

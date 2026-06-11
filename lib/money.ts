@@ -4,8 +4,8 @@ const STELLAR_PRECISION = 7;
 
 export const Money = {
   calculateCryptoNeeded: (usdCents: number, assetUsdPrice: number): string => {
-    if (assetUsdPrice <= 0) return "0.0000000";
-    return new Big(usdCents).div(100).div(assetUsdPrice).toFixed(STELLAR_PRECISION);
+    if (assetUsdPrice <= 0) return "0";
+    return new Big(usdCents).div(100).div(assetUsdPrice).toFixed(STELLAR_PRECISION).replace(/\.?0+$/, "");
   },
 
   addSlippage: (amount: string, percentage = 0.01): string => {

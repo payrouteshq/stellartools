@@ -27,7 +27,7 @@ export interface SelectFieldProps
   label?: LabelProps["children"];
   error?: ErrorProps["children"];
   helpText?: HelpTextProps["children"];
-  items: Array<{ value: string; label: string; disabled?: boolean }>;
+  items: Array<{ value: string; label: string; disabled?: boolean; icon?: React.ReactNode }>;
   isLoading?: boolean;
   placeholder?: string;
 }
@@ -75,7 +75,10 @@ export const SelectField = ({
         <SelectContent>
           {items.map((item) => (
             <SelectItem key={item.value} value={item.value} disabled={item.disabled}>
-              {item.label}
+              <div className="flex items-center gap-2">
+                {item.icon}
+                {item.label}
+              </div>
             </SelectItem>
           ))}
         </SelectContent>

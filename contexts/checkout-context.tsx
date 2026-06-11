@@ -44,6 +44,7 @@ interface CheckoutContextValue {
   selectedAsset: SelectedAsset | null;
   setSelectedAsset: (asset: SelectedAsset | null) => void;
   cryptoAmount: string | null;
+  finalAmountUsdCents: number;
   wallet: {
     connectedAddress: string;
     handleWalletPay: () => Promise<void>;
@@ -90,12 +91,19 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     }
   }, [publicDataQuery.data?.assets, selectedAsset]);
 
+  const finalAmountUsdCents = React.useMemo(() => {
+    if (!checkout?.finalAmount || !publicDataQuery.data) return 0;
+    const currencyCode = checkout.currencyCode ?? "USD";
+    const fiatRate = publicDataQuery.data.fiatRates?.[currencyCode] ?? 1;
+    return checkout.finalAmount / fiatRate;
+  }, [checkout?.finalAmount, checkout?.currencyCode, publicDataQuery.data]);
+
   const cryptoAmount = React.useMemo(() => {
-    if (!checkout?.finalAmount || !selectedAsset || !publicDataQuery.data) return null;
+    if (!finalAmountUsdCents || !selectedAsset || !publicDataQuery.data) return null;
     const usdPrice = publicDataQuery.data.assetUsdPrices[selectedAsset.code];
     if (!usdPrice) return null;
-    return Money.calculateCryptoNeeded(checkout.finalAmount, usdPrice);
-  }, [checkout?.finalAmount, selectedAsset, publicDataQuery.data]);
+    return Money.calculateCryptoNeeded(finalAmountUsdCents, usdPrice);
+  }, [finalAmountUsdCents, selectedAsset, publicDataQuery.data]);
 
   const form = RHF.useForm({
     resolver: zodResolver(baseSchema),
@@ -233,8 +241,10 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
         // Get a fresh rate right before building the tx to avoid stale amounts
         const freshPublicData = await retrieveCheckoutPublicData(checkoutId);
         const freshUsdPrice = freshPublicData?.assetUsdPrices[selectedAsset.code] ?? 0;
+        const freshFiatRate = freshPublicData?.fiatRates?.[checkout.currencyCode ?? "USD"] ?? 1;
+        const freshFinalAmountUsdCents = checkout.finalAmount / freshFiatRate;
         const freshCryptoAmount =
-          freshUsdPrice > 0 ? Money.calculateCryptoNeeded(checkout.finalAmount, freshUsdPrice) : cryptoAmount;
+          freshUsdPrice > 0 ? Money.calculateCryptoNeeded(freshFinalAmountUsdCents, freshUsdPrice) : cryptoAmount;
 
         const sendAsset =
           selectedAsset.code === "XLM"
@@ -316,6 +326,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     selectedAsset,
     setSelectedAsset,
     cryptoAmount,
+    finalAmountUsdCents,
     updateDetails,
     banner: { show: showBanner, setShow: setShowBanner },
     wallet: {

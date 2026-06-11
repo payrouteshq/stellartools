@@ -617,12 +617,19 @@ function CheckoutModalContent({
     return (
       productsData
         ?.filter((p) => p.status === "active")
-        .map((p) => ({
-          value: p.id,
-          label: `${p.name} - $${(p.priceCents / 100).toFixed(2)} USD`,
-          type: p.type,
-          recurringPeriod: p.recurringPeriod,
-        })) ?? []
+        .map((p) => {
+          const price = new Intl.NumberFormat("en", {
+            style: "currency",
+            currency: p.currencyCode,
+          }).format(p.priceCents / 100);
+
+          return {
+            value: p.id,
+            label: `${p.name} - ${price}`,
+            type: p.type,
+            recurringPeriod: p.recurringPeriod,
+          };
+        }) ?? []
     );
   }, [productsData]);
 
