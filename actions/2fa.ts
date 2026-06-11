@@ -1,17 +1,16 @@
 "use server";
 
-import { randomInt } from "crypto";
-
 import { retrieveAccount } from "@/actions/account";
 import { generateAndSetSession } from "@/actions/auth";
 import { AuthProvider } from "@/constant/schema.client";
 import { accounts, db } from "@/db";
 import { TwoFaDisableVerificationEmail } from "@/emails/2fa-disable-verification";
 import { deleteCookies, getCookie } from "@/integrations/cookie-manager";
-import { decrypt, encrypt } from "@/integrations/encryption";
 import { sendEmail } from "@/integrations/email";
+import { decrypt, encrypt } from "@/integrations/encryption";
 import { signJwt, verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
+import { randomInt } from "crypto";
 import { eq } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
@@ -47,11 +46,7 @@ export const initiate2faReset = safeAction(async (accountId: string) => {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const resetToken = signJwt({ accountId, code }, "10m");
 
-  await sendEmail(
-    account.email,
-    "Your 2FA disable verification code",
-    TwoFaDisableVerificationEmail({ code })
-  );
+  await sendEmail(account.email, "Your 2FA disable verification code", TwoFaDisableVerificationEmail({ code }));
 
   return { success: true, resetToken };
 });
@@ -92,10 +87,7 @@ export const toggle2fa = safeAction(
       if (!valid) throw new AppError("Invalid verification code");
     }
 
-    await db
-      .update(accounts)
-      .set({ $2faSecret: null, updatedAt: new Date() })
-      .where(eq(accounts.id, accountId));
+    await db.update(accounts).set({ $2faSecret: null, updatedAt: new Date() }).where(eq(accounts.id, accountId));
 
     return { success: true, enabled: false };
   }

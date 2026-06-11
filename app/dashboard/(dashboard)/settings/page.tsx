@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { initiate2faReset, setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
@@ -44,7 +46,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Calendar, ChevronRight, ExternalLink, ShieldCheck, ShieldOff } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
-import { useState } from "react";
 import * as RHF from "react-hook-form";
 import { z as Schema } from "zod";
 
@@ -347,24 +348,17 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
   );
 };
 
+const codeSchema = Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers");
+
 const $2faSchema = Schema.object({
-  code: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers"),
+  code: codeSchema,
 });
 
-const $2faDisableCode = Schema.string()
-  .length(6, "Code must be 6 digits")
-  .regex(/^\d+$/, "Must be numbers only");
+const $2faDisableSchema = Schema.union([
+  Schema.object({ totpCode: codeSchema }),
+  Schema.object({ emailCode: codeSchema }),
+]);
 
-const $2faDisableSchema = Schema.object({
-  totpCode: Schema.string(),
-  emailCode: Schema.string(),
-})
-  .transform((data) => {
-    if (data.totpCode.length === 6) return { totpCode: data.totpCode };
-    if (data.emailCode.length === 6) return { emailCode: data.emailCode };
-    return data;
-  })
-  .pipe(Schema.object({ totpCode: $2faDisableCode }).or(Schema.object({ emailCode: $2faDisableCode })));
 type Disable2faFormData = Schema.infer<typeof $2faDisableSchema>;
 
 const $2faModal = ({
