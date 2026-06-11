@@ -1,4 +1,4 @@
-import { db, appInstallations, shopifySessions, apiKeys } from "@/db";
+import { db, shopifySessions, apiKeys } from "@/db";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,12 +15,11 @@ export async function POST(req: NextRequest) {
   if (!verifyInternalAuth(req)) return unauthorized();
 
   const body = await req.json();
-  const { shop, apiKey, environment = "mainnet", scopes = [] } = body as {
+  const { shop, apiKey, environment = "mainnet" } = body as {
     shop: string;
     apiKey?: string;
     organizationId?: string;
     environment?: string;
-    scopes?: string[];
   };
   let { organizationId } = body as { organizationId?: string };
 
@@ -46,31 +45,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Provide apiKey or organizationId." }, { status: 400 });
   }
 
-  // Link all sessions for this shop to the organization
   await db
     .update(shopifySessions)
     .set({ organizationId })
     .where(eq(shopifySessions.shop, shop));
-
-  // Upsert the appInstallations record
-  const shopifyAppId = process.env.SHOPIFY_APP_DB_ID;
-  if (shopifyAppId) {
-    await db
-      .insert(appInstallations)
-      .values({
-        id: `shopify_${organizationId}_${environment}`,
-        appId: shopifyAppId,
-        organizationId,
-        environment: environment as "testnet" | "mainnet",
-        scopes,
-        status: "active",
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [appInstallations.appId, appInstallations.organizationId, appInstallations.environment],
-        set: { status: "active", scopes, updatedAt: new Date() },
-      });
-  }
 
   // Return the organization's first active API key so the adapter can create checkouts
   const [key] = await db
@@ -90,36 +68,14 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/shopify/connect
 // Body: { shop }
-// Suspends the installation and clears all sessions for the shop (called on uninstall).
+// Clears all sessions for the shop (called on uninstall).
 export async function DELETE(req: NextRequest) {
   if (!verifyInternalAuth(req)) return unauthorized();
 
   const { shop } = await req.json();
   if (!shop) return NextResponse.json({ error: "shop is required" }, { status: 400 });
 
-  // Find organizationId from sessions
-  const [session] = await db
-    .select({ organizationId: shopifySessions.organizationId })
-    .from(shopifySessions)
-    .where(eq(shopifySessions.shop, shop))
-    .limit(1);
-
-  // Remove all sessions for this shop
   await db.delete(shopifySessions).where(eq(shopifySessions.shop, shop));
-
-  // Suspend the installation if we have an org link
-  const shopifyAppId = process.env.SHOPIFY_APP_DB_ID;
-  if (shopifyAppId && session?.organizationId) {
-    await db
-      .update(appInstallations)
-      .set({ status: "suspended", updatedAt: new Date() })
-      .where(
-        and(
-          eq(appInstallations.appId, shopifyAppId),
-          eq(appInstallations.organizationId, session.organizationId)
-        )
-      );
-  }
 
   return NextResponse.json({ ok: true });
 }

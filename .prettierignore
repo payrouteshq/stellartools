@@ -1,4 +1,8 @@
-node_modules
+**/node_modules
+**/public
+**/.vscode
+**/.shopify
+**/.shadowenv.d
 .next
 out
 dist
@@ -10,7 +14,7 @@ package-lock.json
 yarn.lock
 *.min.js
 *.min.css
-public
 .git
 .husky
 soroban
+packages/shopify-adapter/package.json
