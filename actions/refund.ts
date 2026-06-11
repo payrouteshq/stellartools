@@ -79,9 +79,24 @@ export const postRefund = async (
       if (refund.status == "succeeded") {
         events.push({
           type: "refund::created",
-          map: ({ id: refundId, paymentId, amount, customerId, assetCode, reason }) => ({
+          map: ({
+            id: refundId,
+            paymentId,
+            amountCents,
+            currencyCode,
             customerId,
-            data: { paymentId, refundId, amount: `${amount} ${assetCode}`, reason },
+            selectedAssetCode,
+            cryptoAmount,
+            reason,
+          }) => ({
+            customerId,
+            data: {
+              paymentId,
+              refundId,
+              amount: `${amountCents} ${currencyCode}`,
+              cryptoAmount: `${cryptoAmount} ${selectedAssetCode}`,
+              reason,
+            },
           }),
         });
 
@@ -90,9 +105,11 @@ export const postRefund = async (
           map: ({
             id: refundId,
             paymentId,
-            amount,
+            amountCents,
+            currencyCode,
             customerId,
-            assetCode,
+            selectedAssetCode,
+            cryptoAmount,
             reason,
             createdAt,
             receiverWalletAddress,
@@ -101,7 +118,8 @@ export const postRefund = async (
           }) => ({
             object: toSnakeCase({
               id: refundId,
-              amount: `${amount} ${assetCode}`,
+              amount: `${amountCents} ${currencyCode}`,
+              cryptoAmount: `${cryptoAmount} ${selectedAssetCode}`,
               paymentId,
               customerId,
               reason: reason!,

@@ -47,7 +47,7 @@ export const POST = apiHandler({
       throw new AppError("Credit balance has been revoked. Contact your provider to restore access.");
     }
 
-    const requiredCredits = calculateUsageToCredits(body.amount, productData.product.unitsPerCredit ?? 1);
+    const requiredCredits = calculateUsageToCredits(body.amount, productData.unitsPerCredit ?? 1);
 
     const isSufficient = creditBalance.balance >= requiredCredits;
 

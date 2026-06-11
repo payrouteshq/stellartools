@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { currencyCodeSchema } from "./checkout";
 import { Environment, environmentSchema } from "./shared";
 
 export const productTypeEnum = z.enum(["one_time", "subscription", "metered"]);
@@ -123,6 +124,7 @@ export const createProductSchema = z.object({
   unit: z.string().optional(),
   units_per_credit: z.number().optional(),
   total_credits: z.number().optional(),
+  currency_code: currencyCodeSchema,
 });
 
 export type CreateProduct = z.infer<typeof createProductSchema>;

@@ -24,6 +24,7 @@ export const POST = apiHandler({
       unit: body.unit ?? null,
       unitsPerCredit: body.units_per_credit ?? null,
       totalCredits: body.total_credits ?? null,
+      currencyCode: body.currency_code,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

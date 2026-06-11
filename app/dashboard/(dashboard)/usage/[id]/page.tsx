@@ -39,9 +39,9 @@ type UsageRecord = {
   customerId: string | null;
   productId: string | null;
   balanceId: string;
-  amount: bigint;
-  balanceBefore: bigint;
-  balanceAfter: bigint;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
   reason?: string | null;
   metadata?: Record<string, unknown> | null;
   createdAt: Date;
@@ -226,7 +226,7 @@ const columns: ColumnDef<UsageRecord>[] = [
             <ArrowRight className="text-muted-foreground h-3 w-3" />
             <span className="text-sm font-semibold">{record.balanceAfter.toLocaleString()}</span>
           </div>
-          {balanceChange !== BigInt(0) && (
+          {balanceChange !== 0 && (
             <span className="text-muted-foreground text-xs">{balanceChange.toLocaleString()}</span>
           )}
         </div>

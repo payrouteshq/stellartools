@@ -1,6 +1,7 @@
 "use client";
 
 import { Payout } from "@/db";
+import { Money } from "@/lib/money";
 import { truncate } from "@/lib/utils";
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import moment from "moment";
@@ -32,7 +33,6 @@ export const PayoutReceipt = ({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
@@ -43,7 +43,6 @@ export const PayoutReceipt = ({
           <Text style={styles.receiptId}>Receipt #{payout.id}</Text>
         </View>
 
-        {/* Payout Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payout Details</Text>
 
@@ -93,12 +92,14 @@ export const PayoutReceipt = ({
 
           <View style={styles.row}>
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.valueBold}>{payout.amount} XLM</Text>
+            <Text style={styles.valueBold}>{Money.formatFiat(payout.amountCents, payout.currencyCode)}</Text>
           </View>
 
           <View style={styles.amountRow}>
             <Text style={styles.amountLabel}>Total Payout</Text>
-            <Text style={styles.amountValue}>{payout.amount} XLM</Text>
+            <Text style={styles.amountValue}>
+              {Money.formatCrypto(payout.cryptoAmount, payout.selectedAssetCode ?? "")}
+            </Text>
           </View>
         </View>
 

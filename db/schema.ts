@@ -483,8 +483,10 @@ export const refunds = pgTable(
     transactionHash: text("tx_hash"),
     status: refundStatusEnum("status").notNull().default("pending"),
     reason: text("reason"),
+    environment: networkEnum("network").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   },
   (table) => ({
     uniqueSucceededRefund: uniqueIndex("unique_succeeded_refund")

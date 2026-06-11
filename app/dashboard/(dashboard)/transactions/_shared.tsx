@@ -16,6 +16,15 @@ import { ApiClient } from "@stellartools/core";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
 
+export interface TransactionEsquee extends Pick<
+  ResolvedPayment,
+  "id" | "amountCents" | "currencyCode" | "status" | "createdAt" | "customer"
+> {
+  walletAddress?: string;
+  refundedDate?: Date;
+  description: string;
+}
+
 // --- Refund Modal Schema ---
 
 const refundSchema = z.object({

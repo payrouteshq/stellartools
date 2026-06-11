@@ -111,8 +111,8 @@ export const verifyPaymentByPagingToken = async (
           amount: paymentOp.amount,
           successful: match.successful,
           from: paymentOp.from,
-          assetCode: paymentOp.asset_code,
-          assetIssuer: paymentOp.asset_issuer,
+          assetCode: paymentOp.asset_type === "native" ? "XLM" : paymentOp.asset_code,
+          assetIssuer: paymentOp.asset_type === "native" ? null : paymentOp.asset_issuer,
         }
       : null;
   });

@@ -4,7 +4,7 @@ import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
 import { putSubscription, retrieveSubscription as retrieveDBSubscription } from "@/actions/subscription";
 import { decrypt } from "@/integrations/encryption";
-import { cancelSubscription as cancelSorobanSubscription, retrieveSubscription } from "@/integrations/soroban-contract";
+import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
@@ -69,6 +69,7 @@ export const POST = apiHandler({
         transactionHash: res.isOk() ? res.value?.hash : null,
         amountCents: payment.amountCents,
         currencyCode: payment.currencyCode,
+        metadata: metadata,
       },
       organizationId,
       environment,
