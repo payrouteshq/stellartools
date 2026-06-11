@@ -1,0 +1,27 @@
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "f1b7c86f37c40aae0065942e67f80c06"
+name = "stellartools"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+scopes = "read_orders,read_checkouts"
+
+[auth]
+redirect_urls = [ "https://example.com/auth/callback" ]
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

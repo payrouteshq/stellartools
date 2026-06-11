@@ -1,237 +1,498 @@
-# Shopify App Template - React Router
+# StellarTools Shopify Adapter
 
-This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using [React Router](https://reactrouter.com/). It was forked from the [Shopify Remix app template](https://github.com/Shopify/shopify-app-template-remix) and converted to React Router.
+A Shopify embedded app that adds StellarTools as a payment method at checkout. Built with React Router and `@shopify/shopify-app-react-router`. The adapter is stateless — it stores no data locally. All sessions and org connections are persisted in the main StellarTools PostgreSQL database via authenticated HTTP.
 
-Rather than cloning this repo, follow the [Quick Start steps](https://github.com/Shopify/shopify-app-template-react-router#quick-start).
+---
 
-Visit the [`shopify.dev` documentation](https://shopify.dev/docs/api/shopify-app-react-router) for more details on the React Router app package.
+## What appears at checkout
 
-## Upgrading from Remix
+When a merchant installs and activates this app, Shopify adds **StellarTools Payments** as a payment option inside the checkout payment step — sitting alongside credit cards, PayPal, and any other enabled payment methods.
 
-If you have an existing Remix app that you want to upgrade to React Router, please follow the [upgrade guide](https://github.com/Shopify/shopify-app-template-react-router/wiki/Upgrading-from-Remix). Otherwise, please follow the quick start guide below.
+When a customer selects StellarTools Payments and clicks Pay now, Shopify calls this adapter's `/payment-session` endpoint. The adapter creates a hosted checkout on StellarTools and redirects the customer there to pay with USDC, XLM, EURC, or any other Stellar asset. After payment, the customer is sent back to Shopify where the order is marked as paid.
 
-## Quick start
+This is a Shopify **offsite payment extension** (`payments_extension` type). Shopify routes the customer off-site to StellarTools, then back. No card data is collected inside Shopify.
 
-### Prerequisites
+---
 
-Before you begin, you'll need to [download and install the Shopify CLI](https://shopify.dev/docs/apps/tools/cli/getting-started) if you haven't already.
+## How webhook verification works
 
-### Setup
+The adapter uses two distinct verification methods depending on the route type.
 
-```shell
-shopify app init --template=https://github.com/Shopify/shopify-app-template-react-router
+### App webhooks (uninstall / scopes update)
+
+Routes: `/webhooks/app/uninstalled`, `/webhooks/app/scopes_update`
+
+These are verified by calling `authenticate.webhook(request)` from `@shopify/shopify-app-react-router`. The library automatically:
+- Reads the `X-Shopify-Hmac-Sha256` header
+- Recomputes HMAC-SHA256 of the raw body using `SHOPIFY_API_SECRET`
+- Throws and returns 401 if the signatures do not match
+- Returns `{ shop, topic, payload, session }` if valid
+
+```typescript
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { shop, topic } = await authenticate.webhook(request);
+  // only reached if HMAC is valid
+};
 ```
 
-### Local Development
+### Payment session routes (payment / refund / capture / void)
 
-```shell
-shopify app dev
-```
+Routes: `/payment-session`, `/refund-session`, `/capture-session`, `/void-session`
 
-Press P to open the URL to your app. Once you click install, you can start development.
+These are external HTTP POST requests from Shopify's payment infrastructure, not from the embedded app. They are verified manually using `crypto.timingSafeEqual` to prevent timing attacks:
 
-Local development is powered by [the Shopify CLI](https://shopify.dev/docs/apps/tools/cli). It logs into your account, connects to an app, provides environment variables, updates remote config, creates a tunnel and provides commands to generate extensions.
-
-### Authenticating and querying data
-
-To authenticate and query data you can use the `shopify` const that is exported from `/app/shopify.server.js`:
-
-```js
-export async function loader({ request }) {
-  const { admin } = await shopify.authenticate.admin(request);
-
-  const response = await admin.graphql(`
-    {
-      products(first: 25) {
-        nodes {
-          title
-          description
-        }
-      }
-    }`);
-
-  const {
-    data: {
-      products: { nodes },
-    },
-  } = await response.json();
-
-  return nodes;
+```typescript
+function verifyShopifyHmac(rawBody: string, signature: string | null, secret: string): boolean {
+  if (!signature) return false;
+  const digest = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody, "utf8")
+    .digest("base64");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
+  } catch {
+    return false;
+  }
 }
 ```
 
-This template comes pre-configured with examples of:
+The `X-Shopify-Hmac-Sha256` header value is base64-encoded HMAC-SHA256 of the raw request body, signed with `SHOPIFY_API_SECRET`. The raw body must be read as text before parsing as JSON, otherwise the signature check fails.
 
-1. Setting up your Shopify app in [/app/shopify.server.ts](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/shopify.server.ts)
-2. Querying data using Graphql. Please see: [/app/routes/app.\_index.tsx](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/routes/app._index.tsx).
-3. Responding to webhooks. Please see [/app/routes/webhooks.tsx](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/routes/webhooks.app.uninstalled.tsx).
-4. Using metafields, metaobjects, and declarative custom data definitions. Please see [/app/routes/app.\_index.tsx](https://github.com/Shopify/shopify-app-template-react-router/blob/main/app/routes/app._index.tsx) and [shopify.app.toml](https://github.com/Shopify/shopify-app-template-react-router/blob/main/shopify.app.toml).
+---
 
-Please read the [documentation for @shopify/shopify-app-react-router](https://shopify.dev/docs/api/shopify-app-react-router) to see what other API's are available.
+## How checkout is handled
 
-## Shopify Dev MCP
+This is the full lifecycle from the moment a customer clicks Pay now.
 
-This template is configured with the Shopify Dev MCP. This instructs [Cursor](https://cursor.com/), [GitHub Copilot](https://github.com/features/copilot) and [Claude Code](https://claude.com/product/claude-code) and [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) to use the Shopify Dev MCP.
+### 1. Shopify calls POST /payment-session
 
-For more information on the Shopify Dev MCP please read [the documentation](https://shopify.dev/docs/apps/build/devmcp).
+Shopify sends the order details to the adapter:
 
-## Deployment
-
-### Application Storage
-
-This template uses [Prisma](https://www.prisma.io/) to store session data, by default using an [SQLite](https://www.sqlite.org/index.html) database.
-The database is defined as a Prisma schema in `prisma/schema.prisma`.
-
-This use of SQLite works in production if your app runs as a single instance.
-The database that works best for you depends on the data your app needs and how it is queried.
-Here’s a short list of databases providers that provide a free tier to get started:
-
-| Database   | Type             | Hosters                                                                                                                                                                                                                                    |
-| ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MySQL      | SQL              | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-mysql), [Planet Scale](https://planetscale.com/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Google Cloud SQL](https://cloud.google.com/sql/docs/mysql) |
-| PostgreSQL | SQL              | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-postgresql), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Google Cloud SQL](https://cloud.google.com/sql/docs/postgres)                                   |
-| Redis      | Key-value        | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-redis), [Amazon MemoryDB](https://aws.amazon.com/memorydb/)                                                                                                        |
-| MongoDB    | NoSQL / Document | [Digital Ocean](https://www.digitalocean.com/products/managed-databases-mongodb), [MongoDB Atlas](https://www.mongodb.com/atlas/database)                                                                                                  |
-
-To use one of these, you can use a different [datasource provider](https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#datasource) in your `schema.prisma` file, or a different [SessionStorage adapter package](https://github.com/Shopify/shopify-api-js/blob/main/packages/shopify-api/docs/guides/session-storage.md).
-
-### Build
-
-Build the app by running the command below with the package manager of your choice:
-
-Using yarn:
-
-```shell
-yarn build
+```json
+{
+  "id": "gid://shopify/PaymentSession/abc123",
+  "amount": "49.99",
+  "currency": "USD",
+  "shop": "mystore.myshopify.com",
+  "test": true,
+  "kind": "sale",
+  "merchant_reference": "order-ref-001",
+  "checkout_url": "https://mystore.myshopify.com/checkout/..."
+}
 ```
 
-Using npm:
+### 2. Adapter verifies HMAC
 
-```shell
-npm run build
-```
+Reads the raw body as text, computes HMAC-SHA256 with `SHOPIFY_API_SECRET`, compares with `X-Shopify-Hmac-Sha256` header using `timingSafeEqual`. Returns 401 immediately if it fails.
 
-Using pnpm:
+### 3. Adapter looks up the org API key
 
-```shell
-pnpm run build
-```
+Calls `GET /~api/shopify/org-apikey?shop=mystore.myshopify.com` on the main app (authenticated with `INTERNAL_API_SECRET`). The main app finds the session row with a non-null `organizationId` and returns the active API key for that org.
 
-## Hosting
+If no API key is found (shop not connected), the adapter fetches the shop access token, calls `paymentSessionReject` on the Shopify Admin API, and returns `200 {}` so Shopify falls back to another payment method.
 
-When you're ready to set up your app in production, you can follow [our deployment documentation](https://shopify.dev/docs/apps/launch/deployment) to host it externally. From there, you have a few options:
+### 4. Adapter builds a signed callback URL
 
-- [Google Cloud Run](https://shopify.dev/docs/apps/launch/deployment/deploy-to-google-cloud-run): This tutorial is written specifically for this example repo, and is compatible with the extended steps included in the subsequent [**Build your app**](tutorial) in the **Getting started** docs. It is the most detailed tutorial for taking a React Router-based Shopify app and deploying it to production. It includes configuring permissions and secrets, setting up a production database, and even hosting your apps behind a load balancer across multiple regions.
-- [Fly.io](https://fly.io/docs/js/shopify/): Leverages the Fly.io CLI to quickly launch Shopify apps to a single machine.
-- [Render](https://render.com/docs/deploy-shopify-app): This tutorial guides you through using Docker to deploy and install apps on a Dev store.
-- [Manual deployment guide](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service): This resource provides general guidance on the requirements of deployment including environment variables, secrets, and persistent data.
-
-When you reach the step for [setting up environment variables](https://shopify.dev/docs/apps/deployment/web#set-env-vars), you also need to set the variable `NODE_ENV=production`.
-
-## Gotchas / Troubleshooting
-
-### Database tables don't exist
-
-If you get an error like:
+To safely return the customer after payment without exposing the payment GID in a guessable URL, the adapter creates a signed callback:
 
 ```
-The table `main.Session` does not exist in the current database.
+sig = HMAC-SHA256(INTERNAL_API_SECRET, "${gid}:${shop}") as hex
+callbackUrl = SHOPIFY_APP_URL/payment-complete?gid=...&shop=...&sig=...
 ```
 
-Create the database for Prisma. Run the `setup` script in `package.json` using `npm`, `yarn` or `pnpm`.
+This signature is verified when the customer returns, so only a callback from StellarTools (which received the URL) can resolve the payment.
 
-### Navigating/redirecting breaks an embedded app
+### 5. Adapter creates a StellarTools checkout
 
-Embedded apps must maintain the user session, which can be tricky inside an iFrame. To avoid issues:
+Calls `POST /api/checkout?type=direct` on the StellarTools checkout app:
 
-1. Use `Link` from `react-router` or `@shopify/polaris`. Do not use `<a>`.
-2. Use `redirect` returned from `authenticate.admin`. Do not use `redirect` from `react-router`
-3. Use `useSubmit` from `react-router`.
-
-This only applies if your app is embedded, which it will be by default.
-
-### Webhooks: shop-specific webhook subscriptions aren't updated
-
-If you are registering webhooks in the `afterAuth` hook, using `shopify.registerWebhooks`, you may find that your subscriptions aren't being updated.
-
-Instead of using the `afterAuth` hook declare app-specific webhooks in the `shopify.app.toml` file. This approach is easier since Shopify will automatically sync changes every time you run `deploy` (e.g: `npm run deploy`). Please read these guides to understand more:
-
-1. [app-specific vs shop-specific webhooks](https://shopify.dev/docs/apps/build/webhooks/subscribe#app-specific-subscriptions)
-2. [Create a subscription tutorial](https://shopify.dev/docs/apps/build/webhooks/subscribe/get-started?deliveryMethod=https)
-
-If you do need shop-specific webhooks, keep in mind that the package calls `afterAuth` in 2 scenarios:
-
-- After installing the app
-- When an access token expires
-
-During normal development, the app won't need to re-authenticate most of the time, so shop-specific subscriptions aren't updated. To force your app to update the subscriptions, uninstall and reinstall the app. Revisiting the app will call the `afterAuth` hook.
-
-### Webhooks: Admin created webhook failing HMAC validation
-
-Webhooks subscriptions created in the [Shopify admin](https://help.shopify.com/en/manual/orders/notifications/webhooks) will fail HMAC validation. This is because the webhook payload is not signed with your app's secret key.
-
-The recommended solution is to use [app-specific webhooks](https://shopify.dev/docs/apps/build/webhooks/subscribe#app-specific-subscriptions) defined in your toml file instead. Test your webhooks by triggering events manually in the Shopify admin(e.g. Updating the product title to trigger a `PRODUCTS_UPDATE`).
-
-### Webhooks: Admin object undefined on webhook events triggered by the CLI
-
-When you trigger a webhook event using the Shopify CLI, the `admin` object will be `undefined`. This is because the CLI triggers an event with a valid, but non-existent, shop. The `admin` object is only available when the webhook is triggered by a shop that has installed the app. This is expected.
-
-Webhooks triggered by the CLI are intended for initial experimentation testing of your webhook configuration. For more information on how to test your webhooks, see the [Shopify CLI documentation](https://shopify.dev/docs/apps/tools/cli/commands#webhook-trigger).
-
-### Incorrect GraphQL Hints
-
-By default the [graphql.vscode-graphql](https://marketplace.visualstudio.com/items?itemName=GraphQL.vscode-graphql) extension for will assume that GraphQL queries or mutations are for the [Shopify Admin API](https://shopify.dev/docs/api/admin). This is a sensible default, but it may not be true if:
-
-1. You use another Shopify API such as the storefront API.
-2. You use a third party GraphQL API.
-
-If so, please update [.graphqlrc.ts](https://github.com/Shopify/shopify-app-template-react-router/blob/main/.graphqlrc.ts).
-
-### Using Defer & await for streaming responses
-
-By default the CLI uses a cloudflare tunnel. Unfortunately cloudflare tunnels wait for the Response stream to finish, then sends one chunk. This will not affect production.
-
-To test [streaming using await](https://reactrouter.com/api/components/Await#await) during local development we recommend [localhost based development](https://shopify.dev/docs/apps/build/cli-for-apps/networking-options#localhost-based-development).
-
-### "nbf" claim timestamp check failed
-
-This is because a JWT token is expired. If you are consistently getting this error, it could be that the clock on your machine is not in sync with the server. To fix this ensure you have enabled "Set time and date automatically" in the "Date and Time" settings on your computer.
-
-### Using MongoDB and Prisma
-
-If you choose to use MongoDB with Prisma, there are some gotchas in Prisma's MongoDB support to be aware of. Please see the [Prisma SessionStorage README](https://www.npmjs.com/package/@shopify/shopify-app-session-storage-prisma#mongodb).
-
-### Unable to require(`C:\...\query_engine-windows.dll.node`).
-
-Unable to require(`C:\...\query_engine-windows.dll.node`).
-The Prisma engines do not seem to be compatible with your system.
-
-query_engine-windows.dll.node is not a valid Win32 application.
-
-**Fix:** Set the environment variable:
-
-```shell
-PRISMA_CLIENT_ENGINE_TYPE=binary
+```json
+{
+  "amount": 49.99,
+  "asset_code": "USDC",
+  "redirect_url": "<signed callback URL>",
+  "metadata": {
+    "shopify_payment_session_gid": "gid://shopify/PaymentSession/abc123",
+    "shopify_shop": "mystore.myshopify.com",
+    "shopify_merchant_reference": "order-ref-001"
+  }
+}
 ```
 
-This forces Prisma to use the binary engine mode, which runs the query engine as a separate process and can work via emulation on Windows ARM64.
+### 6. Adapter returns the redirect URL to Shopify
 
-## Resources
+```json
+HTTP 201
+{ "redirect_url": "https://checkout.stellartools.dev/pay/xyz..." }
+```
 
-React Router:
+Shopify immediately redirects the customer's browser to that URL.
 
-- [React Router docs](https://reactrouter.com/home)
+### 7. Customer pays on StellarTools
 
-Shopify:
+The customer connects their Stellar wallet (Freighter, LOBSTR, etc.) and sends USDC or another Stellar asset. StellarTools confirms the transaction on-chain.
 
-- [Intro to Shopify apps](https://shopify.dev/docs/apps/getting-started)
-- [Shopify App React Router docs](https://shopify.dev/docs/api/shopify-app-react-router)
-- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli)
-- [Shopify App Bridge](https://shopify.dev/docs/api/app-bridge-library).
-- [Polaris Web Components](https://shopify.dev/docs/api/app-home/polaris-web-components).
-- [App extensions](https://shopify.dev/docs/apps/app-extensions/list)
-- [Shopify Functions](https://shopify.dev/docs/api/functions)
+---
 
-Internationalization:
+## How a completed purchase is resolved
 
-- [Internationalizing your app](https://shopify.dev/docs/apps/best-practices/internationalization/getting-started)
+After the customer pays, StellarTools redirects them to the signed callback URL:
+
+```
+GET /payment-complete?gid=gid://shopify/PaymentSession/abc123&shop=mystore.myshopify.com&sig=<hex>
+```
+
+### Step 1 - Verify the callback signature
+
+The adapter recomputes `HMAC-SHA256(INTERNAL_API_SECRET, "${gid}:${shop}")` and compares it with the `sig` param using `timingSafeEqual`. If it does not match, the customer is redirected to the shop homepage and nothing is resolved.
+
+This prevents anyone from crafting a fake callback URL to falsely resolve a payment.
+
+### Step 2 - Get the shop access token
+
+The adapter calls `GET /~api/shopify/sessions?shop=mystore.myshopify.com` on the main app to find the session row for this shop. It picks the session that has a non-null `organizationId` and reads its `accessToken` (the Shopify Admin API token granted during OAuth install).
+
+### Step 3 - Call paymentSessionResolve on the Shopify Admin API
+
+Using the access token, the adapter calls the Shopify Payments Apps GraphQL API:
+
+```graphql
+mutation paymentSessionResolve($id: ID!) {
+  paymentSessionResolve(id: $id) {
+    paymentSession {
+      nextAction {
+        context {
+          ... on PaymentSessionActionsRedirect {
+            redirectUrl
+          }
+        }
+      }
+    }
+    userErrors { message }
+  }
+}
+```
+
+This tells Shopify the payment was successful and asks where to send the customer next.
+
+### Step 4 - Redirect the customer
+
+Shopify responds with a `redirectUrl` (the thank-you page for that order). The adapter redirects the customer's browser there. The order appears in Shopify Admin as **Paid**.
+
+If anything fails (bad signature, no access token, GraphQL error), the adapter falls back to redirecting to `https://{shop}/` so the customer is not left stranded.
+
+---
+
+## Prerequisites
+
+### Accounts and access
+
+| Requirement | Where to get it |
+|---|---|
+| Shopify Partner account | partners.shopify.com |
+| Shopify development store | Partner Dashboard -> Stores -> Add store -> Development store |
+| StellarTools account and organization | Your local StellarTools dashboard |
+| StellarTools API key (`st_key_...`) | Dashboard -> API Keys -> Create key |
+| Shopify Payments Partner enrollment | Contact Shopify Partner support — required before the extension appears at checkout |
+
+### Tools
+
+```bash
+node -v        # 18+
+pnpm -v        # any recent version
+npx shopify version  # should be 4.x
+```
+
+---
+
+## Local setup
+
+### 1. Install dependencies
+
+```bash
+# from the repo root
+pnpm install
+```
+
+### 2. Set environment variables
+
+Create or update `packages/shopify-adapter/.env`:
+
+```env
+# From Shopify Partner Dashboard -> Apps -> stellartools -> Settings
+SHOPIFY_API_KEY=f1b7c86f37c40aae0065942e67f80c06
+SHOPIFY_API_SECRET=shpss_...
+
+# OAuth scopes (comma-separated, no spaces)
+SCOPES=read_orders,read_checkouts
+
+# Main StellarTools app URLs
+STELLAR_TOOLS_API_URL=http://dashboard.localhost:3000/~api
+STELLAR_TOOLS_DASHBOARD_URL=http://dashboard.localhost:3000
+STELLAR_TOOLS_CHECKOUT_URL=http://localhost:3000
+
+# Shared secret — must match INTERNAL_API_SECRET in the main app .env
+INTERNAL_API_SECRET=<your-shared-secret>
+```
+
+`SHOPIFY_APP_URL` is not set here. The Shopify CLI injects it automatically when you run `shopify app dev`.
+
+### 3. Start the main StellarTools app first
+
+The adapter has no local database. All session reads and writes go to the main app. It must be running before the adapter starts.
+
+```bash
+# from repo root
+pnpm dev
+```
+
+Verify the session API responds:
+
+```bash
+curl -s -H "Authorization: Bearer <INTERNAL_API_SECRET>" \
+  "http://dashboard.localhost:3000/~api/shopify/sessions?shop=test.myshopify.com"
+# should return: []
+```
+
+### 4. Start the adapter
+
+```bash
+cd packages/shopify-adapter
+npx shopify app dev --config shopify.app.stellartools.toml
+```
+
+The CLI will:
+- Ask you to select your Partner organization and app
+- Ask which development store to use
+- Start a public HTTPS tunnel (Cloudflare)
+- Inject `SHOPIFY_APP_URL` with the tunnel URL
+- Open the app in your dev store Shopify Admin
+
+Press `p` to open the embedded app.
+
+---
+
+## Step-by-step: connect a store
+
+### 1. Install the app
+
+Run `shopify app dev`, select your dev store, press `p`. The app OAuth flow runs automatically and you land on the Home screen showing "Store not connected."
+
+### 2. Create a StellarTools API key
+
+1. Open `http://dashboard.localhost:3000`
+2. Log in, go to API Keys, create a new key
+3. Copy the `st_key_...` value
+
+### 3. Connect the store
+
+1. In the embedded app, click **Get started** in the nav
+2. Paste your `st_key_...` into the API key field
+3. Click **Connect store**
+
+Behind the scenes:
+- `POST /~api/shopify/connect { shop, apiKey }` — links the shop to your org in the database
+- `paymentsAppConfigure(ready: true)` — notifies Shopify this app is ready to process payments
+- You are redirected to the Shopify payments activation page
+
+### 4. Activate the payment method
+
+On the Shopify payments settings page:
+1. Enable **Test mode**
+2. Click **Activate**
+
+StellarTools Payments will now appear in the checkout payment step for your dev store.
+
+> This step requires Payments Partner enrollment. See the section below.
+
+### 5. Verify in the Home screen
+
+Go back to the embedded app Home. You should see:
+- Organization ID (with copy button)
+- StellarTools API URL (with copy button)
+- Webhook endpoint (with copy button)
+- Active scopes shown as pills
+
+---
+
+## Step-by-step: test a payment
+
+### 1. Place an order
+
+In your dev store, add a product to the cart and begin checkout. At the Payment step, select **StellarTools Payments** and click Pay now.
+
+### 2. Pay on StellarTools
+
+You are redirected to the StellarTools hosted checkout. Use a Stellar testnet wallet (Freighter works) with testnet USDC.
+
+### 3. Order confirmed
+
+After payment, you land on the Shopify thank-you page. The order appears in Shopify Admin -> Orders as **Paid**.
+
+---
+
+## Testing endpoints directly
+
+You can hit the payment routes directly without going through the Shopify checkout.
+
+### Generate a test HMAC
+
+```bash
+node -e "
+  const crypto = require('crypto');
+  const secret = process.env.SHOPIFY_API_SECRET;
+  const body = JSON.stringify({
+    id: 'gid://shopify/PaymentSession/1',
+    amount: '10.00',
+    currency: 'USD',
+    shop: 'your-store.myshopify.com',
+    test: true,
+    merchant_reference: 'ref_001',
+    kind: 'sale',
+    checkout_url: ''
+  });
+  const sig = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('base64');
+  console.log('Sig:', sig);
+  console.log('Body:', body);
+"
+```
+
+### POST /payment-session
+
+```bash
+curl -X POST https://<tunnel-url>/payment-session \
+  -H "Content-Type: application/json" \
+  -H "X-Shopify-Hmac-Sha256: <sig>" \
+  -d '<body>'
+
+# Shop connected:     HTTP 201  { "redirect_url": "https://..." }
+# Shop not connected: HTTP 200  {}
+# Bad HMAC:           HTTP 401
+```
+
+### POST /refund-session
+
+```bash
+node -e "
+  const crypto = require('crypto');
+  const secret = process.env.SHOPIFY_API_SECRET;
+  const body = JSON.stringify({
+    id: 'gid://shopify/RefundSession/1',
+    payment_id: 'gid://shopify/PaymentSession/1',
+    amount: '10.00',
+    currency: 'USD',
+    shop: 'your-store.myshopify.com',
+    merchant_reference: 'ref_001'
+  });
+  const sig = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('base64');
+  console.log(sig);
+"
+
+curl -X POST https://<tunnel-url>/refund-session \
+  -H "Content-Type: application/json" \
+  -H "X-Shopify-Hmac-Sha256: <sig>" \
+  -d '<body>'
+# HTTP 200 {}
+```
+
+### Trigger webhooks via Shopify CLI
+
+```bash
+npx shopify webhook trigger \
+  --topic=app/uninstalled \
+  --config shopify.app.stellartools.toml
+
+npx shopify webhook trigger \
+  --topic=app/scopes_update \
+  --config shopify.app.stellartools.toml
+```
+
+---
+
+## Payments Partner enrollment
+
+The `payments_extension` type requires your Shopify Partner account to be enrolled in the Shopify Payments Platform. Without it:
+
+- `npx shopify app deploy` fails with `Beta requirements not met`
+- The payment method does not appear at checkout
+- The activation page is blank
+
+**How to apply:**
+
+1. Go to partners.shopify.com
+2. Click your account name -> Contact support
+3. Select **Apps** as the topic
+4. Ask to be enrolled in the **Payments Platform**, mentioning you are building an offsite payment provider
+
+Once approved, deploy:
+
+```bash
+npx shopify app deploy --config shopify.app.stellartools.toml
+```
+
+Then activate in your dev store: Shopify Admin -> Settings -> Payments -> StellarTools Payments -> Activate (Test mode).
+
+---
+
+## What is and is not implemented
+
+| Feature | Status |
+|---|---|
+| OAuth install and session storage | Done |
+| Merchant connect via API key | Done |
+| Payment session (create checkout, redirect) | Done |
+| Payment callback (verify, resolve, redirect) | Done |
+| HMAC verification on all payment routes | Done |
+| Signed callback URL (prevents forgery) | Done |
+| App uninstall webhook (disconnects shop) | Done |
+| Scopes update webhook | Done |
+| Capture session | No-op — StellarTools captures immediately |
+| Void session | No-op — pending payments expire automatically |
+| Refund session | Stub — needs Stellar payment reversal using `payment_id` |
+| Payment extension at checkout | Blocked on Payments Partner enrollment |
+
+---
+
+## Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `SHOPIFY_API_KEY` | App identity, used in payments activation URL |
+| `SHOPIFY_API_SECRET` | OAuth token exchange, HMAC verification on payment routes |
+| `SCOPES` | Comma-separated OAuth scopes requested on install |
+| `SHOPIFY_APP_URL` | Injected by CLI. Used to build the signed payment callback URL |
+| `STELLAR_TOOLS_API_URL` | Base for all internal API calls to the main app (`/~api`) |
+| `STELLAR_TOOLS_DASHBOARD_URL` | Used for dashboard links shown to merchants in the UI |
+| `STELLAR_TOOLS_CHECKOUT_URL` | Base for the checkout API (`POST /api/checkout`) |
+| `INTERNAL_API_SECRET` | Bearer token authenticating adapter-to-main-app HTTP calls |
+
+---
+
+## Project structure
+
+```
+packages/shopify-adapter/
+├── app/
+│   ├── shopify.server.ts              Shopify app instance, RemoteSessionStorage wired in
+│   ├── session-storage.server.ts      Proxies all session ops to main app via HTTP
+│   └── routes/
+│       ├── _index/route.tsx           Public landing page (not embedded)
+│       ├── auth.$.tsx                 OAuth callback — library handles token exchange
+│       ├── auth.login/route.tsx       Manual install entry point
+│       ├── app.tsx                    Embedded app layout and nav
+│       ├── app._index.tsx             Home screen — connection details, manage, disconnect
+│       ├── app.additional.tsx         Connect form — paste API key to link store
+│       ├── payment-session.tsx        Shopify calls this when customer clicks Pay now
+│       ├── payment-complete.tsx       Customer lands here after paying on StellarTools
+│       ├── refund-session.tsx         Shopify calls this when merchant issues a refund
+│       ├── capture-session.tsx        No-op acknowledgement
+│       ├── void-session.tsx           No-op acknowledgement
+│       ├── webhooks.app.uninstalled   Disconnects shop from org on uninstall
+│       └── webhooks.app.scopes_update Updates scope in session after permission change
+├── extensions/
+│   └── stellar-payments/
+│       └── shopify.extension.toml     Registers the payment extension with Shopify
+├── shopify.app.stellartools.toml      App config: scopes, webhook subscriptions, auth
+├── shopify.web.toml                   Dev server command config
+└── .env                               Local environment variables
+```

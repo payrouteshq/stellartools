@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1780412900738,
-      "tag": "0000_neat_wendigo",
+      "when": 1781096804434,
+      "tag": "0000_wet_komodo",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1780475418921,
-      "tag": "0001_massive_corsair",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1780926490912,
-      "tag": "0002_furry_absorbing_man",
+      "when": 1781139319118,
+      "tag": "0001_tired_power_pack",
       "breakpoints": true
     }
   ]

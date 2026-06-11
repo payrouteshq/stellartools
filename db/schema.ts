@@ -660,6 +660,25 @@ export const appLogs = pgTable("app_log", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const shopifySessions = pgTable(
+  "shopify_session",
+  {
+    id: text("id").primaryKey(),
+    shop: text("shop").notNull(),
+    state: text("state").notNull().default(""),
+    isOnline: boolean("is_online").notNull().default(false),
+    scope: text("scope"),
+    expires: timestamp("expires"),
+    accessToken: text("access_token").notNull().default(""),
+    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    shopIdx: index("shopify_session_shop_idx").on(table.shop),
+    orgIdx: index("shopify_session_org_idx").on(table.organizationId),
+  })
+);
+
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;
@@ -687,6 +706,7 @@ export type { ProductStatus, ProductType };
 export type App = InferSelectModel<typeof apps>;
 export type AppInstallation = InferSelectModel<typeof appInstallations>;
 export type AppLog = InferSelectModel<typeof appLogs>;
+export type ShopifySession = InferSelectModel<typeof shopifySessions>;
 
 export type ResolvedCustomer = Customer & { wallets?: Array<CustomerWallet> };
 export type ResolvedPayment = Payment & {

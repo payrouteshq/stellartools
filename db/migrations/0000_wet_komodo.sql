@@ -22,8 +22,7 @@ CREATE TABLE "account" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"metadata" jsonb,
-	"two_factor_secret" text,
-	"two_factor_enabled" boolean DEFAULT false NOT NULL,
+	"$2fa_secret" text,
 	CONSTRAINT "account_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
@@ -354,6 +353,26 @@ CREATE TABLE "secret_access_log" (
 	"network" "network" NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "shopify_session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"shop" text NOT NULL,
+	"state" text DEFAULT '' NOT NULL,
+	"is_online" boolean DEFAULT false NOT NULL,
+	"scope" text,
+	"expires" timestamp,
+	"access_token" text DEFAULT '' NOT NULL,
+	"user_id" bigint,
+	"first_name" text,
+	"last_name" text,
+	"email" text,
+	"account_owner" boolean DEFAULT false NOT NULL,
+	"locale" text,
+	"collaborator" boolean DEFAULT false,
+	"email_verified" boolean DEFAULT false,
+	"organization_id" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "subscription" (
 	"id" text PRIMARY KEY NOT NULL,
 	"customer_id" text NOT NULL,
@@ -453,6 +472,7 @@ ALTER TABLE "refund" ADD CONSTRAINT "refund_payment_id_payment_id_fk" FOREIGN KE
 ALTER TABLE "refund" ADD CONSTRAINT "refund_customer_id_customer_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secret_access_log" ADD CONSTRAINT "secret_access_log_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secret_access_log" ADD CONSTRAINT "secret_access_log_secret_id_organization_secret_id_fk" FOREIGN KEY ("secret_id") REFERENCES "public"."organization_secret"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shopify_session" ADD CONSTRAINT "shopify_session_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscription" ADD CONSTRAINT "subscription_customer_id_customer_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscription" ADD CONSTRAINT "subscription_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscription" ADD CONSTRAINT "subscription_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -472,4 +492,6 @@ CREATE INDEX "idx_customer_org_env" ON "customer" USING btree ("organization_id"
 CREATE INDEX "idx_customer_org_created_at" ON "customer" USING btree ("organization_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_org_created_at" ON "organization" USING btree ("account_id","created_at");--> statement-breakpoint
 CREATE INDEX "password_reset_token_idx" ON "password_reset" USING btree ("token");--> statement-breakpoint
-CREATE UNIQUE INDEX "unique_succeeded_refund" ON "refund" USING btree ("payment_id","customer_id") WHERE status = 'succeeded';
+CREATE UNIQUE INDEX "unique_succeeded_refund" ON "refund" USING btree ("payment_id","customer_id") WHERE status = 'succeeded';--> statement-breakpoint
+CREATE INDEX "shopify_session_shop_idx" ON "shopify_session" USING btree ("shop");--> statement-breakpoint
+CREATE INDEX "shopify_session_org_idx" ON "shopify_session" USING btree ("organization_id");
