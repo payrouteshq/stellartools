@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { reset2fa, setup2fa, toggle2fa } from "@/actions/2fa";
+import { initiate2faReset, setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
 import { putOrganization, retrieveOrganization } from "@/actions/organization";
@@ -48,7 +48,17 @@ import { useOrgContext } from "@/hooks/use-org-query";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Check, ChevronRight, ChevronsUpDown, Copy, ExternalLink, RotateCcw, ShieldCheck, ShieldOff } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  ChevronRight,
+  ChevronsUpDown,
+  Copy,
+  ExternalLink,
+  RotateCcw,
+  ShieldCheck,
+  ShieldOff,
+} from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -245,9 +255,7 @@ const CurrencyPickerCard = () => {
                 aria-expanded={open}
                 className="h-9 w-full max-w-xs justify-between rounded-lg font-normal shadow-none"
               >
-                <span className="truncate">
-                  {selected ? `${selected.name} (${selected.code})` : "Select currency"}
-                </span>
+                <span className="truncate">{selected ? `${selected.name} (${selected.code})` : "Select currency"}</span>
                 <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
               </Button>
             )}
@@ -268,7 +276,9 @@ const CurrencyPickerCard = () => {
                         setOpen(false);
                       }}
                     >
-                      <span className={cn("flex-1 truncate", orgContext?.selectedCurrency === item.code && "font-medium")}>
+                      <span
+                        className={cn("flex-1 truncate", orgContext?.selectedCurrency === item.code && "font-medium")}
+                      >
                         {item.name} ({item.code})
                       </span>
                       {orgContext?.selectedCurrency === item.code && <Check className="size-4 shrink-0" />}
@@ -441,30 +451,80 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
   );
 };
 
+const codeSchema = Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers");
+
 const $2faSchema = Schema.object({
-  code: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers"),
+  code: codeSchema,
 });
 
 const $2faModal = ({
   userId,
   setupData,
+  userEmail,
 }: {
   userId: string;
   setupData?: { secret: string; qrCodeDataUrl: string };
+  userEmail: string;
 }) => {
   const isEnabling = !!setupData;
   const { copied, handleCopy } = useCopy();
 
-  const { mutate: toggle, isPending } = useAction((code: string) => toggle2fa(userId, code, setupData?.secret), {
-    invalidate: ["current-user"],
-    successMsg: `2FA ${isEnabling ? "enabled" : "disabled"} successfully`,
-    onSuccess: AppModal.close,
+  const [step, setStep] = React.useState<"request" | "verify">(isEnabling ? "verify" : "request");
+  const [resetToken, setResetToken] = React.useState<string | null>(null);
+
+  const { mutate: toggle, isPending } = useAction(
+    (code: string) => toggle2fa(userId, code, setupData?.secret, resetToken ?? undefined),
+    {
+      invalidate: ["current-user"],
+      successMsg: `2FA ${isEnabling ? "enabled" : "disabled"} successfully`,
+      onSuccess: AppModal.close,
+    }
+  );
+
+  const { mutate: sendCode, isPending: isSending } = useAction((id: string) => initiate2faReset(id), {
+    successMsg: "Verification code sent to your email",
+    errorMsg: "Failed to send verification code",
+    onSuccess: (data) => {
+      setResetToken(data.resetToken);
+      setStep("verify");
+    },
   });
 
   const form = RHF.useForm({
     resolver: zodResolver($2faSchema),
     defaultValues: { code: "" },
   });
+
+  if (step === "request") {
+    return (
+      <div className="flex flex-col items-center gap-6 text-center">
+        <p className="text-muted-foreground text-sm">
+          For your security, we can send a 6-digit code to{" "}
+          <span className="text-foreground font-medium">{userEmail}</span>, or you can use your authenticator app code
+          instead.
+        </p>
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex w-full gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              isLoading={isSending}
+              disabled={isSending}
+              onClick={() => sendCode(userId)}
+            >
+              Send Code
+            </Button>
+          </div>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("verify")}>
+            Use authenticator app instead
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={form.handleSubmit((d) => toggle(d.code))} className="flex flex-col items-center gap-6">
@@ -490,7 +550,9 @@ const $2faModal = ({
           </div>
         </>
       ) : (
-        <p className="text-muted-foreground text-center text-sm">Enter your code to confirm deactivation.</p>
+        <p className="text-muted-foreground text-center text-sm">
+          {resetToken ? "Enter the 6-digit code sent to your email." : "Enter your authenticator app code."}
+        </p>
       )}
 
       <RHF.Controller
@@ -555,7 +617,7 @@ const SecurityTabContent = ({ user }: { user: User }) => {
           title: "Disable two-factor authentication",
           description: "Enter the current 6-digit code from your authenticator app to confirm.",
           size: "small",
-          content: <$2faModal userId={user.id} />,
+          content: <$2faModal userId={user.id} userEmail={user.email} />,
         });
         return { isEnabling: false };
       }
@@ -569,14 +631,14 @@ const SecurityTabContent = ({ user }: { user: User }) => {
             title: "Authenticator App",
             size: "small",
             showCloseButton: true,
-            content: <$2faModal userId={user.id} setupData={data} />,
+            content: <$2faModal userId={user.id} setupData={data} userEmail={user.email} />,
           });
         } else if ("isEnabling" in data && !data.isEnabling) {
           AppModal.open({
             title: "Disable two-factor authentication",
             description: "Enter the current 6-digit code from your authenticator app to confirm.",
             size: "small",
-            content: <$2faModal userId={user.id} />,
+            content: <$2faModal userId={user.id} userEmail={user.email} />,
           });
         }
       },
@@ -614,30 +676,10 @@ const SecurityTabContent = ({ user }: { user: User }) => {
                   AppModal.open({
                     title: "Reset two-factor authentication",
                     description:
-                      "If you've lost access to your authenticator app or have conflicting entries, you can reset 2FA here. You'll be able to set it up again afterwards.",
+                      "If you've lost access to your authenticator app, verify your email to reset 2FA. You can set it up again afterwards.",
                     size: "small",
                     showCloseButton: true,
-                    content: null,
-                    footer: (
-                      <div className="flex w-full gap-2">
-                        <Button type="button" variant="outline" className="flex-1" onClick={AppModal.close}>
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          className="flex-1"
-                          onClick={() =>
-                            reset2fa(user.id).then(() => {
-                              AppModal.close();
-                              window.location.reload();
-                            })
-                          }
-                        >
-                          Reset 2FA
-                        </Button>
-                      </div>
-                    ),
+                    content: <$2faModal userId={user.id} userEmail={user.email} />,
                   })
                 }
               >
