@@ -29,10 +29,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/usepaykit/stellartools.git"
+    "url": "https://github.com/payrouteshq/stellartools.git"
   },
   "bugs": {
-    "url": "https://github.com/usepaykit/stellartools/issues"
+    "url": "https://github.com/payrouteshq/stellartools/issues"
   },
   "dependencies": {
     "better-result": "^2.5.1",
