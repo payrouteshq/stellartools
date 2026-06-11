@@ -12,13 +12,14 @@ import { Button } from "@/components/ui/button";
 import { subscriptionStatusEnum } from "@/constant/schema.client";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { Money } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter, formatXLM } from "./_shared";
+import { SubscriptionModalContent, SubscriptionModalFooter } from "./_shared";
 
 const STATUS_MAP: Record<string, { cls: string; label: string }> = {
   active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
@@ -67,7 +68,7 @@ export default function SubscriptionsPage() {
           customerEmail: s.customer.email,
           status: s.subscription.status,
           product: s.product.name,
-          amount: s.product.priceAmount,
+          amount: s.product.priceCents,
           createdAt: s.subscription.createdAt,
         })),
     [subs, activeTab]
@@ -103,7 +104,9 @@ export default function SubscriptionsPage() {
     {
       accessorKey: "amount",
       header: "Amount",
-      cell: ({ row }) => <div className="text-sm">{formatXLM(row.original.amount)} XLM / mo</div>,
+      cell: ({ row }) => (
+        <div className="text-sm">{Money.format(row.original.amount, row.original.currencyCode)} XLM / mo</div>
+      ),
     },
     {
       accessorKey: "createdAt",

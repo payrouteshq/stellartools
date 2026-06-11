@@ -169,7 +169,7 @@ export function CustomerModalContent({
         className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden"
       >
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-6 px-1">
+          <div className="mx-auto w-full max-w-lg space-y-6 px-1">
             <div>
               <h3 className="mb-2 text-lg font-semibold">Basic Information</h3>
               <p className="text-muted-foreground text-sm">Enter the customer’s basic contact information.</p>
