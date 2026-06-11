@@ -1,6 +1,8 @@
 "use client";
 
-import { setup2fa, toggle2fa } from "@/actions/2fa";
+import { useState } from "react";
+
+import { initiate2faReset, setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
 import { putOrganization, retrieveOrganization } from "@/actions/organization";
@@ -346,58 +348,148 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
   );
 };
 
+const codeSchema = Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers");
+
 const $2faSchema = Schema.object({
-  code: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers"),
+  code: codeSchema,
 });
+
+const $2faDisableSchema = Schema.union([
+  Schema.object({ totpCode: codeSchema }),
+  Schema.object({ emailCode: codeSchema }),
+]);
+
+type Disable2faFormData = Schema.infer<typeof $2faDisableSchema>;
 
 const $2faModal = ({
   userId,
+  userEmail,
   setupData,
 }: {
   userId: string;
+  userEmail: string;
   setupData?: { secret: string; qrCodeDataUrl: string };
 }) => {
   const isEnabling = !!setupData;
+  const [step, setStep] = useState<"request" | "verify">("request");
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const { mutate: toggle, isPending } = useAction((code: string) => toggle2fa(userId, code, setupData?.secret), {
     invalidate: ["current-user"],
-    successMsg: `2FA ${isEnabling ? "enabled" : "disabled"} successfully`,
+    successMsg: "2FA enabled successfully",
     onSuccess: AppModal.close,
   });
 
-  const form = RHF.useForm({
-    resolver: zodResolver($2faSchema),
-    defaultValues: { code: "" },
+  const { mutate: sendCode, isPending: isSending } = useAction((id: string) => initiate2faReset(id), {
+    successMsg: "Verification code sent to your email",
+    onSuccess: (data) => {
+      setResetToken(data.resetToken);
+      setStep("verify");
+    },
   });
 
-  return (
-    <form onSubmit={form.handleSubmit((d) => toggle(d.code))} className="flex flex-col items-center gap-6">
-      {isEnabling && (
+  const { mutate: toggleDisable, isPending: isDisablePending } = useAction(
+    (data: Disable2faFormData) => {
+      if ("emailCode" in data) {
+        if (!resetToken) throw new Error("No verification code found. Please request a new one.");
+        return toggle2fa(userId, data.emailCode, undefined, resetToken);
+      }
+      return toggle2fa(userId, data.totpCode);
+    },
+    { invalidate: ["current-user"], successMsg: "2FA disabled successfully", onSuccess: AppModal.close }
+  );
+
+  const enableForm = RHF.useForm({ resolver: zodResolver($2faSchema), defaultValues: { code: "" } });
+  const disableForm = RHF.useForm({
+    resolver: zodResolver($2faDisableSchema),
+    defaultValues: { totpCode: "", emailCode: "" },
+  });
+
+  if (isEnabling) {
+    return (
+      <form onSubmit={enableForm.handleSubmit((d) => toggle(d.code))} className="flex flex-col items-center gap-6">
         <div className="flex w-full flex-col items-center gap-4">
-          <img src={setupData.qrCodeDataUrl} alt="QR" className="h-48 w-48 rounded-lg border shadow-sm" />
+          <img src={setupData!.qrCodeDataUrl} alt="QR" className="h-48 w-48 rounded-lg border shadow-sm" />
           <div className="bg-muted w-full rounded-md px-3 py-2 text-center">
             <p className="text-muted-foreground mb-1 text-[10px] font-bold tracking-wider uppercase">Manual Key</p>
-            <p className="font-mono text-xs tracking-widest break-all select-all">{setupData.secret}</p>
+            <p className="font-mono text-xs tracking-widest break-all select-all">{setupData!.secret}</p>
           </div>
         </div>
-      )}
+        <div className="flex w-full flex-col items-center gap-4">
+          <RHF.Controller
+            control={enableForm.control}
+            name="code"
+            render={({ field, fieldState: { error } }) => (
+              <div className="flex flex-col items-center gap-2">
+                <InputOTP maxLength={6} value={field.value} onChange={field.onChange} disabled={isPending}>
+                  <InputOTPGroup>
+                    {[...Array(6)].map((_, i) => (
+                      <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+                {error && <p className="text-destructive text-center text-xs">{error.message}</p>}
+              </div>
+            )}
+          />
+          <div className="flex w-full gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" isLoading={isPending} disabled={isPending}>
+              Verify & Enable
+            </Button>
+          </div>
+        </div>
+      </form>
+    );
+  }
 
-      <div className="flex w-full flex-col items-center gap-4">
-        {!isEnabling && (
-          <p className="text-muted-foreground text-center text-sm">Enter your code to confirm deactivation.</p>
-        )}
+  if (step === "request") {
+    return (
+      <div className="flex flex-col items-center gap-6 text-center">
+        <p className="text-muted-foreground text-sm">
+          For your security, we can send a 6-digit code to{" "}
+          <span className="text-foreground font-medium">{userEmail}</span>, or you can use your authenticator app code
+          instead.
+        </p>
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex w-full gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              isLoading={isSending}
+              disabled={isSending}
+              onClick={() => sendCode(userId)}
+            >
+              Send Code
+            </Button>
+          </div>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("verify")}>
+            Use authenticator app instead
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
+  return (
+    <form onSubmit={disableForm.handleSubmit((d) => toggleDisable(d))} className="flex flex-col items-center gap-6">
+      <p className="text-muted-foreground text-center text-sm">
+        Enter your email verification code or authenticator app code. The email code expires in 10 minutes.
+      </p>
+
+      <div className="w-full space-y-2">
+        <p className="text-sm font-medium">Email verification code</p>
         <RHF.Controller
-          control={form.control}
-          name="code"
+          control={disableForm.control}
+          name="emailCode"
           render={({ field, fieldState: { error } }) => (
             <div className="flex flex-col items-center gap-2">
-              <InputOTP
-                maxLength={6}
-                value={field.value}
-                onChange={field.onChange}
-                disabled={isPending || form.formState.isSubmitting}
-              >
+              <InputOTP maxLength={6} value={field.value} onChange={field.onChange} disabled={isDisablePending}>
                 <InputOTPGroup>
                   {[...Array(6)].map((_, i) => (
                     <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
@@ -408,20 +500,48 @@ const $2faModal = ({
             </div>
           )}
         />
+      </div>
 
-        <div className="flex w-full gap-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            className="flex-1"
-            isLoading={isPending}
-            disabled={isPending || form.formState.isSubmitting}
-          >
-            {isEnabling ? "Verify & Enable" : "Confirm Disable"}
-          </Button>
-        </div>
+      <div className="w-full space-y-2">
+        <p className="text-sm font-medium">Authenticator app code</p>
+        <RHF.Controller
+          control={disableForm.control}
+          name="totpCode"
+          render={({ field, fieldState: { error } }) => (
+            <div className="flex flex-col items-center gap-2">
+              <InputOTP maxLength={6} value={field.value} onChange={field.onChange} disabled={isDisablePending}>
+                <InputOTPGroup>
+                  {[...Array(6)].map((_, i) => (
+                    <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+              {error && <p className="text-destructive text-center text-xs">{error.message}</p>}
+            </div>
+          )}
+        />
+      </div>
+
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2 disabled:cursor-not-allowed"
+        disabled={isSending}
+        onClick={() => {
+          disableForm.setValue("emailCode", "");
+          disableForm.setValue("totpCode", "");
+          sendCode(userId);
+        }}
+      >
+        {isSending ? "Sending..." : "Resend email code"}
+      </button>
+
+      <div className="flex w-full gap-2">
+        <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
+          Cancel
+        </Button>
+        <Button type="submit" className="flex-1" isLoading={isDisablePending} disabled={isDisablePending}>
+          Confirm Disable
+        </Button>
       </div>
     </form>
   );
@@ -436,9 +556,9 @@ const SecurityTabContent = ({ user }: { user: User }) => {
       } else {
         AppModal.open({
           title: "Disable two-factor authentication",
-          description: "Enter the current 6-digit code from your authenticator app to confirm.",
+          description: "We will send a verification code to your email to confirm.",
           size: "small",
-          content: <$2faModal userId={user.id} />,
+          content: <$2faModal userId={user.id} userEmail={user.email} />,
         });
         return { isEnabling: false };
       }
@@ -453,14 +573,14 @@ const SecurityTabContent = ({ user }: { user: User }) => {
             description:
               "Scan the QR code with Google Authenticator (or any TOTP app), then enter the 6-digit code to confirm.",
             size: "small",
-            content: <$2faModal userId={user.id} setupData={data} />,
+            content: <$2faModal userId={user.id} userEmail={user.email} setupData={data} />,
           });
         } else if ("isEnabling" in data && !data.isEnabling) {
           AppModal.open({
             title: "Disable two-factor authentication",
-            description: "Enter the current 6-digit code from your authenticator app to confirm.",
+            description: "We will send a verification code to your email to confirm.",
             size: "small",
-            content: <$2faModal userId={user.id} />,
+            content: <$2faModal userId={user.id} userEmail={user.email} />,
           });
         }
       },

@@ -137,12 +137,12 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                 addNewLabel="New customer"
                 label="Customer"
                 renderItem={(c) => ({
-                    searchValue: c.name!,
-                    id: c.id,
-                    title: c.name!,
-                    subtitle: c.email!,
-                    image: c.image ? { src: c.image, alt: c.name ?? undefined } : undefined,
-                  })}
+                  searchValue: c.name!,
+                  id: c.id,
+                  title: c.name!,
+                  subtitle: c.email!,
+                  image: c.image ? { src: c.image, alt: c.name ?? undefined } : undefined,
+                })}
                 renderSelected={async (item) => {
                   const result = await retrieveCustomers(
                     { id: item.id },
@@ -157,13 +157,13 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                       {customer.email && (
                         <div>
                           <p className="text-sm font-semibold">Email</p>
-                          <p className="text-sm text-muted-foreground">{customer.email}</p>
+                          <p className="text-muted-foreground text-sm">{customer.email}</p>
                         </div>
                       )}
                       {customer.phone && (
                         <div>
                           <p className="text-sm font-semibold">Phone</p>
-                          <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                          <p className="text-muted-foreground text-sm">{customer.phone}</p>
                         </div>
                       )}
                       {customer.wallets && customer.wallets.length > 0 && (
@@ -172,7 +172,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                             {customer.wallets.length === 1 ? "Wallet" : "Wallets"}
                           </p>
                           {customer.wallets.map((w, i) => (
-                            <p key={i} className="truncate font-mono text-xs text-muted-foreground">
+                            <p key={i} className="text-muted-foreground truncate font-mono text-xs">
                               {w.address}
                             </p>
                           ))}
