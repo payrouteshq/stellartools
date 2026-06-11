@@ -4,13 +4,10 @@ import { retrieveAccount } from "@/actions/account";
 import { generateAndSetSession } from "@/actions/auth";
 import { AuthProvider } from "@/constant/schema.client";
 import { accounts, db } from "@/db";
-import { TwoFaDisableVerificationEmail } from "@/emails/2fa-disable-verification";
 import { deleteCookies, getCookie } from "@/integrations/cookie-manager";
-import { sendEmail } from "@/integrations/email";
 import { decrypt, encrypt } from "@/integrations/encryption";
-import { signJwt, verifyJwt } from "@/integrations/jwt";
+import { verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
-import { randomInt } from "crypto";
 import { eq } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
@@ -40,19 +37,6 @@ export const setup2fa = safeAction(async (accountId: string) => {
   const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
 
   return { secret, qrCodeDataUrl };
-});
-
-export const initiate2faReset = safeAction(async (accountId: string) => {
-  const account = await retrieveAccount({ id: accountId });
-  if (!account) throw new AppError("Account not found");
-  if (!account.$2faSecret) throw new AppError("2FA is not enabled on this account");
-
-  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const resetToken = signJwt({ accountId, code }, "10m");
-
-  await sendEmail(account.email, "Your 2FA disable verification code", TwoFaDisableVerificationEmail({ code }));
-
-  return { success: true, resetToken };
 });
 
 export const toggle2fa = safeAction(
@@ -90,15 +74,11 @@ export const toggle2fa = safeAction(
   }
 );
 
-export const reset2fa = safeAction(async (accountId: string, code: string, resetToken: string) => {
+export const reset2fa = safeAction(async (accountId: string) => {
   const account = await retrieveAccount({ id: accountId });
   if (!account) throw new AppError("Account not found");
 
-  const payload = verifyJwt<{ accountId: string; code: string }>(resetToken);
-  if (payload.accountId !== accountId) throw new AppError("Invalid reset token");
-  if (payload.code !== code) throw new AppError("Invalid verification code");
-
-  const { pending2faSecret: _drop, ...cleanMetadata } = (account.metadata ?? {}) as Record<string, unknown>;
+  const { pending2faSecret: _drop, ...cleanMetadata } = (account.metadata ?? {}) as any;
 
   await db
     .update(accounts)
