@@ -138,7 +138,7 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
     header: "Amount",
     cell: ({ row }) => (
       <span className="font-medium">
-        {Money.formatCrypto(row.original.cryptoAmount, row.original.selectedAssetCode)}
+        {Money.formatFiat(row.original.amountCents ?? 0, row.original.currencyCode)}
       </span>
     ),
     meta: { filterable: true, filterVariant: "number" },
@@ -330,12 +330,17 @@ export default function CustomerDetailPage() {
     [payments]
   );
 
-  const { convertAndFormat, convertToOrgCurrency } = useCurrencyConverter();
+  const { convertAndFormat, fiatRates } = useCurrencyConverter();
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
 
-  const totalSpentCents = React.useMemo(
-    () => confirmedPayments.reduce((sum, p) => sum + convertToOrgCurrency(p.amountCents ?? 0, p.currencyCode), 0),
-    [confirmedPayments, convertToOrgCurrency]
+  // Convert each payment to USD cents first, then convertAndFormat handles org-currency display
+  const totalSpentUsdCents = React.useMemo(
+    () =>
+      confirmedPayments.reduce((sum, p) => {
+        const fromRate = fiatRates?.[p.currencyCode] ?? 1;
+        return sum + (p.amountCents ?? 0) / fromRate;
+      }, 0),
+    [confirmedPayments, fiatRates]
   );
 
   if (customerLoading) return <CustomerDetailSkeleton />;
@@ -504,7 +509,7 @@ export default function CustomerDetailPage() {
             <aside className="space-y-8">
               <div>
                 <h3 className="mb-2 text-lg font-semibold">Insights</h3>
-                <p className="text-xl font-bold">{convertAndFormat(totalSpentCents)}</p>
+                <p className="text-xl font-bold">{convertAndFormat(totalSpentUsdCents)}</p>
                 <p className="text-muted-foreground text-xs">Total spent</p>
               </div>
 

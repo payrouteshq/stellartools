@@ -133,13 +133,15 @@ const paymentActionHandler = async (
     const webhooks: WebhookTrigger<typeof payment>[] = [];
     const sideEffects: (() => Promise<void>)[] = [];
 
-    const rawAmount = `${payment.amountCents} ${payment.selectedAssetCode}`;
+    const rawAmount = `${payment.amountCents} ${payment.currencyCode}`;
+    const cryptoAmount = `${payment.cryptoAmount} ${payment.selectedAssetCode}`;
 
     const basePayload = {
       id: payment.id,
       checkoutId: payment.checkoutId!,
       customerId: payment.customerId!,
       amount: rawAmount,
+      cryptoAmount: cryptoAmount,
       status: payment.status,
       transaction_hash: payment.transactionHash,
       createdAt: payment.createdAt?.toISOString(),

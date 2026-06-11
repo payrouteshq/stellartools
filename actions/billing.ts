@@ -67,7 +67,7 @@ export async function processPaymentBilling(
       payment.selectedAssetIssuer!,
       payment.cryptoAmount.toString(),
       payment.environment,
-      `Fee: ${paymentId}`
+      chargeId // max 28 bytes; chargeId is always ≤26 chars
     );
 
     console.log("Charge result", res);
@@ -76,7 +76,7 @@ export async function processPaymentBilling(
       id: chargeId,
       organizationId: payment.organizationId,
       paymentId: payment.id,
-      amountCents: feeCryptoAmountCents,
+      amountCents: Math.round(feeCryptoAmountCents),
       currencyCode: paymentCurrency,
       cryptoAmount: payment.cryptoAmount,
       selectedAssetCode: payment.selectedAssetCode,
