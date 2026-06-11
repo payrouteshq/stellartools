@@ -98,7 +98,8 @@ CREATE TABLE "charge" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
 	"payment_id" text,
-	"amount_usd_cents" integer NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
 	"crypto_amount" text NOT NULL,
 	"selected_asset_code" text,
 	"selected_asset_issuer" text,
@@ -107,6 +108,7 @@ CREATE TABLE "charge" (
 	"tx_hash" text,
 	"error" text,
 	"network" "network" NOT NULL,
+	"cleared_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -268,7 +270,7 @@ CREATE TABLE "payment" (
 	"customer_wallet_id" text,
 	"credit_balance_id" text,
 	"product_id" text,
-	"amount_usd_cents" integer NOT NULL,
+	"amount_cents" integer NOT NULL,
 	"currency_code" text DEFAULT 'USD' NOT NULL,
 	"crypto_amount" text NOT NULL,
 	"selected_asset_code" text NOT NULL,
@@ -286,7 +288,8 @@ CREATE TABLE "payment" (
 CREATE TABLE "payout" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
-	"amount_usd_cents" integer NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
 	"crypto_amount" text NOT NULL,
 	"selected_asset_code" text,
 	"selected_asset_issuer" text,
@@ -328,7 +331,8 @@ CREATE TABLE "refund" (
 	"payment_id" text NOT NULL,
 	"organization_id" text NOT NULL,
 	"customer_id" text,
-	"amount_usd_cents" integer NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
 	"crypto_amount" text NOT NULL,
 	"selected_asset_code" text NOT NULL,
 	"selected_asset_issuer" text,
@@ -336,8 +340,10 @@ CREATE TABLE "refund" (
 	"tx_hash" text,
 	"status" "refund_status" DEFAULT 'pending' NOT NULL,
 	"reason" text,
+	"network" "network" NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"metadata" jsonb
 );
 --> statement-breakpoint
 CREATE TABLE "secret_access_log" (
@@ -373,14 +379,14 @@ CREATE TABLE "subscription" (
 CREATE TABLE "supported_asset" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
-	"issuers" text[],
+	"canonical_issuer" text,
 	"description" text,
 	"network" "network" NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"metadata" jsonb,
 	"images" text[],
-	CONSTRAINT "supported_asset_code_issuers_network_unique" UNIQUE("code","issuers","network")
+	CONSTRAINT "supported_asset_code_canonical_issuer_network_unique" UNIQUE("code","canonical_issuer","network")
 );
 --> statement-breakpoint
 CREATE TABLE "webhook_log" (
