@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { reset2fa, setup2fa, toggle2fa } from "@/actions/2fa";
+import { initiate2faReset, reset2fa, setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
 import { putOrganization, retrieveOrganization } from "@/actions/organization";
@@ -41,14 +41,22 @@ import {
 } from "@/components/underline-tabs";
 import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
-import { useCopy } from "@/hooks/use-copy";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useFilePreview } from "@/hooks/use-file-preview";
 import { useOrgContext } from "@/hooks/use-org-query";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Check, ChevronRight, ChevronsUpDown, Copy, ExternalLink, RotateCcw, ShieldCheck, ShieldOff } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  ChevronRight,
+  ChevronsUpDown,
+  ExternalLink,
+  RotateCcw,
+  ShieldCheck,
+  ShieldOff,
+} from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -72,7 +80,6 @@ const organizationSchema = Schema.object({
 type OrganizationFormData = Schema.infer<typeof organizationSchema>;
 
 type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
-
 type Organization = Awaited<ReturnType<typeof retrieveOrganization>>;
 
 const ProfileTabContent = ({ user }: { user: User }) => {
@@ -86,11 +93,8 @@ const ProfileTabContent = ({ user }: { user: User }) => {
   const { mutate: updateProfile, isPending: isSubmitting } = useAction(
     async (data: ProfileFormData) => {
       const formdata = new FormData();
-
       const file = data.avatar;
-
       if (file instanceof File) formdata.set("avatar", file);
-
       await putAccount(
         user.id,
         {
@@ -101,7 +105,6 @@ const ProfileTabContent = ({ user }: { user: User }) => {
         },
         { formDataWithFiles: formdata }
       );
-
       return true;
     },
     { successMsg: "Profile updated successfully", invalidate: ["current-user"], errorMsg: "Failed to update profile" }
@@ -131,7 +134,6 @@ const ProfileTabContent = ({ user }: { user: User }) => {
               shape="circle"
               className="w-fit"
             />
-
             <div className="flex-1 space-y-2">
               <CardTitle className="text-xl">Profile Information</CardTitle>
               {user.createdAt && (
@@ -164,7 +166,6 @@ const ProfileTabContent = ({ user }: { user: User }) => {
                 />
               )}
             />
-
             <div className="space-y-2">
               <TextField
                 id="email"
@@ -245,9 +246,7 @@ const CurrencyPickerCard = () => {
                 aria-expanded={open}
                 className="h-9 w-full max-w-xs justify-between rounded-lg font-normal shadow-none"
               >
-                <span className="truncate">
-                  {selected ? `${selected.name} (${selected.code})` : "Select currency"}
-                </span>
+                <span className="truncate">{selected ? `${selected.name} (${selected.code})` : "Select currency"}</span>
                 <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
               </Button>
             )}
@@ -268,7 +267,9 @@ const CurrencyPickerCard = () => {
                         setOpen(false);
                       }}
                     >
-                      <span className={cn("flex-1 truncate", orgContext?.selectedCurrency === item.code && "font-medium")}>
+                      <span
+                        className={cn("flex-1 truncate", orgContext?.selectedCurrency === item.code && "font-medium")}
+                      >
                         {item.name} ({item.code})
                       </span>
                       {orgContext?.selectedCurrency === item.code && <Check className="size-4 shrink-0" />}
@@ -286,7 +287,6 @@ const CurrencyPickerCard = () => {
 
 const OrganizationTabContent = ({ organization }: { organization: Organization }) => {
   const { data: orgContext } = useOrgContext();
-
   const { file, isLoading: imgLoading } = useFilePreview(organization.logoUrl);
 
   const organizationForm = RHF.useForm({
@@ -351,7 +351,6 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
               className="w-fit"
               isLoading={imgLoading}
             />
-
             <div className="flex-1 space-y-2">
               <CardTitle className="text-xl">Organization Information</CardTitle>
               <CardDescription className="mt-1">Update your organization details and branding.</CardDescription>
@@ -386,7 +385,6 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                 />
               )}
             />
-
             <RHF.Controller
               control={organizationForm.control}
               name="phoneNumber"
@@ -402,7 +400,6 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                 />
               )}
             />
-
             <RHF.Controller
               name="id"
               control={organizationForm.control}
@@ -410,7 +407,6 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                 <TextField {...field} label="Organization ID" error={error?.message} id={field.name} disabled />
               )}
             />
-
             <RHF.Controller
               control={organizationForm.control}
               name="description"
@@ -426,7 +422,6 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                 />
               )}
             />
-
             <div className="flex justify-end">
               <Button isLoading={isSubmitting} type="submit" disabled={isSubmitting} className="gap-2 shadow-none">
                 Save Changes
@@ -445,66 +440,37 @@ const $2faSchema = Schema.object({
   code: Schema.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must contain only numbers"),
 });
 
-const $2faModal = ({
+const Enable2faModal = ({
   userId,
   setupData,
 }: {
   userId: string;
-  setupData?: { secret: string; qrCodeDataUrl: string };
+  setupData: { secret: string; qrCodeDataUrl: string };
 }) => {
-  const isEnabling = !!setupData;
-  const { copied, handleCopy } = useCopy();
+  const form = RHF.useForm({ resolver: zodResolver($2faSchema), defaultValues: { code: "" } });
 
-  const { mutate: toggle, isPending } = useAction((code: string) => toggle2fa(userId, code, setupData?.secret), {
+  const { mutate: enable, isPending } = useAction((code: string) => toggle2fa(userId, code, setupData.secret), {
     invalidate: ["current-user"],
-    successMsg: `2FA ${isEnabling ? "enabled" : "disabled"} successfully`,
+    successMsg: "2FA enabled successfully",
     onSuccess: AppModal.close,
   });
 
-  const form = RHF.useForm({
-    resolver: zodResolver($2faSchema),
-    defaultValues: { code: "" },
-  });
-
   return (
-    <form onSubmit={form.handleSubmit((d) => toggle(d.code))} className="flex flex-col items-center gap-6">
-      {isEnabling ? (
-        <>
-          <div className="border-border w-full overflow-hidden rounded-xl border">
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <p className="font-mono text-sm tracking-widest break-all select-all">{setupData.secret}</p>
-              <Button
-                variant="ghost"
-                size="icon"
-                type="button"
-                aria-label={copied ? "Copied" : "Copy code"}
-                onClick={() => handleCopy({ text: setupData.secret, message: "Secret copied to clipboard" })}
-                className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
-              >
-                {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-              </Button>
-            </div>
-            <div className="flex items-center justify-center p-4">
-              <img src={setupData.qrCodeDataUrl} alt="QR" className="h-56 w-56 rounded-lg" />
-            </div>
-          </div>
-        </>
-      ) : (
-        <p className="text-muted-foreground text-center text-sm">Enter your code to confirm deactivation.</p>
-      )}
+    <form onSubmit={form.handleSubmit((d) => enable(d.code))} className="flex flex-col items-center gap-6">
+      <div className="flex w-full flex-col items-center gap-4">
+        <img src={setupData.qrCodeDataUrl} alt="QR" className="h-48 w-48 rounded-lg border shadow-sm" />
+        <div className="bg-muted w-full rounded-md px-3 py-2 text-center">
+          <p className="text-muted-foreground mb-1 text-[10px] font-bold tracking-wider uppercase">Manual Key</p>
+          <p className="font-mono text-xs tracking-widest break-all select-all">{setupData.secret}</p>
+        </div>
+      </div>
 
       <RHF.Controller
         control={form.control}
         name="code"
         render={({ field, fieldState: { error } }) => (
           <div className="flex flex-col items-center gap-2">
-            <InputOTP
-              maxLength={6}
-              value={field.value}
-              onChange={field.onChange}
-              onComplete={() => form.handleSubmit((d) => toggle(d.code))()}
-              disabled={isPending || form.formState.isSubmitting}
-            >
+            <InputOTP maxLength={6} value={field.value} onChange={field.onChange} disabled={isPending}>
               <InputOTPGroup>
                 {[...Array(6)].map((_, i) => (
                   <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
@@ -516,30 +482,84 @@ const $2faModal = ({
         )}
       />
 
-      {isEnabling ? (
-        <Button
-          type="submit"
-          className="w-full"
-          isLoading={isPending}
-          disabled={isPending || form.formState.isSubmitting}
-        >
-          Set Up Authenticator App
+      <div className="flex w-full gap-2">
+        <Button type="button" variant="outline" className="flex-1" onClick={AppModal.close}>
+          Cancel
         </Button>
-      ) : (
-        <div className="flex w-full gap-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            className="flex-1"
-            isLoading={isPending}
-            disabled={isPending || form.formState.isSubmitting}
-          >
-            Confirm Disable
-          </Button>
-        </div>
-      )}
+        <Button type="submit" className="flex-1" isLoading={isPending} disabled={isPending}>
+          Verify & Enable
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+const Disable2faModal = ({
+  userId,
+  description = "This will remove two-factor authentication from your account. You can re-enable it at any time.",
+  confirmLabel = "Disable 2FA",
+  successMsg = "2FA disabled successfully",
+}: {
+  userId: string;
+  description?: string;
+  confirmLabel?: string;
+  successMsg?: string;
+}) => {
+  const [resetToken, setResetToken] = React.useState<string | null>(null);
+  const [isSending, setIsSending] = React.useState(true);
+
+  const form = RHF.useForm({ resolver: zodResolver($2faSchema), defaultValues: { code: "" } });
+
+  React.useEffect(() => {
+    initiate2faReset(userId)
+      .then((result) => {
+        if (result && "resetToken" in result) setResetToken(result.resetToken as string);
+      })
+      .finally(() => setIsSending(false));
+  }, [userId]);
+
+  const { mutate: disable, isPending } = useAction((code: string) => reset2fa(userId, code, resetToken!), {
+    invalidate: ["current-user"],
+    successMsg,
+    onSuccess: AppModal.close,
+  });
+
+  const ready = !isSending && !!resetToken;
+
+  return (
+    <form onSubmit={form.handleSubmit((d) => disable(d.code))} className="flex flex-col items-center gap-6">
+      <p className="text-muted-foreground text-center text-sm">{description}</p>
+
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-muted-foreground text-xs">
+          {isSending ? "Sending code to your email…" : "Enter the 6-digit code sent to your email"}
+        </p>
+        <RHF.Controller
+          control={form.control}
+          name="code"
+          render={({ field, fieldState: { error } }) => (
+            <div className="flex flex-col items-center gap-2">
+              <InputOTP maxLength={6} value={field.value} onChange={field.onChange} disabled={!ready || isPending}>
+                <InputOTPGroup>
+                  {[...Array(6)].map((_, i) => (
+                    <InputOTPSlot key={i} index={i} className="size-14 text-xl" />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+              {error && <p className="text-destructive text-center text-xs">{error.message}</p>}
+            </div>
+          )}
+        />
+      </div>
+
+      <div className="flex w-full gap-2">
+        <Button type="button" variant="outline" className="flex-1" onClick={AppModal.close}>
+          Cancel
+        </Button>
+        <Button type="submit" className="flex-1" isLoading={isPending} disabled={!ready || isPending}>
+          {confirmLabel}
+        </Button>
+      </div>
     </form>
   );
 };
@@ -550,33 +570,24 @@ const SecurityTabContent = ({ user }: { user: User }) => {
       if (checked) {
         const response = await setup2fa(user.id);
         return { ...response, isEnabling: true };
-      } else {
-        AppModal.open({
-          title: "Disable two-factor authentication",
-          description: "Enter the current 6-digit code from your authenticator app to confirm.",
-          size: "small",
-          content: <$2faModal userId={user.id} />,
-        });
-        return { isEnabling: false };
       }
+      AppModal.open({
+        title: "Disable two-factor authentication",
+        description: "This will remove 2FA from your account.",
+        size: "small",
+        content: <Disable2faModal userId={user.id} />,
+      });
+      return { isEnabling: false };
     },
-
     {
       invalidate: ["current-user"],
       onSuccess: (data) => {
         if ("isEnabling" in data && data.isEnabling && "secret" in data && "qrCodeDataUrl" in data) {
           AppModal.open({
-            title: "Authenticator App",
+            title: "Set up authenticator app",
             size: "small",
             showCloseButton: true,
-            content: <$2faModal userId={user.id} setupData={data} />,
-          });
-        } else if ("isEnabling" in data && !data.isEnabling) {
-          AppModal.open({
-            title: "Disable two-factor authentication",
-            description: "Enter the current 6-digit code from your authenticator app to confirm.",
-            size: "small",
-            content: <$2faModal userId={user.id} />,
+            content: <Enable2faModal userId={user.id} setupData={data as { secret: string; qrCodeDataUrl: string }} />,
           });
         }
       },
@@ -613,30 +624,15 @@ const SecurityTabContent = ({ user }: { user: User }) => {
                 onClick={() =>
                   AppModal.open({
                     title: "Reset two-factor authentication",
-                    description:
-                      "If you've lost access to your authenticator app or have conflicting entries, you can reset 2FA here. You'll be able to set it up again afterwards.",
                     size: "small",
                     showCloseButton: true,
-                    content: null,
-                    footer: (
-                      <div className="flex w-full gap-2">
-                        <Button type="button" variant="outline" className="flex-1" onClick={AppModal.close}>
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          className="flex-1"
-                          onClick={() =>
-                            reset2fa(user.id).then(() => {
-                              AppModal.close();
-                              window.location.reload();
-                            })
-                          }
-                        >
-                          Reset 2FA
-                        </Button>
-                      </div>
+                    content: (
+                      <Disable2faModal
+                        userId={user.id}
+                        description="If you've lost access to your authenticator app, resetting 2FA will remove it from your account. You can set it up again afterwards."
+                        confirmLabel="Reset 2FA"
+                        successMsg="2FA reset successfully"
+                      />
                     ),
                   })
                 }
