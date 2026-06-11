@@ -110,6 +110,15 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
     } = splitProps(mixProps, "label", "flag", "input", "error", "group");
 
     const [open, setOpen] = React.useState(false);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const mergedRef = React.useCallback(
+      (node: HTMLInputElement | null) => {
+        inputRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      },
+      [ref]
+    );
 
     const selectedCountry = React.useMemo(
       () => COUNTRIES_DATA.find((c) => c.countryCode === value.countryCode),
@@ -128,6 +137,7 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
       (countryCode: string) => {
         onChange({ ...value, countryCode });
         setOpen(false);
+        requestAnimationFrame(() => inputRef.current?.focus());
       },
       [onChange, value]
     );
@@ -225,7 +235,7 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
             id={id}
             placeholder="991 878 9123"
             value={value.number}
-            ref={ref}
+            ref={mergedRef}
             onChange={handleNumberChange}
             disabled={disabled}
             className={cn(
