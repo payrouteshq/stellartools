@@ -20,7 +20,7 @@ export const GET = async (request: NextRequest) => {
     CURRENCIES: assets
       .map(
         (asset) =>
-          `{ code: "${asset.code}", native: ${asset.code === "XLM" ? true : false}, issuers: "${asset.issuers?.join(",")}" }`
+          `{ code: "${asset.code}", native: ${asset.code === "XLM" ? true : false}, issuer: "${asset.canonicalIssuer ?? ""}" }`
       )
       .join("\n"),
   });

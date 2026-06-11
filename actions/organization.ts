@@ -47,7 +47,13 @@ export const postOrganizationAndSecret = safeAction(
     return await runAtomic(async () => {
       const [organization] = await db
         .insert(organizations)
-        .values({ ...params, id: organizationId, accountId })
+        .values({
+          ...params,
+          id: organizationId,
+          accountId,
+          payoutAssetCode: process.env.STELLARTOOLS_ORG_DEFAULT_PAYOUT_ASSET_CODE,
+          payoutAssetIssuer: process.env.STELLARTOOLS_ORG_DEFAULT_PAYOUT_ASSET_ISSUER,
+        })
         .returning();
 
       // todo: drop `defaultEnvironment` prop and parallelize request for testnet and mainnet.

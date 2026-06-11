@@ -198,7 +198,6 @@ export function normalizeTimeSeries<T extends RawDataPoint>(
   return result;
 }
 
-
 export const mergeWithNullDeletes = (
   base: Record<string, unknown> | null | undefined,
   patch: Record<string, unknown> | null | undefined
@@ -215,4 +214,3 @@ export const mergeWithNullDeletes = (
   }
   return result;
 };
-

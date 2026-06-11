@@ -171,7 +171,7 @@ export const supportedAssets = pgTable(
   {
     id: text("id").primaryKey(),
     code: text("code").notNull().$type<AssetCode>(),
-    issuers: text("issuers").$type<AssetIssuer[]>().array(),
+    canonicalIssuer: text("canonical_issuer").$type<AssetIssuer>(),
     description: text("description"),
     environment: networkEnum("network").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -180,7 +180,7 @@ export const supportedAssets = pgTable(
     images: text("images").array(),
   },
   (table) => ({
-    uniqueCodeIssuerEnvironment: unique().on(table.code, table.issuers, table.environment),
+    uniqueCodeIssuerEnvironment: unique().on(table.code, table.canonicalIssuer, table.environment),
   })
 );
 

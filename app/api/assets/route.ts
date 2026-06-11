@@ -13,7 +13,7 @@ export const GET = apiHandler({
       assets.map((a) => ({
         code: a.code,
         description: a.description,
-        issuers: a.issuers ?? [],
+        canonicalIssuer: a.canonicalIssuer ?? null,
         images: a.images ?? [],
       }))
     );

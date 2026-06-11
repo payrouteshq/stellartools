@@ -165,6 +165,8 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
       organizationLogo: organizations.logoUrl,
       organizationCurrency: organizations.selectedCurrency,
       merchantEmail: accounts.email,
+      payoutAssetCode: organizations.payoutAssetCode,
+      payoutAssetIssuer: organizations.payoutAssetIssuer,
     })
     .from(checkouts)
     .leftJoin(customers, eq(checkouts.customerId, customers.id))
@@ -186,6 +188,8 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationLogo,
     organizationCurrency,
     merchantEmail,
+    payoutAssetCode,
+    payoutAssetIssuer,
   } = result;
 
   return {
@@ -204,6 +208,8 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationLogo,
     merchantEmail,
     productTotalCredits: product?.totalCredits,
+    payoutAssetCode: payoutAssetCode ?? "USDC",
+    payoutAssetIssuer: payoutAssetIssuer ?? null,
   };
 };
 

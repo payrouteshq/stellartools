@@ -1,6 +1,6 @@
 {
-  "id": "917051ed-7ac1-4dfe-90d8-2e52901904a1",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "c325ae42-a355-450a-8f7f-c8805617e2f7",
+  "prevId": "860d4077-d563-4432-8ee2-f6cdc245d948",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -572,11 +572,18 @@
           "primaryKey": false,
           "notNull": false
         },
-        "amount_usd_cents": {
-          "name": "amount_usd_cents",
+        "amount_cents": {
+          "name": "amount_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USD'"
         },
         "crypto_amount": {
           "name": "crypto_amount",
@@ -628,6 +635,12 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "cleared_at": {
+          "name": "cleared_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -816,7 +829,7 @@
       "checkConstraints": {
         "amount_or_product_check": {
           "name": "amount_or_product_check",
-          "value": "(\"checkout\".\"product_id\" IS NOT NULL OR (\"checkout\".\"amount_cents\" AND \"checkout\".\"currency_code\") IS NOT NULL)"
+          "value": "(\"checkout\".\"product_id\" IS NOT NULL OR (\"checkout\".\"amount_cents\" IS NOT NULL AND \"checkout\".\"currency_code\" IS NOT NULL))"
         }
       },
       "isRLSEnabled": false
@@ -1993,8 +2006,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "amount_usd_cents": {
-          "name": "amount_usd_cents",
+        "amount_cents": {
+          "name": "amount_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -2158,11 +2171,18 @@
           "primaryKey": false,
           "notNull": true
         },
-        "amount_usd_cents": {
-          "name": "amount_usd_cents",
+        "amount_cents": {
+          "name": "amount_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USD'"
         },
         "crypto_amount": {
           "name": "crypto_amount",
@@ -2429,11 +2449,18 @@
           "primaryKey": false,
           "notNull": false
         },
-        "amount_usd_cents": {
-          "name": "amount_usd_cents",
+        "amount_cents": {
+          "name": "amount_cents",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USD'"
         },
         "crypto_amount": {
           "name": "crypto_amount",
@@ -2803,9 +2830,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "issuers": {
-          "name": "issuers",
-          "type": "text[]",
+        "canonical_issuer": {
+          "name": "canonical_issuer",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -2853,10 +2880,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "supported_asset_code_issuers_network_unique": {
-          "name": "supported_asset_code_issuers_network_unique",
+        "supported_asset_code_canonical_issuer_network_unique": {
+          "name": "supported_asset_code_canonical_issuer_network_unique",
           "nullsNotDistinct": false,
-          "columns": ["code", "issuers", "network"]
+          "columns": ["code", "canonical_issuer", "network"]
         }
       },
       "policies": {},

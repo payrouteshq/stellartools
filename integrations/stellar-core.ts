@@ -3,16 +3,14 @@ import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
 
-const getStellarConfig = (network: Network) => {
+export const getStellarConfig = (network: Network) => {
   const isTestnet = network === "testnet";
-  const url = isTestnet
+  const horizonUrl = isTestnet
     ? process.env.NEXT_PUBLIC_STELLAR_HORIZON_TESTNET!
     : process.env.NEXT_PUBLIC_STELLAR_HORIZON_MAINNET!;
-
   return {
     passphrase: isTestnet ? StellarSDK.Networks.TESTNET : StellarSDK.Networks.PUBLIC,
-    server: new StellarSDK.Horizon.Server(url),
-    horizonUrl: url,
+    server: new StellarSDK.Horizon.Server(horizonUrl),
   };
 };
 
@@ -120,45 +118,74 @@ export const verifyPaymentByPagingToken = async (
   });
 };
 
-export const createTrustlines = async (
-  publicKey: string,
-  assets: { code: string; issuer: string }[],
-  network: Network
-) => {
-  return Result.tryPromise(async () => {
-    const { server, passphrase } = getStellarConfig(network);
-    const account = await server.loadAccount(publicKey);
-
-    const builder = new StellarSDK.TransactionBuilder(account, {
-      fee: StellarSDK.BASE_FEE,
-      networkPassphrase: passphrase,
-    });
-
-    assets.forEach(({ code, issuer }) => {
-      builder.addOperation(StellarSDK.Operation.changeTrust({ asset: getAsset(code, issuer) }));
-    });
-
-    const tx = builder.setTimeout(30).build();
-    return await server.submitTransaction(tx);
-  });
-};
-
-export const requiresTrustline = async (
+export const getCustomerAssetIssuers = async (
   publicKey: string,
   assetCode: string,
-  assetIssuer: string,
   network: Network
-) => {
-  const accountRes = await retrieveAccount(publicKey, network);
-  if (accountRes.isErr()) return false;
+): Promise<string[]> => {
+  if (assetCode.toUpperCase() === "XLM") return [];
+  const account = await retrieveAccount(publicKey, network);
 
-  const targetAsset = getAsset(assetCode, assetIssuer);
+  if (account.isErr()) return [];
 
-  return accountRes.value.balances.some((bal) => {
-    if (bal.asset_type === "native") return targetAsset.isNative();
-    //@ts-ignore
-    return bal.asset_code === assetCode && bal.asset_issuer === assetIssuer;
-  });
+  return account.value.balances
+    .filter((b): b is StellarSDK.Horizon.HorizonApi.BalanceLineAsset => "asset_code" in b && b.asset_code === assetCode)
+    .map((b) => b.asset_issuer);
+};
+
+/**
+ * Builds a pre-swap transaction XDR that swaps the customer's assets into the exact
+ * canonical issuer token required by a Soroban subscription contract.
+ * The swap destination is the customer themselves — after signing, they hold the exact token.
+ */
+export const buildPreSwapXdr = async (params: {
+  customerPublicKey: string;
+  sendAssetCode: string;
+  sendAssetIssuer: string | null;
+  destAssetCode: string;
+  canonicalIssuer: string;
+  neededStellarAmount: string;
+  sendMax: string;
+  network: Network;
+}): Promise<string> => {
+  const {
+    customerPublicKey,
+    sendAssetCode,
+    sendAssetIssuer,
+    destAssetCode,
+    canonicalIssuer,
+    neededStellarAmount,
+    sendMax,
+    network,
+  } = params;
+  const { server, passphrase } = getStellarConfig(network);
+  const account = await server.loadAccount(customerPublicKey);
+
+  const sendAsset =
+    sendAssetCode.toUpperCase() === "XLM"
+      ? StellarSDK.Asset.native()
+      : new StellarSDK.Asset(sendAssetCode, sendAssetIssuer!);
+
+  const destAsset = new StellarSDK.Asset(destAssetCode, canonicalIssuer);
+
+  const tx = new StellarSDK.TransactionBuilder(account, {
+    fee: StellarSDK.BASE_FEE,
+    networkPassphrase: passphrase,
+  })
+    .addOperation(
+      StellarSDK.Operation.pathPaymentStrictReceive({
+        sendAsset,
+        sendMax,
+        destination: customerPublicKey,
+        destAsset,
+        destAmount: neededStellarAmount,
+        path: [],
+      })
+    )
+    .setTimeout(30)
+    .build();
+
+  return tx.toXDR();
 };
 
 export const getLatestPagingToken = async (publicKey: string, network: Network): Promise<string | null> => {

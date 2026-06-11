@@ -8,15 +8,14 @@ import {
   retrieveCheckoutPublicData,
 } from "@/actions/checkout";
 import { postPayment, sweepAndProcessPayment } from "@/actions/payment";
-import { finalizeSubscriptionCheckout, prepareSubscriptionApproval } from "@/actions/subscription-checkout";
 import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString } from "@/components/phone-number-field";
 import { toast } from "@/components/ui/toast";
 import { TxStatus, useWallet } from "@/contexts/wallet-context";
-import { requiresTrustline, retrieveAccount } from "@/integrations/stellar-core";
 import { AppError, execute } from "@/lib/action-handler";
+import { buildOneTimePaymentXdr, finalizeSubscriptionCheckout, prepareSubscriptionApproval } from "@/lib/checkout-tx";
 import { Money } from "@/lib/money";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Asset, BASE_FEE, Memo, Networks, Operation, Transaction, TransactionBuilder } from "@stellar/stellar-sdk";
+import { Networks, Transaction } from "@stellar/stellar-sdk";
 import { UseMutationResult, UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as RHF from "react-hook-form";
 import { z as Schema } from "zod";
@@ -26,7 +25,7 @@ type PublicData = Awaited<ReturnType<typeof retrieveCheckoutPublicData>>;
 
 type SelectedAsset = {
   code: string;
-  issuers: Array<string> | null;
+  canonicalIssuer: string | null;
 };
 
 interface CheckoutContextValue {
@@ -48,6 +47,7 @@ interface CheckoutContextValue {
   wallet: {
     connectedAddress: string;
     handleWalletPay: () => Promise<void>;
+    disconnect: () => void;
     isProcessing: boolean;
     kit: { connectWallet: (handleSuccess: (success: boolean) => void) => Promise<void> };
   };
@@ -63,6 +63,15 @@ const baseSchema = Schema.object({
 });
 
 type CheckoutFormData = Schema.infer<typeof baseSchema>;
+
+export const calculateRates = (checkout: Checkout, publicData: PublicData, selectedAsset: any) => {
+  if (!checkout || !publicData) return { cents: 0, crypto: null };
+  const rate = publicData.fiatRates?.[checkout.currencyCode ?? "USD"] ?? 1;
+  const cents = checkout.finalAmount / rate;
+  const usdPrice = selectedAsset ? publicData.assetUsdPrices[selectedAsset.code] : null;
+  const crypto = usdPrice ? Money.calculateCryptoNeeded(cents, usdPrice) : null;
+  return { cents, crypto };
+};
 
 export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string; children: React.ReactNode }) => {
   const queryClient = useQueryClient();
@@ -87,9 +96,34 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
   React.useEffect(() => {
     if (!selectedAsset && publicDataQuery.data?.assets?.[0]) {
       const first = publicDataQuery.data.assets[0];
-      setSelectedAsset({ code: first.code, issuers: first.issuers ?? [] });
+      setSelectedAsset({ code: first.code, canonicalIssuer: first.canonicalIssuer ?? null });
     }
   }, [publicDataQuery.data?.assets, selectedAsset]);
+
+  const reportFailure = async (txHash: string, reason: string) => {
+    await postPayment(
+      {
+        checkoutId,
+        customerId: checkout?.customerId!,
+        productId: checkout?.productId ?? null,
+        amountCents: checkout?.finalAmount!,
+        currencyCode: checkout?.currencyCode ?? "USD",
+        cryptoAmount: cryptoAmount ?? "0",
+        selectedAssetCode: selectedAsset!.code,
+        selectedAssetIssuer: selectedAsset!.canonicalIssuer,
+        transactionHash: txHash,
+        status: "failed",
+        failureReason: reason,
+        metadata: null,
+        subscriptionId: null,
+        creditBalanceId: null,
+      },
+      checkout?.organizationId,
+      checkout?.environment,
+      { failErrorMessage: reason, customerWalletAddress: wallet.walletAddress }
+    );
+    queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
+  };
 
   const finalAmountUsdCents = React.useMemo(() => {
     if (!checkout?.finalAmount || !publicDataQuery.data) return 0;
@@ -140,16 +174,9 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
   });
 
   const handleWalletPay = async () => {
-    if (!wallet.connected) {
-      return await wallet.connect((success) => {
-        if (!success) toast.error("Failed to connect wallet");
-      });
-    }
-
-    if (!checkout) return;
-
-    if (!selectedAsset || !cryptoAmount) {
-      toast.error("Please select a payment method first.");
+    if (!wallet.connected) return wallet.connect((s) => !s && toast.error("Connection failed"));
+    if (!checkout || !selectedAsset || !cryptoAmount) {
+      toast.error("Setup incomplete");
       return;
     }
 
@@ -157,157 +184,58 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     const network = checkout.environment === "testnet" ? Networks.TESTNET : Networks.PUBLIC;
 
     try {
+      wallet.setTxStatus(TxStatus.BUILDING);
+
       if (checkout.productType === "subscription") {
-        wallet.setTxStatus(TxStatus.BUILDING);
-        const prepared = await prepareSubscriptionApproval(
+        const prep = await prepareSubscriptionApproval(
           checkoutId,
           wallet.walletAddress,
           selectedAsset.code,
-          selectedAsset.issuers?.[0] ?? null
+          selectedAsset.canonicalIssuer
         );
-        if ("error" in prepared) throw new AppError(prepared.error);
+        if ("error" in prep) throw new AppError(prep.error);
 
-        const tx = new Transaction(prepared.xdr, network);
-        const txResult = await wallet.signAndSubmit(tx);
+        if (prep.needsPreSwap && prep.preSwapXdr) {
+          toast.info("Swapping tokens...");
+          const res = await wallet.signAndSubmit(new Transaction(prep.preSwapXdr, network));
+          if (res?.status !== "SUCCESS") throw new AppError("Swap failed");
+        }
 
-        if (txResult?.txHash) {
-          if (txResult.status === "SUCCESS") {
-            wallet.setTxStatus(TxStatus.SUBMITTING);
-            const result = await finalizeSubscriptionCheckout(
-              checkoutId,
-              txResult.txHash,
-              wallet.walletAddress,
-              selectedAsset.code,
-              selectedAsset.issuers?.[0] ?? null
-            );
-            if (!result.success) throw new Error(result.error);
-            queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
-          } else if (txResult.status === "FAIL") {
-            await postPayment(
-              {
-                checkoutId,
-                customerId: checkout?.customerId,
-                productId: checkout.productId ?? null,
-                amountCents: checkout.finalAmount,
-                currencyCode: checkout.currencyCode ?? "USD",
-                cryptoAmount: cryptoAmount ?? "0",
-                selectedAssetCode: selectedAsset.code,
-                selectedAssetIssuer: selectedAsset.issuers?.[0] ?? null,
-                transactionHash: txResult.txHash,
-                status: "failed",
-                metadata: null,
-                subscriptionId: null,
-                creditBalanceId: null,
-                failureReason: txResult.message ?? null,
-              },
-              checkout?.organizationId,
-              checkout?.environment,
-              { failErrorMessage: txResult.message, customerWalletAddress: wallet.walletAddress }
-            );
-            queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
-          }
+        const res = await wallet.signAndSubmit(new Transaction(prep.xdr, network));
+        if (res?.status === "SUCCESS") {
+          await finalizeSubscriptionCheckout(
+            checkoutId,
+            res.txHash!,
+            wallet.walletAddress,
+            selectedAsset.code,
+            selectedAsset.canonicalIssuer
+          );
+          toast.success("Subscription Active!");
+        } else if (res?.txHash) {
+          await reportFailure(res.txHash, res.message ?? "Subscription failed");
         }
       } else {
-        // Check trustline for non-native assets
-        if (selectedAsset.code !== "XLM") {
-          for (const issuer of selectedAsset.issuers!) {
-            const trustNeeded = await requiresTrustline(
-              wallet.walletAddress,
-              selectedAsset.code,
-              issuer,
-              checkout.environment
-            );
+        const xdr = await buildOneTimePaymentXdr({
+          checkoutId,
+          customerPublicKey: wallet.walletAddress,
+          sendAssetCode: selectedAsset.code,
+          sendAssetIssuer: selectedAsset.canonicalIssuer,
+          sendMaxEstimate: cryptoAmount,
+        });
+        if (typeof xdr !== "string") throw new AppError(xdr.error);
 
-            if (trustNeeded) {
-              toast.info(`Adding trustline for ${selectedAsset.code}…`);
-              await wallet.createTrustlines([new Asset(selectedAsset.code, issuer)], network);
-              if (wallet.txStatus === TxStatus.FAIL) return;
-            }
-          }
-        }
-
-        wallet.setTxStatus(TxStatus.BUILDING);
-        const accountRes = await retrieveAccount(wallet.walletAddress, checkout.environment);
-        if (accountRes.isErr()) {
-          const is404 =
-            accountRes.error.message.includes("404") || accountRes.error.message.toLowerCase().includes("not found");
-          throw new AppError(
-            is404
-              ? `Account not found on ${checkout.environment === "testnet" ? "Testnet" : "Public"}. Check wallet network.`
-              : accountRes.error.message
-          );
-        }
-
-        // Get a fresh rate right before building the tx to avoid stale amounts
-        const freshPublicData = await retrieveCheckoutPublicData(checkoutId);
-        const freshUsdPrice = freshPublicData?.assetUsdPrices[selectedAsset.code] ?? 0;
-        const freshFiatRate = freshPublicData?.fiatRates?.[checkout.currencyCode ?? "USD"] ?? 1;
-        const freshFinalAmountUsdCents = checkout.finalAmount / freshFiatRate;
-        const freshCryptoAmount =
-          freshUsdPrice > 0 ? Money.calculateCryptoNeeded(freshFinalAmountUsdCents, freshUsdPrice) : cryptoAmount;
-
-        const sendAsset =
-          selectedAsset.code === "XLM"
-            ? Asset.native()
-            : new Asset(selectedAsset.code, selectedAsset.issuers?.[0] ?? "");
-
-        const builder = new TransactionBuilder(accountRes.value!, {
-          fee: BASE_FEE,
-          networkPassphrase: network,
-        })
-          .addOperation(
-            Operation.payment({
-              destination: checkout.merchantPublicKey,
-              asset: sendAsset,
-              amount: freshCryptoAmount,
-            })
-          )
-          .addMemo(Memo.text(checkoutId))
-          .setTimeout(30);
-
-        const txResult = await wallet.signAndSubmit(builder);
-
-        if (txResult?.txHash) {
-          if (txResult.status === "SUCCESS") {
-            sweepAndProcessPayment(checkoutId)
-              .then(() => console.log("swept and processed payment"))
-              .catch((err) => console.error("sweep error", err));
-
-            toast.success("Payment successful!");
-            queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
-          } else if (txResult.status === "FAIL") {
-            await postPayment(
-              {
-                checkoutId,
-                customerId: checkout?.customerId,
-                productId: checkout.productId ?? null,
-                amountCents: checkout.finalAmount,
-                currencyCode: checkout.currencyCode ?? "USD",
-                cryptoAmount: freshCryptoAmount,
-                selectedAssetCode: selectedAsset.code,
-                selectedAssetIssuer: selectedAsset.issuers?.[0] ?? null,
-                transactionHash: txResult.txHash,
-                status: "failed",
-                metadata: null,
-                subscriptionId: null,
-                creditBalanceId: null,
-                failureReason: txResult.message ?? null,
-              },
-              checkout?.organizationId,
-              checkout?.environment,
-              { failErrorMessage: txResult.message, customerWalletAddress: wallet.walletAddress }
-            );
-            toast.error(txResult.message ?? "Payment Failed");
-            queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
-          }
+        const res = await wallet.signAndSubmit(new Transaction(xdr, network));
+        if (res?.status === "SUCCESS") {
+          sweepAndProcessPayment(checkoutId).catch(console.error);
+          toast.success("Paid!");
+        } else if (res?.txHash) {
+          await reportFailure(res.txHash, res.message ?? "Payment failed");
         }
       }
+      queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
     } catch (e: any) {
-      console.error("[Checkout Error]", e);
       wallet.setTxStatus(TxStatus.FAIL);
-      if (wallet.error) toast.error(wallet.error);
-      else if (e.message) toast.error(e.message);
-      else toast.error("Payment Failed");
+      toast.error(e.message || "Transaction failed");
     }
   };
 
@@ -332,6 +260,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     wallet: {
       connectedAddress: wallet.walletAddress,
       handleWalletPay,
+      disconnect: wallet.disconnect,
       isProcessing,
       kit: { connectWallet: wallet.connect },
     },

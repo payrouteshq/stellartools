@@ -226,7 +226,7 @@ export default function PayoutDetailPage() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
-              { label: "Payout Amount", value: `${payout.amount} XLM` },
+              { label: "Payout Amount", value: `${payout.amountCents} XLM` },
               { label: "Status", value: <StatusBadge status={payout.status as any} /> },
               {
                 label: "Network",
@@ -245,7 +245,7 @@ export default function PayoutDetailPage() {
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold">Payout Information</h3>
                 <div className="bg-card space-y-4 rounded-lg border p-4">
-                  <DetailRow label="Amount" value={`${payout.amount} XLM`} />
+                  <DetailRow label="Amount" value={`${payout.amountCents} XLM`} />
                   <Separator />
                   <DetailRow
                     label="Payout Method"

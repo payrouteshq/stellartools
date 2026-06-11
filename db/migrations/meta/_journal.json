@@ -29,6 +29,20 @@
       "when": 1781182847339,
       "tag": "0003_hard_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1749600000001,
+      "tag": "0004_canonical_issuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781188759638,
+      "tag": "0005_acoustic_clint_barton",
+      "breakpoints": true
     }
   ]
 }

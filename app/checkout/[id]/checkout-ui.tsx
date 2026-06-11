@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCheckout } from "@/contexts/checkout-context";
 import { Money } from "@/lib/money";
 import { cn, truncate } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -40,20 +40,13 @@ export default function CheckoutUI() {
     finalAmountUsdCents,
   } = useCheckout();
 
-  const handleConnectWallet = (successful: boolean) => {
-    if (!successful) toast.error("Unable to connect wallet.");
-  };
-
-  const handleClickConnect = () => {
-    wallet.kit.connectWallet(handleConnectWallet);
-  };
-
   const fiatDisplay = checkout?.finalAmount
     ? Money.formatFiat(checkout.finalAmount, checkout.currencyCode ?? "USD")
     : null;
 
   if (isLoading) return <Checkout.Skeleton />;
   if (!checkout) return notFound();
+
   if (isPaid) {
     if (typeof window !== "undefined" && checkout.redirectUrl) {
       window.location.replace(checkout.redirectUrl);
@@ -215,7 +208,9 @@ export default function CheckoutUI() {
                       value={selectedAsset?.code ?? ""}
                       onChange={(code) => {
                         const asset = publicData?.assets?.find((a) => a.code === code);
-                        if (asset) setSelectedAsset({ code: asset.code, issuers: asset.issuers ?? null });
+                        if (asset) {
+                          setSelectedAsset({ code: asset.code, canonicalIssuer: asset.canonicalIssuer ?? null });
+                        }
                       }}
                       isLoading={publicDataLoading}
                       placeholder="Select payment asset"
@@ -242,11 +237,11 @@ export default function CheckoutUI() {
                       })}
                     />
 
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <Button
                         type="button"
                         className={cn(
-                          "h-14 w-full text-lg font-bold shadow-lg",
+                          "h-14 flex-1 text-lg font-bold shadow-lg",
                           wallet.isProcessing && "pointer-events-none opacity-80"
                         )}
                         onClick={wallet.handleWalletPay}
@@ -258,13 +253,21 @@ export default function CheckoutUI() {
                           : "Connect Wallet"}
                       </Button>
                       {wallet.connectedAddress && !wallet.isProcessing && (
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground w-full text-center text-xs underline-offset-2 transition-colors hover:underline"
-                          onClick={handleClickConnect}
-                        >
-                          Change wallet
-                        </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground hover:bg-muted flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors"
+                                onClick={wallet.disconnect}
+                                aria-label="Disconnect wallet"
+                              >
+                                <X className="size-5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Disconnect wallet</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                   </motion.div>

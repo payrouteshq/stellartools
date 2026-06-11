@@ -86,10 +86,7 @@
           },
           {
             "group": "Reference Data",
-            "pages": [
-              "api-reference/assets",
-              "api-reference/currencies"
-            ]
+            "pages": ["api-reference/assets", "api-reference/currencies"]
           }
         ]
       }

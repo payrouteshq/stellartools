@@ -32,7 +32,15 @@ export interface OptionFlowProps<T extends string>
   disabled?: boolean;
 }
 
-export function OptionFlow<T extends string>({ value, onSave, items, label, error, disabled, ...mixProps }: OptionFlowProps<T>) {
+export function OptionFlow<T extends string>({
+  value,
+  onSave,
+  items,
+  label,
+  error,
+  disabled,
+  ...mixProps
+}: OptionFlowProps<T>) {
   const { container, card, label: labelProps, radio } = splitProps(mixProps, "container", "card", "label", "radio");
 
   const [view, setView] = React.useState<FlowState>("summary");
@@ -70,7 +78,12 @@ export function OptionFlow<T extends string>({ value, onSave, items, label, erro
             )}
             onClick={() => !disabled && setView("detail")}
           >
-            <span className={cn("text-sm", disabled ? "text-muted-foreground" : "text-muted-foreground hover:text-foreground transition-colors")}>
+            <span
+              className={cn(
+                "text-sm",
+                disabled ? "text-muted-foreground" : "text-muted-foreground hover:text-foreground transition-colors"
+              )}
+            >
               {activeItem?.label}
             </span>
             {!disabled && <PencilIcon strokeWidth={1.5} fill="var(--muted-foreground)" width={12} height={12} />}

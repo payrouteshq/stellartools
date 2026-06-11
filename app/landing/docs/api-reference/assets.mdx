@@ -15,8 +15,10 @@ An asset represents a Stellar token that StellarTools accepts as payment — USD
   Human-readable description of the asset, e.g. `"USD Coin"`.
 </ResponseField>
 
-<ResponseField name="issuers" type="array">
-  Array of Stellar public key addresses that issue this asset. Empty for native XLM.
+<ResponseField name="canonicalIssuer" type="string | null">
+  The Stellar public key of the canonical issuer for this asset. `null` for native XLM, which has no issuer.
+
+  This is the authoritative issuer your integration should reference — for example, Circle's address for USDC. During one-time checkouts the DEX routes from any issuer the customer holds automatically, so you never need to resolve issuers yourself. For subscriptions, the smart contract uses this exact issuer.
 </ResponseField>
 
 <ResponseField name="images" type="array">
@@ -44,19 +46,19 @@ curl https://api.stellartools.dev/assets \
     {
       "code": "USDC",
       "description": "USD Coin",
-      "issuers": ["GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"],
+      "canonicalIssuer": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
       "images": []
     },
     {
       "code": "EURC",
       "description": "Euro Coin",
-      "issuers": ["GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP"],
+      "canonicalIssuer": "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP",
       "images": []
     },
     {
       "code": "XLM",
       "description": "Stellar Lumens",
-      "issuers": [],
+      "canonicalIssuer": null,
       "images": []
     }
   ]

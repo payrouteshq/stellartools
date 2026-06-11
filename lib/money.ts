@@ -5,7 +5,16 @@ const STELLAR_PRECISION = 7;
 export const Money = {
   calculateCryptoNeeded: (usdCents: number, assetUsdPrice: number): string => {
     if (assetUsdPrice <= 0) return "0";
-    return new Big(usdCents).div(100).div(assetUsdPrice).toFixed(STELLAR_PRECISION).replace(/\.?0+$/, "");
+    return new Big(usdCents)
+      .div(100)
+      .div(assetUsdPrice)
+      .toFixed(STELLAR_PRECISION)
+      .replace(/\.?0+$/, "");
+  },
+
+  // cents → "15.6250000" suitable for Stellar operation amounts
+  centsToStellarString: (cents: number): string => {
+    return new Big(cents).div(100).toFixed(STELLAR_PRECISION);
   },
 
   addSlippage: (amount: string, percentage = 0.01): string => {
