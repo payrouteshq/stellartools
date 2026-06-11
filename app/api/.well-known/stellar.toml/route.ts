@@ -1,4 +1,4 @@
-import { retrieveAssets } from "@/actions/asset";
+import { retrieveSupportedAssets } from "@/actions/asset";
 import TOML from "@iarna/toml";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -12,7 +12,7 @@ export const GET = async (request: NextRequest) => {
   console.log("getting stellar.toml");
   const environment = "testnet";
 
-  const assets = await retrieveAssets(null, environment);
+  const assets = await retrieveSupportedAssets(null, environment);
 
   const toml = TOML.stringify({
     NETWORK_PASSPHRASE: environment === "testnet" ? TESTNET_PASSPHRASE : MAINNET_PASSPHRASE,
@@ -20,7 +20,7 @@ export const GET = async (request: NextRequest) => {
     CURRENCIES: assets
       .map(
         (asset) =>
-          `{ code: "${asset.code}", native: ${asset.issuer === "native" ? true : false}, issuer: "${asset.issuer}" }`
+          `{ code: "${asset.code}", native: ${asset.code === "XLM" ? true : false}, issuer: "${asset.canonicalIssuer ?? ""}" }`
       )
       .join("\n"),
   });

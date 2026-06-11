@@ -22,22 +22,6 @@ interface Pending2faPayload {
   exp: number;
 }
 
-export const setup2fa = safeAction(async (accountId: string) => {
-  const account = await retrieveAccount({ id: accountId });
-  if (!account) throw new AppError("Account not found");
-
-  const secret = generateSecret();
-  const otpauthUrl = generateURI({ issuer: "StellarTools", label: account.email, secret });
-  const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
-
-  return { secret, qrCodeDataUrl };
-});
-
-interface Reset2faPayload {
-  accountId: string;
-  code: string;
-}
-
 export const initiate2faReset = safeAction(async (accountId: string) => {
   const account = await retrieveAccount({ id: accountId });
   if (!account) throw new AppError("Account not found");
@@ -51,12 +35,32 @@ export const initiate2faReset = safeAction(async (accountId: string) => {
   return { success: true, resetToken };
 });
 
+export const setup2fa = safeAction(async (accountId: string) => {
+  const account = await retrieveAccount({ id: accountId });
+  if (!account) throw new AppError("Account not found");
+
+  const existingEncrypted = account.metadata?.pending2faSecret as string | undefined;
+  const secret = existingEncrypted ? decrypt(existingEncrypted) : generateSecret();
+
+  if (!existingEncrypted) {
+    await db
+      .update(accounts)
+      .set({ metadata: { ...(account.metadata ?? {}), pending2faSecret: encrypt(secret) } })
+      .where(eq(accounts.id, accountId));
+  }
+
+  const otpauthUrl = generateURI({ issuer: "StellarTools", label: account.email, secret });
+  const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+  return { secret, qrCodeDataUrl };
+});
+
 export const toggle2fa = safeAction(
   async (
     accountId: string,
     code: string,
     setupSecret?: string, // Only provided when enabling
-    resetToken?: string // Only provided when disabling via email code
+    resetToken?: string // Only provided when disabling
   ) => {
     const account = await retrieveAccount({ id: accountId });
 
@@ -64,32 +68,32 @@ export const toggle2fa = safeAction(
 
     const isEnabling = !!setupSecret;
 
-    if (isEnabling) {
-      const { valid } = verifySync({ token: code, secret: setupSecret });
-      if (!valid) throw new AppError("Invalid verification code");
-
-      await db
-        .update(accounts)
-        .set({ $2faSecret: encrypt(setupSecret), updatedAt: new Date() })
-        .where(eq(accounts.id, accountId));
-
-      return { success: true, enabled: true };
-    }
-
     if (resetToken) {
-      const payload = verifyJwt<Reset2faPayload>(resetToken);
+      const payload = verifyJwt<{ accountId: string; code: string }>(resetToken);
       if (payload.accountId !== accountId) throw new AppError("Invalid verification token");
       if (payload.code !== code) throw new AppError("Invalid email verification code");
     } else {
-      if (!account.$2faSecret) throw new AppError("2FA configuration not found");
+      const secretToVerify = isEnabling ? setupSecret : account.$2faSecret ? decrypt(account.$2faSecret) : null;
 
-      const { valid } = verifySync({ token: code, secret: decrypt(account.$2faSecret) });
+      if (!secretToVerify) throw new AppError("2FA configuration not found");
+
+      const { valid } = verifySync({ token: code, secret: secretToVerify });
+
       if (!valid) throw new AppError("Invalid verification code");
     }
 
-    await db.update(accounts).set({ $2faSecret: null, updatedAt: new Date() }).where(eq(accounts.id, accountId));
+    const { pending2faSecret: _drop, ...cleanMetadata } = account.metadata ?? {};
 
-    return { success: true, enabled: false };
+    await db
+      .update(accounts)
+      .set({
+        $2faSecret: isEnabling ? encrypt(setupSecret) : null,
+        metadata: cleanMetadata,
+        updatedAt: new Date(),
+      })
+      .where(eq(accounts.id, accountId));
+
+    return { success: true, enabled: isEnabling };
   }
 );
 

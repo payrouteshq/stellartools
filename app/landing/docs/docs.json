@@ -83,6 +83,10 @@
               "api-reference/webhooks",
               "api-reference/usage"
             ]
+          },
+          {
+            "group": "Reference Data",
+            "pages": ["api-reference/assets", "api-reference/currencies"]
           }
         ]
       }
@@ -126,7 +130,7 @@
   "footer": {
     "socials": {
       "x": "https://x.com/stellartoolsorg",
-      "github": "https://github.com/usepaykit/stellartools",
+      "github": "https://github.com/payrouteshq/stellartools",
       "linkedin": "https://www.linkedin.com/company/stellartoolsorg"
     }
   }

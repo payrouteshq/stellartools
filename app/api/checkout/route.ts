@@ -61,7 +61,7 @@ export const POST = async (req: NextRequest) => {
       let subscriptionData = null;
 
       if ("product_id" in data) {
-        const [{ product }] = await retrieveProducts(auth.organizationId, auth.environment, data.product_id);
+        const [product] = await retrieveProducts(auth.organizationId, auth.environment, data.product_id);
 
         if (!product) return Result.err(new AppError(`Product Not Found ${data.product_id}`));
 
@@ -91,8 +91,8 @@ export const POST = async (req: NextRequest) => {
         redirectUrl: data.redirect_url ?? null,
         subscriptionData,
         productId: checkoutType === "product" ? data.product_id : null,
-        amount: checkoutType === "direct" ? data.amount : null,
-        assetCode: checkoutType === "direct" ? data.asset_code : null,
+        currencyCode: checkoutType === "direct" ? data.currency_code : null,
+        amountCents: checkoutType === "direct" ? data.amount_cents : null,
       } as Parameters<typeof postCheckout>[0];
 
       const checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);

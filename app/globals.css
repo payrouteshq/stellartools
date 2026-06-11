@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @plugin "tailwind-scrollbar";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *):not(:is(.force-light, .force-light *)));
 
 @theme inline {
   --animate-aurora: aurora 60s linear infinite;
@@ -287,6 +287,48 @@
   --stellar-wallet-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.7);
   --stellar-wallet-border-radius: 0.5rem;
   --stellar-wallet-font-family: Inter, sans-serif;
+}
+
+/* Force light-mode CSS variables regardless of html.dark on <html>. */
+.force-light {
+  color-scheme: light;
+  --background: #f6f7f8;
+  --foreground: #0f0f0f;
+  --card: #ffffff;
+  --card-foreground: #0f0f0f;
+  --popover: #ffffff;
+  --popover-foreground: #0f0f0f;
+  --primary: #fdda24;
+  --primary-foreground: #0f0f0f;
+  --secondary: #b7ace8;
+  --secondary-foreground: #0f0f0f;
+  --muted: #d6d2c4;
+  --muted-foreground: #5a5750;
+  --accent: #d6d2c4;
+  --accent-foreground: #0f0f0f;
+  --destructive: #ef4444;
+  --destructive-foreground: #f6f7f8;
+  --border: #d6d2c4;
+  --input: #d6d2c4;
+  --ring: #fdda24;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f0f0f;
+  --sidebar-primary: #fdda24;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #d6d2c4;
+  --sidebar-accent-foreground: #0f0f0f;
+  --sidebar-border: #d6d2c4;
+  --sidebar-ring: #fdda24;
+  --stellar-wallet-background: #f6f7f8;
+  --stellar-wallet-background-secondary: #edeae0;
+  --stellar-wallet-foreground-strong: #0f0f0f;
+  --stellar-wallet-foreground: #0f0f0f;
+  --stellar-wallet-foreground-secondary: #5a5750;
+  --stellar-wallet-lighter: #ffffff;
+  --stellar-wallet-light: #edeae0;
+  --stellar-wallet-light-gray: #9ca3af;
+  --stellar-wallet-gray: #5a5750;
+  --stellar-wallet-border: #d6d2c4;
 }
 
 @theme inline {

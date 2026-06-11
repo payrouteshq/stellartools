@@ -11,7 +11,7 @@ CREATE TYPE "public"."payout_status" AS ENUM('pending', 'succeeded', 'failed');-
 CREATE TYPE "public"."product_status" AS ENUM('active', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."product_type" AS ENUM('one_time', 'subscription', 'metered');--> statement-breakpoint
 CREATE TYPE "public"."recurring_period" AS ENUM('day', 'week', 'month', 'year');--> statement-breakpoint
-CREATE TYPE "public"."refund_status" AS ENUM('succeeded', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."refund_status" AS ENUM('pending', 'succeeded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."secret_access_log_action" AS ENUM('decrypt', 'rotate', 'backup');--> statement-breakpoint
 CREATE TYPE "public"."subscription_status" AS ENUM('trialing', 'active', 'past_due', 'canceled', 'paused');--> statement-breakpoint
 CREATE TABLE "account" (
@@ -22,8 +22,7 @@ CREATE TABLE "account" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"metadata" jsonb,
-	"two_factor_secret" text,
-	"two_factor_enabled" boolean DEFAULT false NOT NULL,
+	"$2fa_secret" text,
 	CONSTRAINT "account_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
@@ -82,17 +81,6 @@ CREATE TABLE "app" (
 	CONSTRAINT "app_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
-CREATE TABLE "asset" (
-	"id" text PRIMARY KEY NOT NULL,
-	"code" text NOT NULL,
-	"issuer" text,
-	"network" "network" NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"metadata" jsonb,
-	CONSTRAINT "asset_code_issuer_network_unique" UNIQUE("code","issuer","network")
-);
---> statement-breakpoint
 CREATE TABLE "auth" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -110,14 +98,17 @@ CREATE TABLE "charge" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
 	"payment_id" text,
-	"amount" bigint NOT NULL,
-	"amount_usd_cents" bigint NOT NULL,
-	"asset_id" text NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
+	"crypto_amount" text NOT NULL,
+	"selected_asset_code" text,
+	"selected_asset_issuer" text,
 	"type" charge_type NOT NULL,
 	"status" charge_status NOT NULL,
 	"tx_hash" text,
 	"error" text,
 	"network" "network" NOT NULL,
+	"cleared_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -126,7 +117,8 @@ CREATE TABLE "checkout" (
 	"organization_id" text NOT NULL,
 	"customer_id" text,
 	"product_id" text,
-	"amount" bigint,
+	"amount_cents" integer,
+	"currency_code" text,
 	"description" text,
 	"status" "checkout_status" NOT NULL,
 	"expires_at" timestamp NOT NULL,
@@ -139,8 +131,7 @@ CREATE TABLE "checkout" (
 	"customer_phone" text,
 	"subscription_data" jsonb,
 	"initial_paging_token" text,
-	"asset_code" text,
-	CONSTRAINT "amount_or_product_check" CHECK ("checkout"."product_id" IS NOT NULL OR "checkout"."amount" IS NOT NULL)
+	CONSTRAINT "amount_or_product_check" CHECK (("checkout"."product_id" IS NOT NULL OR ("checkout"."amount_cents" IS NOT NULL AND "checkout"."currency_code" IS NOT NULL)))
 );
 --> statement-breakpoint
 CREATE TABLE "credit_balance" (
@@ -150,9 +141,9 @@ CREATE TABLE "credit_balance" (
 	"product_id" text,
 	"network" "network" NOT NULL,
 	"metadata" jsonb,
-	"balance" bigint DEFAULT 0::bigint NOT NULL,
-	"consumed" bigint DEFAULT 0::bigint NOT NULL,
-	"granted" bigint DEFAULT 0::bigint NOT NULL,
+	"granted" integer DEFAULT 0 NOT NULL,
+	"consumed" integer DEFAULT 0 NOT NULL,
+	"balance" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"is_revoked" boolean DEFAULT false NOT NULL,
@@ -166,9 +157,9 @@ CREATE TABLE "credit_transaction" (
 	"product_id" text,
 	"balance_id" text NOT NULL,
 	"network" "network" NOT NULL,
-	"amount" bigint NOT NULL,
-	"balance_before" bigint NOT NULL,
-	"balance_after" bigint NOT NULL,
+	"amount" integer NOT NULL,
+	"balance_before" integer NOT NULL,
+	"balance_after" integer NOT NULL,
 	"reason" text,
 	"type" "credit_transaction_type" NOT NULL,
 	"metadata" jsonb,
@@ -252,7 +243,11 @@ CREATE TABLE "organization" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"metadata" jsonb,
-	"support_email" text
+	"support_email" text,
+	"payout_asset_code" text DEFAULT 'USDC',
+	"payout_asset_issuer" text,
+	"payout_fiat_options" jsonb,
+	"selected_currency" text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "password_reset" (
@@ -271,39 +266,44 @@ CREATE TABLE "payment" (
 	"organization_id" text NOT NULL,
 	"checkout_id" text,
 	"customer_id" text,
-	"amount" bigint NOT NULL,
-	"amount_usd_cents_snapshot" bigint NOT NULL,
+	"subscription_id" text,
+	"customer_wallet_id" text,
+	"credit_balance_id" text,
+	"product_id" text,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
+	"crypto_amount" text NOT NULL,
+	"selected_asset_code" text NOT NULL,
+	"selected_asset_issuer" text,
 	"tx_hash" text NOT NULL,
-	"status" "payment_status" NOT NULL,
+	"status" "payment_status" DEFAULT 'pending' NOT NULL,
+	"metadata" jsonb,
+	"failure_reason" text,
+	"network" "network" DEFAULT 'testnet' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"network" "network" NOT NULL,
-	"customer_wallet_id" text,
-	"asset_id" text,
-	"subscription_id" text,
-	"credit_balance_id" text,
-	"metadata" jsonb,
 	CONSTRAINT "payment_tx_hash_unique" UNIQUE("tx_hash")
 );
 --> statement-breakpoint
 CREATE TABLE "payout" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
-	"amount" bigint NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
+	"crypto_amount" text NOT NULL,
+	"selected_asset_code" text,
+	"selected_asset_issuer" text,
 	"status" "payout_status" NOT NULL,
 	"wallet_address" text,
-	"asset" text,
 	"memo" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"completed_at" timestamp,
 	"metadata" jsonb,
 	"network" "network" NOT NULL,
 	"transaction_hash" text,
-	"stringified_bank_account" text,
-	"withdrawal_receipt_url" text,
+	"bank_account" jsonb,
 	CONSTRAINT "payout_transaction_hash_unique" UNIQUE("transaction_hash"),
-	CONSTRAINT "asset_or_stringified_bank_account_check" CHECK ("payout"."asset" IS NOT NULL OR "payout"."stringified_bank_account" IS NOT NULL),
-	CONSTRAINT "transaction_hash_or_withdrawal_receipt_url_check" CHECK ("payout"."transaction_hash" IS NOT NULL OR "payout"."withdrawal_receipt_url" IS NOT NULL)
+	CONSTRAINT "crypto_or_fiat_constraint" CHECK (("payout"."selected_asset_code" IS NOT NULL AND "payout"."transaction_hash" IS NOT NULL) OR ("payout"."bank_account" IS NOT NULL))
 );
 --> statement-breakpoint
 CREATE TABLE "product" (
@@ -311,36 +311,39 @@ CREATE TABLE "product" (
 	"organization_id" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
-	"images" text[],
-	"status" "product_status" NOT NULL,
-	"asset_id" text NOT NULL,
-	"asset_code" text,
-	"type" "product_type" NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"metadata" jsonb,
-	"network" "network" NOT NULL,
-	"price_amount" bigint NOT NULL,
+	"price_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
+	"type" "product_type" DEFAULT 'one_time' NOT NULL,
 	"recurring_period" "recurring_period",
+	"status" "product_status" DEFAULT 'active' NOT NULL,
+	"images" text[],
+	"metadata" jsonb,
 	"unit" text,
-	"units_per_credit" bigint,
-	"total_credits" bigint
+	"total_credits" integer,
+	"units_per_credit" integer,
+	"environment" "network" DEFAULT 'testnet' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "refund" (
 	"id" text PRIMARY KEY NOT NULL,
-	"organization_id" text NOT NULL,
 	"payment_id" text NOT NULL,
+	"organization_id" text NOT NULL,
 	"customer_id" text,
-	"amount" bigint NOT NULL,
+	"amount_cents" integer NOT NULL,
+	"currency_code" text DEFAULT 'USD' NOT NULL,
+	"crypto_amount" text NOT NULL,
+	"selected_asset_code" text NOT NULL,
+	"selected_asset_issuer" text,
+	"receiver_wallet_address" text NOT NULL,
+	"tx_hash" text,
+	"status" "refund_status" DEFAULT 'pending' NOT NULL,
 	"reason" text,
-	"status" "refund_status" NOT NULL,
+	"network" "network" NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"network" "network" NOT NULL,
-	"metadata" jsonb,
-	"receiver_public_key" text NOT NULL,
-	"asset_code" text
+	"metadata" jsonb
 );
 --> statement-breakpoint
 CREATE TABLE "secret_access_log" (
@@ -371,6 +374,19 @@ CREATE TABLE "subscription" (
 	"network" "network" NOT NULL,
 	"trial_days" integer DEFAULT 0,
 	"customer_wallet_id" text
+);
+--> statement-breakpoint
+CREATE TABLE "supported_asset" (
+	"id" text PRIMARY KEY NOT NULL,
+	"code" text NOT NULL,
+	"canonical_issuer" text,
+	"description" text,
+	"network" "network" NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"metadata" jsonb,
+	"images" text[],
+	CONSTRAINT "supported_asset_code_canonical_issuer_network_unique" UNIQUE("code","canonical_issuer","network")
 );
 --> statement-breakpoint
 CREATE TABLE "webhook_log" (
@@ -414,7 +430,6 @@ ALTER TABLE "app_log" ADD CONSTRAINT "app_log_organization_id_organization_id_fk
 ALTER TABLE "auth" ADD CONSTRAINT "auth_account_id_account_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."account"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "charge" ADD CONSTRAINT "charge_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "charge" ADD CONSTRAINT "charge_payment_id_payment_id_fk" FOREIGN KEY ("payment_id") REFERENCES "public"."payment"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "charge" ADD CONSTRAINT "charge_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "checkout" ADD CONSTRAINT "checkout_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "checkout" ADD CONSTRAINT "checkout_customer_id_customer_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "checkout" ADD CONSTRAINT "checkout_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -440,16 +455,13 @@ ALTER TABLE "password_reset" ADD CONSTRAINT "password_reset_account_id_account_i
 ALTER TABLE "payment" ADD CONSTRAINT "payment_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment" ADD CONSTRAINT "payment_checkout_id_checkout_id_fk" FOREIGN KEY ("checkout_id") REFERENCES "public"."checkout"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment" ADD CONSTRAINT "payment_customer_id_customer_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payment" ADD CONSTRAINT "payment_customer_wallet_id_customer_wallet_id_fk" FOREIGN KEY ("customer_wallet_id") REFERENCES "public"."customer_wallet"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payment" ADD CONSTRAINT "payment_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment" ADD CONSTRAINT "payment_subscription_id_subscription_id_fk" FOREIGN KEY ("subscription_id") REFERENCES "public"."subscription"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payment" ADD CONSTRAINT "payment_credit_balance_id_credit_balance_id_fk" FOREIGN KEY ("credit_balance_id") REFERENCES "public"."credit_balance"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payment" ADD CONSTRAINT "payment_customer_wallet_id_customer_wallet_id_fk" FOREIGN KEY ("customer_wallet_id") REFERENCES "public"."customer_wallet"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payment" ADD CONSTRAINT "payment_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payout" ADD CONSTRAINT "payout_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payout" ADD CONSTRAINT "payout_asset_asset_id_fk" FOREIGN KEY ("asset") REFERENCES "public"."asset"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product" ADD CONSTRAINT "product_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "product" ADD CONSTRAINT "product_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "refund" ADD CONSTRAINT "refund_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "refund" ADD CONSTRAINT "refund_payment_id_payment_id_fk" FOREIGN KEY ("payment_id") REFERENCES "public"."payment"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "refund" ADD CONSTRAINT "refund_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "refund" ADD CONSTRAINT "refund_customer_id_customer_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customer"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secret_access_log" ADD CONSTRAINT "secret_access_log_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "secret_access_log" ADD CONSTRAINT "secret_access_log_secret_id_organization_secret_id_fk" FOREIGN KEY ("secret_id") REFERENCES "public"."organization_secret"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

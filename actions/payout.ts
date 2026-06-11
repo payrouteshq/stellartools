@@ -2,10 +2,10 @@
 
 import { withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
-import { Network, Payout, db, payouts } from "@/db";
+import { Network, Payout, charges, db, payouts } from "@/db";
 import { generateResourceId } from "@/lib/utils";
 import { EventTrigger } from "@/types";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 export const retrievePayouts = async () => {
   const { organizationId, environment } = await resolveOrgContext();
@@ -65,6 +65,20 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
   return withEvent(
     async () => {
       const [payout] = await db.update(payouts).set(params).where(eq(payouts.id, id)).returning();
+
+      if (params.status === "succeeded" && payout) {
+        await db
+          .update(charges)
+          .set({ clearedAt: new Date() })
+          .where(
+            and(
+              eq(charges.organizationId, payout.organizationId),
+              eq(charges.environment, payout.environment),
+              isNull(charges.clearedAt)
+            )
+          );
+      }
+
       return payout;
     },
     (payout) => {
@@ -78,7 +92,7 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
             id: eventId,
             merchantId: payout.organizationId,
             data: {
-              amount: Number(payout.amount),
+              amount: `${Number(payout.amountCents) / 100} ${payout.currencyCode}`,
               walletAddress: payout.walletAddress,
               memo: payout.memo,
               transactionHash: payout.transactionHash,

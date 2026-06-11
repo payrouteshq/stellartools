@@ -2,45 +2,62 @@
 
 import * as React from "react";
 
-import { retrieveAssets } from "@/actions/asset";
 import { createProductImage } from "@/actions/product";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
 import { NumberField } from "@/components/number-field";
-import { RadioGroup } from "@/components/radio-group";
+import { OptionFlow } from "@/components/option-flow";
 import { SelectInput } from "@/components/select+input";
 import { SelectField } from "@/components/select-field";
 import { TextAreaField, TextField } from "@/components/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Product as ProductSchema } from "@/db";
 import { useAction } from "@/hooks/use-action";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useFilePreview } from "@/hooks/use-file-preview";
-import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
-import { fileFromUrl, stroopsToXlm } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ApiClient, RecurringPeriod } from "@stellartools/core";
-import { HelpCircle, Info, Plus, Trash2 } from "lucide-react";
+import { ApiClient, CURRENCY_CODES } from "@stellartools/core";
+import { Info, Trash2 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import * as RHF from "react-hook-form";
 import { useFieldArray, useWatch } from "react-hook-form";
 import { z } from "zod";
+
+export interface ProductEsque extends Pick<
+  ProductSchema,
+  | "id"
+  | "name"
+  | "description"
+  | "priceCents"
+  | "currencyCode"
+  | "type"
+  | "recurringPeriod"
+  | "status"
+  | "createdAt"
+  | "updatedAt"
+  | "images"
+  | "metadata"
+  | "unit"
+  | "unitsPerCredit"
+  | "totalCredits"
+> {}
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   images: z.array(z.any()).transform((val) => val as FileWithPreview[]),
   type: z.enum(["one_time", "subscription", "metered"]),
-  recurringInterval: z.number().min(1).optional(),
   recurringPeriod: z.enum(["day", "week", "month", "year"]).optional(),
-  price: z.object({
+  pricing: z.object({
     amount: z
       .string()
-      .min(1, "Amount is required")
-      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Price must be greater than 0"),
-    asset: z.string().min(1, "Asset is required"),
+      .min(1, "Price is required")
+      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, { message: "Price must be greater than 0" }),
+    option: z.string().min(1, "Currency is required"),
   }),
   unit: z.string().optional(),
   totalCredits: z.number().min(0).optional(),
@@ -58,24 +75,6 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
-export interface Product extends Pick<
-  ProductSchema,
-  "id" | "name" | "status" | "createdAt" | "updatedAt" | "type" | "images" | "metadata" | "assetId"
-> {
-  description?: string | null;
-  pricing: {
-    amount: number;
-    asset: string;
-    isRecurring?: boolean;
-    period: RecurringPeriod | undefined;
-  };
-  unit?: string | null;
-  unitsPerCredit?: bigint | null;
-  totalCredits?: bigint | null;
-}
-
-// --- Modal Component  ---
-
 export function ProductsModalContent({
   onClose,
   onSuccess,
@@ -85,30 +84,41 @@ export function ProductsModalContent({
 }: {
   onClose: () => void;
   onSuccess: () => void;
-  editingProduct?: Product | null;
+  editingProduct?: ProductEsque | null;
   setSubmitRef?: React.MutableRefObject<(() => void) | null>;
   onFooterChange?: (props: { isPending: boolean }) => void;
 }) {
   const isEditMode = !!editingProduct;
   const { data: orgContext } = useOrgContext();
-  const { data: assets, isLoading: isLoadingAssets } = useOrgQuery(
-    ["assets"],
-    () => retrieveAssets(null, orgContext?.environment!),
-    { enabled: !!orgContext?.environment }
-  );
+  const { currency: orgCurrency } = useCurrencyConverter();
   const { file: imagesFile, isLoading: isLoadingImages } = useFilePreview(editingProduct?.images?.[0] ?? null);
 
+  const currencyDisplayNames = React.useMemo(() => new Intl.DisplayNames(["en"], { type: "currency" }), []);
+  const currencyLabels = React.useMemo(
+    () => Object.fromEntries(CURRENCY_CODES.map((c) => [c, `${currencyDisplayNames.of(c) ?? c} (${c})`])),
+    [currencyDisplayNames]
+  );
+
+  const editDisplayAmount = React.useMemo(() => {
+    if (!editingProduct?.priceCents) return "0";
+    return (editingProduct.priceCents / 100).toFixed(2);
+  }, [editingProduct?.priceCents]);
+
+  const editCurrency = editingProduct?.currencyCode ?? orgCurrency;
+
   const form = RHF.useForm<ProductFormData>({
-    resolver: zodResolver(productSchema) as RHF.Resolver<ProductFormData>,
+    resolver: zodResolver(productSchema),
     values: {
-      name: "",
-      description: "",
-      type: "one_time",
-      recurringPeriod: "month",
-      price: { amount: "", asset: "XLM" },
+      name: editingProduct?.name ?? "",
+      description: editingProduct?.description ?? "",
+      type: editingProduct?.type ?? "one_time",
+      recurringPeriod: editingProduct?.recurringPeriod ?? "month",
+      pricing: { amount: "", option: orgCurrency },
       totalCredits: 0,
       unitsPerCredit: 1,
-      metadata: [],
+      metadata: editingProduct?.metadata
+        ? Object.entries(editingProduct.metadata).map(([key, value]) => ({ key, value: String(value) }))
+        : [],
       images: imagesFile ? [imagesFile] : [],
     },
   });
@@ -134,36 +144,18 @@ export function ProductsModalContent({
             }))
           : [];
 
-      const displayAmount =
-        editingProduct.pricing.amount != null ? stroopsToXlm(BigInt(editingProduct.pricing.amount.toString())) : "";
-
       form.reset({
         name: editingProduct.name,
         description: editingProduct?.description ?? "",
         images: [],
         type: editingProduct.type,
-        recurringPeriod: editingProduct.pricing.period ?? "month",
-        price: {
-          amount: displayAmount,
-          asset: editingProduct.pricing.asset,
-        },
+        recurringPeriod: editingProduct.recurringPeriod ?? "month",
+        pricing: { amount: editDisplayAmount, option: editCurrency },
         unit: editingProduct.unit ?? "",
         totalCredits: Number(editingProduct.totalCredits ?? 0),
         unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
         metadata: metadataArray,
       });
-
-      if (editingProduct.images?.length && editingProduct.images[0]) {
-        fileFromUrl(editingProduct.images[0], "existing-image.png").then((file) => {
-          form.setValue("images", [
-            {
-              ...file,
-              type: file.type || "image/png",
-              preview: URL.createObjectURL(file),
-            } as FileWithPreview,
-          ]);
-        });
-      }
     } else {
       form.reset({
         name: "",
@@ -171,7 +163,7 @@ export function ProductsModalContent({
         images: [],
         type: "one_time",
         recurringPeriod: "month",
-        price: { amount: "", asset: "XLM" },
+        pricing: { amount: "", option: orgCurrency },
         metadata: [],
       });
     }
@@ -209,13 +201,18 @@ export function ProductsModalContent({
         {} as Record<string, string>
       );
 
+      const pricingAmount = parseFloat(data.pricing.amount) || 0;
+      const pricingCurrency = data.pricing?.option ?? orgCurrency;
+      const priceAmountCents = Math.round(pricingAmount * 100);
+
       if (isEditMode && editingProduct?.id) {
-        const response = await api.put<Product>(`/product/${editingProduct.id}`, {
+        const response = await api.put<ProductEsque>(`/product/${editingProduct.id}`, {
           name: data.name,
           description: data?.description,
           images: imageResults,
           metadata: metadataRecord,
-          price_amount: parseFloat(data.price.amount),
+          price_amount_cents: priceAmountCents,
+          currency_code: pricingCurrency,
           recurring_period: data.recurringPeriod,
           unit: data.unit,
           total_credits: data.totalCredits,
@@ -227,13 +224,13 @@ export function ProductsModalContent({
         return response.value;
       }
 
-      const result = await api.post<Product | { error: string }>("/product", {
+      const result = await api.post<ProductEsque | { error: string }>("/product", {
         name: data.name,
         description: data.description,
         images: imageResults,
         type: data.type,
-        price_amount: parseFloat(data.price.amount),
-        asset_code: data.price.asset.split(":")[0],
+        price_amount_cents: priceAmountCents,
+        currency_code: pricingCurrency,
         recurring_period: data.recurringPeriod,
         unit: data.unit,
         total_credits: data.totalCredits,
@@ -246,7 +243,7 @@ export function ProductsModalContent({
 
       if ("error" in result.value) throw new AppError(result.value.error);
 
-      return result.value as Product;
+      return result.value as ProductEsque;
     },
     {
       invalidate: ["products", ...(isEditMode ? [editingProduct?.id] : [])],
@@ -260,7 +257,20 @@ export function ProductsModalContent({
   );
 
   const watched = useWatch({ control: form.control });
-  const total = parseFloat(watched.price?.amount || "0") || 0;
+  const pricingPreviewAmount = parseFloat(watched.pricing?.amount ?? "0");
+  const pricingPreviewCurrency = watched.pricing?.option ?? orgCurrency;
+
+  const currencyOptions = React.useMemo(() => {
+    const sorted = [...CURRENCY_CODES].sort();
+    const selected = pricingPreviewCurrency;
+    const idx = sorted.findIndex((c) => c === selected);
+    if (idx > 0) {
+      const copy = [...sorted];
+      copy.splice(idx, 1);
+      return [selected, ...copy];
+    }
+    return sorted;
+  }, [pricingPreviewCurrency]);
 
   const onSubmit = async (data: ProductFormData) => {
     putProductAction({
@@ -351,114 +361,100 @@ export function ProductsModalContent({
             )}
           />
 
-          <div>
-            <h3 className="mb-2 text-lg font-semibold">Metadata</h3>
-            <p className="text-muted-foreground text-sm">
-              Add custom key-value pairs to store additional information about this product.
-            </p>
+          <div className="space-y-3">
+            <div className="flex items-start gap-2.5">
+              <Checkbox
+                id="metadata-toggle"
+                checked={metadataFields.length > 0}
+                onCheckedChange={(checked) => {
+                  if (checked && metadataFields.length === 0) metadataAppend({ key: "", value: "" });
+                  if (!checked) form.setValue("metadata", []);
+                }}
+                className="mt-0.5"
+              />
+              <div>
+                <Label htmlFor="metadata-toggle" className="cursor-pointer font-medium">
+                  Metadata
+                </Label>
+                <p className="text-muted-foreground text-sm">Store additional structured information.</p>
+              </div>
+            </div>
+            {metadataFields.length > 0 && (
+              <div className="space-y-2 pl-6">
+                {metadataFields.map((field, index) => (
+                  <div key={field.id} className="animate-in slide-in-from-top-1 flex items-end gap-2">
+                    <RHF.Controller
+                      control={form.control}
+                      name={`metadata.${index}.key`}
+                      render={({ field: fieldProps, fieldState: { error } }) => (
+                        <TextField
+                          id={`metadata-key-${index}`}
+                          value={fieldProps.value || ""}
+                          onChange={fieldProps.onChange}
+                          label={index === 0 ? "Key" : null}
+                          error={error?.message || null}
+                          placeholder="e.g., tier"
+                          className="flex-1 shadow-none"
+                        />
+                      )}
+                    />
+                    <RHF.Controller
+                      control={form.control}
+                      name={`metadata.${index}.value`}
+                      render={({ field: fieldProps, fieldState: { error } }) => (
+                        <TextField
+                          id={`metadata-value-${index}`}
+                          value={fieldProps.value || ""}
+                          onChange={fieldProps.onChange}
+                          label={index === 0 ? "Value" : null}
+                          error={error?.message || null}
+                          placeholder="e.g., premium"
+                          className="flex-1 shadow-none"
+                        />
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => metadataRemove(index)}
+                      className={index === 0 ? "mt-5" : ""}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => metadataAppend({ key: "", value: "" })}
+                  className="text-primary text-sm font-medium hover:underline"
+                >
+                  + Add metadata
+                </button>
+              </div>
+            )}
           </div>
 
-          <Card className="shadow-none">
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {metadataFields.length === 0 ? (
-                  <div className="text-muted-foreground py-8 text-center text-sm">
-                    No metadata entries. Click &quot;Add metadata&quot; to add one.
-                  </div>
-                ) : (
-                  metadataFields.map((field, index) => (
-                    <div key={field.id} className="flex items-start gap-3 rounded-lg border p-4">
-                      <div className="grid flex-1 grid-cols-2 gap-3">
-                        <RHF.Controller
-                          control={form.control}
-                          name={`metadata.${index}.key`}
-                          render={({ field: fieldProps, fieldState: { error } }) => (
-                            <TextField
-                              id={`metadata-key-${index}`}
-                              value={fieldProps.value || ""}
-                              onChange={fieldProps.onChange}
-                              label="Key"
-                              error={error?.message || null}
-                              placeholder="e.g., tier"
-                              className="w-full shadow-none"
-                            />
-                          )}
-                        />
-                        <RHF.Controller
-                          control={form.control}
-                          name={`metadata.${index}.value`}
-                          render={({ field: fieldProps, fieldState: { error } }) => (
-                            <TextField
-                              id={`metadata-value-${index}`}
-                              value={fieldProps.value || ""}
-                              onChange={fieldProps.onChange}
-                              label="Value"
-                              error={error?.message || null}
-                              placeholder="e.g., premium"
-                              className="w-full shadow-none"
-                            />
-                          )}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => metadataRemove(index)}
-                        className="mt-5 shrink-0 shadow-none"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => metadataAppend({ key: "", value: "" })}
-                  className="w-full shadow-none"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add metadata
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="space-y-4 pt-4">
-            <div className="flex items-center justify-between">
-              <Label className="font-medium">Pricing Model</Label>
-              {process.env.NEXT_PUBLIC_DOCS_URL ? (
-                <Link
-                  target="_blank"
-                  className="text-primary flex h-auto items-center gap-1.5 px-2 py-1 text-xs no-underline hover:underline hover:underline-offset-2"
-                  href={process.env.NEXT_PUBLIC_DOCS_URL}
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                  Learn about metered billing
-                </Link>
-              ) : null}
-            </div>
             <RHF.Controller
               control={form.control}
               name="type"
               render={({ field, fieldState: { error } }) => (
-                <RadioGroup
-                  id="type"
+                <OptionFlow
+                  label="Pricing Model"
                   disabled={isEditMode}
-                  value={isEditMode ? editingProduct?.type : field.value}
-                  onChange={field.onChange}
+                  value={(isEditMode ? editingProduct?.type : field.value) ?? "subscription"}
+                  onSave={field.onChange}
                   items={[
-                    { value: "subscription", label: "Recurring" },
-                    { value: "one_time", label: "One-off" },
-                    { value: "metered", label: "Metered (Credits)" },
+                    {
+                      value: "subscription",
+                      label: "Recurring",
+                      description: "Charge customers on a recurring schedule.",
+                    },
+                    { value: "one_time", label: "One-off", description: "A single charge with no renewal." },
+                    { value: "metered", label: "Metered (Credits)", description: "Bill based on actual usage." },
                   ]}
                   error={error?.message}
-                  label={null}
-                  helpText={null}
-                  itemLayout="horizontal"
-                  defaultValue={isEditMode ? editingProduct?.type : undefined}
                 />
               )}
             />
@@ -537,47 +533,56 @@ export function ProductsModalContent({
               </div>
             )}
 
-            <div className="flex gap-2">
-              <RHF.Controller
-                control={form.control}
-                name="price"
-                render={({ field, fieldState: { error } }) => (
-                  <SelectInput
-                    id="price"
-                    isLoading={isLoadingAssets}
-                    className="flex-1"
-                    value={{ amount: field.value.amount, option: field.value.asset }}
-                    onChange={(value) => field.onChange({ ...field.value, amount: value.amount, asset: value.option })}
-                    options={assets?.map((asset) => `${asset.code}:${asset.id}`) ?? []}
-                    error={(error as any)?.asset?.message ?? (error as any)?.amount?.message}
-                    disabled={isEditMode}
+            <div className="space-y-1.5">
+              <div className="flex items-end gap-2">
+                <RHF.Controller
+                  control={form.control}
+                  name="pricing"
+                  render={({ field }) => {
+                    return (
+                      <SelectInput
+                        id="pricing"
+                        className="flex-1"
+                        mode="currency"
+                        placeholder="1,000.00"
+                        label="Price"
+                        value={field.value ?? { amount: "0", option: orgCurrency }}
+                        onChange={field.onChange}
+                        options={currencyOptions}
+                        optionLabels={currencyLabels}
+                        isLoading={false}
+                        error={form.formState.errors.pricing?.amount?.message}
+                        disabled={isEditMode}
+                        popoverContentClassName="w-[350px]"
+                      />
+                    );
+                  }}
+                />
+
+                {watched.type == "subscription" && (
+                  <RHF.Controller
+                    name="recurringPeriod"
+                    control={form.control}
+                    render={({ field, fieldState: { error } }) => (
+                      <SelectField
+                        id={field.name}
+                        value={field.value as string}
+                        onChange={field.onChange}
+                        triggerValuePlaceholder="Select recurring period"
+                        triggerClassName="h-12 w-[150px]"
+                        items={[
+                          { value: "day", label: "Daily" },
+                          { value: "week", label: "Weekly" },
+                          { value: "month", label: "Monthly" },
+                          { value: "year", label: "Yearly" },
+                        ]}
+                        error={error?.message}
+                        disabled={isEditMode}
+                      />
+                    )}
                   />
                 )}
-              />
-
-              {watched.type == "subscription" && (
-                <RHF.Controller
-                  name="recurringPeriod"
-                  control={form.control}
-                  render={({ field, fieldState: { error } }) => (
-                    <SelectField
-                      id={field.name}
-                      value={field.value as string}
-                      onChange={field.onChange}
-                      triggerValuePlaceholder="Select recurring period"
-                      triggerClassName="mt-2.5 h-12 w-[150px]"
-                      items={[
-                        { value: "day", label: "Daily" },
-                        { value: "week", label: "Weekly" },
-                        { value: "month", label: "Monthly" },
-                        { value: "year", label: "Yearly" },
-                      ]}
-                      error={error?.message}
-                      disabled={isEditMode}
-                    />
-                  )}
-                />
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -609,7 +614,11 @@ export function ProductsModalContent({
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground font-medium">Total Price</span>
                   <span className="font-bold">
-                    {total.toFixed(2)} {watched.price?.asset?.split(":")?.[0] ?? "XLM"}
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: pricingPreviewCurrency,
+                      minimumFractionDigits: 2,
+                    }).format(pricingPreviewAmount)}
                   </span>
                 </div>
                 {watched.type === "subscription" && (

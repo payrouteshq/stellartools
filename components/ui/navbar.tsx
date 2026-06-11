@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getCurrentUser, signOut } from "@/actions/auth";
 import { AppModal } from "@/components/app-modal";
-import { PayKit, StellarTools } from "@/components/icon";
+import { Payroutes, StellarTools } from "@/components/icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -25,11 +25,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
-  { href: "#integrations", label: "Integrations" },
   { href: process.env.NEXT_PUBLIC_DOCS_URL!, label: "Docs" },
   { href: "/pricing", label: "Pricing" },
   { href: "/team", label: "Team" },
-  { href: "https://github.com/usepaykit/stellartools", label: "GitHub" },
+  { href: "https://github.com/payrouteshq/stellartools", label: "GitHub" },
 ] as const;
 
 export function Header() {
@@ -78,11 +77,11 @@ export function Header() {
         <div className="bg-background/95 border-border flex items-center justify-between rounded-2xl border px-4 py-2.5 shadow-sm backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Link href="https://usepaykit.dev" target="_blank">
-              <PayKit className="size-7" />
+              <Payroutes className="text-foreground size-7" />
             </Link>
             <span className="text-foreground text-sm">/</span>
             <Link className="flex items-center gap-2" href="/" target="_blank">
-              <StellarTools width={28} height={28} className="size-7 rounded-md object-contain" />
+              <StellarTools width={28} height={28} className="text-foreground size-7 rounded-md object-contain" />
               <span className="font-rosemary text-foreground text-base font-semibold">StellarTools</span>
             </Link>
           </div>
@@ -98,7 +97,7 @@ export function Header() {
       </div>
 
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
-        <DialogContent className="inset-0! top-0! left-0! m-0! flex h-screen! w-screen! max-w-none! translate-x-0! translate-y-0! flex-col gap-0 rounded-none border-none p-0">
+        <DialogContent className="force-light inset-0! top-0! left-0! m-0! flex h-screen! w-screen! max-w-none! translate-x-0! translate-y-0! flex-col gap-0 rounded-none border-none p-0">
           <DialogTitle className="sr-only">Navigation menu</DialogTitle>
 
           <nav className="flex flex-1 flex-col justify-center gap-1 px-8">
@@ -163,11 +162,11 @@ export function Header() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <Link href="https://usepaykit.dev" target="_blank">
-              <PayKit className="size-8" />
+              <Payroutes className="text-foreground size-8" />
             </Link>
             <span className="text-foreground">/</span>
             <Link className="flex items-center gap-2" href="/">
-              <StellarTools width={32} height={32} />
+              <StellarTools width={32} height={32} className="text-foreground" />
               <span className="font-rosemary text-foreground text-lg font-semibold">StellarTools</span>
             </Link>
           </div>

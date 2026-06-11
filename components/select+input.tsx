@@ -9,19 +9,40 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MixinProps, splitProps } from "@/lib/mixin";
 import { cn } from "@/lib/utils";
 import { ChevronsUpDown } from "lucide-react";
+
+const Formatter = {
+  addCommas: (raw: string) => {
+    if (!raw) return raw;
+    const [int, dec] = raw.split(".");
+    const withCommas = int!.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec !== undefined ? `${withCommas}.${dec}` : withCommas;
+  },
+  stripCommas: (str: string) => str.replace(/,/g, ""),
+  isValid: (str: string) => {
+    if (str === "" || str === ".") return true;
+    try {
+      return !isNaN(parseFloat(str)) && isFinite(Number(str));
+    } catch {
+      return false;
+    }
+  },
+};
 
 export interface SelectInputValue {
   amount: string;
   option: string;
 }
 
-export interface SelectInputProps {
+export interface SelectInputProps extends MixinProps<"popoverContent", React.ComponentProps<typeof PopoverContent>> {
   id: string;
   value: SelectInputValue;
   onChange: (value: SelectInputValue) => void;
   options: string[];
+  optionLabels?: Record<string, string>;
+  mode?: "plain" | "currency";
   isLoading?: boolean;
   label?: string;
   error?: string;
@@ -38,6 +59,8 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
       value,
       onChange,
       options = [],
+      optionLabels,
+      mode = "plain",
       isLoading = false,
       label,
       error,
@@ -45,40 +68,67 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
       placeholder = "Select option...",
       className,
       optionsDisabled,
+      ...mixProps
     },
     ref
   ) => {
+    const { popoverContent } = splitProps(mixProps, "popoverContent");
     const [open, setOpen] = React.useState(false);
+    const inputRef = React.useRef<HTMLInputElement>(null);
 
-    // Auto-reconcile partial values (e.g., "USDC" -> "USDC:ast_123")
-    React.useEffect(() => {
-      if (!value.option || options.length === 0) return;
-
-      // 1. If the value is already a perfect match for an option, do nothing.
-      if (options.includes(value.option)) return;
-
-      // 2. If not, check if it's a "shorthand" (e.g., "USDC" matches "USDC:ast_123")
-      // We only match if it's followed by the delimiter to avoid partial word matches
-      const fullMatch = options.find((opt) => opt.startsWith(`${value.option}:`));
-
-      if (fullMatch) {
-        onChange({ ...value, option: fullMatch });
-      }
-    }, [options, value.option, onChange]);
+    const setRefs = React.useCallback(
+      (node: HTMLInputElement | null) => {
+        inputRef.current = node;
+        if (!ref) return;
+        if (typeof ref === "function") ref(node);
+        else ref.current = node;
+      },
+      [ref]
+    );
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = e.target.value;
+      const el = e.target;
+      const raw = mode === "currency" ? Formatter.stripCommas(el.value) : el.value;
 
-      // Regex: Allow empty, or positive decimal numbers (e.g., 1, 1.5, 0.5)
-      if (inputValue === "" || /^\d*\.?\d*$/.test(inputValue)) {
-        onChange({ ...value, amount: inputValue });
+      if (mode === "plain") {
+        if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
+      } else {
+        if (!Formatter.isValid(raw)) return;
+      }
+
+      const start = el.selectionStart || 0;
+      const before = el.value.substring(0, start);
+      const digitCount = before.replace(/\D/g, "").length;
+
+      onChange({ ...value, amount: raw });
+
+      // Re-apply cursor position based on digit count after re-render
+      if (mode === "currency") {
+        requestAnimationFrame(() => {
+          if (!inputRef.current) return;
+          const formatted = Formatter.addCommas(raw);
+          let newPos = 0;
+          let foundDigits = 0;
+
+          for (let i = 0; i < formatted.length && foundDigits < digitCount; i++) {
+            if (/\d/.test(formatted[i])) foundDigits++;
+            newPos = i + 1;
+          }
+          inputRef.current.setSelectionRange(newPos, newPos);
+        });
       }
     };
 
     const handleOptionSelect = (option: string) => {
       onChange({ ...value, option });
       setOpen(false);
+      requestAnimationFrame(() => inputRef.current?.focus());
     };
+
+    const displayAmount = React.useMemo(
+      () => (mode === "currency" ? Formatter.addCommas(value.amount) : value.amount),
+      [value.amount, mode]
+    );
 
     return (
       <div className={cn("space-y-2", className)}>
@@ -90,9 +140,9 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
 
         <InputGroup
           className={cn(
-            "border-input relative mt-2 flex h-10 w-full rounded-md border bg-transparent text-sm",
+            "border-input relative mt-2 flex h-10 w-full rounded-md border bg-transparent text-sm transition-all",
             "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            error && "border-destructive"
+            error && "border-destructive ring-destructive/20"
           )}
         >
           <Popover open={open} onOpenChange={setOpen} modal={false}>
@@ -102,45 +152,47 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
                 role="combobox"
                 aria-expanded={open}
                 disabled={disabled || isLoading || options.length === 0}
-                className="border-input hover:bg-accent hover:text-accent-foreground flex h-full min-w-[100px] justify-start gap-2 rounded-r-none border-r bg-transparent px-3"
+                className="border-input hover:bg-accent hover:text-accent-foreground flex h-full min-w-[100px] justify-start gap-2 rounded-r-none border-r bg-transparent px-3 shadow-none"
               >
                 {isLoading ? (
-                  <Spinner strokeColor="text-muted-foreground" size={20} />
+                  <Spinner strokeColor="text-muted-foreground" size={18} />
                 ) : (
                   <>
-                    <span className="font-medium">
-                      {value.option.includes(":") ? value.option.split(":")[0]! : (value.option ?? "Select")}
-                    </span>
-                    <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+                    <span className="truncate font-medium">{value.option || "Select"}</span>
+                    <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-50" />
                   </>
                 )}
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-[200px] p-0" align="start" onWheel={(e) => e.stopPropagation()}>
+            <PopoverContent
+              {...popoverContent}
+              className={cn("w-[220px] p-0 shadow-xl", popoverContent?.className)}
+              align="start"
+              onWheel={(e) => e.stopPropagation()}
+            >
               <Command>
-                <CommandInput placeholder="Search option..." />
+                <CommandInput placeholder="Search options..." />
                 <CommandList>
-                  <CommandEmpty>No option found.</CommandEmpty>
+                  <CommandEmpty>No results found.</CommandEmpty>
                   <CommandGroup>
-                    {options.map((option) => {
-                      const hasDelimiter = option.includes(":");
-                      const [displayValue, _] = hasDelimiter ? option.split(":") : [option, option];
-
-                      return (
-                        <CommandItem
-                          key={option}
-                          value={option}
-                          onSelect={() => handleOptionSelect(option)}
-                          disabled={optionsDisabled}
-                        >
-                          <CheckMark
-                            className={cn("mr-2 h-4 w-4", value.option === option ? "opacity-100" : "opacity-0")}
-                          />
-                          {displayValue}
-                        </CommandItem>
-                      );
-                    })}
+                    {options.map((opt) => (
+                      <CommandItem
+                        key={opt}
+                        value={`${opt} ${optionLabels?.[opt] ?? ""}`}
+                        onSelect={() => handleOptionSelect(opt)}
+                        disabled={optionsDisabled}
+                        className="gap-2"
+                      >
+                        <CheckMark
+                          className={cn(
+                            "size-4 transition-opacity",
+                            value.option === opt ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <span className="flex-1 truncate">{optionLabels?.[opt] ?? opt}</span>
+                      </CommandItem>
+                    ))}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -149,11 +201,11 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
 
           <InputGroupInput
             id={id}
-            ref={ref}
+            ref={setRefs}
             type="text"
             inputMode="decimal"
             placeholder={placeholder}
-            value={value.amount}
+            value={displayAmount}
             onChange={handleAmountChange}
             disabled={disabled}
             className="no-autofill-bg flex-1 border-0 bg-transparent px-3 py-1 text-sm shadow-none focus-visible:ring-0"
@@ -162,7 +214,7 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
         </InputGroup>
 
         {error && (
-          <p className="text-destructive text-sm font-medium" role="alert">
+          <p className="text-destructive animate-in fade-in slide-in-from-top-1 text-sm font-medium" role="alert">
             {error}
           </p>
         )}

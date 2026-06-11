@@ -1,6 +1,5 @@
 import { postProduct } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { xlmToStroops } from "@/lib/utils";
 import { Result, createProductSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
@@ -18,14 +17,14 @@ export const POST = apiHandler({
       description: body.description ?? null,
       images: body.images,
       type: body.type,
-      assetCode: body.asset_code,
       status: "active" as const,
       metadata: body.metadata,
-      priceAmount: xlmToStroops(body.price_amount.toString()),
+      priceCents: body.price_amount_cents,
       recurringPeriod: body.recurring_period ?? null,
       unit: body.unit ?? null,
-      unitsPerCredit: body.units_per_credit ? BigInt(body.units_per_credit) : null,
-      totalCredits: body.total_credits ? BigInt(body.total_credits) : null,
+      unitsPerCredit: body.units_per_credit ?? null,
+      totalCredits: body.total_credits ?? null,
+      currencyCode: body.currency_code,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

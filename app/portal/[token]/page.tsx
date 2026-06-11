@@ -2,138 +2,45 @@
 
 import * as React from "react";
 
-import {
-  createCustomerImage,
-  deleteCustomerWallet,
-  getCustomerPortalData,
-  retrieveCustomerPortalSession,
-} from "@/actions/customers";
+import { deleteCustomerWallet, getCustomerPortalData, retrieveCustomerPortalSession } from "@/actions/customers";
 import { AppModal } from "@/components/app-modal";
-import { TestModeBanner } from "@/components/environment-mode";
-import { FileUpload, type FileWithPreview } from "@/components/file-upload";
 import { StellarTools } from "@/components/icon";
-import {
-  PhoneNumber,
-  PhoneNumberField,
-  phoneNumberFromString,
-  phoneNumberSchema,
-  phoneNumberToString,
-} from "@/components/phone-number-field";
-import { TextField } from "@/components/text-field";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import { toast } from "@/components/ui/toast";
 import { useAction } from "@/hooks/use-action";
-import { useFilePreview } from "@/hooks/use-file-preview";
 import { AppError } from "@/lib/action-handler";
-import { cn, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ApiClient } from "@stellartools/core";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Money } from "@/lib/money";
+import { cn, truncate } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Edit2, Plus, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
-import * as RHF from "react-hook-form";
-import { z as Schema } from "zod";
 
 type PortalData = Awaited<ReturnType<typeof getCustomerPortalData>>;
-type Subscription = NonNullable<PortalData>["subscriptions"][number];
 type Credit = NonNullable<PortalData>["credits"][number];
 type Payment = NonNullable<PortalData>["payments"][number];
-type Wallet = NonNullable<PortalData>["wallets"][number];
-
-const api = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL!, headers: {} });
-
-const portalFormSchema = Schema.object({
-  name: Schema.string().optional().nullable(),
-  email: Schema.email().optional().nullable(),
-  phoneNumber: phoneNumberSchema,
-  image: Schema.custom<FileWithPreview>((val) => val instanceof File)
-    .optional()
-    .nullable(),
-});
-
-type PortalFormData = Schema.infer<typeof portalFormSchema>;
+type WalletEntry = NonNullable<PortalData>["wallets"][number];
+type Organization = NonNullable<PortalData>["organization"];
 
 export default function PortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = React.use(params);
 
-  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["customer-portal", token],
     queryFn: () => getCustomerPortalData(token),
     enabled: !!token,
   });
 
-  const { file: imageFile, isLoading: isLoadingImage } = useFilePreview(data?.customer?.image ?? null);
-
-  const form = RHF.useForm({
-    resolver: zodResolver(portalFormSchema),
-    values: data?.customer
-      ? {
-          name: data.customer.name ?? "",
-          email: data.customer.email ?? "",
-          phoneNumber: data.customer.phone
-            ? phoneNumberFromString(data.customer.phone)
-            : { number: "", countryCode: "US" },
-          image: imageFile ?? undefined,
-        }
-      : undefined,
-    defaultValues: {
-      name: "",
-      email: "",
-      phoneNumber: { number: "", countryCode: "US" },
-      image: imageFile ?? undefined,
-    },
-  });
-
-  const [saving, startSave] = React.useTransition();
-
-  const isDirty = form.formState.isDirty;
-
-  const handleSave = form.handleSubmit((formData: PortalFormData) => {
-    startSave(async () => {
-      let imageUrl: string | null = null;
-      const imageFile = formData.image;
-
-      if (imageFile instanceof File) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("image", imageFile);
-        imageUrl = (await createCustomerImage(formDataUpload)) ?? null;
-      }
-
-      const phone =
-        formData.phoneNumber.number.replace(/\D/g, "").length >= 10 ? phoneNumberToString(formData.phoneNumber) : "";
-
-      const response = await api.put(
-        `/customers/${data?.customer?.id}`,
-        {
-          name: formData.name ?? undefined,
-          email: formData.email || undefined,
-          phone: phone || undefined,
-          ...(imageUrl && { image: imageUrl }),
-        },
-        { "x-portal-token": token, "x-source": "Customer Portal" }
-      );
-
-      if (response.isErr()) {
-        toast.error(response.error.message);
-        return;
-      }
-
-      toast.success("Profile updated");
-      queryClient.invalidateQueries({ queryKey: ["customer-portal", token] });
-    });
-  });
-
   const [actionId, setActionId] = React.useState<string | null>(null);
 
-  const { mutate: makeSubscriptionMutation, isPending: isMakingSubscription } = useAction(
+  const { mutate: makeSubscriptionMutation } = useAction(
     async ({ path, subscriptionId }: { path: string; subscriptionId: string; successMessage: string }) => {
       setActionId(subscriptionId);
+      const { ApiClient } = await import("@stellartools/core");
+      const api = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL!, headers: {} });
       const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, {
         headers: { "x-portal-token": token },
       });
@@ -143,7 +50,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
     {
       onSuccess: () => setActionId(null),
       onError: () => setActionId(null),
-      invalidate: ["customer-portal", token],
+      invalidate: [["customer-portal", token]],
       successMsg: (_, args) => args.successMessage,
     }
   );
@@ -155,11 +62,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
       const { customerId, organizationId, environment } = session;
       return await deleteCustomerWallet(customerId, walletId, organizationId, environment);
     },
-    {
-      invalidate: ["customer-portal", token],
-      successMsg: "Wallet removed",
-      errorMsg: "Failed to remove wallet",
-    }
+    { invalidate: [["customer-portal", token]], successMsg: "Wallet removed", errorMsg: "Failed to remove wallet" }
   );
 
   const handleCancel = (subscriptionId: string) => {
@@ -207,7 +110,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
     });
   };
 
-  const handleDeleteWallet = (wallet: Wallet) => {
+  const handleDeleteWallet = (wallet: WalletEntry) => {
     AppModal.open({
       title: "Remove wallet",
       description: `Remove ${truncate(wallet.address, { start: 6, end: 6 })}?`,
@@ -234,308 +137,307 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
   if (!data?.customer) {
     return (
-      <div className="bg-background flex min-h-screen flex-col">
-        <header className="border-border border-b">
-          <div className="mx-auto flex max-w-2xl items-center px-4 py-4">
-            <Link
-              href={process.env.NEXT_PUBLIC_APP_URL!}
-              className="text-foreground flex items-center gap-2.5 font-semibold transition-opacity hover:opacity-80"
-            >
-              <StellarTools width={28} height={28} className="object-contain" />
-              <span>StellarTools</span>
-            </Link>
+      <div className="bg-background flex min-h-screen">
+        <PortalSidebar org={null} testnet={false} token={token} />
+        <main className="flex flex-1 flex-col">
+          <MobileOrgHeader org={null} testnet={false} />
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+              <p className="text-foreground text-lg font-semibold">Session expired or not found</p>
+              <p className="text-muted-foreground mt-1 text-sm">Contact the merchant for a new link.</p>
+            </div>
           </div>
-        </header>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <p className="text-foreground text-lg font-semibold">Session expired or not found</p>
-            <p className="text-muted-foreground mt-1 text-sm">Contact the merchant for a new link.</p>
-          </div>
-        </div>
+        </main>
       </div>
     );
   }
 
-  const { subscriptions, payments, credits, wallets } = data;
+  const { customer, organization, subscriptions, payments, credits, wallets } = data;
+  const testnet = data.environment === "testnet";
   const activeSubscriptions = subscriptions.filter(
     (s) => s.status === "active" || s.status === "trialing" || s.status === "paused"
   );
   const activeWalletIds = new Set(activeSubscriptions.map((s) => s.customerWalletId).filter(Boolean));
-  const hasActivity = payments.length > 0 || activeSubscriptions.length > 0 || credits.length > 0;
-
-  const image = form.watch("image");
 
   return (
-    <div className="bg-background min-h-screen">
-      {data.environment === "testnet" && <TestModeBanner />}
-      <header
-        className={cn("border-border border-b", data.environment === "testnet" && "pt-8 transition-all duration-300")}
-      >
-        <div className="mx-auto flex max-w-2xl items-center px-4 py-4">
-          <Link
-            href={process.env.NEXT_PUBLIC_APP_URL!}
-            className="text-foreground flex items-center gap-2.5 font-semibold transition-opacity hover:opacity-80"
-          >
-            <StellarTools width={28} height={28} className="object-contain" />
-            <span>StellarTools</span>
-          </Link>
-        </div>
-      </header>
-      <div className="mx-auto max-w-2xl px-4 py-12">
-        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
-          <div className="relative shrink-0">
-            <FileUpload
-              label={null}
-              shape="circle"
-              isLoading={isLoadingImage}
-              value={image ? [image] : undefined}
-              onFilesChange={(files) => form.setValue("image", files[0], { shouldDirty: true })}
-              enableTransformation
-              disabled={saving}
-              dropzoneAccept={{ "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"] }}
-              dropzoneMaxSize={5 * 1024 * 1024}
-              dropzoneMultiple={false}
-              targetFormat="image/png"
-              error={form.formState.errors.image?.message}
-              placeholder=""
-              description=""
-              className="w-fit"
-            />
-          </div>
+    <div className="bg-background flex min-h-screen">
+      <PortalSidebar org={organization} testnet={testnet} token={token} />
 
-          <div className="min-w-0 flex-1 space-y-4 sm:w-[320px]">
-            <RHF.Controller
-              control={form.control}
-              name="name"
-              render={({ field, fieldState }) => (
-                <TextField
-                  id="name"
-                  label="Name"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  placeholder="Your name"
-                  error={fieldState.error?.message ?? null}
-                />
-              )}
-            />
-            <RHF.Controller
-              control={form.control}
-              name="email"
-              render={({ field, fieldState }) => (
-                <TextField
-                  id="email"
-                  label="Email"
-                  type="email"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  placeholder="you@example.com"
-                  error={fieldState.error?.message ?? null}
-                />
-              )}
-            />
-            <RHF.Controller
-              control={form.control}
-              name="phoneNumber"
-              render={({ field, fieldState }) => {
-                const fieldValue: PhoneNumber = {
-                  number: field.value?.number || "",
-                  countryCode: field.value?.countryCode ?? "US",
-                };
+      <main className="flex-1 overflow-auto">
+        <MobileOrgHeader org={organization} testnet={testnet} />
+        <div className="mx-auto max-w-2xl space-y-10 px-6 py-12">
+          {/* Active subscriptions */}
+          {activeSubscriptions.map((sub) => (
+            <section key={sub.id}>
+              <SectionLabel>Current subscription</SectionLabel>
+              <div className="border-border rounded-xl border px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-foreground font-medium">{sub.productName ?? "Subscription"}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {sub.cancelAtPeriodEnd ? (
+                        <Badge variant="outline">Canceling</Badge>
+                      ) : sub.status === "paused" ? (
+                        <Badge variant="secondary">Paused</Badge>
+                      ) : sub.status === "trialing" ? (
+                        <Badge variant="secondary">Trial</Badge>
+                      ) : (
+                        <Badge>Active</Badge>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground text-sm">
+                      {sub.cancelAtPeriodEnd
+                        ? `Cancels ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`
+                        : sub.status === "paused"
+                          ? "Paused — no charges until resumed"
+                          : `Renews ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`}
+                    </p>
+                    {sub.walletAddress && (
+                      <p className="text-muted-foreground font-mono text-xs">
+                        {truncate(sub.walletAddress, { start: 8, end: 8 })}
+                      </p>
+                    )}
+                  </div>
+                  {!sub.cancelAtPeriodEnd && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {sub.status === "paused" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={actionId === sub.id}
+                          onClick={() =>
+                            makeSubscriptionMutation({
+                              path: "resume",
+                              subscriptionId: sub.id,
+                              successMessage: "Subscription resumed",
+                            })
+                          }
+                        >
+                          {actionId === sub.id ? "Resuming…" : "Resume"}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground"
+                          disabled={actionId === sub.id}
+                          onClick={() => handlePause(sub.id)}
+                        >
+                          Pause
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={actionId === sub.id}
+                        onClick={() => handleCancel(sub.id)}
+                      >
+                        Cancel subscription
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          ))}
 
-                return (
-                  <PhoneNumberField
-                    id="phoneNumber"
-                    label="Phone number"
-                    value={fieldValue}
-                    onChange={field.onChange}
-                    error={fieldState.error?.message ?? null}
-                    groupClassName="w-full"
-                  />
-                );
-              }}
-            />
-            {isDirty && (
-              <Button size="sm" onClick={handleSave} isLoading={saving} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {wallets.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-foreground mb-3 text-sm font-medium">Connected Wallets</h2>
+          {/* Payment methods */}
+          <section>
+            <SectionLabel>Payment methods</SectionLabel>
             <div className="border-border divide-border divide-y rounded-xl border">
               {wallets.map((wallet) => (
-                <WalletRow
-                  key={wallet.id}
-                  wallet={wallet}
-                  isLinkedToActiveSubscription={activeWalletIds.has(wallet.id)}
-                  isDeleting={isDeletingWallet}
-                  onDelete={() => handleDeleteWallet(wallet)}
-                />
+                <div key={wallet.id} className="flex items-center justify-between px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-muted flex size-9 shrink-0 items-center justify-center rounded-full">
+                      <Wallet className="text-muted-foreground size-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-foreground font-mono text-sm">
+                        {truncate(wallet.address, { start: 8, end: 8 })}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-muted-foreground text-xs">
+                          Added {moment(wallet.createdAt).format("MMM D, YYYY")}
+                        </p>
+                        {activeWalletIds.has(wallet.id) && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Active subscription
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground text-xs"
+                    onClick={() => handleDeleteWallet(wallet)}
+                    disabled={isDeletingWallet || activeWalletIds.has(wallet.id)}
+                    title={
+                      activeWalletIds.has(wallet.id)
+                        ? "Cannot remove a wallet linked to an active subscription"
+                        : "Remove"
+                    }
+                  >
+                    ···
+                  </Button>
+                </div>
               ))}
+              <div className="px-5 py-3.5">
+                <Link
+                  href={`/${token}/payment-methods`}
+                  className="text-foreground hover:text-foreground/80 flex items-center gap-1.5 text-sm transition-colors"
+                >
+                  <Plus className="size-4" />
+                  Add payment method
+                </Link>
+              </div>
             </div>
           </section>
-        )}
 
-        {!hasActivity && (
-          <div className="border-border rounded-xl border py-16 text-center">
-            <p className="text-foreground font-medium">No activity yet</p>
-            <p className="text-muted-foreground mt-1 text-sm">Subscriptions and payments will appear here.</p>
-          </div>
-        )}
-
-        {activeSubscriptions.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-foreground mb-3 text-sm font-medium">Subscriptions</h2>
-            <div className="border-border divide-border divide-y rounded-xl border">
-              {activeSubscriptions.map((sub) => (
-                <SubscriptionRow
-                  key={sub.id}
-                  sub={sub}
-                  busy={actionId === sub.id}
-                  onCancel={() => handleCancel(sub.id)}
-                  onPause={() => handlePause(sub.id)}
-                  onResume={() =>
-                    makeSubscriptionMutation({
-                      path: "resume",
-                      subscriptionId: sub.id,
-                      successMessage: "Subscription resumed",
-                    })
-                  }
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {credits.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-foreground mb-3 text-sm font-medium">Usage</h2>
-            <div className="border-border divide-border divide-y rounded-xl border">
-              {credits.map((c, i) => (
-                <CreditMeter key={i} credit={c} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {payments.length > 0 && (
+          {/* Billing information */}
           <section>
-            <h2 className="text-foreground mb-3 text-sm font-medium">Invoices</h2>
-            <div className="border-border divide-border divide-y rounded-xl border">
-              {payments.map((p) => (
-                <InvoiceRow key={p.id} payment={p} />
-              ))}
+            <SectionLabel>Billing information</SectionLabel>
+            <div className="border-border rounded-xl border">
+              <div className="divide-border divide-y px-5">
+                {customer.name && <InfoRow label="Name" value={customer.name} />}
+                {customer.email && <InfoRow label="Email" value={customer.email} />}
+                {customer.phone && <InfoRow label="Phone" value={customer.phone} />}
+              </div>
+              <div className="border-border border-t px-5 py-3.5">
+                <Link
+                  href={`/${token}/customer/update`}
+                  className="text-foreground hover:text-foreground/80 flex items-center gap-1.5 text-sm transition-colors"
+                >
+                  <Edit2 className="size-3.5" />
+                  Update information
+                </Link>
+              </div>
             </div>
           </section>
+
+          {/* Usage / Credits */}
+          {credits.length > 0 && (
+            <section>
+              <SectionLabel>Usage</SectionLabel>
+              <div className="border-border divide-border divide-y rounded-xl border">
+                {credits.map((c, i) => (
+                  <CreditMeter key={i} credit={c} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Invoice history */}
+          {payments.length > 0 && (
+            <section>
+              <SectionLabel>Invoice history</SectionLabel>
+              <div className="border-border divide-border divide-y rounded-xl border">
+                {payments.map((p) => (
+                  <InvoiceRow key={p.id} payment={p} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeSubscriptions.length === 0 &&
+            wallets.length === 0 &&
+            payments.length === 0 &&
+            credits.length === 0 && (
+              <div className="border-border rounded-xl border py-16 text-center">
+                <p className="text-foreground font-medium">No activity yet</p>
+                <p className="text-muted-foreground mt-1 text-sm">Subscriptions and payments will appear here.</p>
+              </div>
+            )}
+
+          <Link
+            href="https://stellartools.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 text-xs transition-colors"
+          >
+            Powered by
+            <StellarTools width={13} height={13} className="shrink-0" />
+            StellarTools
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// -- Shared sidebar --
+
+function PortalSidebar({ org, testnet, token }: { org: Organization | null; testnet: boolean; token: string }) {
+  const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
+
+  return (
+    <aside className="border-border bg-background hidden w-[280px] shrink-0 flex-col border-r px-8 py-10 md:flex">
+      {/* Logo + name */}
+      <div className="mb-6 flex items-center gap-3">
+        {org?.logoUrl ? (
+          <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
+        ) : (
+          <StellarTools width={28} height={28} className="shrink-0 object-contain" />
         )}
-
-        <Separator className="my-10" />
-        <p className="text-muted-foreground text-center text-xs">Powered by StellarTools</p>
-      </div>
-    </div>
-  );
-}
-
-function WalletRow({
-  wallet,
-  isLinkedToActiveSubscription,
-  isDeleting,
-  onDelete,
-}: {
-  wallet: Wallet;
-  isLinkedToActiveSubscription: boolean;
-  isDeleting: boolean;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <div className="space-y-0.5">
-        <p className="text-foreground font-mono text-sm">{truncate(wallet.address, { start: 8, end: 8 })}</p>
-        <div className="flex items-center gap-2">
-          <p className="text-muted-foreground text-xs">Added {moment(wallet.createdAt).format("MMM D, YYYY")}</p>
-          {isLinkedToActiveSubscription && (
-            <Badge variant="secondary" className="text-[10px]">
-              Active subscription
-            </Badge>
-          )}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="text-muted-foreground hover:text-destructive size-8 shrink-0"
-        onClick={onDelete}
-        disabled={isDeleting || isLinkedToActiveSubscription}
-        title={
-          isLinkedToActiveSubscription ? "Cannot remove a wallet linked to an active subscription" : "Remove wallet"
-        }
-      >
-        <Trash2 className="size-4" />
-      </Button>
-    </div>
-  );
-}
 
-function SubscriptionRow({
-  sub,
-  busy,
-  onCancel,
-  onPause,
-  onResume,
-}: {
-  sub: Subscription;
-  busy: boolean;
-  onCancel: () => void;
-  onPause: () => void;
-  onResume: () => void;
-}) {
-  const isPaused = sub.status === "paused";
-
-  return (
-    <div className="flex items-start justify-between px-4 py-4">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <p className="text-foreground text-sm font-medium">{sub.productName ?? "Product"}</p>
-          {sub.cancelAtPeriodEnd ? (
-            <Badge variant="outline">Canceling</Badge>
-          ) : isPaused ? (
-            <Badge variant="secondary">Paused</Badge>
-          ) : sub.status === "trialing" ? (
-            <Badge variant="secondary">Trial</Badge>
-          ) : (
-            <Badge>Active</Badge>
-          )}
-        </div>
-        <p className="text-muted-foreground text-xs">
-          {sub.cancelAtPeriodEnd
-            ? `Cancels ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`
-            : isPaused
-              ? "Paused — no charges until resumed"
-              : `Renews ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`}
+      {org?.name && (
+        <p className="text-foreground mb-auto text-sm leading-relaxed">
+          {org.name} partners with StellarTools for simplified billing.
         </p>
-        {sub.walletAddress && (
-          <p className="text-muted-foreground font-mono text-xs">{truncate(sub.walletAddress, { start: 6, end: 6 })}</p>
-        )}
-      </div>
-      {!sub.cancelAtPeriodEnd && (
-        <div className="flex items-center gap-2">
-          {isPaused ? (
-            <Button variant="outline" size="sm" onClick={onResume} disabled={busy}>
-              {busy ? "Resuming…" : "Resume"}
-            </Button>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={onPause} disabled={busy} className="text-muted-foreground">
-              {busy ? "Pausing…" : "Pause"}
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={busy}>
-            Cancel
-          </Button>
-        </div>
       )}
+
+      <div className="mt-10 flex items-center justify-between">
+        {websiteUrl ? (
+          <Link
+            href={websiteUrl}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
+          >
+            <ArrowLeft className="size-3.5 shrink-0" />
+            Return to {org?.name}
+          </Link>
+        ) : (
+          <span />
+        )}
+        <ModeToggle />
+      </div>
+    </aside>
+  );
+}
+
+function MobileOrgHeader({ org, testnet }: { org: Organization | null; testnet: boolean }) {
+  return (
+    <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
+      <div className="flex items-center gap-2.5">
+        {org?.logoUrl ? (
+          <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
+        ) : (
+          <StellarTools width={24} height={24} className="shrink-0 object-contain" />
+        )}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
+        </div>
+      </div>
+      <ModeToggle />
+    </div>
+  );
+}
+
+// -- Section helpers --
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">{children}</p>;
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-4 py-3">
+      <span className="text-muted-foreground w-20 shrink-0 text-sm">{label}</span>
+      <span className="text-foreground min-w-0 truncate text-sm">{value}</span>
     </div>
   );
 }
@@ -546,7 +448,7 @@ function CreditMeter({ credit }: { credit: Credit }) {
   const unit = credit.productUnit ?? "credits";
 
   return (
-    <div className="space-y-3 px-4 py-4">
+    <div className="space-y-3 px-5 py-4">
       <div className="flex items-center justify-between">
         <p className="text-foreground text-sm font-medium">{credit.productName ?? "Usage"}</p>
         <p className="text-muted-foreground text-xs">
@@ -570,10 +472,10 @@ function CreditMeter({ credit }: { credit: Credit }) {
 
 function InvoiceRow({ payment }: { payment: Payment }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className="flex items-center justify-between px-5 py-3.5">
       <div className="space-y-0.5">
         <p className="text-foreground text-sm font-medium">
-          {formatCurrency(Number(stroopsToXlm(payment.amount)), "XLM")}
+          {Money.formatCrypto(payment.cryptoAmount, payment.selectedAssetCode)}
         </p>
         <p className="text-muted-foreground text-xs">{moment(payment.createdAt).format("MMM D, YYYY")}</p>
       </div>
@@ -585,57 +487,40 @@ function InvoiceRow({ payment }: { payment: Payment }) {
   );
 }
 
+// -- Skeleton --
+
 function PortalSkeleton() {
   return (
-    <div className="bg-background min-h-screen">
-      <header className="border-border border-b">
-        <div className="mx-auto flex max-w-2xl items-center px-4 py-4">
-          <Link
-            href={process.env.NEXT_PUBLIC_APP_URL!}
-            className="text-foreground flex items-center gap-2.5 font-semibold transition-opacity hover:opacity-80"
-          >
-            <StellarTools width={28} height={28} className="object-contain" />
-            <span>StellarTools</span>
-          </Link>
+    <div className="bg-background flex min-h-screen">
+      <aside className="border-border hidden w-[280px] shrink-0 flex-col gap-4 border-r px-8 py-10 md:flex">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-8 rounded-md" />
+          <Skeleton className="h-4 w-28" />
         </div>
-      </header>
-      <div className="mx-auto max-w-2xl px-4 py-12">
-        <div className="mb-10 flex items-center gap-5">
-          <Skeleton className="size-20 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-9 w-48 rounded-md" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-        </div>
-        <div className="mb-8 space-y-3">
-          <Skeleton className="h-4 w-24" />
-          <div className="border-border rounded-xl border">
-            {[0, 1].map((i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-4">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-                <Skeleton className="h-8 w-16 rounded-md" />
+        <Skeleton className="mt-2 h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+      </aside>
+
+      <main className="flex-1 overflow-auto">
+        <div className="mx-auto max-w-2xl space-y-10 px-6 py-12">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="h-3 w-32" />
+              <div className="border-border rounded-xl border">
+                {[...Array(2)].map((_, j) => (
+                  <div key={j} className="flex items-center justify-between px-5 py-3.5">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-16" />
-          <div className="border-border rounded-xl border">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3">
-                <div className="space-y-1.5">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-                <Skeleton className="h-5 w-12 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

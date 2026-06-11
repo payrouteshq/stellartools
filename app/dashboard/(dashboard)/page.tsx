@@ -2,12 +2,13 @@
 
 import React from "react";
 
-import { retrieveOverviewStats } from "@/actions/organization";
+import { putOrganization, retrieveOverviewStats } from "@/actions/organization";
 import { AppModal } from "@/components/app-modal";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import {
   AddUserIcon,
+  CheckMark,
   DollarIcon,
   GroupedUsersIcon,
   HourglassIcon,
@@ -23,69 +24,62 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAssetRates } from "@/hooks/use-asset-rates";
+import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
-import { useOrgQuery } from "@/hooks/use-org-query";
+import { useCurrencyConverter } from "@/hooks/use-currency-converter";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { Money } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
 import Link from "next/link";
 
-type CurrencyItem = { code: string; name: string; symbol: string };
+type CurrencyItem = { code: string; name: string };
 
 const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
-
-function getCurrencySymbol(code: string): string {
-  try {
-    const parts = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: code,
-      minimumFractionDigits: 0,
-    }).formatToParts(0);
-    return parts.find((p) => p.type === "currency")?.value ?? code;
-  } catch {
-    return code;
-  }
-}
-
-function usdCentsToDisplay(
-  usdCents: number,
-  item: CurrencyItem | null,
-  fiatRates: Record<string, number> | null
-): string {
-  if (!item || !fiatRates) return "—";
-  const value = (usdCents / 100) * (fiatRates[item.code] ?? 1);
-  return item.symbol + value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 const SPARKLINE_CONFIG = {
   value: { label: "", color: "hsl(var(--chart-1))" },
 };
 
 export default function DashboardPage() {
-  const [selectedCode, setSelectedCode] = useCookieState("dashboard_currency", "USD");
   const [countryOpen, setCountryOpen] = React.useState(false);
   const [period, setPeriod] = useCookieState("dashboard_period", "30");
+
+  const { data: org } = useOrgContext();
 
   const since = React.useMemo(() => new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000), [period]);
 
   const { data: stats, isLoading: isStatsLoading } = useOrgQuery(
-    ["overview-stats", period],
-    () => retrieveOverviewStats({ since }),
+    ["overview-stats", period, org?.selectedCurrency],
+    () => retrieveOverviewStats({ since, selectedCurrency: org?.selectedCurrency ?? "USD" }),
     { staleTime: 60 * 1000 }
   );
 
-  const { fiatRates, isLoading: isRatesLoading } = useAssetRates([{ code: "XLM", issuer: "native" }]);
+  const { fiatRates, currency, isLoading: isRatesLoading } = useCurrencyConverter();
+
+  const { mutate: updateOrganizationCurrency, isPending: isUpdatingOrganizationCurrency } = useAction(
+    async (code: string) => {
+      if (!org?.id) return;
+      return await putOrganization(org.id, { selectedCurrency: code });
+    },
+    { invalidate: ["*"], successMsg: "Currency updated successfully", errorMsg: "Failed to update currency" }
+  );
 
   const currencyItems = React.useMemo<CurrencyItem[]>(() => {
     if (!fiatRates) return [];
+
     return Object.keys(fiatRates)
-      .map((code) => ({ code, name: currencyNames.of(code) ?? code, symbol: getCurrencySymbol(code) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [fiatRates]);
+      .map((code) => ({ code, name: currencyNames.of(code) ?? code }))
+      .sort((a, b) => {
+        if (a.code === org?.selectedCurrency) return -1;
+        if (b.code === org?.selectedCurrency) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [fiatRates, org?.selectedCurrency]);
 
-  const selectedItem = currencyItems.find((c) => c.code === selectedCode) ?? null;
+  const selectedItem = currencyItems.find((c) => c.code === org?.selectedCurrency) ?? null;
 
-  if (isStatsLoading || !stats) {
+  if (isStatsLoading || isRatesLoading || !stats) {
     return (
       <div className="w-full">
         <DashboardSidebar>
@@ -97,8 +91,8 @@ export default function DashboardPage() {
     );
   }
 
-  const revenue28 = usdCentsToDisplay(stats.revenue, selectedItem, fiatRates);
-  const mrrDisplay = usdCentsToDisplay(stats.mrr, selectedItem, fiatRates);
+  const revenue28 = Money.formatFiat(stats.netRevenueCents, currency);
+  const mrrDisplay = Money.formatFiat(stats.mrrCents, currency);
 
   return (
     <div className="w-full">
@@ -123,8 +117,10 @@ export default function DashboardPage() {
                 />
                 <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                   <PopoverTrigger asChild>
-                    {isRatesLoading ? (
-                      <Spinner />
+                    {isRatesLoading || isUpdatingOrganizationCurrency ? (
+                      <div className="flex h-9 w-max items-center justify-center">
+                        <Spinner strokeColor="var(--muted-foreground)" size={30} />
+                      </div>
                     ) : (
                       <Button
                         variant="outline"
@@ -147,16 +143,22 @@ export default function DashboardPage() {
                         <CommandGroup>
                           {currencyItems.map((item) => (
                             <CommandItem
+                              disabled={isUpdatingOrganizationCurrency}
                               key={item.code}
                               value={`${item.name} ${item.code}`.toLowerCase()}
                               onSelect={() => {
-                                setSelectedCode(item.code);
+                                updateOrganizationCurrency(item.code);
                                 setCountryOpen(false);
                               }}
                             >
-                              <span className={cn("flex-1 truncate", selectedCode === item.code && "font-medium")}>
+                              <span
+                                className={cn("flex-1 truncate", org?.selectedCurrency === item.code && "font-medium")}
+                              >
                                 {item.name} ({item.code})
                               </span>
+                              {org?.selectedCurrency === item.code && (
+                                <CheckMark className="text-foreground size-4 shrink-0" />
+                              )}
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -182,7 +184,7 @@ export default function DashboardPage() {
                 value={stats.activeSubscriptions}
                 subtitle="In total"
                 icon={<SubscriptionIcon className="text-muted-foreground size-5" />}
-                sparkData={stats.charts.subscriptions}
+                sparkData={stats.charts.activeSubscriptions}
                 color="var(--chart-2)"
                 usage={stats.activeSubscriptions}
               />
@@ -193,7 +195,7 @@ export default function DashboardPage() {
                 icon={<LoopIcon className="text-muted-foreground size-5" />}
                 sparkData={stats.charts.revenue}
                 color="var(--chart-2)"
-                tooltipValueFormatter={(v) => usdCentsToDisplay(v, selectedItem, fiatRates)}
+                tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />
               <StatCard
                 title="Revenue"
@@ -202,7 +204,7 @@ export default function DashboardPage() {
                 icon={<DollarIcon className="text-muted-foreground size-5" />}
                 sparkData={stats.charts.revenue}
                 color="var(--chart-2)"
-                tooltipValueFormatter={(v) => usdCentsToDisplay(v, selectedItem, fiatRates)}
+                tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />
               <StatCard
                 title="New Customers"

@@ -18,9 +18,9 @@ export const PUT = apiHandler({
       organizationId,
       toCamelCase({
         ...body,
-        unitsPerCredit: body.units_per_credit ? BigInt(body.units_per_credit.toString()) : null,
-        totalCredits: body.total_credits ? BigInt(body.total_credits.toString()) : null,
-        priceAmount: body.price_amount ? BigInt(body.price_amount.toString()) : undefined,
+        unitsPerCredit: body.units_per_credit ? body.units_per_credit : null,
+        totalCredits: body.total_credits ? body.total_credits : null,
+        priceAmount: body.price_amount ? body.price_amount : undefined,
       })
     );
     return Result.ok(product);

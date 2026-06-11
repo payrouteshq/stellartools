@@ -5,7 +5,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 
 	private string $api_key;
 	private string $webhook_secret;
-	private string $asset_code;
+	private string $currency_code;
 	private string $api_base_url;
 	private bool   $debug_mode;
 
@@ -14,7 +14,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$this->icon               = plugins_url( 'assets/logo.svg', dirname( __FILE__, 2 ) . '/stellartools_woocommerce.php' );
 		$this->has_fields         = false;
 		$this->method_title       = 'StellarTools';
-		$this->method_description = 'Accept payments on the Stellar blockchain via StellarTools hosted checkout. Supports USDC, XLM, EURC and any other Stellar asset.';
+		$this->method_description = 'Accept fast, low-cost cross-border payments via StellarTools hosted checkout.';
 		$this->supports           = [ 'products' ];
 
 		$this->init_form_fields();
@@ -24,7 +24,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$this->description    = $this->get_option( 'description' );
 		$this->api_key        = $this->get_option( 'api_key', '' );
 		$this->webhook_secret = $this->get_option( 'webhook_secret', '' );
-		$this->asset_code     = $this->get_option( 'asset_code', 'USDC' );
+		$this->currency_code     = $this->get_option( 'currency_code', 'USD' );
 		$this->api_base_url   = untrailingslashit( $this->get_option( 'api_base_url', 'https://api.stellartools.dev' ) );
 		$this->debug_mode     = 'yes' === $this->get_option( 'debug_mode', 'no' );
 		$this->enabled        = $this->get_option( 'enabled' );
@@ -35,8 +35,67 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		);
 	}
 
+	private function get_supported_currencies(): array {
+		$transient_key = 'stellartools_supported_currencies_' . md5( $this->api_key );
+		$cached        = get_transient( $transient_key );
+
+		if ( false !== $cached && is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$fallback = [
+			'USD' => 'USD',
+			'EUR' => 'EUR',
+			'GBP' => 'GBP',
+		];
+
+		if ( empty( $this->api_key ) || empty( $this->api_base_url ) ) {
+			return $fallback;
+		}
+
+		$response = wp_remote_get(
+			$this->api_base_url . '/currencies',
+			[
+				'timeout'     => 10,
+				'httpversion' => '1.1',
+				'headers'     => [
+					'x-api-key'  => $this->api_key,
+					'User-Agent' => 'StellarTools-WooCommerce/1.0',
+				],
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $fallback;
+		}
+
+		$http_code = wp_remote_retrieve_response_code( $response );
+		$body      = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== $http_code || ! is_array( $body['data'] ?? null ) ) {
+			return $fallback;
+		}
+
+		$options = [];
+		foreach ( $body['data'] as $code ) {
+			$code = sanitize_text_field( (string) $code );
+			if ( $code ) {
+				$options[ $code ] = $code;
+			}
+		}
+
+		if ( empty( $options ) ) {
+			return $fallback;
+		}
+
+		set_transient( $transient_key, $options, 5 * MINUTE_IN_SECONDS );
+
+		return $options;
+	}
+
 	public function init_form_fields(): void {
-		$webhook_url = rest_url( 'stellartools/v1/webhook' );
+		$webhook_url    = rest_url( 'stellartools/v1/webhook' );
+		$currency_opts  = $this->get_supported_currencies();
 
 		$this->form_fields = [
 
@@ -50,14 +109,14 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			'title' => [
 				'title'    => 'Payment Method Title',
 				'type'     => 'text',
-				'default'  => 'Pay with Stellar (Crypto)',
+				'default'  => 'Pay with StellarTools',
 				'desc_tip' => 'Label the customer sees on the checkout page.',
 			],
 
 			'description' => [
 				'title'   => 'Payment Method Description',
 				'type'    => 'textarea',
-				'default' => 'Complete your payment securely via the Stellar blockchain. You will be redirected to a hosted payment page.',
+				'default' => 'Complete your purchase securely. You will be redirected to a hosted checkout page.',
 			],
 
 			'api_key' => [
@@ -88,16 +147,12 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 				'custom_attributes' => [ 'required' => 'required', 'autocomplete' => 'off' ],
 			],
 
-			'asset_code' => [
-				'title'    => 'Payment Asset',
+			'currency_code' => [
+				'title'    => 'Payment Currency',
 				'type'     => 'select',
-				'desc_tip' => 'The Stellar asset customers will pay in.',
-				'default'  => 'USDC',
-				'options'  => [
-					'USDC' => 'USDC (USD Coin)',
-					'EURC' => 'EURC (Euro Coin)',
-					'XLM'  => 'XLM (Stellar Lumens)',
-				],
+				'desc_tip' => 'The fiat currency customers will pay in.',
+				'default'  => 'USD',
+				'options'  => $currency_opts,
 			],
 
 			'order_status_on_payment' => [
@@ -140,11 +195,11 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$order->update_status( 'pending', 'Awaiting StellarTools payment.' );
 
 		$body = [
-			'amount'       => (float) $order->get_total(),
-			'asset_code'   => $this->asset_code,
-			'redirect_url' => $this->get_return_url( $order ),
-			'description'  => "Order #{$order->get_order_number()}",
-			'metadata'     => [
+			'amount_cents'  => (int) round( (float) $order->get_total() * 100 ),
+			'currency_code' => $this->currency_code,
+			'redirect_url'  => $this->get_return_url( $order ),
+			'description'   => "Order #{$order->get_order_number()}",
+			'metadata'      => [
 				'wc_order_id' => (string) $order_id,
 				'wc_site_url' => home_url(),
 			],

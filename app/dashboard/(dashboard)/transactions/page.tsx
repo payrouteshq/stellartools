@@ -3,6 +3,11 @@
 import * as React from "react";
 
 import { retrievePayments } from "@/actions/payment";
+import {
+  RefundModalContent,
+  RefundModalFooter,
+  TransactionEsquee,
+} from "@/app/dashboard/(dashboard)/transactions/_shared";
 import { AppModal } from "@/components/app-modal";
 import { DashboardSidebarInset } from "@/components/dashboard/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -12,34 +17,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PaymentStatus, paymentStatusEnum } from "@/constant/schema.client";
-import { Customer, ResolvedPayment } from "@/db";
+import { ResolvedPayment } from "@/db";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
-import { cn, formatCurrency, stroopsToXlm, truncate } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { cn, truncate } from "@/lib/utils";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Clock, Copy, Download, Plus, Settings, Wallet, XCircle } from "lucide-react";
 import moment from "moment";
 import { useRouter, useSearchParams } from "next/navigation";
-
-import { RefundModalContent, RefundModalFooter } from "./_shared";
-
-// --- Types ---
-
-type Transaction = {
-  id: string;
-  amount: bigint;
-  asset: string;
-  paymentMethod: {
-    type: "wallet";
-    address: string;
-  };
-  description: string;
-  customer: Customer;
-  date: Date;
-  refundedDate?: Date;
-  status: PaymentStatus;
-};
 
 // --- Status Badge Component ---
 
@@ -114,18 +101,14 @@ const CopyWalletAddress = ({ address }: { address: string }) => {
 
 // --- Table Columns ---
 
-const columns: ColumnDef<Transaction>[] = [
+const columns: ColumnDef<TransactionEsquee>[] = [
   {
     accessorKey: "amount",
     header: "Amount",
     meta: { filterable: true, filterVariant: "number" },
     cell: ({ row }) => {
       const transaction = row.original;
-      return (
-        <div className="font-semibold">
-          {formatCurrency(Number(stroopsToXlm(transaction.amount)), transaction.asset)}
-        </div>
-      );
+      return <div className="font-semibold">{Money.formatFiat(transaction.amountCents, transaction.currencyCode)}</div>;
     },
   },
   {
@@ -134,7 +117,7 @@ const columns: ColumnDef<Transaction>[] = [
     meta: { filterable: true, filterVariant: "text" },
     cell: ({ row }) => {
       const transaction = row.original;
-      return <CopyWalletAddress address={transaction.paymentMethod.address} />;
+      return <CopyWalletAddress address={transaction.walletAddress ?? ""} />;
     },
   },
   {
@@ -149,7 +132,7 @@ const columns: ColumnDef<Transaction>[] = [
     header: "Customer",
     meta: { filterable: true, filterVariant: "text" },
     cell: ({ row }) => {
-      return <div className="text-sm">{row.original.customer.email}</div>;
+      return <div className="text-sm">{row.original.customer?.email}</div>;
     },
   },
   {
@@ -157,7 +140,7 @@ const columns: ColumnDef<Transaction>[] = [
     header: "Date",
     meta: { filterable: true, filterVariant: "date" },
     cell: ({ row }) => {
-      const date = row.original.date;
+      const date = row.original.createdAt;
       return <div className="text-muted-foreground text-sm">{moment(date).format("MMM D, h:mm A")}</div>;
     },
   },
@@ -256,7 +239,6 @@ function TransactionsPageContent() {
   const { data: payments, isLoading } = useOrgQuery(["payments"], () =>
     retrievePayments(undefined, undefined, undefined, {
       withRefunds: true,
-      withAsset: true,
       withCustomer: true,
       withWallets: true,
     }).then((res) => res.data)
@@ -280,24 +262,22 @@ function TransactionsPageContent() {
   }, [payments]);
 
   const filteredTransactions = React.useMemo(() => {
-    if (!payments?.length) return [];
+    return (payments ?? []).filter((p) => {
+      // 1. Identity Filters (Only filter if the search param exists)
+      const matchesCustomer = !customerId || p.customer?.email === customerId;
+      const matchesId = !paymentId || [p.id, p.checkoutId].includes(paymentId);
 
-    return payments.filter((p) => {
-      if (customerId && p.customer?.email !== customerId) return false;
+      // 2. Tab/Status Filters
+      const matchesTab =
+        activeTab === "all" || (activeTab === "refunded" ? p.refunds?.status === "succeeded" : p.status === activeTab);
 
-      if (paymentId) {
-        const matchesId = p.id === paymentId || p.checkoutId === paymentId;
-        if (!matchesId) return false;
-      }
-
-      if (activeTab === "all") return true;
-      if (activeTab === "refunded") return p.refunds?.status === "succeeded";
-      return p.status === activeTab;
+      // Only include if all conditions are met
+      return matchesCustomer && matchesId && matchesTab;
     });
   }, [payments, activeTab, customerId, paymentId]);
 
-  const tableActions = (row: Transaction): TableAction<Transaction>[] => {
-    const actions: Array<TableAction<Transaction>> = [
+  const tableActions = (row: TransactionEsquee): TableAction<TransactionEsquee>[] => {
+    const actions: Array<TableAction<TransactionEsquee>> = [
       {
         label: "View details",
         onClick: (transaction) => router.push(`/transactions/${transaction.id}`),
@@ -404,16 +384,12 @@ function TransactionsPageContent() {
                 columns={columns}
                 data={filteredTransactions.map((it) => ({
                   id: it.id,
-                  amount: it.amount,
-                  asset: it.asset?.code ?? "",
-                  paymentMethod: {
-                    type: "wallet" as const,
-                    address: it.transactionHash,
-                  },
-                  description: it.checkoutId || it.id,
-                  customer: it.customer!,
-                  date: it.createdAt,
+                  amountCents: it.amountCents,
+                  currencyCode: it.currencyCode,
                   status: (it.refunds?.status === "succeeded" ? "refunded" : it.status) as PaymentStatus,
+                  createdAt: it.createdAt,
+                  customer: it.customer!,
+                  description: it.checkoutId || it.id,
                   refundedDate: it.refunds?.createdAt ?? undefined,
                 }))}
                 enableBulkSelect={true}

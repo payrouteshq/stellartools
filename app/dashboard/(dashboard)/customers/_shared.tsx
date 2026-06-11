@@ -18,10 +18,10 @@ import { TextField } from "@/components/text-field";
 import { Timeline } from "@/components/timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
-import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import { Customer } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useFilePreview } from "@/hooks/use-file-preview";
@@ -168,8 +168,8 @@ export function CustomerModalContent({
         onSubmit={form.handleSubmit((data: CustomerFormData) => putCustomerAction(data))}
         className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden"
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-hidden md:flex-row">
-          <div className="w-full shrink-0 space-y-6 px-1 md:min-h-0 md:flex-1 md:overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-lg space-y-6 px-1">
             <div>
               <h3 className="mb-2 text-lg font-semibold">Basic Information</h3>
               <p className="text-muted-foreground text-sm">Enter the customer’s basic contact information.</p>
@@ -257,85 +257,80 @@ export function CustomerModalContent({
                 );
               }}
             />
-          </div>
 
-          <Separator orientation="vertical" className="hidden h-auto shrink-0 md:block" />
-
-          <div className="min-h-0 w-full flex-1 space-y-6 overflow-y-auto px-1 md:min-h-0">
-            <div>
-              <h3 className="mb-2 text-lg font-semibold">Metadata</h3>
-              <p className="text-muted-foreground text-sm">
-                Add custom key-value pairs to store additional information about this customer.
-              </p>
-            </div>
-
-            <Card className="shadow-none">
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {fields.length === 0 ? (
-                    <div className="text-muted-foreground py-8 text-center text-sm">
-                      No metadata entries. Click &quot;Add metadata&quot; to add one.
-                    </div>
-                  ) : (
-                    fields.map((field, index) => (
-                      <div key={field.id} className="flex items-start gap-3 rounded-lg border p-4">
-                        <div className="grid flex-1 grid-cols-2 gap-3">
-                          <RHF.Controller
-                            control={form.control}
-                            name={`metadata.${index}.key`}
-                            render={({ field: fieldProps, fieldState: { error } }) => (
-                              <TextField
-                                id={`metadata-key-${index}`}
-                                value={fieldProps.value || ""}
-                                onChange={fieldProps.onChange}
-                                label="Key"
-                                error={error?.message || null}
-                                placeholder="e.g., company"
-                                className="w-full shadow-none"
-                              />
-                            )}
-                          />
-                          <RHF.Controller
-                            control={form.control}
-                            name={`metadata.${index}.value`}
-                            render={({ field: fieldProps, fieldState: { error } }) => (
-                              <TextField
-                                id={`metadata-value-${index}`}
-                                value={fieldProps.value || ""}
-                                onChange={fieldProps.onChange}
-                                label="Value"
-                                error={error?.message || null}
-                                placeholder="e.g., Acme Inc"
-                                className="w-full shadow-none"
-                              />
-                            )}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          className="mt-5 shrink-0 shadow-none"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => append({ key: "", value: "" })}
-                    className="w-full shadow-none"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add metadata
-                  </Button>
+            <div className="space-y-3">
+              <div className="flex items-start gap-2.5">
+                <Checkbox
+                  id="metadata-toggle"
+                  checked={fields.length > 0}
+                  onCheckedChange={(checked) => {
+                    if (checked && fields.length === 0) append({ key: "", value: "" });
+                    if (!checked) form.setValue("metadata", []);
+                  }}
+                  className="mt-0.5"
+                />
+                <div>
+                  <Label htmlFor="metadata-toggle" className="cursor-pointer font-medium">
+                    Metadata
+                  </Label>
+                  <p className="text-muted-foreground text-sm">Store additional structured information.</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              {fields.length > 0 && (
+                <div className="space-y-2 pl-6">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="animate-in slide-in-from-top-1 flex items-end gap-2">
+                      <RHF.Controller
+                        control={form.control}
+                        name={`metadata.${index}.key`}
+                        render={({ field: fieldProps, fieldState: { error } }) => (
+                          <TextField
+                            id={`metadata-key-${index}`}
+                            value={fieldProps.value || ""}
+                            onChange={fieldProps.onChange}
+                            label={index === 0 ? "Key" : null}
+                            error={error?.message || null}
+                            placeholder="e.g., company"
+                            className="flex-1 shadow-none"
+                          />
+                        )}
+                      />
+                      <RHF.Controller
+                        control={form.control}
+                        name={`metadata.${index}.value`}
+                        render={({ field: fieldProps, fieldState: { error } }) => (
+                          <TextField
+                            id={`metadata-value-${index}`}
+                            value={fieldProps.value || ""}
+                            onChange={fieldProps.onChange}
+                            label={index === 0 ? "Value" : null}
+                            error={error?.message || null}
+                            placeholder="e.g., Acme Inc"
+                            className="flex-1 shadow-none"
+                          />
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        className={index === 0 ? "mt-5" : ""}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => append({ key: "", value: "" })}
+                    className="text-primary text-sm font-medium hover:underline"
+                  >
+                    + Add metadata
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </form>

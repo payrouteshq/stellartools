@@ -33,15 +33,15 @@ import { useAction } from "@/hooks/use-action";
 import { useCopy } from "@/hooks/use-copy";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
-import { stroopsToXlm } from "@/lib/utils";
+import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
 import { ChevronRight, Copy, Edit, ExternalLink, MoreHorizontal, Package, Pencil } from "lucide-react";
 import moment from "moment";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
-import { type Product, ProductsModalContent, ProductsModalFooter } from "../_shared";
+import { type ProductEsque, ProductsModalContent, ProductsModalFooter } from "../_shared";
 
 const productTypeLabels: Record<string, string> = {
   one_time: "One-off",
@@ -150,7 +150,6 @@ function ProductDetailSkeleton() {
 }
 
 export default function ProductDetailPage() {
-  const router = useRouter();
   const { id } = useParams() as { id: string };
   const { data: org } = useOrgContext();
   const invalidate = useInvalidateOrgQuery();
@@ -165,16 +164,7 @@ export default function ProductDetailPage() {
   const { data: product, isLoading } = useOrgQuery(
     ["products", id],
     () => retrieveProducts(undefined, undefined, { productId: id }),
-    {
-      select: (data) => {
-        const first = data[0];
-        if (!first) return null;
-        return {
-          ...first.product,
-          assetCode: first.asset.code,
-        };
-      },
-    }
+    { select: (data) => data[0] ?? null }
   );
 
   const isMetered = product?.type === "metered";
@@ -185,33 +175,25 @@ export default function ProductDetailPage() {
   const createdAtLabel = formatDate(product?.createdAt);
   const updatedAtLabel = formatDate(product?.updatedAt);
 
-  const formatCurrency = (amt: any, code: any) =>
-    `${Number(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${code ?? "XLM"}`;
-
   const mainPriceDisplay = product
     ? isMetered
       ? "Usage-based"
-      : formatCurrency(Number(stroopsToXlm(BigInt(product.priceAmount.toString()))), product.assetCode)
+      : Money.formatFiat(product.priceCents, product.currencyCode)
     : "";
 
   const openEditModal = React.useCallback(() => {
     if (!product) return;
 
-    const productForModal: Product = {
+    const productForModal: ProductEsque = {
       ...product,
       description: product.description ?? null,
       images: product.images ?? [],
       metadata: product.metadata ?? {},
-      pricing: {
-        amount: Number(product.priceAmount),
-        asset: product.assetCode ? `${product.assetCode}:${product.assetId}` : product.assetId,
-        isRecurring: product.type === "subscription",
-        period: product.recurringPeriod ?? undefined,
-      },
+      priceCents: product.priceCents,
+      recurringPeriod: product.recurringPeriod ?? null,
       unit: product.unit ?? null,
       unitsPerCredit: product.unitsPerCredit ?? null,
       totalCredits: product.totalCredits ?? null,
-      assetId: product.assetId ?? null,
     };
 
     isProductModalOpenRef.current = true;
@@ -450,10 +432,7 @@ export default function ProductDetailPage() {
                       <TableBody>
                         <TableRow>
                           <TableCell className="font-medium">
-                            {formatCurrency(
-                              Number(stroopsToXlm(BigInt(product.priceAmount.toString()))),
-                              product.assetCode
-                            )}
+                            {Money.formatFiat(product.priceCents, product.currencyCode)}
                           </TableCell>
                           <TableCell className="text-muted-foreground max-w-[200px] truncate text-sm">
                             {product.description ?? "—"}

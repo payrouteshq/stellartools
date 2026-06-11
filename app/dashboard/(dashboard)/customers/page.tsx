@@ -56,7 +56,7 @@ const columns: ColumnDef<ResolvedCustomer>[] = [
       <div className="flex items-center gap-3">
         <Avatar className="border-border h-8 w-8 shrink-0 rounded-full border text-xs">
           {row.original.image ? (
-            <AvatarImage src={row.original.image} alt={row.original.name ?? "Customer"} />
+            <AvatarImage className="object-cover" src={row.original.image} alt={row.original.name ?? "Customer"} />
           ) : (
             <AvatarFallback>{row.original.name?.[0] ?? "?"}</AvatarFallback>
           )}

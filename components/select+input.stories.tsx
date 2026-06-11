@@ -46,6 +46,7 @@ const SelectInputWithState = (args: any) => {
         value={value}
         onChange={setValue}
         options={args.options ?? defaultOptions}
+        optionLabels={args.optionLabels}
         label={args.label === undefined ? "Select Input" : args.label}
         error={args.error ?? undefined}
         placeholder={args.placeholder ?? "0.00"}
@@ -115,5 +116,19 @@ export const CustomPlaceholder: Story = {
     label: "Price",
     options: defaultOptions,
     placeholder: "Enter amount...",
+  } as any,
+};
+
+export const WithOptionLabels: Story = {
+  render: (args) => <SelectInputWithState {...args} />,
+  args: {
+    label: "Currency",
+    options: defaultOptions,
+    optionLabels: {
+      USD: "US Dollar (USD)",
+      EUR: "Euro (EUR)",
+      XLM: "Stellar Lumens (XLM)",
+      BTC: "Bitcoin (BTC)",
+    },
   } as any,
 };

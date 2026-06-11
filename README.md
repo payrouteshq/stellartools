@@ -51,7 +51,7 @@ Stellar Tools is an open-source payment platform that lets developers accept and
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) to get your local environment set up.
 
-Found a bug? [Open an issue](https://github.com/usepaykit/stellartools/issues).
+Found a bug? [Open an issue](https://github.com/payrouteshq/stellartools/issues).
 
 ## Security
 

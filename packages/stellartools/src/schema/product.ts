@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { currencyCodeSchema } from "./checkout";
 import { Environment, environmentSchema } from "./shared";
 
 export const productTypeEnum = z.enum(["one_time", "subscription", "metered"]);
@@ -42,11 +43,6 @@ export interface Product {
   status: ProductStatus;
 
   /**
-   * The asset ID of the product.
-   */
-  asset_code: string;
-
-  /**
    * The billing type of the product.
    */
   type: ProductType;
@@ -54,7 +50,7 @@ export interface Product {
   /**
    * The price amount of the product in its asset (e.g. `10` for 10 XLM).
    */
-  price_amount: number;
+  price_amount_cents: number;
 
   /**
    * The billing interval for subscription products.
@@ -104,9 +100,8 @@ export const productSchema = schemaFor<Product>()(
     description: z.string().optional(),
     images: z.array(z.string()),
     status: productStatusEnum,
-    asset_code: z.string(),
     type: productTypeEnum,
-    price_amount: z.number(),
+    price_amount_cents: z.number(),
     recurring_period: recurringPeriodEnum.optional(),
     created_at: z.string(),
     updated_at: z.string(),
@@ -123,13 +118,13 @@ export const createProductSchema = z.object({
   description: z.string().optional(),
   images: z.array(z.string()).optional().default([]),
   type: productTypeEnum,
-  asset_code: z.string(),
-  price_amount: z.number(),
+  price_amount_cents: z.number(),
   recurring_period: recurringPeriodEnum.optional(),
   metadata: z.record(z.string(), z.any()).optional().default({}),
   unit: z.string().optional(),
   units_per_credit: z.number().optional(),
   total_credits: z.number().optional(),
+  currency_code: currencyCodeSchema,
 });
 
 export type CreateProduct = z.infer<typeof createProductSchema>;

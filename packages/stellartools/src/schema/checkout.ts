@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { CURRENCY_CODES } from "./currencies";
 import { Environment, environmentSchema } from "./shared";
 
 export const checkoutStatusEnum = z.enum(["open", "completed", "expired", "failed"]);
@@ -43,12 +44,12 @@ export interface Checkout {
   /**
    * The amount of the checkout.
    */
-  amount?: number;
+  amount_cents?: number;
 
   /**
    * The asset code of the checkout.
    */
-  asset_code?: string;
+  currency_code?: string;
 
   /**
    * The description of the checkout.
@@ -114,9 +115,9 @@ export const checkoutSchema = schemaFor<Checkout>()(
     id: z.string(),
     customer_id: z.string(),
     product_id: z.string().optional(),
-    amount: z.number().optional(),
+    amount_cents: z.number().optional(),
     description: z.string().optional(),
-    asset_code: z.string().optional(),
+    currency_code: z.string().optional(),
     status: checkoutStatusEnum,
     payment_url: z.string(),
     expires_at: z.string(),
@@ -142,9 +143,14 @@ export const createCheckoutSchema = baseCreateSchema.extend({
   product_id: z.string().min(1, "Product ID is required"),
 });
 
+export const currencyCodeSchema = z
+  .string()
+  .transform((v) => v.toUpperCase())
+  .pipe(z.enum(CURRENCY_CODES, { message: "Invalid currency code" }));
+
 export const createDirectCheckoutSchema = baseCreateSchema.extend({
-  amount: z.number().positive("Amount must be greater than 0"),
-  asset_code: z.string().min(1, "Asset code is required"),
+  amount_cents: z.number().positive("Amount must be greater than 0"),
+  currency_code: currencyCodeSchema,
 });
 
 export type CreateCheckout = z.infer<typeof createCheckoutSchema>;

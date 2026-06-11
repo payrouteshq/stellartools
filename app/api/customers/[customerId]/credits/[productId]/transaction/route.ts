@@ -3,8 +3,18 @@ import { runAtomic } from "@/actions/event";
 import { retrieveProducts } from "@/actions/product";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { calculateUsageToCredits } from "@/lib/credit-calculator";
 import { Result, z as Schema } from "@stellartools/core";
+
+// -- INTERNAL --
+const calculateUsageToCredits = (rawUsage: number, unitsPerCredit: number): number => {
+  const usage = Math.floor(rawUsage);
+  const factor = unitsPerCredit > 0 ? unitsPerCredit : 1;
+
+  const credits = usage / factor;
+  const remainder = usage % factor;
+
+  return remainder > 0 ? credits + 1 : credits;
+};
 
 export const OPTIONS = createOptionsHandler();
 
@@ -37,7 +47,7 @@ export const POST = apiHandler({
       throw new AppError("Credit balance has been revoked. Contact your provider to restore access.");
     }
 
-    const requiredCredits = calculateUsageToCredits(body.amount, productData.product.unitsPerCredit ?? BigInt(1));
+    const requiredCredits = calculateUsageToCredits(body.amount, productData.unitsPerCredit ?? 1);
 
     const isSufficient = creditBalance.balance >= requiredCredits;
 

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
-import { stroopsToXlm } from "@/lib/utils";
+import { Money } from "@/lib/money";
 import { Column, ColumnDef } from "@tanstack/react-table";
 import {
   Archive,
@@ -30,9 +30,9 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Product, ProductsModalContent, ProductsModalFooter } from "./_shared";
+import { ProductEsque, ProductsModalContent, ProductsModalFooter } from "./_shared";
 
-const SortableHeader = ({ column, title }: { column: Column<Product, unknown>; title: string }) => {
+const SortableHeader = ({ column, title }: { column: Column<ProductEsque, unknown>; title: string }) => {
   const isSorted = column.getIsSorted();
   return (
     <Button
@@ -78,7 +78,7 @@ const StatCard = ({
   </Card>
 );
 
-const columns: ColumnDef<Product>[] = [
+const staticColumns: ColumnDef<ProductEsque>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => <SortableHeader column={column} title="Name" />,
@@ -94,27 +94,6 @@ const columns: ColumnDef<Product>[] = [
       </div>
     ),
     meta: { filterable: true, filterVariant: "text" },
-  },
-  {
-    accessorKey: "pricing",
-    header: ({ column }) => <SortableHeader column={column} title="Pricing" />,
-    cell: ({ row }) => {
-      const p = row.original.pricing;
-      return (
-        <div className="flex flex-col py-1">
-          <div className="font-semibold">
-            {p.amount} {p.asset}
-          </div>
-          {p.isRecurring && (
-            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <RefreshCw className="h-3 w-3" /> <span>Per {p.period}</span>
-            </div>
-          )}
-        </div>
-      );
-    },
-    sortingFn: (rowA, rowB) => rowA.original.pricing.amount - rowB.original.pricing.amount,
-    meta: { filterable: true, filterVariant: "number" },
   },
   {
     accessorKey: "createdAt",
@@ -136,6 +115,33 @@ function ProductsPageContent() {
   const searchParams = useSearchParams();
   const [selectedStatus, setSelectedStatus] = React.useState<string | null>(null);
   const productModalSubmitRef = React.useRef<(() => void) | null>(null);
+
+  const columns = React.useMemo<ColumnDef<ProductEsque>[]>(
+    () => [
+      staticColumns[0],
+      {
+        accessorKey: "priceCents",
+        header: ({ column }) => <SortableHeader column={column} title="Pricing" />,
+        cell: ({ row }) => {
+          const { priceCents, currencyCode } = row.original;
+          return (
+            <div className="flex flex-col py-1">
+              <div className="font-semibold">{priceCents ? Money.formatFiat(priceCents, currencyCode) : "—"}</div>
+              {row.original.type === "subscription" && (
+                <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                  <RefreshCw className="h-3 w-3" /> <span>Per {row.original.recurringPeriod}</span>
+                </div>
+              )}
+            </div>
+          );
+        },
+        sortingFn: (rowA, rowB) => rowA.original.createdAt.getTime() - rowB.original.createdAt.getTime(),
+        meta: { filterable: true, filterVariant: "number" },
+      },
+      staticColumns[1],
+    ],
+    []
+  );
   const [productModalFooterProps, setProductModalFooterProps] = React.useState({
     isPending: false,
     isEditMode: false,
@@ -174,7 +180,7 @@ function ProductsPageContent() {
     });
   }, []);
 
-  const openEditModal = React.useCallback((product: Product) => {
+  const openEditModal = React.useCallback((product: ProductEsque) => {
     isProductModalOpenRef.current = true;
     setProductModalFooterProps({ isPending: false, isEditMode: true });
     AppModal.open({
@@ -225,18 +231,14 @@ function ProductsPageContent() {
     ["products"],
     () => retrieveProducts(undefined, undefined, { status: "active" }),
     {
-      select: (productsData) => {
-        return productsData.map(({ product, asset }) => {
+      select: (products) => {
+        return products.map((product): ProductEsque => {
           return {
             id: product.id,
             name: product.name,
             description: product.description,
-            pricing: {
-              amount: Number(stroopsToXlm(BigInt(product.priceAmount.toString()))),
-              asset: asset.code,
-              isRecurring: product.type === "subscription",
-              period: product.recurringPeriod!,
-            },
+            priceCents: product.priceCents,
+            currencyCode: product.currencyCode,
             status: product.status,
             createdAt: product.createdAt,
             updatedAt: product.updatedAt,
@@ -245,7 +247,8 @@ function ProductsPageContent() {
             metadata: product.metadata ?? {},
             unit: product.unit ?? null,
             unitsPerCredit: product.unitsPerCredit ?? null,
-            assetId: product.assetId ?? null,
+            totalCredits: product.totalCredits ?? null,
+            recurringPeriod: product.recurringPeriod ?? null,
           };
         });
       },
@@ -261,7 +264,7 @@ function ProductsPageContent() {
     [products]
   );
 
-  const tableActions: TableAction<Product>[] = [
+  const tableActions: TableAction<ProductEsque>[] = [
     {
       label: "Edit",
       onClick: openEditModal,

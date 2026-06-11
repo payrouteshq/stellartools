@@ -1,0 +1,68 @@
+---
+title: "Assets"
+description: "Query supported Stellar assets"
+---
+
+An asset represents a Stellar token that StellarTools accepts as payment — USDC, EURC, XLM, or any other asset your organization has enabled.
+
+## The asset object
+
+<ResponseField name="code" type="string">
+  The Stellar asset code, e.g. `"USDC"`, `"XLM"`, `"EURC"`.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Human-readable description of the asset, e.g. `"USD Coin"`.
+</ResponseField>
+
+<ResponseField name="canonicalIssuer" type="string | null">
+  The Stellar public key of the canonical issuer for this asset. `null` for native XLM, which has no issuer.
+
+  This is the authoritative issuer your integration should reference — for example, Circle's address for USDC. During one-time checkouts the DEX routes from any issuer the customer holds automatically, so you never need to resolve issuers yourself. For subscriptions, the smart contract uses this exact issuer.
+</ResponseField>
+
+<ResponseField name="images" type="array">
+  Array of image URLs for the asset logo.
+</ResponseField>
+
+---
+
+## List supported assets
+
+`GET /assets`
+
+Returns all assets enabled for your account's environment (testnet or mainnet, determined by your API key).
+
+```bash
+curl https://api.stellartools.dev/assets \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+### Response
+
+```json
+{
+  "data": [
+    {
+      "code": "USDC",
+      "description": "USD Coin",
+      "canonicalIssuer": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
+      "images": []
+    },
+    {
+      "code": "EURC",
+      "description": "Euro Coin",
+      "canonicalIssuer": "GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP",
+      "images": []
+    },
+    {
+      "code": "XLM",
+      "description": "Stellar Lumens",
+      "canonicalIssuer": null,
+      "images": []
+    }
+  ]
+}
+```
+
+This endpoint is useful for dynamically populating payment asset selectors in your storefront or checkout UI, so you always reflect the exact assets your account supports without hardcoding them.

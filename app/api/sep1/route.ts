@@ -34,13 +34,11 @@ export async function GET(request: Request) {
     const orgSupportEmail = `${orgId}@stellartools.dev`;
     const orgDescription = org.description || `${org.name} - Powered by Stellar Tools`;
 
-    const currencies = productsWithAssets.map(({ product, asset }) => {
-      const issuer = asset.issuer;
+    const currencies = productsWithAssets.map((product) => {
       const productImage = product.images?.[0] || org.logoUrl;
 
       const currency: Record<string, unknown> = {
-        code: asset.code,
-        display_decimals: 7,
+        code: product.currencyCode,
         name: product.name,
         desc: product.description || `${product.name} by ${org.name}`,
         image: productImage || orgLogo,
@@ -48,8 +46,6 @@ export async function GET(request: Request) {
         is_asset_anchored: false,
         redemption_instructions: `Purchase at ${orgUrl}/checkout`,
       };
-
-      if (issuer) currency.issuer = issuer;
 
       if (product.type === "metered") {
         currency.conditions = `Metered billing: ${product.totalCredits?.toString()} credits included`;

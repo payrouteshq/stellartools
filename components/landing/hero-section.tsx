@@ -1,56 +1,70 @@
-import Image from "next/image";
+"use client";
+
+import * as React from "react";
+
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+
+const WORDS = ["SaaS", "Agency", "Store", "Startup", "Platform", "Product"];
+
+function CyclingWord() {
+  const [index, setIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setIndex((i) => (i + 1) % WORDS.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <span className="relative inline-block">
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={WORDS[index]}
+          initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+          transition={{ duration: 0.38, ease: [0.25, 0.1, 0.25, 1] }}
+          className="inline-block"
+        >
+          {WORDS[index]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
 
 export default function HeroSection() {
   return (
-    <section className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-center gap-12 px-6 pt-24 pb-20 lg:gap-20">
-      <div className="flex flex-col items-center text-center">
-        <div className="border-secondary/25 bg-secondary/10 text-foreground mb-6 flex flex-col items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-semibold tracking-wide sm:flex-row">
-          <span className="bg-secondary text-secondary-foreground text-clamp(8px,1.5vw,13px) rounded-full px-1.5 py-0.5">
-            NEW
-          </span>
-          <span className="text-muted-foreground font-medium">Now with LangChain &amp; AI SDK support</span>
-        </div>
+    <section className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-28 pb-20 text-center">
+      <p className="text-muted-foreground mb-5 text-[11px] font-semibold tracking-[1.6px] uppercase">
+        A Payroutes company.
+      </p>
 
-        <h1 className="text-foreground mb-6 text-[clamp(42px,5vw,62px)] leading-[1.1] font-extrabold tracking-normal">
-          The financial infrastructure
-          <br />
-          for the
-          <span className="text-secondary ml-2">Stellar economy.</span>
-        </h1>
+      <h1 className="text-foreground mb-5 text-[clamp(36px,5.5vw,68px)] leading-[1.06] font-bold tracking-tight">
+        Run your <CyclingWord />
+        <br />
+        onchain.
+      </h1>
 
-        <p className="text-muted-foreground mx-auto mb-9 max-w-[580px] text-lg leading-relaxed font-normal">
-          Accept payments, manage subscriptions, issue refunds, and automate billing, all on the Stellar network. A
-          complete payments platform your customers interact with in seconds.
-        </p>
+      <p className="text-muted-foreground mb-10 max-w-[480px] text-[17px] leading-relaxed">
+        Accept payments across borders at near-zero cost. 3-second settlements,
+        fractions of a cent per transaction — Stripe-like billing on Stellar.
+      </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-3.5">
-          <Link
-            href="https://dashboard.stellartools.dev"
-            target="_blank"
-            className="bg-primary text-primary-foreground rounded-xl px-7 py-3.5 text-base font-semibold no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
-          >
-            Start building free
-          </Link>
-          <Link
-            href="#how-it-works"
-            className="text-muted-foreground hover:bg-secondary hover:text-foreground rounded-lg px-4 py-2 text-[15px] font-medium no-underline transition-colors"
-          >
-            See how it works →
-          </Link>
-        </div>
-      </div>
-
-      <div className="relative w-full max-w-[900px] overflow-hidden rounded-xl shadow-2xl">
-        <Image
-          src="/images/overview-dashboard.png"
-          alt="Overview Dashboard Screenshot"
-          width={1300}
-          height={900}
-          className="w-full"
-        />
-        <div className="from-primary to-primary absolute top-0 right-0 left-0 h-[4px] bg-linear-to-b" />
-        <div className="absolute right-0 bottom-0 left-0 h-[5%] bg-gray-50" />
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href={`${process.env.NEXT_PUBLIC_DASHBOARD_URL ?? ""}/signup`}
+          className="bg-foreground text-background rounded-lg px-6 py-2.5 text-[14.5px] font-semibold no-underline transition-all hover:opacity-90"
+        >
+          Get started free
+        </Link>
+        <Link
+          href={process.env.NEXT_PUBLIC_DOCS_URL ?? "#"}
+          target="_blank"
+          className="text-muted-foreground hover:text-foreground rounded-lg px-6 py-2.5 text-[14.5px] font-medium no-underline transition-colors"
+        >
+          Read the docs →
+        </Link>
       </div>
     </section>
   );

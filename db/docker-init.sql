@@ -17,8 +17,8 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
 
-INSERT INTO public.asset (id, code, issuer, network, metadata) VALUES
-  ('ast_1', 'XLM', 'native', 'testnet',  '{"coingeckoId":"stellar","decimals":7}'::jsonb),
-  ('ast_2', 'XLM', 'native', 'mainnet',  '{"coingeckoId":"stellar","decimals":7}'::jsonb),
-  ('ast_3', 'USDC', 'GAHPYWLK6YRN7CVYZOO4H3VDRZ7PVF5UJGLZCSPAEIKJE2XSWF5LAGER', 'testnet', '{"decimals":7,"usdPeg":true}'::jsonb),
-  ('ast_4', 'USDC', 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN', 'mainnet', '{"decimals":7,"usdPeg":true}'::jsonb);
+INSERT INTO public.supported_asset (id, code, canonical_issuer, network, metadata, description, images) VALUES
+  ('supported_asset_1', 'XLM', NULL, 'testnet',  '{"coingeckoId":"stellar","decimals":7}'::jsonb, 'Native XLM', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ipo19sUHkH8hj3xwcIloqJz6mdZeuWfEAVi4L']),
+  ('supported_asset_2', 'XLM', NULL, 'mainnet',  '{"coingeckoId":"stellar","decimals":7}'::jsonb, 'Native XLM', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ipo19sUHkH8hj3xwcIloqJz6mdZeuWfEAVi4L']),
+  ('supported_asset_3', 'USDC', 'GAHPYWLK6YRN7CVYZOO4H3VDRZ7PVF5UJGLZCSPAEIKJE2XSWF5LAGER', 'testnet', '{"decimals":7,"usdPeg":true}'::jsonb, 'USDC by Circle on Testnet', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ib0McDTYRSWChAKdv1tXG0YfyxQLZMce3UTFa']),
+  ('supported_asset_4', 'USDC', 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN', 'mainnet', '{"decimals":7,"usdPeg":true}'::jsonb, 'USDC by Circle on Mainnet', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ib0McDTYRSWChAKdv1tXG0YfyxQLZMce3UTFa']);

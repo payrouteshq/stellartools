@@ -2,7 +2,7 @@
 /**
  * Plugin Name: StellarTools
  * Description: WooCommerce payment gateway for StellarTools.
- * Version:     1.1.0
+ * Version:     1.2.0
  * Author:      Prince Ajuzie
  * 
  * `before_woocommerce_init`                    - declare block checkout compatibility.

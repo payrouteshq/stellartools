@@ -65,7 +65,7 @@ export const GET = apiHandler({
       });
     }
 
-    const [lastPayment, product] = await Promise.all([
+    const [lastPayment, [product]] = await Promise.all([
       retrievePayments(organizationId, environment, {
         subscriptionId: id,
         limit: 1,
@@ -87,7 +87,7 @@ export const GET = apiHandler({
         updatedAt: updatedSubscription.updatedAt,
         createdAt: updatedSubscription.createdAt,
 
-        relatedResources: { product: product[0].product, asset: product[0].asset },
+        relatedResources: { product },
         lastAttempt: lastPayment,
       })
     );

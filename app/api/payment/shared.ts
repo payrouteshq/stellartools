@@ -7,7 +7,6 @@ export async function resolvePublicPayments(orgId: string, env: Network, filters
     withCustomer: true,
     withWallets: true,
     withRefunds: true,
-    withAsset: true,
   });
 
   const reconciledPayments = await Promise.all(
@@ -27,18 +26,18 @@ export async function resolvePublicPayments(orgId: string, env: Network, filters
   );
 
   const mapped = reconciledPayments.map((p) => {
-    const { customer, wallets, refunds, asset, ...rest } = p;
+    const { customer, wallets, refunds, ...rest } = p;
 
     return {
       ...rest,
-      amount: `${p.amount} ${asset?.code ?? "XLM"}`,
+      amount: `${p.cryptoAmount} ${p.selectedAssetCode}`,
       billing_details: customer ? { email: customer.email, name: customer.name } : null,
       payment_method_details: wallets ? { id: wallets.id, address: wallets.address } : null,
       line_items: refunds
         ? [
             {
               id: refunds.id,
-              amount: `${refunds.amount} ${refunds.assetCode}`,
+              amount: `${refunds.cryptoAmount} ${refunds.selectedAssetCode}`,
               reason: refunds.reason,
               status: refunds.status,
             },

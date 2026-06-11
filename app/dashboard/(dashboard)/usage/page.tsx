@@ -28,9 +28,9 @@ type UsageRecord = {
   id: string;
   customerId: string | null;
   productId: string | null;
-  balance: bigint;
-  consumed: bigint;
-  granted: bigint;
+  balance: number;
+  consumed: number;
+  granted: number;
   isRevoked: boolean;
   createdAt: Date;
   updatedAt: Date;

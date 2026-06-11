@@ -1,0 +1,78 @@
+---
+title: "Currencies"
+description: "Query supported fiat currencies"
+---
+
+StellarTools supports 170 fiat currencies for product pricing and direct checkouts. Prices are stored in each product's native currency and converted to crypto at checkout time using live exchange rates.
+
+## List supported currencies
+
+`GET /currencies`
+
+Returns the full list of supported ISO 4217 currency codes.
+
+```bash
+curl https://api.stellartools.dev/currencies \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+### Response
+
+```json
+{
+  "data": ["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "..."]
+}
+```
+
+The returned codes map directly to the `currency_code` field on [products](/api-reference/products) and [direct checkouts](/api-reference/checkouts).
+
+---
+
+## Using currency codes
+
+When creating a product or direct checkout, pass one of these codes as `currency_code`:
+
+```bash
+curl https://api.stellartools.dev/product \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Pro Plan",
+    "type": "subscription",
+    "currency_code": "EUR",
+    "price_amount_cents": 999,
+    "recurring_period": "month"
+  }'
+```
+
+The price is stored as-is in the given currency. At checkout time, StellarTools fetches the live exchange rate and calculates the exact crypto amount the customer must send.
+
+---
+
+## Amount format
+
+All amounts in StellarTools (`price_amount_cents`, `amount_cents`) use a *uniform scale of 100*, the base currency amount multiplied by 100, for *every* currency:
+
+```
+stored_amount = base_amount × 100
+```
+
+| Display amount | `currency_code` | Stored value |
+| -------------- | --------------- | ------------ |
+| $9.99          | `USD`           | `999`        |
+| €25.00         | `EUR`           | `2500`       |
+| ₦15,000.00     | `NGN`           | `1500000`    |
+| ¥1,000         | `JPY`           | `100000`     |
+| 1.50 BHD       | `BHD`           | `150`        |
+
+<Note>
+  This is *not* the same as ISO 4217 minor units (Stripe's convention). In StellarTools the multiplier is always 100,
+  regardless of how many decimal places the currency uses natively. For example, ¥1,000 is `100000` here, but `1000` in
+  systems that use minor units.
+</Note>
+
+A few rules to keep in mind:
+
+- Amounts must be *positive integers*.
+- For zero-decimal currencies (JPY, KRW, VND, and similar), use whole-unit multiples of 100, e.g. ¥1,000 is `100000`, never `100050`.
+- For three-decimal currencies (BHD, KWD, OMR, and similar), amounts are limited to two decimal places of precision, e.g. `1.234 BHD` cannot be represented and should be rounded to `1.23` (`123`).

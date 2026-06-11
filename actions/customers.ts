@@ -12,6 +12,7 @@ import {
   customerWallets,
   customers as customersSchema,
   db,
+  organizations,
   payments as paymentsSchema,
   products as productsSchema,
   subscriptions as subscriptionsSchema,
@@ -340,91 +341,100 @@ export async function getCustomerPortalData(token: string) {
 
   const { customerId, organizationId, environment } = session;
 
-  const [customer, customerSubscriptions, customerPayments, customerCredits, customerWalletList] = await Promise.all([
-    db
-      .select()
-      .from(customersSchema)
-      .where(eq(customersSchema.id, customerId))
-      .limit(1)
-      .then((r) => r[0] ?? null),
+  const [customer, org, customerSubscriptions, customerPayments, customerCredits, customerWalletList] =
+    await Promise.all([
+      db
+        .select()
+        .from(customersSchema)
+        .where(eq(customersSchema.id, customerId))
+        .limit(1)
+        .then((r) => r[0] ?? null),
 
-    db
-      .select({
-        id: subscriptionsSchema.id,
-        status: subscriptionsSchema.status,
-        currentPeriodStart: subscriptionsSchema.currentPeriodStart,
-        currentPeriodEnd: subscriptionsSchema.currentPeriodEnd,
-        cancelAtPeriodEnd: subscriptionsSchema.cancelAtPeriodEnd,
-        canceledAt: subscriptionsSchema.canceledAt,
-        productId: subscriptionsSchema.productId,
-        productName: productsSchema.name,
-        productType: productsSchema.type,
-        productUnit: productsSchema.unit,
-        totalCredits: productsSchema.totalCredits,
-        customerWalletId: subscriptionsSchema.customerWalletId,
-        walletAddress: customerWallets.address,
-      })
-      .from(subscriptionsSchema)
-      .leftJoin(productsSchema, eq(subscriptionsSchema.productId, productsSchema.id))
-      .leftJoin(customerWallets, eq(subscriptionsSchema.customerWalletId, customerWallets.id))
-      .where(
-        and(
-          eq(subscriptionsSchema.customerId, customerId),
-          eq(subscriptionsSchema.organizationId, organizationId),
-          eq(subscriptionsSchema.environment, environment)
-        )
-      )
-      .orderBy(desc(subscriptionsSchema.createdAt)),
+      db
+        .select({ name: organizations.name, logoUrl: organizations.logoUrl, socialLinks: organizations.socialLinks })
+        .from(organizations)
+        .where(eq(organizations.id, organizationId))
+        .limit(1)
+        .then((r) => r[0] ?? null),
 
-    db
-      .select()
-      .from(paymentsSchema)
-      .where(
-        and(
-          eq(paymentsSchema.customerId, customerId),
-          eq(paymentsSchema.organizationId, organizationId),
-          eq(paymentsSchema.environment, environment),
-          eq(paymentsSchema.status, "confirmed")
+      db
+        .select({
+          id: subscriptionsSchema.id,
+          status: subscriptionsSchema.status,
+          currentPeriodStart: subscriptionsSchema.currentPeriodStart,
+          currentPeriodEnd: subscriptionsSchema.currentPeriodEnd,
+          cancelAtPeriodEnd: subscriptionsSchema.cancelAtPeriodEnd,
+          canceledAt: subscriptionsSchema.canceledAt,
+          productId: subscriptionsSchema.productId,
+          productName: productsSchema.name,
+          productType: productsSchema.type,
+          productUnit: productsSchema.unit,
+          totalCredits: productsSchema.totalCredits,
+          customerWalletId: subscriptionsSchema.customerWalletId,
+          walletAddress: customerWallets.address,
+        })
+        .from(subscriptionsSchema)
+        .leftJoin(productsSchema, eq(subscriptionsSchema.productId, productsSchema.id))
+        .leftJoin(customerWallets, eq(subscriptionsSchema.customerWalletId, customerWallets.id))
+        .where(
+          and(
+            eq(subscriptionsSchema.customerId, customerId),
+            eq(subscriptionsSchema.organizationId, organizationId),
+            eq(subscriptionsSchema.environment, environment)
+          )
         )
-      )
-      .orderBy(desc(paymentsSchema.createdAt))
-      .limit(20),
+        .orderBy(desc(subscriptionsSchema.createdAt)),
 
-    db
-      .select({
-        balance: creditBalancesSchema.balance,
-        consumed: creditBalancesSchema.consumed,
-        granted: creditBalancesSchema.granted,
-        productId: creditBalancesSchema.productId,
-        productName: productsSchema.name,
-        productUnit: productsSchema.unit,
-        totalCredits: productsSchema.totalCredits,
-      })
-      .from(creditBalancesSchema)
-      .leftJoin(productsSchema, eq(creditBalancesSchema.productId, productsSchema.id))
-      .where(
-        and(
-          eq(creditBalancesSchema.customerId, customerId),
-          eq(creditBalancesSchema.organizationId, organizationId),
-          eq(creditBalancesSchema.environment, environment)
+      db
+        .select()
+        .from(paymentsSchema)
+        .where(
+          and(
+            eq(paymentsSchema.customerId, customerId),
+            eq(paymentsSchema.organizationId, organizationId),
+            eq(paymentsSchema.environment, environment),
+            eq(paymentsSchema.status, "confirmed")
+          )
         )
-      ),
+        .orderBy(desc(paymentsSchema.createdAt))
+        .limit(20),
 
-    db
-      .select()
-      .from(customerWallets)
-      .where(
-        and(
-          eq(customerWallets.customerId, customerId),
-          eq(customerWallets.organizationId, organizationId),
-          eq(customerWallets.environment, environment)
+      db
+        .select({
+          balance: creditBalancesSchema.balance,
+          consumed: creditBalancesSchema.consumed,
+          granted: creditBalancesSchema.granted,
+          productId: creditBalancesSchema.productId,
+          productName: productsSchema.name,
+          productUnit: productsSchema.unit,
+          totalCredits: productsSchema.totalCredits,
+        })
+        .from(creditBalancesSchema)
+        .leftJoin(productsSchema, eq(creditBalancesSchema.productId, productsSchema.id))
+        .where(
+          and(
+            eq(creditBalancesSchema.customerId, customerId),
+            eq(creditBalancesSchema.organizationId, organizationId),
+            eq(creditBalancesSchema.environment, environment)
+          )
+        ),
+
+      db
+        .select()
+        .from(customerWallets)
+        .where(
+          and(
+            eq(customerWallets.customerId, customerId),
+            eq(customerWallets.organizationId, organizationId),
+            eq(customerWallets.environment, environment)
+          )
         )
-      )
-      .orderBy(desc(customerWallets.createdAt)),
-  ]);
+        .orderBy(desc(customerWallets.createdAt)),
+    ]);
 
   return {
     customer,
+    organization: org,
     subscriptions: customerSubscriptions,
     payments: customerPayments,
     credits: customerCredits,
