@@ -47,8 +47,8 @@ export default function HeroSection() {
       </h1>
 
       <p className="text-muted-foreground mb-10 max-w-[480px] text-[17px] leading-relaxed">
-        Accept payments across borders at near-zero cost. 3-second settlements,
-        fractions of a cent per transaction — Stripe-like billing on Stellar.
+        Accept payments across borders at near-zero cost. 3-second settlements, fractions of a cent per transaction —
+        Stripe-like billing on Stellar.
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">

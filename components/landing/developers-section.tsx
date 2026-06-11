@@ -70,9 +70,9 @@ export default function DevelopersSection() {
             A Stripe-like API you&apos;ll actually enjoy.
           </h2>
           <p className="text-muted-foreground text-[15px] leading-relaxed">
-            Familiar REST API and typed TypeScript SDK. Webhooks for every event. Full sandbox
-            mode. If you&apos;ve integrated Stripe before, you&apos;ll feel right at home —
-            except settlements take 3 seconds and cost fractions of a cent.
+            Familiar REST API and typed TypeScript SDK. Webhooks for every event. Full sandbox mode. If you&apos;ve
+            integrated Stripe before, you&apos;ll feel right at home — except settlements take 3 seconds and cost
+            fractions of a cent.
           </p>
         </div>
 

@@ -31,18 +31,27 @@ export default function BookCallPage() {
   });
 
   const { mutate: sendBookCallEmailAction, isPending } = useAction(sendBookCallEmail, {
-    onSuccess: () => { setSubmitted(true); form.reset(); },
+    onSuccess: () => {
+      setSubmitted(true);
+      form.reset();
+    },
   });
 
   return (
     <div className="force-light bg-background flex min-h-screen flex-col">
       <Header />
 
-      <div className="mx-auto flex flex-1 max-w-md flex-col justify-center px-6 py-20">
+      <div className="mx-auto flex max-w-md flex-1 flex-col justify-center px-6 py-20">
         {submitted ? (
           <div className="text-center">
             <div className="bg-primary/10 mx-auto mb-6 flex size-14 items-center justify-center rounded-full">
-              <svg className="text-primary size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="text-primary size-7"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
@@ -76,21 +85,44 @@ export default function BookCallPage() {
                 control={form.control}
                 name="name"
                 render={({ field, fieldState: { error } }) => (
-                  <TextField id="name" label="Name" placeholder="Jane Smith" error={error?.message ?? null} value={field.value} onChange={field.onChange} />
+                  <TextField
+                    id="name"
+                    label="Name"
+                    placeholder="Jane Smith"
+                    error={error?.message ?? null}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
               <RHF.Controller
                 control={form.control}
                 name="email"
                 render={({ field, fieldState: { error } }) => (
-                  <TextField id="email" type="email" label="Email" placeholder="you@company.com" error={error?.message ?? null} value={field.value} onChange={field.onChange} />
+                  <TextField
+                    id="email"
+                    type="email"
+                    label="Email"
+                    placeholder="you@company.com"
+                    error={error?.message ?? null}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 )}
               />
               <RHF.Controller
                 control={form.control}
                 name="message"
                 render={({ field, fieldState: { error } }) => (
-                  <TextAreaField id="message" label="Message" placeholder="What would you like to discuss?" error={error?.message ?? null} value={field.value} onChange={field.onChange} rows={4} />
+                  <TextAreaField
+                    id="message"
+                    label="Message"
+                    placeholder="What would you like to discuss?"
+                    error={error?.message ?? null}
+                    value={field.value}
+                    onChange={field.onChange}
+                    rows={4}
+                  />
                 )}
               />
               <Button type="submit" disabled={isPending} isLoading={isPending} className="mt-1 w-full">

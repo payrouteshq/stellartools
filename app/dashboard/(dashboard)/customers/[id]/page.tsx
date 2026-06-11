@@ -137,9 +137,7 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => (
-      <span className="font-medium">
-        {Money.formatFiat(row.original.amountCents ?? 0, row.original.currencyCode)}
-      </span>
+      <span className="font-medium">{Money.formatFiat(row.original.amountCents ?? 0, row.original.currencyCode)}</span>
     ),
     meta: { filterable: true, filterVariant: "number" },
   },
