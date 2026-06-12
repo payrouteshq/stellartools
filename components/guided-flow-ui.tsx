@@ -114,7 +114,6 @@ export function GuidedFlowUI({ flows }: { flows: GuidedFlowInstance[] }) {
 
   return createPortal(
     <>
-      {/* Spotlight */}
       <div
         style={{
           position: "absolute",
@@ -131,12 +130,10 @@ export function GuidedFlowUI({ flows }: { flows: GuidedFlowInstance[] }) {
         }}
       />
 
-      {/* Card with arrow attached */}
       <div
         className="bg-card rounded-xl border shadow-2xl"
         style={{ position: "absolute", top: popupTop, left: popupLeft, width: POPUP_W, zIndex: 9999 }}
       >
-        {/* The arrow sits outside the card via position:absolute + bottom/top:100% */}
         <Arrow side={side} x={arrowX} />
 
         <div className="p-4">

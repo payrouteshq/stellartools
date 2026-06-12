@@ -227,7 +227,6 @@ export default function UsagePage() {
       <DashboardSidebar>
         <DashboardSidebarInset>
           <div className="flex flex-col gap-6 p-6">
-            {/* Breadcrumbs */}
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>

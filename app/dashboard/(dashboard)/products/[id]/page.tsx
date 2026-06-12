@@ -524,7 +524,6 @@ export default function ProductDetailPage() {
                   </div>
                 </section>
 
-                {/* Metadata */}
                 <section>
                   <div className="flex items-center gap-2">
                     <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">Metadata</h2>

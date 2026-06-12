@@ -66,7 +66,6 @@ export default function CheckoutUI() {
           checkout.environment === "testnet" && "pt-12 transition-all duration-300"
         )}
       >
-        {/* Left — product summary */}
         <div className="space-y-6 lg:sticky lg:top-12">
           <div className="bg-card overflow-hidden rounded-2xl border shadow-sm lg:min-w-[360px]">
             {(checkout.organizationName || checkout.organizationLogo) && (
@@ -104,7 +103,6 @@ export default function CheckoutUI() {
               )}
               <Separator />
 
-              {/* Price display */}
               <div className="space-y-1">
                 {fiatDisplay ? (
                   <div className="text-3xl font-black tracking-tighter sm:text-4xl">
@@ -128,7 +126,6 @@ export default function CheckoutUI() {
           </div>
         </div>
 
-        {/* Right — payment form */}
         <Card className="border-primary/10 overflow-hidden rounded-2xl shadow-xl lg:min-w-[400px]">
           <CardContent className="space-y-8 p-6 sm:p-8 lg:p-10">
             <div className="space-y-6">

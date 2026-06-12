@@ -138,7 +138,6 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
       <main className="flex-1 overflow-auto">
         <MobileOrgHeader org={data.organization} testnet={testnet} />
         <div className="mx-auto max-w-2xl px-6 py-12">
-          {/* Breadcrumb */}
           <nav className="text-muted-foreground mb-8 flex items-center gap-1.5 text-sm">
             <Link href={`/${token}`} className="hover:text-foreground transition-colors">
               Billing
@@ -150,7 +149,6 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
           <h1 className="text-foreground mb-8 text-2xl font-semibold">Billing information</h1>
 
           <div className="space-y-6">
-            {/* Avatar */}
             <div className="flex justify-start">
               <FileUpload
                 label={null}

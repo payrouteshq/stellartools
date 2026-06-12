@@ -490,7 +490,6 @@ export default function UsageDetailPage() {
               )}
             </div>
 
-            {/* Revoked Banner */}
             {balance?.isRevoked && (
               <div className="bg-destructive/10 border-destructive/20 text-destructive flex items-start gap-3 rounded-lg border px-4 py-3 text-sm">
                 <span className="mt-0.5">⚠</span>
@@ -504,7 +503,6 @@ export default function UsageDetailPage() {
               </div>
             )}
 
-            {/* Usage Meter */}
             <div className="grid gap-4 md:grid-cols-3">
               <Card className="shadow-none">
                 <CardContent className="p-6">
@@ -587,7 +585,6 @@ export default function UsageDetailPage() {
               </Card>
             </div>
 
-            {/* Filters */}
             <div className="flex items-center justify-between gap-4">
               <UnderlineTabs value={statusFilter} onValueChange={setStatusFilter} className="w-auto">
                 <UnderlineTabsList>
@@ -603,7 +600,6 @@ export default function UsageDetailPage() {
               </Button>
             </div>
 
-            {/* Log Picker */}
             <div className="h-[calc(100vh-400px)] min-h-[600px]">
               <Log
                 data={filteredRecords}

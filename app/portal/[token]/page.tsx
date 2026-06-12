@@ -13,7 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { useAction } from "@/hooks/use-action";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { cn, truncate } from "@/lib/utils";
+import { truncate } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Edit2, Plus, Wallet } from "lucide-react";
 import moment from "moment";
@@ -138,9 +138,9 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   if (!data?.customer) {
     return (
       <div className="bg-background flex min-h-screen">
-        <PortalSidebar org={null} testnet={false} token={token} />
+        <PortalSidebar org={null} />
         <main className="flex flex-1 flex-col">
-          <MobileOrgHeader org={null} testnet={false} />
+          <MobileOrgHeader org={null} />
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
               <p className="text-foreground text-lg font-semibold">Session expired or not found</p>
@@ -153,7 +153,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   }
 
   const { customer, organization, subscriptions, payments, credits, wallets } = data;
-  const testnet = data.environment === "testnet";
   const activeSubscriptions = subscriptions.filter(
     (s) => s.status === "active" || s.status === "trialing" || s.status === "paused"
   );
@@ -161,12 +160,11 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
   return (
     <div className="bg-background flex min-h-screen">
-      <PortalSidebar org={organization} testnet={testnet} token={token} />
+      <PortalSidebar org={organization} />
 
       <main className="flex-1 overflow-auto">
-        <MobileOrgHeader org={organization} testnet={testnet} />
+        <MobileOrgHeader org={organization} />
         <div className="mx-auto max-w-2xl space-y-10 px-6 py-12">
-          {/* Active subscriptions */}
           {activeSubscriptions.map((sub) => (
             <section key={sub.id}>
               <SectionLabel>Current subscription</SectionLabel>
@@ -241,8 +239,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             </section>
           ))}
 
-          {/* Payment methods */}
-          <section>
+          <section data-testid="payment-methods">
             <SectionLabel>Payment methods</SectionLabel>
             <div className="border-border divide-border divide-y rounded-xl border">
               {wallets.map((wallet) => (
@@ -295,7 +292,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             </div>
           </section>
 
-          {/* Billing information */}
           <section>
             <SectionLabel>Billing information</SectionLabel>
             <div className="border-border rounded-xl border">
@@ -316,7 +312,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             </div>
           </section>
 
-          {/* Usage / Credits */}
           {credits.length > 0 && (
             <section>
               <SectionLabel>Usage</SectionLabel>
@@ -328,7 +323,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             </section>
           )}
 
-          {/* Invoice history */}
           {payments.length > 0 && (
             <section>
               <SectionLabel>Invoice history</SectionLabel>
@@ -368,12 +362,11 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
 // -- Shared sidebar --
 
-function PortalSidebar({ org, testnet, token }: { org: Organization | null; testnet: boolean; token: string }) {
+function PortalSidebar({ org }: { org: Organization | null }) {
   const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
 
   return (
     <aside className="border-border bg-background hidden w-[280px] shrink-0 flex-col border-r px-8 py-10 md:flex">
-      {/* Logo + name */}
       <div className="mb-6 flex items-center gap-3">
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
@@ -409,7 +402,7 @@ function PortalSidebar({ org, testnet, token }: { org: Organization | null; test
   );
 }
 
-function MobileOrgHeader({ org, testnet }: { org: Organization | null; testnet: boolean }) {
+function MobileOrgHeader({ org }: { org: Organization | null }) {
   return (
     <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
       <div className="flex items-center gap-2.5">

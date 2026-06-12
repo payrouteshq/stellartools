@@ -35,7 +35,6 @@ export const FooterSection = () => (
         </Link>
       </div>
 
-      {/* Right: nav links + social */}
       <div className="flex flex-col items-start gap-4 sm:items-end">
         <nav className="flex flex-wrap gap-x-8 gap-y-2 sm:justify-end">
           {links.map((l) => (
