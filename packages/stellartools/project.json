@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "core",
+  "projectType": "library",
+  "root": "packages/stellartools",
+  "sourceRoot": "packages/stellartools/src",
+  "tags": ["scope:shared", "type:sdk", "publishable"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run build",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true
+    },
+    "build:dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run build:dev",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "wordpress-adapter",
+  "projectType": "library",
+  "root": "packages/wordpress-adapter",
+  "sourceRoot": "packages/wordpress-adapter",
+  "tags": ["scope:integration", "publishable"],
+  "targets": {}
+}

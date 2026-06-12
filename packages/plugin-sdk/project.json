@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "plugin-sdk",
+  "projectType": "library",
+  "root": "packages/plugin-sdk",
+  "sourceRoot": "packages/plugin-sdk/src",
+  "tags": ["scope:integration", "publishable"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run build",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true
+    }
+  }
+}

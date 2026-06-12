@@ -4,14 +4,15 @@ import path from "path";
 const projectRoot = path.resolve(process.cwd());
 
 const config: StorybookConfig = {
-  stories: ["../components/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  stories: ["../packages/shared-ui/src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
   addons: ["@storybook/addon-essentials"],
   framework: {
     name: "@storybook/react-vite",
     options: {},
   },
-  staticDirs: ["../public"],
+  staticDirs: ["../apps/web/public"],
   async viteFinal(config) {
+    const webRoot = path.resolve(projectRoot, "apps/web");
     return {
       ...config,
       define: {
@@ -28,7 +29,8 @@ const config: StorybookConfig = {
         ...config.resolve,
         alias: {
           ...config.resolve?.alias,
-          "@": projectRoot,
+          "@": webRoot,
+          "@stellartools/shared-ui": path.resolve(projectRoot, "packages/shared-ui/src/index.ts"),
           "lucide-react": path.resolve(projectRoot, "node_modules/lucide-react/dist/cjs/lucide-react.js"),
         },
       },
