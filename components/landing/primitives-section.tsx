@@ -46,7 +46,7 @@ export default function PrimitivesSection() {
           {primitives.map((p) => (
             <div
               key={p.id}
-              className="border-border bg-background border p-6 first:rounded-tl-xl last:rounded-br-xl sm:first:rounded-tl-xl lg:first:rounded-tl-xl sm:[&:nth-child(2)]:rounded-tr-xl [&:nth-child(3)]:rounded-tr-xl lg:[&:nth-child(3)]:rounded-tr-xl [&:nth-child(4)]:rounded-bl-xl lg:[&:nth-child(4)]:rounded-bl-none lg:[&:nth-child(4)]:rounded-bl-xl sm:[&:nth-child(5)]:rounded-bl-xl sm:[&:nth-child(6)]:rounded-br-xl lg:[&:nth-child(6)]:rounded-br-xl"
+              className="border-border bg-background border p-6 first:rounded-tl-xl last:rounded-br-xl nth-3:rounded-tr-xl nth-4:rounded-bl-xl sm:first:rounded-tl-xl sm:nth-2:rounded-tr-xl sm:nth-5:rounded-bl-xl sm:nth-6:rounded-br-xl lg:first:rounded-tl-xl lg:nth-3:rounded-tr-xl lg:nth-4:rounded-bl-none lg:nth-6:rounded-br-xl"
             >
               <p className="text-foreground mb-2 font-semibold">{p.label}</p>
               <p className="text-muted-foreground text-sm leading-relaxed">{p.description}</p>

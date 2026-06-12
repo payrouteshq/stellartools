@@ -335,6 +335,18 @@ export async function retrieveCustomerPortalSession(token: string) {
   return session ?? null;
 }
 
+export async function getPortalSessionStatus(token: string): Promise<"ok" | "expired" | "not_found"> {
+  const [session] = await db
+    .select({ expiresAt: customerPortalSessions.expiresAt })
+    .from(customerPortalSessions)
+    .where(eq(customerPortalSessions.token, token))
+    .limit(1);
+
+  if (!session) return "not_found";
+  if (session.expiresAt <= new Date()) return "expired";
+  return "ok";
+}
+
 export async function getCustomerPortalData(token: string) {
   const session = await retrieveCustomerPortalSession(token);
   if (!session) return null;

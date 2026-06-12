@@ -1,5 +1,7 @@
-import { getCustomerPortalData } from "@/actions/customers";
+import { getCustomerPortalData, getPortalSessionStatus } from "@/actions/customers";
 import { TestModeBanner } from "@/components/environment-mode";
+
+import { PortalSessionError } from "./_portal-error";
 
 export default async function PortalLayout({
   children,
@@ -9,9 +11,16 @@ export default async function PortalLayout({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const data = await getCustomerPortalData(token);
+  const [data, sessionStatus] = await Promise.all([
+    getCustomerPortalData(token),
+    getPortalSessionStatus(token),
+  ]);
 
-  const testnet = data?.environment === "testnet";
+  if (!data?.customer) {
+    return <PortalSessionError reason={sessionStatus === "expired" ? "expired" : "not_found"} />;
+  }
+
+  const testnet = data.environment === "testnet";
 
   return (
     <>

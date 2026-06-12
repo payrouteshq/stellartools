@@ -14,6 +14,7 @@ import { useAction } from "@/hooks/use-action";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { truncate } from "@/lib/utils";
+import { ApiClient } from "@stellartools/core";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Edit2, Plus, Wallet } from "lucide-react";
 import moment from "moment";
@@ -39,7 +40,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   const { mutate: makeSubscriptionMutation } = useAction(
     async ({ path, subscriptionId }: { path: string; subscriptionId: string; successMessage: string }) => {
       setActionId(subscriptionId);
-      const { ApiClient } = await import("@stellartools/core");
       const api = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL!, headers: {} });
       const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, {
         headers: { "x-portal-token": token },
@@ -135,22 +135,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
   if (isLoading) return <PortalSkeleton />;
 
-  if (!data?.customer) {
-    return (
-      <div className="bg-background flex min-h-screen">
-        <PortalSidebar org={null} />
-        <main className="flex flex-1 flex-col">
-          <MobileOrgHeader org={null} />
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <p className="text-foreground text-lg font-semibold">Session expired or not found</p>
-              <p className="text-muted-foreground mt-1 text-sm">Contact the merchant for a new link.</p>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  if (!data?.customer) return null;
 
   const { customer, organization, subscriptions, payments, credits, wallets } = data;
   const activeSubscriptions = subscriptions.filter(

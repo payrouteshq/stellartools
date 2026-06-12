@@ -99,22 +99,7 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
 
   if (isLoading) return <PageSkeleton />;
 
-  if (!data?.customer) {
-    return (
-      <div className="bg-background flex min-h-screen">
-        <PortalSidebar org={null} testnet={false} token={token} />
-        <main className="flex flex-1 flex-col">
-          <MobileOrgHeader org={null} testnet={false} />
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <p className="text-foreground text-lg font-semibold">Session expired or not found</p>
-              <p className="text-muted-foreground mt-1 text-sm">Contact the merchant for a new link.</p>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  if (!data?.customer) return null;
 
   const wallets = data.wallets ?? [];
   const walletAlreadyLinked = wallet.connected ? wallets.some((w) => w.address === wallet.walletAddress) : false;

@@ -5,6 +5,7 @@ import * as React from "react";
 import { postOrganizationAndSecret, retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
 import { AppModal } from "@/components/app-modal";
 import { FileUpload, type FileWithPreview } from "@/components/file-upload";
+import { StellarTools } from "@/components/icon";
 import {
   type PhoneNumber,
   PhoneNumberField,
@@ -111,88 +112,94 @@ export const Client$SelectOrganizationPage = ({
   if (isLoading) return <LoadingSkeleton />;
 
   return (
-    <>
-      <div className="bg-background flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-2xl space-y-6">
+    <div className="bg-background relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
+        style={{
+          backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-sm space-y-8">
+        <div className="flex flex-col items-center gap-3">
+          <div className="bg-foreground/5 border-border flex size-12 items-center justify-center rounded-2xl border">
+            <StellarTools width={26} height={26} className="text-foreground" />
+          </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight">Select Organization</h1>
-            <p className="text-muted-foreground mt-2">Choose an organization to continue</p>
+            <h1 className="text-foreground text-xl font-semibold tracking-tight">
+              {hasOrganizations ? "Switch workspace" : "Get started"}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {hasOrganizations ? "Choose an organization to continue" : "Create your first organization to begin"}
+            </p>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            {organizations?.map((org) => (
-              <div
-                key={org.id}
-                className="hover:bg-accent/50 group flex cursor-pointer items-center gap-4 rounded-lg p-4 transition-all"
-                onClick={() => handleSelectOrg(org.id, org.name)}
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg">
-                  {org.logoUrl ? (
-                    <Image
-                      src={org.logoUrl}
-                      alt={org.name}
-                      width={48}
-                      height={48}
-                      className="h-12 w-12 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <Building2 className="h-6 w-6" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <b className="font-semibold">{org.name}</b>
-                  <p className="text-muted-foreground mt-1 text-sm">Your organization</p>
-                </div>
-                <ChevronRight className="text-muted-foreground h-5 w-5" />
-              </div>
-            ))}
-
-            <div
-              className="hover:bg-accent/50 group flex cursor-pointer items-center gap-4 rounded-lg border-2 border-dashed p-4 transition-all"
-              onClick={openCreateModal}
+        <div className="space-y-2">
+          {organizations?.map((org) => (
+            <button
+              key={org.id}
+              className="border-border hover:bg-accent group flex w-full cursor-pointer items-center gap-3.5 rounded-xl border bg-transparent px-4 py-3.5 text-left transition-all duration-150 hover:shadow-sm"
+              onClick={() => handleSelectOrg(org.id, org.name)}
             >
-              <div className="bg-muted flex h-12 w-12 shrink-0 items-center justify-center rounded-lg">
-                <Plus className="h-6 w-6" />
+              <div className="border-border flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
+                {org.logoUrl ? (
+                  <Image src={org.logoUrl} alt={org.name} width={40} height={40} className="size-full object-cover" />
+                ) : (
+                  <Building2 className="text-muted-foreground size-4.5" />
+                )}
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold">Create New Organization</h3>
-                <p className="text-muted-foreground text-sm">Start a new workspace</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
-
-const LoadingSkeleton = () => {
-  return (
-    <div className="bg-background flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-2xl space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Select Organization</h1>
-          <p className="text-muted-foreground mt-2">Choose an organization to continue</p>
-        </div>
-
-        <div className="w-full space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-4">
-              <Skeleton className="h-12 w-12 shrink-0 rounded-lg" />
               <div className="min-w-0 flex-1">
-                <Skeleton className="mb-2 h-5 w-40" />
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-full rounded" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
+                <p className="text-foreground text-sm font-medium">{org.name}</p>
+                <p className="text-muted-foreground text-xs">Your organization</p>
               </div>
-            </div>
+              <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+            </button>
           ))}
+
+          <button
+            className="border-border hover:bg-accent group flex w-full cursor-pointer items-center gap-3.5 rounded-xl border border-dashed bg-transparent px-4 py-3.5 text-left transition-all duration-150"
+            onClick={openCreateModal}
+          >
+            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <Plus className="text-muted-foreground size-4" />
+            </div>
+            <div className="flex-1">
+              <p className="text-foreground text-sm font-medium">New organization</p>
+              <p className="text-muted-foreground text-xs">Start a fresh workspace</p>
+            </div>
+          </button>
         </div>
       </div>
     </div>
   );
 };
+
+const LoadingSkeleton = () => (
+  <div className="bg-background flex min-h-screen flex-col items-center justify-center p-4">
+    <div className="w-full max-w-sm space-y-8">
+      <div className="flex flex-col items-center gap-3">
+        <Skeleton className="size-12 rounded-2xl" />
+        <div className="space-y-2 text-center">
+          <Skeleton className="mx-auto h-5 w-36" />
+          <Skeleton className="mx-auto h-4 w-52" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="border-border flex items-center gap-3.5 rounded-xl border px-4 py-3.5">
+            <Skeleton className="size-10 shrink-0 rounded-lg" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
 // -- CREATE ORGANIZATION  --
 
