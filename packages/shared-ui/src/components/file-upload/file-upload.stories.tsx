@@ -2,8 +2,7 @@ import { useState } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import type { FileWithPreview } from "./file-upload";
-import { FileUpload } from "./file-upload";
+import { FileUpload, type FileWithPreview } from "./index";
 
 function createNonImageFile(name: string, type: string): FileWithPreview {
   const file = new File([], name, { type });

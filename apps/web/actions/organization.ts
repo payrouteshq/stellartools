@@ -93,6 +93,8 @@ export const retrieveOrganizations = async (accId?: string) => {
       id: organizations.id,
       name: organizations.name,
       logoUrl: organizations.logoUrl,
+      supportEmail: organizations.supportEmail,
+      address: organizations.address,
     })
     .from(organizations)
     .where(eq(organizations.accountId, accountId));

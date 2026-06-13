@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { CheckList } from "./checklist";
+import { CheckList } from "./index";
 
 const meta = {
   title: "Components/CheckList",

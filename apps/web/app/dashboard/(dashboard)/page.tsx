@@ -20,7 +20,6 @@ import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { Money } from "@/lib/money";
-import { cn } from "@/lib/utils";
 import {
   AppModal,
   Button,
@@ -39,6 +38,7 @@ import {
   SelectField,
   Skeleton,
   Spinner,
+  cn,
 } from "@stellartools/shared-ui";
 import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
 import Link from "next/link";

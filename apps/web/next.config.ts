@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@stellartools/shared-ui"],
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",

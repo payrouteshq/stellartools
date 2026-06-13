@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { CodeBlock } from "./code-block";
+import { CodeBlock } from "./index";
 
 const sampleTsx = `export function Button({ children }: { children: React.ReactNode }) {
   return (

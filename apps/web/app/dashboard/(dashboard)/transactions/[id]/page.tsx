@@ -9,7 +9,7 @@ import { CheckMark2 } from "@/components/icon";
 import { type Payment } from "@/db";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { Money } from "@/lib/money";
-import { cn, truncate } from "@/lib/utils";
+import { truncate } from "@/lib/utils";
 import {
   AppModal,
   Badge,
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
   Separator,
   Skeleton,
+  cn,
   toast,
   useCopy,
 } from "@stellartools/shared-ui";

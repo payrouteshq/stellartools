@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { DateRange } from "react-day-picker";
 
-import { DateField, DateTimeField } from "./date-field";
+import { DateField, DateTimeField } from "./index";
 
 const meta = {
   title: "Components/DateField",

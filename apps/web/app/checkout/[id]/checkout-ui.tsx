@@ -4,7 +4,7 @@ import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark } from "@/components/icon";
 import { useCheckout } from "@/contexts/checkout-context";
 import { Money } from "@/lib/money";
-import { cn, truncate } from "@/lib/utils";
+import { truncate } from "@/lib/utils";
 import {
   Button,
   Card,
@@ -19,6 +19,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  cn,
 } from "@stellartools/shared-ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, X } from "lucide-react";

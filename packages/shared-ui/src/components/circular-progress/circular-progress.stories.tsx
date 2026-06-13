@@ -1,5 +1,6 @@
-import { CircularProgress as Self } from "@stellartools/shared-ui";
 import type { Meta, StoryObj } from "@storybook/react";
+
+import { CircularProgress as Self } from "./index";
 
 const meta = {
   title: "Components/CircularProgress",

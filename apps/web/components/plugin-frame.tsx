@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { useInvalidateOrgQuery, useOrgContext } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
+import { cn } from "@stellartools/shared-ui";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 

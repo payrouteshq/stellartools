@@ -3,11 +3,17 @@
 import { createPortal } from "react-dom";
 
 import { PluginFrame } from "@/components/plugin-frame";
-import { useMounted } from "@/hooks/use-mounted";
 import { usePlugins } from "@/hooks/use-plugin";
-import { cn } from "@/lib/utils";
 import { Button, Separator } from "@stellartools/shared-ui";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@stellartools/shared-ui";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  cn,
+  useMounted,
+} from "@stellartools/shared-ui";
 import { PlusIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";

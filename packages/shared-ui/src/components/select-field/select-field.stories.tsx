@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { SelectField } from "./select-field";
+import { SelectField } from "./index";
 
 const defaultItems = [
   { value: "option-a", label: "Option A" },

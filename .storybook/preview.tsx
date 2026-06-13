@@ -2,7 +2,7 @@ import React from "react";
 
 import type { Preview } from "@storybook/react";
 
-import "../app/globals.css";
+import "../packages/shared-ui/src/global.css";
 import "./preview.css";
 
 const preview: Preview = {

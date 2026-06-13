@@ -8,7 +8,6 @@ import {
   retrieveCustomerPortalSession,
   upsertCustomerWallet,
 } from "@/actions/customers";
-import { StellarTools } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAction } from "@/hooks/use-action";
@@ -16,7 +15,7 @@ import { AppError } from "@/lib/action-handler";
 import { truncate } from "@/lib/utils";
 import { AppModal, Badge, Button, Separator, Skeleton } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ChevronRight, Link2, Trash2, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle2, ChevronRight, Link2, Trash2, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -91,8 +90,6 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
     });
   };
 
-  const testnet = data?.environment === "testnet";
-
   if (isLoading) return <PageSkeleton />;
 
   if (!data?.customer) return null;
@@ -102,10 +99,10 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
 
   return (
     <div className="bg-background flex min-h-screen">
-      <PortalSidebar org={data.organization} testnet={testnet} token={token} />
+      <PortalSidebar org={data.organization} />
 
       <main className="flex-1 overflow-auto">
-        <MobileOrgHeader org={data.organization} testnet={testnet} />
+        <MobileOrgHeader org={data.organization} />
         <div className="mx-auto max-w-2xl px-6 py-12">
           <nav className="text-muted-foreground mb-8 flex items-center gap-1.5 text-sm">
             <Link href={`/${token}`} className="hover:text-foreground transition-colors">
@@ -248,7 +245,7 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   );
 }
 
-function PortalSidebar({ org, testnet, token }: { org: Organization | null; testnet: boolean; token: string }) {
+function PortalSidebar({ org }: { org: Organization | null }) {
   const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
 
   return (
@@ -257,7 +254,7 @@ function PortalSidebar({ org, testnet, token }: { org: Organization | null; test
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
         ) : (
-          <StellarTools width={28} height={28} className="shrink-0 object-contain" />
+          <Building2 className="size-8" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
@@ -288,14 +285,14 @@ function PortalSidebar({ org, testnet, token }: { org: Organization | null; test
   );
 }
 
-function MobileOrgHeader({ org, testnet }: { org: Organization | null; testnet: boolean }) {
+function MobileOrgHeader({ org }: { org: Organization | null }) {
   return (
     <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
       <div className="flex items-center gap-2.5">
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
         ) : (
-          <StellarTools width={24} height={24} className="shrink-0 object-contain" />
+          <Building2 className="size-7" />
         )}
         <div className="flex flex-col gap-0.5">
           <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>

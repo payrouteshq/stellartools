@@ -6,7 +6,6 @@ import { getCurrentUser, signOut } from "@/actions/auth";
 import { retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
 import { TestModeBanner } from "@/components/environment-mode";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
 import {
   AppModal,
   Avatar,
@@ -23,9 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-  toast,
-} from "@stellartools/shared-ui";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -38,6 +34,8 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
+  cn,
+  toast,
 } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -55,7 +53,6 @@ import {
   Receipt,
   Repeat,
   Settings2,
-  Sparkles,
   Store,
   Users,
   Wallet,

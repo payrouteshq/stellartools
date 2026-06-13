@@ -21,12 +21,15 @@
     "@storybook/addon-essentials": "^8.6.15",
     "@storybook/react": "^8.6.15",
     "@storybook/react-vite": "^8.6.15",
+    "@tailwindcss/postcss": "^4",
     "@trivago/prettier-plugin-sort-imports": "^6.0.0",
     "eslint-plugin-storybook": "^10.1.10",
     "nx": "latest",
     "prettier": "^3.7.4",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "storybook": "^8.6.15",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0",
     "typescript": "^5"
   }
 }

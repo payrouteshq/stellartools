@@ -12,7 +12,7 @@ import { truncate } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import { AppModal, Badge, Button, Skeleton, Slider } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Edit2, Plus, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, Edit2, Plus, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 
@@ -341,8 +341,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   );
 }
 
-// -- Shared sidebar --
-
 function PortalSidebar({ org }: { org: Organization | null }) {
   const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
 
@@ -352,7 +350,7 @@ function PortalSidebar({ org }: { org: Organization | null }) {
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
         ) : (
-          <StellarTools width={28} height={28} className="shrink-0 object-contain" />
+          <Building2 className="size-8" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>

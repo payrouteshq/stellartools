@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Timeline } from "./timeline";
+import { Timeline } from "./index";
 
 type SampleItem = {
   id: string;

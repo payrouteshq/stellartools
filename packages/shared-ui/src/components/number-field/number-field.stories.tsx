@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { NumberField } from "./number-field";
+import { NumberField } from "./index";
 
 const meta = {
   title: "Components/NumberField",

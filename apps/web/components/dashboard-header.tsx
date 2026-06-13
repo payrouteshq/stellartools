@@ -3,8 +3,7 @@
 import { EnvironmentToggle } from "@/components/environment-mode";
 import ModeToggle from "@/components/mode-toggle";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
-import { SidebarTrigger } from "@stellartools/shared-ui";
+import { SidebarTrigger, cn } from "@stellartools/shared-ui";
 
 export default function DashboardHeader() {
   const { data: orgContext } = useOrgContext();

@@ -3,9 +3,11 @@
 import * as React from "react";
 
 import { retrieveSupportedAssets } from "@/actions/asset";
+import { retrieveOrganizations } from "@/actions/organization";
 import { retrievePayouts } from "@/actions/payout";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { PayoutReceipt } from "@/components/receipt-engine";
 import { PayoutStatus } from "@/constant/schema.client";
 import { Payout } from "@/db";
 import { useAction } from "@/hooks/use-action";
@@ -13,7 +15,7 @@ import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
-import { cn } from "@/lib/utils";
+import { downloadReceipt } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
 import {
@@ -30,6 +32,7 @@ import {
   UnderlineTabsContent,
   UnderlineTabsList,
   UnderlineTabsTrigger,
+  cn,
   toast,
 } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
@@ -39,8 +42,6 @@ import moment from "moment";
 import { useRouter } from "next/navigation";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
-
-import { generateAndDownloadReceipt } from "./_shared";
 
 // --- Constants & Types ---
 
@@ -477,7 +478,14 @@ function RequestPayoutModalContent({ onClose, onSuccess }: { onClose: () => void
 
 export default function PayoutPage() {
   const router = useRouter();
+  const { data: orgContext } = useOrgContext();
+  const { data: organizations } = useQuery({
+    queryKey: ["sidebar-organizations"],
+    queryFn: async () => await retrieveOrganizations(),
+  });
   const { data: payoutList = [], isLoading } = useOrgQuery(["payouts"], () => retrievePayouts());
+
+  const currentOrg = organizations?.find((org) => org.id === orgContext?.id) || null;
 
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
 
@@ -530,8 +538,27 @@ export default function PayoutPage() {
     {
       label: "Download Receipt",
       onClick: async (row) => {
-        const promise = generateAndDownloadReceipt(row, "StellarTools");
-        toast.promise(promise, { loading: "Preparing receipt...", success: "Downloaded", error: "Failed" });
+        const downloadPromise = downloadReceipt(
+          <PayoutReceipt
+            payoutId={row.id}
+            payoutAmountCents={row.amountCents}
+            payoutCurrencyCode={row.currencyCode}
+            payoutCryptoAmount={Number(row.cryptoAmount)}
+            payoutSelectedAssetCode={row.selectedAssetCode ?? undefined}
+            payoutTransactionHash={row.transactionHash ?? undefined}
+            payoutCreatedAt={row.createdAt}
+            payoutCompletedAt={row.completedAt ?? undefined}
+            payoutEnvironment={row.environment}
+            payoutWalletAddress={row.walletAddress ?? undefined}
+            payoutMemo={row.memo ?? undefined}
+            organizationName={currentOrg?.name}
+            organizationAddress={currentOrg?.address ?? undefined}
+            organizationEmail={currentOrg?.supportEmail ?? undefined}
+            organizationLogo={currentOrg?.logoUrl ?? undefined}
+          />,
+          `receipt-${row.id}.pdf`
+        );
+        toast.promise(downloadPromise, { loading: "Preparing receipt...", success: "Downloaded", error: "Failed" });
       },
     },
   ];

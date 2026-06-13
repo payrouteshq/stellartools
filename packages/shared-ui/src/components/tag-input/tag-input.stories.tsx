@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { TagInput } from "./tag+input";
+import { TagInput } from "./index";
 
 const meta = {
   title: "Components/TagInput",

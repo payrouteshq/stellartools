@@ -5,9 +5,9 @@ import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Plus } from "lucide-react";
 
-import { ResourceField } from "./resource-field";
-import { Button } from "./ui/button";
-import { Label } from "./ui/label";
+import { Button } from "../../ui/button";
+import { Label } from "../../ui/label";
+import { ResourceField } from "./index";
 
 type Sample = { id: string; name: string; email?: string; desc?: string; img?: string; disabled?: boolean };
 

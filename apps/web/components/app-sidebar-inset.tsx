@@ -2,8 +2,7 @@
 
 import DashboardHeader from "@/components/dashboard-header";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
-import { SidebarInset } from "@stellartools/shared-ui";
+import { cn, SidebarInset } from "@stellartools/shared-ui";
 
 export const DashboardSidebarInset = ({ children }: { children: React.ReactNode }) => {
   const { data: orgContext } = useOrgContext();
@@ -11,7 +10,7 @@ export const DashboardSidebarInset = ({ children }: { children: React.ReactNode 
 
   return (
     <SidebarInset
-      className={cn("bg-sidebar m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0", isTestMode && "pt-8")}
+      className={cn("bg-sidebar m-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0", isTestMode && "pt-8!")}
     >
       <DashboardHeader />
 

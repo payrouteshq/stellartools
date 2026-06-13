@@ -3,14 +3,16 @@
 import * as React from "react";
 
 import { retrieveEvents } from "@/actions/event";
+import { retrieveOrganizations } from "@/actions/organization";
 import { retrievePayoutById } from "@/actions/payout";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2 } from "@/components/icon";
+import { PayoutReceipt } from "@/components/receipt-engine";
 import { TIMELINE_ROUTE_MAP } from "@/constant";
 import { PayoutStatus } from "@/constant/schema.client";
-import { useOrgQuery } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { downloadReceipt } from "@/lib/utils";
 import {
   Badge,
   Breadcrumb,
@@ -26,9 +28,11 @@ import {
   DropdownMenuTrigger,
   Separator,
   Timeline,
+  cn,
   toast,
   useCopy,
 } from "@stellartools/shared-ui";
+import { useQuery } from "@tanstack/react-query";
 import _ from "lodash";
 import {
   CheckCircle2,
@@ -45,8 +49,6 @@ import {
 import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-
-import { generateAndDownloadReceipt } from "../_shared";
 
 const getExplorerUrl = (hash: string, env?: string) =>
   `https://stellar.expert/explorer/${env === "live" ? "public" : "testnet"}/tx/${hash}`;
@@ -110,7 +112,13 @@ const DetailRow = ({ label, value, icon: Icon, action, mono = false }: any) => (
 export default function PayoutDetailPage() {
   const router = useRouter();
   const { id } = useParams()! as { id: string };
+  const { data: orgContext } = useOrgContext();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  const { data: organizations } = useQuery({
+    queryKey: ["sidebar-organizations"],
+    queryFn: async () => await retrieveOrganizations(),
+  });
 
   const { data: payout, isLoading: isLoadingPayout } = useOrgQuery(["payout", id], () => retrievePayoutById(id));
 
@@ -118,10 +126,29 @@ export default function PayoutDetailPage() {
     retrieveEvents({ merchantId: "current" }, ["payout::requested", "payout::processed"])
   );
 
-  const handleDownloadReceipt = React.useCallback(async () => {
-    if (!payout) return;
+  const currentOrg = organizations?.find((org) => org.id === orgContext?.id) || null;
 
-    const downloadPromise = generateAndDownloadReceipt(payout, "StellarTools");
+  const handleDownloadReceipt = React.useCallback(async () => {
+    if (!payout || !currentOrg) return;
+
+    const downloadPromise = downloadReceipt(
+      <PayoutReceipt
+        payoutId={payout.id}
+        payoutAmountCents={payout.amountCents}
+        payoutCurrencyCode={payout.currencyCode}
+        payoutCryptoAmount={Number(payout.cryptoAmount)}
+        payoutSelectedAssetCode={payout.selectedAssetCode ?? undefined}
+        payoutTransactionHash={payout.transactionHash ?? undefined}
+        payoutCreatedAt={payout.createdAt}
+        payoutCompletedAt={payout.completedAt ?? undefined}
+        payoutEnvironment={payout.environment}
+        organizationName={currentOrg.name}
+        organizationAddress={currentOrg?.address ?? undefined}
+        organizationEmail={currentOrg?.supportEmail ?? undefined}
+        organizationLogo={currentOrg?.logoUrl ?? undefined}
+      />,
+      `stellartools-payout-receipt-${payout.id}-${moment().format("YYYY-MM-DD")}`
+    );
 
     toast.promise(downloadPromise, {
       loading: "Generating receipt...",

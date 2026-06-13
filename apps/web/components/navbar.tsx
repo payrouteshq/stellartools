@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getCurrentUser, signOut } from "@/actions/auth";
 import { Payroutes, StellarTools } from "@/components/icon";
-import { cn } from "@/lib/utils";
 import { CirclePlus, LogOut, Menu, Monitor, Moon, Sun } from "@aliimam/icons";
 import {
   AppModal,
@@ -21,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  cn,
   toast,
 } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";

@@ -57,7 +57,7 @@ export function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      <div className="bg-foreground hidden flex-col justify-between overflow-hidden p-16 lg:flex">
+      <div className="bg-foreground hidden flex-col justify-between overflow-hidden p-16 lg:flex!">
         <div className="space-y-8">
           <StellarTools width={100} height={100} className="text-background" />
           <h1 className="text-background mb-6 text-4xl leading-[1.1] font-extrabold tracking-normal">

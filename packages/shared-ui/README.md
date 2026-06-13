@@ -2,6 +2,10 @@
 
 Shared React component library for the Stellar Tools monorepo. Contains all story-backed UI components and primitives, consumed by `apps/web` and future embedded apps.
 
+## Storybook preview
+
+**[698b71db4030225770a2a4ba-zyxpqleejo.chromatic.com](https://698b71db4030225770a2a4ba-zyxpqleejo.chromatic.com/)**
+
 ## Usage
 
 ```tsx
@@ -23,15 +27,6 @@ pnpm type-check         # run tsc --noEmit
 
 **Custom blocks** — `AppModal`, `AreaChart`, `Checklist`, `CircularProgress`, `CodeBlock`, `DataTable`, `DateField`, `FileUpload`, `LineChart`, `Log`, `Markdown`, `NumberField`, `OptionFlow`, `PhoneNumberField`, `ResourceField`, `SelectInput`, `SelectField`, `Spinner`, `TagInput`, `TextField`, `Time`, `Timeline`
 
-**UI primitives** — `Accordion`, `AlertDialog`, `Avatar`, `Badge`, `Breadcrumb`, `Button`, `Calendar`, `Card`, `Checkbox`, `Collapsible`, `Command`, `Dialog`, `Drawer`, `DropdownMenu`, `Input`, `InputGroup`, `InputOtp`, `Label`, `Popover`, `RadioGroup`, `ScrollArea`, `Select`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `Slider`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast`, `Tooltip`
+**UI primitives** — `Accordion`, `AlertDialog`, `Avatar`, `Badge`, `Breadcrumb`, `Button`, `Calendar`, `Card`, `Checkbox`, `Collapsible`, `Command`, `Dialog`, `Drawer`, `DropdownMenu`, `Input`, `InputGroup`, `InputOtp`, `Label`, `NavigationMenu`, `Popover`, `RadioGroup`, `ScrollArea`, `Select`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `Slider`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast`, `Tooltip`
 
 **Hooks** — `useFilePreview`, `useCopy`
-
-## Peer deps
-
-`react >=18`, `react-dom >=18`, `next >=14`, `@stellartools/core`
-
-## Notes
-
-- No build step required. `apps/web` compiles this package directly via Next.js `transpilePackages`.
-- Each component folder mirrors the original `components/` layout in `apps/web`.

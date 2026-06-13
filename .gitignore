@@ -65,3 +65,6 @@ MEMORY.md
 /stellartools
 
 .nx
+
+# apps
+apps/*/.next

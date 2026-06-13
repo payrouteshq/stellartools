@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Markdown } from "./markdown";
+import { Markdown } from "./index";
 
 const meta = {
   title: "Components/Markdown",

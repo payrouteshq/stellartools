@@ -1,19 +1,15 @@
 import { Camelize, Snakize } from "@/types";
-import { type ClassValue, clsx } from "clsx";
+import { DocumentProps, pdf } from "@react-pdf/renderer";
 import crypto from "crypto";
+import { saveAs } from "file-saver";
 import _ from "lodash";
 import moment from "moment";
-import { twMerge } from "tailwind-merge";
 import { z } from "zod";
 
 import { AppError } from "./action-handler";
 
 export const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 type HashAlgorithm = "shake128" | "sha256";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 export const truncate = (
   text: string,
@@ -129,12 +125,6 @@ export const toCamelCase = <T>(data: T): Camelize<T> => {
   return data as any;
 };
 
-export const fileFromUrl = async (url: string, fileName: string): Promise<File> => {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new File([blob], fileName, { type: blob.type });
-};
-
 export function generateResourceId(
   prefix: string,
   baseSignature: string,
@@ -214,3 +204,13 @@ export const mergeWithNullDeletes = (
   }
   return result;
 };
+
+export async function downloadReceipt(Component: React.ReactElement, filename: string) {
+  try {
+    const blob = await pdf(Component as unknown as React.ReactElement<DocumentProps>).toBlob();
+    saveAs(blob, `${filename}-${new Date().toISOString().split("T")[0]}.pdf`);
+  } catch (error) {
+    console.error("PDF Export Failed:", error);
+    throw new AppError("Could not generate receipt");
+  }
+}

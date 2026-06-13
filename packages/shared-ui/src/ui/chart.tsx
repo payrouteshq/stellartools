@@ -4,7 +4,6 @@ import * as React from "react";
 
 import * as RechartsPrimitive from "recharts";
 
-import { AppError } from "../lib/errors";
 import { cn } from "../lib/utils";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -27,7 +26,7 @@ function useChart() {
   const context = React.useContext(ChartContext);
 
   if (!context) {
-    throw new AppError("useChart must be used within a <ChartContainer />");
+    throw new Error("useChart must be used within a <ChartContainer />");
   }
 
   return context;

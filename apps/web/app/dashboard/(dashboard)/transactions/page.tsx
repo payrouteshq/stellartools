@@ -16,8 +16,18 @@ import { ResolvedPayment } from "@/db";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { Money } from "@/lib/money";
-import { cn, truncate } from "@/lib/utils";
-import { AppModal, Badge, Button, Card, CardContent, DataTable, TableAction, useCopy } from "@stellartools/shared-ui";
+import { truncate } from "@/lib/utils";
+import {
+  AppModal,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DataTable,
+  TableAction,
+  cn,
+  useCopy,
+} from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Clock, Copy, Download, Plus, Settings, Wallet, XCircle } from "lucide-react";
 import moment from "moment";

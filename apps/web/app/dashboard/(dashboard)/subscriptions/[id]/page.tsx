@@ -12,7 +12,6 @@ import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { cn } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import {
   AppModal,
@@ -31,6 +30,7 @@ import {
   Separator,
   Spinner,
   Timeline,
+  cn,
   toast,
 } from "@stellartools/shared-ui";
 import _ from "lodash";

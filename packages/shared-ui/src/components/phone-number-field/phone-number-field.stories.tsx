@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { type PhoneNumber, PhoneNumberField } from "./phone-number-field";
+import { type PhoneNumber, PhoneNumberField } from "./index";
 
 const meta = {
   title: "Components/PhoneNumberField",

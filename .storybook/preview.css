@@ -3,3 +3,24 @@
   --font-instrument-serif: "Instrument Serif", serif;
   --font-jetbrains-mono: "JetBrains Mono", monospace;
 }
+
+body,
+#storybook-root {
+  font-family: var(--font-dm-sans), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+em {
+  font-family: var(--font-instrument-serif), serif;
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--font-jetbrains-mono), monospace;
+}

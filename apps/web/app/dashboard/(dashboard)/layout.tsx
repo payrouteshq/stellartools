@@ -3,7 +3,7 @@ import { getCurrentOrganization } from "@/actions/organization";
 import { MainnetReadinessModal } from "@/components/mainnet-readiness-modal";
 import { PluginLauncher } from "@/components/plugin-launcher";
 import { deleteCookies } from "@/integrations/cookie-manager";
-import { cn } from "@/lib/utils";
+import { cn } from "@stellartools/shared-ui";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 

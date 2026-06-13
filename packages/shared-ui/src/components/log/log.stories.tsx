@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Log, LogDetailItem, LogDetailSection } from "./log";
+import { Log, LogDetailItem, LogDetailSection } from "./index";
 
 type LogEntry = {
   id: string;

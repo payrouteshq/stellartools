@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { SelectInput, type SelectInputValue } from "./select+input";
+import { SelectInput, type SelectInputValue } from "./index";
 
 const defaultOptions = ["USD", "EUR", "XLM", "BTC"];
 

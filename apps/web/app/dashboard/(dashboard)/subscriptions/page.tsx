@@ -9,7 +9,7 @@ import { subscriptionStatusEnum } from "@/constant/schema.client";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { Money } from "@/lib/money";
-import { cn } from "@/lib/utils";
+import { cn } from "@stellartools/shared-ui";
 import { AppModal, Badge, Button, DataTable } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";

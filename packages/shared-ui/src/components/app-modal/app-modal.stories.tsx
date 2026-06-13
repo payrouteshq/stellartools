@@ -1,5 +1,7 @@
-import { AppModal, AppModalProvider, Button } from "@stellartools/shared-ui";
 import type { Meta, StoryObj } from "@storybook/react";
+
+import { Button } from "../../ui/button";
+import { AppModal, AppModalProvider } from "../app-modal/index";
 
 const meta = {
   title: "Components/AppModal",

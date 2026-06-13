@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { LineChart } from "./line-chart";
+import { LineChart } from "./index";
 
 const desktopData = [
   { month: "January", desktop: 186 },

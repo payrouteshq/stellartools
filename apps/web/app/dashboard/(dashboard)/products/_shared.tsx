@@ -251,7 +251,7 @@ export function ProductsModalContent({
       return result.value as ProductEsque;
     },
     {
-      invalidate: ["products", ...(isEditMode ? [editingProduct?.id] : [])],
+      invalidate: [["products", editingProduct?.id], ["products"]],
       onSuccess: () => {
         form.reset();
         onSuccess();

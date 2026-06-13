@@ -18,7 +18,6 @@ import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-o
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient, Checkout } from "@stellartools/core";
 import {
@@ -34,6 +33,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  cn,
   CodeBlock,
   DataTable,
   DropdownMenu,

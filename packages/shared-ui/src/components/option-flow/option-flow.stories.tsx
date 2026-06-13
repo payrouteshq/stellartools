@@ -2,7 +2,7 @@ import React from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { OptionFlow } from "./option-flow";
+import { OptionFlow } from "./index";
 
 const meta: Meta<typeof OptionFlow> = {
   title: "Components/OptionFlow",

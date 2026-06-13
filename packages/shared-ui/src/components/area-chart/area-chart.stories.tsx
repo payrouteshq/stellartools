@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { AreaChart } from "./area-chart";
+import { AreaChart } from "./index";
 
 const revenueData = [
   { date: "2024-03-13", revenue: 1200 },

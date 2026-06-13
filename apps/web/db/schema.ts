@@ -701,4 +701,5 @@ export type ResolvedPayment = Payment & {
   wallets?: CustomerWallet | null;
   refunds?: Refund | null;
   customer?: Customer | null;
+  org?: Organization | null;
 };

@@ -23,6 +23,7 @@ import {
   customerWallets,
   customers,
   db,
+  organizations,
   payments,
   refunds,
 } from "@/db";
@@ -299,10 +300,22 @@ export const retrieveLifetimeVolumeCents = async (orgId: string, environment: Ne
 export const retrievePayments = async (
   orgId?: string,
   env?: Network,
-  params?: { customerId?: string; paymentId?: string; subscriptionId?: string } & ApiListParams,
-  options?: { withCustomer?: boolean; withWallets?: boolean; withRefunds?: boolean }
+  params?: { customerId?: string; paymentId?: string; subscriptionId?: string; publicAccess?: boolean } & ApiListParams,
+  options?: { withCustomer?: boolean; withWallets?: boolean; withRefunds?: boolean; withOrg?: boolean }
 ): Promise<PaginatedResult<ResolvedPayment>> => {
-  const { organizationId, environment } = await resolveOrgContext(orgId, env);
+  const publicAccess = params?.publicAccess ?? false;
+
+  let organizationId: string | undefined;
+  let environment: Network | undefined;
+
+  if (!publicAccess) {
+    const { organizationId: resolvedOrganizationId, environment: resolvedEnvironment } = await resolveOrgContext(
+      orgId,
+      env
+    );
+    organizationId = resolvedOrganizationId;
+    environment = resolvedEnvironment;
+  }
 
   const limit = params?.limit ?? 10;
 
@@ -313,16 +326,18 @@ export const retrievePayments = async (
       ...(options?.withWallets && { wallets: customerWallets }),
       ...(options?.withRefunds && { refunds: refunds }),
       ...(options?.withCustomer && { customer: customers }),
+      ...(options?.withOrg && { org: organizations }),
     })
     .from(payments)
     .leftJoin(refunds, and(eq(payments.id, refunds.paymentId), eq(refunds.status, "succeeded")))
     .leftJoin(customerWallets, eq(payments.customerWalletId, customerWallets.id))
     .leftJoin(customers, eq(payments.customerId, customers.id))
+    .leftJoin(organizations, eq(payments.organizationId, organizations.id))
     .where(
       and(
         params?.paymentId ? eq(payments.id, params.paymentId) : undefined,
-        eq(payments.organizationId, organizationId),
-        eq(payments.environment, environment),
+        !publicAccess && organizationId ? eq(payments.organizationId, organizationId) : undefined,
+        !publicAccess && environment ? eq(payments.environment, environment) : undefined,
         params?.customerId ? eq(payments.customerId, params.customerId) : undefined,
         params?.subscriptionId ? eq(payments.subscriptionId, params.subscriptionId) : undefined
       )
@@ -332,12 +347,13 @@ export const retrievePayments = async (
     .offset(params?.starting_after ? parseInt(params.starting_after) : 0);
 
   return await paginate(
-    rows.map(({ customer, payment, hasRefund, wallets, refunds }) => ({
+    rows.map(({ customer, payment, hasRefund, wallets, refunds, org }) => ({
       ...payment,
       refunded: !!hasRefund,
       wallets,
       refunds,
       customer,
+      org,
     })),
     limit
   );

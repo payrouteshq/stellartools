@@ -22,7 +22,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useFilePreview } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Building2, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as RHF from "react-hook-form";
@@ -111,7 +111,6 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
   });
 
   const image = form.watch("image");
-  const testnet = data?.environment === "testnet";
 
   if (isLoading) return <PageSkeleton />;
 
@@ -119,10 +118,10 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
 
   return (
     <div className="bg-background flex min-h-screen">
-      <PortalSidebar org={data.organization} testnet={testnet} token={token} />
+      <PortalSidebar org={data.organization} />
 
       <main className="flex-1 overflow-auto">
-        <MobileOrgHeader org={data.organization} testnet={testnet} />
+        <MobileOrgHeader org={data.organization} />
         <div className="mx-auto max-w-2xl px-6 py-12">
           <nav className="text-muted-foreground mb-8 flex items-center gap-1.5 text-sm">
             <Link href={`/${token}`} className="hover:text-foreground transition-colors">
@@ -218,7 +217,7 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
   );
 }
 
-function PortalSidebar({ org, testnet, token }: { org: Organization | null; testnet: boolean; token: string }) {
+function PortalSidebar({ org }: { org: Organization | null }) {
   const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
 
   return (
@@ -227,7 +226,7 @@ function PortalSidebar({ org, testnet, token }: { org: Organization | null; test
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
         ) : (
-          <StellarTools width={28} height={28} className="shrink-0 object-contain" />
+          <Building2 className="size-8" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
@@ -258,7 +257,7 @@ function PortalSidebar({ org, testnet, token }: { org: Organization | null; test
   );
 }
 
-function MobileOrgHeader({ org, testnet }: { org: Organization | null; testnet: boolean }) {
+function MobileOrgHeader({ org }: { org: Organization | null }) {
   return (
     <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
       <div className="flex items-center gap-2.5">

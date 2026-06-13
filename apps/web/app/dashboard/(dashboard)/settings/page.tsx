@@ -12,7 +12,6 @@ import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
@@ -53,6 +52,7 @@ import {
   UnderlineTabsContent,
   UnderlineTabsList,
   UnderlineTabsTrigger,
+  cn,
   phoneNumberFromString,
   phoneNumberSchema,
   useCopy,

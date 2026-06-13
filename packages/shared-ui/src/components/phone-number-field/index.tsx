@@ -8,7 +8,6 @@ import * as CountryFlags from "country-flag-icons/react/3x2";
 import { Check } from "lucide-react";
 import { z as Schema } from "zod";
 
-import { AppError } from "../../lib/errors";
 import { type MixinProps, splitProps } from "../../lib/mixin";
 import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
@@ -16,6 +15,13 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { InputGroup, InputGroupInput } from "../../ui/input-group";
 import { Label } from "../../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
+
+class AppError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AppError";
+  }
+}
 
 export const phoneNumberSchema = Schema.object({
   number: Schema.string().min(10, "Invalid phone"),

@@ -7,7 +7,7 @@ import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2 } from "@/components/icon";
 import { useAction } from "@/hooks/use-action";
-import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
@@ -155,7 +155,6 @@ function ProductDetailSkeleton() {
 export default function ProductDetailPage() {
   const { id } = useParams() as { id: string };
   const { data: org } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
   const productModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [productModalFooterProps, setProductModalFooterProps] = React.useState({
@@ -207,11 +206,7 @@ export default function ProductDetailPage() {
         <ProductsModalContent
           editingProduct={productForModal}
           onClose={AppModal.close}
-          onSuccess={() => {
-            invalidate(["products", id]);
-            invalidate(["products"]);
-            AppModal.close();
-          }}
+          onSuccess={() => AppModal.close()}
           setSubmitRef={productModalSubmitRef}
           onFooterChange={(props) => setProductModalFooterProps((prev) => ({ ...prev, ...props }))}
         />
@@ -225,7 +220,7 @@ export default function ProductDetailPage() {
         isProductModalOpenRef.current = false;
       },
     });
-  }, [product, id, invalidate]);
+  }, [product]);
 
   React.useEffect(() => {
     if (!isProductModalOpenRef.current) return;
