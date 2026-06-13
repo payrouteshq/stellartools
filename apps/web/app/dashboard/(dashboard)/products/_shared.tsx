@@ -118,7 +118,7 @@ export function ProductsModalContent({
       description: editingProduct?.description ?? "",
       type: editingProduct?.type ?? "one_time",
       recurringPeriod: editingProduct?.recurringPeriod ?? "month",
-      pricing: { amount: "", option: orgCurrency },
+      pricing: { amount: editDisplayAmount, option: editCurrency },
       totalCredits: 0,
       unitsPerCredit: 1,
       metadata: editingProduct?.metadata
@@ -152,7 +152,7 @@ export function ProductsModalContent({
       form.reset({
         name: editingProduct.name,
         description: editingProduct?.description ?? "",
-        images: [],
+        images: imagesFile ? [imagesFile] : [],
         type: editingProduct.type,
         recurringPeriod: editingProduct.recurringPeriod ?? "month",
         pricing: { amount: editDisplayAmount, option: editCurrency },
@@ -172,7 +172,7 @@ export function ProductsModalContent({
         metadata: [],
       });
     }
-  }, [editingProduct, form]);
+  }, [editingProduct, form, imagesFile]);
 
   const { mutate: putProductAction, isPending: isPendingPutProduct } = useAction(
     async ({ data, existingImageUrls }: { data: ProductFormData; existingImageUrls?: string[] }) => {
@@ -592,15 +592,19 @@ export function ProductsModalContent({
           </div>
         </div>
 
-        <div className="hidden lg:block">
+        <div className="hidden lg:block!">
           <Card className="bg-muted/30 sticky top-6 shadow-none">
             <CardContent className="space-y-6 p-6">
               <h3 className="text-lg font-semibold">Preview</h3>
 
-              {watched.images?.[0] && (
+              {(watched.images?.[0] || editingProduct?.images?.[0]) && (
                 <div className="relative aspect-video overflow-hidden rounded-lg border">
                   <Image
-                    src={watched.images[0].preview || URL.createObjectURL(watched.images[0])}
+                    src={
+                      watched.images?.[0]
+                        ? watched.images[0].preview || URL.createObjectURL(watched.images[0])
+                        : editingProduct!.images![0]!
+                    }
                     alt="Preview"
                     fill
                     className="object-cover"

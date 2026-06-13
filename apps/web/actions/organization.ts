@@ -404,6 +404,7 @@ export const retrieveOverviewStats = async (
     .where(
       and(
         eq(payments.organizationId, organizationId),
+        eq(payments.environment, environment),
         eq(payments.status, "confirmed"),
         gte(payments.createdAt, since),
         excludeRefunded
@@ -418,7 +419,15 @@ export const retrieveOverviewStats = async (
       feeCents: sql<number>`coalesce(sum(${charges.amountCents}), 0)::int`,
     })
     .from(charges)
-    .where(and(eq(charges.organizationId, organizationId), isNull(charges.clearedAt), gte(charges.createdAt, since)))
+    .where(
+      and(
+        eq(charges.organizationId, organizationId),
+        eq(charges.environment, environment),
+        eq(charges.status, "succeeded"),
+        isNull(charges.clearedAt),
+        gte(charges.createdAt, since)
+      )
+    )
     .groupBy(sql`1`, charges.currencyCode);
 
   const customersChartQuery = db
@@ -427,7 +436,13 @@ export const retrieveOverviewStats = async (
       count: sql<number>`count(*)::int`,
     })
     .from(customers)
-    .where(and(eq(customers.organizationId, organizationId), gte(customers.createdAt, since)))
+    .where(
+      and(
+        eq(customers.organizationId, organizationId),
+        eq(customers.environment, environment),
+        gte(customers.createdAt, since)
+      )
+    )
     .groupBy(sql`1`);
 
   const trialsChartQuery = db
@@ -439,6 +454,7 @@ export const retrieveOverviewStats = async (
     .where(
       and(
         eq(subscriptions.organizationId, organizationId),
+        eq(subscriptions.environment, environment),
         eq(subscriptions.status, "trialing"),
         gte(subscriptions.createdAt, since)
       )
@@ -454,11 +470,31 @@ export const retrieveOverviewStats = async (
     .where(
       and(
         eq(subscriptions.organizationId, organizationId),
+        eq(subscriptions.environment, environment),
         eq(subscriptions.status, "active"),
         gte(subscriptions.createdAt, since)
       )
     )
     .groupBy(sql`1`);
+
+  // MRR chart: value (price) of active subscriptions started each day in the window
+  const mrrChartQuery = db
+    .select({
+      date: sql<string>`date_trunc('day', ${subscriptions.createdAt})::date::text`,
+      currencyCode: products.currencyCode,
+      cents: sql<number>`coalesce(sum(${products.priceCents}), 0)::int`,
+    })
+    .from(subscriptions)
+    .innerJoin(products, eq(subscriptions.productId, products.id))
+    .where(
+      and(
+        eq(subscriptions.organizationId, organizationId),
+        eq(subscriptions.environment, environment),
+        eq(subscriptions.status, "active"),
+        gte(subscriptions.createdAt, since)
+      )
+    )
+    .groupBy(sql`1`, products.currencyCode);
 
   const [
     metrics,
@@ -470,6 +506,7 @@ export const retrieveOverviewStats = async (
     custChart,
     trialsChart,
     activeSubscriptionsChart,
+    mrrChart,
   ] = await Promise.all([
     metricsQuery,
     mrrQuery,
@@ -480,6 +517,7 @@ export const retrieveOverviewStats = async (
     customersChartQuery,
     trialsChartQuery,
     activeSubscriptionsChartQuery,
+    mrrChartQuery,
   ]);
 
   const mrrCents = mrrResult.reduce((acc, b) => acc + normalize(b.cents, b.currencyCode), 0);
@@ -493,6 +531,9 @@ export const retrieveOverviewStats = async (
   );
   feeChart.forEach((b) => netRevMap.set(b.date, (netRevMap.get(b.date) ?? 0) - normalize(b.feeCents, b.currencyCode)));
 
+  const mrrDayMap = new Map<string, number>();
+  mrrChart.forEach((b) => mrrDayMap.set(b.date, (mrrDayMap.get(b.date) ?? 0) + normalize(b.cents, b.currencyCode)));
+
   return {
     activeTrials: Number(metrics.activeTrials),
     activeSubscriptions: Number(metrics.activeSubscriptions),
@@ -502,6 +543,11 @@ export const retrieveOverviewStats = async (
     netRevenueCents,
     currency: targetCurrency,
     charts: {
+      mrr: normalizeTimeSeries(
+        Array.from(mrrDayMap.entries()).map(([date, value]) => ({ date, value })),
+        dayCount,
+        "day"
+      ),
       activeSubscriptions: normalizeTimeSeries(
         activeSubscriptionsChart.map((m) => ({ date: m.date, value: m.count })),
         dayCount,

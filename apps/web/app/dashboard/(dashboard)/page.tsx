@@ -203,7 +203,7 @@ export default function DashboardPage() {
                 value={mrrDisplay}
                 subtitle="Monthly Recurring Revenue"
                 icon={<LoopIcon className="text-muted-foreground size-5" />}
-                sparkData={stats.charts.revenue}
+                sparkData={stats.charts.mrr}
                 color="var(--chart-2)"
                 tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />

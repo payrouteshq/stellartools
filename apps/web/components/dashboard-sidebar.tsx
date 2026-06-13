@@ -138,7 +138,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
       {isTestMode && <TestModeBanner />}
       <SidebarProvider className="min-h-0 flex-1 overflow-hidden">
         <Sidebar collapsible="icon">
-          <SidebarHeader className={cn(isTestMode && "pt-8 transition-all duration-300")}>
+          <SidebarHeader className={cn(isTestMode && "pt-8! transition-all duration-300")}>
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
