@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@stellartools/shared-ui/dist/output.css";
+@plugin "tailwind-scrollbar";
+
+/* Re-declare @theme inline so this Tailwind compilation knows the design tokens
+   (the CSS variables come from shared-ui dist/output.css, but @theme inline must
+   be in the same compilation context for plugins like tailwind-scrollbar to work) */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-serif: var(--font-instrument-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --animate-orbit: orbit calc(var(--duration) * 1s) linear infinite;
+
+  @keyframes orbit {
+    0% {
+      transform: rotate(calc(var(--angle) * 1deg)) translateY(calc(var(--radius) * 1px))
+        rotate(calc(var(--angle) * -1deg));
+    }
+    100% {
+      transform: rotate(calc(var(--angle) * 1deg + 360deg)) translateY(calc(var(--radius) * 1px))
+        rotate(calc((var(--angle) * -1deg) - 360deg));
+    }
+  }
+}
+
+/* Override dark variant to exclude .force-light elements */
+@custom-variant dark (&:is(.dark *):not(:is(.force-light, .force-light *)));
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  em {
+    font-family: var(--font-instrument-serif), serif;
+  }
+
+  body {
+    font-family: var(--font-dm-sans), sans-serif;
+  }
+
+  html {
+    scroll-padding-top: 4rem;
+  }
+}
+
+/* Force light-mode CSS variables regardless of html.dark on <html>. */
+.force-light {
+  color-scheme: light;
+  --background: #f6f7f8;
+  --foreground: #0f0f0f;
+  --card: #ffffff;
+  --card-foreground: #0f0f0f;
+  --popover: #ffffff;
+  --popover-foreground: #0f0f0f;
+  --primary: #fdda24;
+  --primary-foreground: #0f0f0f;
+  --secondary: #b7ace8;
+  --secondary-foreground: #0f0f0f;
+  --muted: #d6d2c4;
+  --muted-foreground: #5a5750;
+  --accent: #d6d2c4;
+  --accent-foreground: #0f0f0f;
+  --destructive: #ef4444;
+  --destructive-foreground: #f6f7f8;
+  --border: #d6d2c4;
+  --input: #d6d2c4;
+  --ring: #fdda24;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f0f0f;
+  --sidebar-primary: #fdda24;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #d6d2c4;
+  --sidebar-accent-foreground: #0f0f0f;
+  --sidebar-border: #d6d2c4;
+  --sidebar-ring: #fdda24;
+  --stellar-wallet-background: #f6f7f8;
+  --stellar-wallet-background-secondary: #edeae0;
+  --stellar-wallet-foreground-strong: #0f0f0f;
+  --stellar-wallet-foreground: #0f0f0f;
+  --stellar-wallet-foreground-secondary: #5a5750;
+  --stellar-wallet-lighter: #ffffff;
+  --stellar-wallet-light: #edeae0;
+  --stellar-wallet-light-gray: #9ca3af;
+  --stellar-wallet-gray: #5a5750;
+  --stellar-wallet-border: #d6d2c4;
+}
+
+@layer utilities {
+  .scrollbar-sidebar {
+    @apply scrollbar-track-sidebar scrollbar-thumb-sidebar-border scrollbar-hover:scrollbar-thumb-sidebar-primary scrollbar-active:scrollbar-thumb-sidebar-ring scrollbar-thin;
+  }
+}

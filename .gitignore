@@ -9,6 +9,8 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+packages/*/node_modules
+apps/*/node_modules
 
 # testing
 /coverage
@@ -61,3 +63,6 @@ MEMORY.md
 # stellartools wordpress plugin
 
 /stellartools
+
+# apps
+apps/*/.next

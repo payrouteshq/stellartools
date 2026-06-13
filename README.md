@@ -33,18 +33,50 @@ Stellar Tools is an open-source payment platform that lets developers accept and
 - [Tailwind CSS](https://tailwindcss.com) 4 - styling
 - [PostgreSQL](https://www.postgresql.org) + [Drizzle ORM](https://orm.drizzle.team) - database
 - [Stellar SDK](https://stellar.org) + [Soroban](https://soroban.stellar.org) - blockchain
-- [pnpm](https://pnpm.io) - package manager
+- [pnpm](https://pnpm.io) workspaces + [Nx](https://nx.dev) - monorepo
+
+## Monorepo Structure
+
+```
+stellar-tools/
+├── apps/
+│   └── web/          # Next.js dashboard + marketing site (@stellartools/web)
+└── packages/
+    ├── shared-ui/    # Shared React component library (@stellartools/shared-ui)
+    ├── stellartools/ # Core SDK (@stellartools/core)
+    ├── plugin-sdk/   # Plugin SDK (@stellartools/plugin-sdk)
+    ├── aisdk-adapter/
+    ├── app-embed-bridge/
+    ├── betterauth-adapter/
+    ├── langchain-adapter/
+    ├── medusajs-adapter/
+    ├── uploadthing-adapter/
+    └── wordpress-adapter/
+```
+
+## Getting Started
+
+```bash
+pnpm install          # install all workspace deps
+pnpm dev              # start the Next.js app (port 3000)
+pnpm storybook        # start Storybook (port 6006)
+pnpm build            # production build
+pnpm build:packages   # build all publishable packages
+pnpm type-check       # run tsc across the workspace
+```
 
 ## Packages
 
 | Package                             | Description                                         |
 | ----------------------------------- | --------------------------------------------------- |
+| `@stellartools/shared-ui`           | Shared React component library with Storybook       |
 | `@stellartools/core`                | Core SDK for interacting with the Stellar Tools API |
 | `@stellartools/plugin-sdk`          | Build metered integrations on top of Stellar Tools  |
 | `@stellartools/betterauth-adapter`  | BetterAuth integration                              |
 | `@stellartools/aisdk-adapter`       | Vercel AI SDK integration                           |
 | `@stellartools/medusajs-adapter`    | MedusaJS integration                                |
 | `@stellartools/uploadthing-adapter` | UploadThing integration                             |
+| `@stellartools/app-embed-bridge`    | Bridge for embedded app iframes                     |
 | `langchain-adapter`                 | LangChain integration                               |
 
 ## Contributing
