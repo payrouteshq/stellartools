@@ -33,5 +33,9 @@
   "dependencies": {
     "@medusajs/framework": "^2.12.3",
     "@stellartools/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   }
 }

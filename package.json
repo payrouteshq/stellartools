@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter @stellartools/web dev",
-    "build": "pnpm --filter @stellartools/web build",
+    "build:web": "pnpm --filter @stellartools/web build",
     "start": "pnpm --filter @stellartools/web start",
     "lint": "pnpm --filter @stellartools/web lint",
     "storybook": "storybook dev -p 6006",

@@ -310,6 +310,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^2.0.88
         version: 2.0.106(zod@4.4.3)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/app-embed-bridge:
     devDependencies:
@@ -378,12 +384,20 @@ importers:
       '@stellartools/core':
         specifier: workspace:*
         version: link:../stellartools
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/plugin-sdk:
     dependencies:
       '@stellartools/core':
         specifier: workspace:*
         version: link:../stellartools
+    devDependencies:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
@@ -566,7 +580,7 @@ importers:
         version: 4.4.3
     devDependencies:
       '@stellartools/core':
-        specifier: workspace:*
+        specifier: file:../stellartools
         version: link:../stellartools
       '@tailwindcss/cli':
         specifier: ^4
@@ -607,15 +621,19 @@ importers:
       ky:
         specifier: ^1.14.2
         version: 1.14.3
+      zod:
+        specifier: ^4.2.1
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.41
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-      zod:
-        specifier: ^4.2.1
-        version: 4.4.3
 
   packages/uploadthing-adapter:
     dependencies:
@@ -625,15 +643,16 @@ importers:
       '@stellartools/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
+      uploadthing:
+        specifier: ^7.7.4
+        version: 7.7.4(express@5.2.1)(h3@1.15.11)(next@16.0.10(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@4.3.0)
+    devDependencies:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-      uploadthing:
-        specifier: ^7.7.4
-        version: 7.7.4(express@5.2.1)(h3@1.15.11)(next@16.0.10(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@4.3.0)
 
 packages:
 

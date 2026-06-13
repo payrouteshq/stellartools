@@ -37,8 +37,11 @@
   "dependencies": {
     "better-result": "^2.5.1",
     "ky": "^1.14.2",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
     "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   }
 }

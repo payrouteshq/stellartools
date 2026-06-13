@@ -38,6 +38,8 @@
     "@stellartools/plugin-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^2.0.88"
+    "@ai-sdk/openai": "^2.0.88",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   }
 }

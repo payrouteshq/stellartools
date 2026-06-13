@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm -C packages/stellartools run build:dev && pnpm -C packages/app-embed-bridge run build && next build --webpack",
+  "buildCommand": "pnpm -w --filter @stellartools/core run build:dev && pnpm -w --filter @stellartools/shared-ui run build && pnpm -w --filter @stellartools/app-embed-bridge run build && next build --webpack",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "crons": []

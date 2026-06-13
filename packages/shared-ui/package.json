@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "prepare": "tsup --no-dts && tailwindcss -i ./src/global.css -o ./dist/output.css --minify",
     "build": "tsup && tsc --project tsconfig.build.json && tailwindcss -i ./src/global.css -o ./dist/output.css --minify",
     "build:css": "tailwindcss -i ./src/global.css -o ./dist/output.css --minify",
     "dev": "tsup --watch",
@@ -88,7 +89,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@stellartools/core": "workspace:*",
+    "@stellartools/core": "file:../stellartools",
     "@tailwindcss/cli": "^4",
     "@tailwindcss/postcss": "^4",
     "@types/lodash": "^4.17.20",
