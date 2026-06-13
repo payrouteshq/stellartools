@@ -9,7 +9,16 @@ import { Customer, ResolvedCustomer } from "@/db";
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { truncate } from "@/lib/utils";
-import { AppModal, Avatar, AvatarFallback, AvatarImage, Button, cn, DataTable, TableAction } from "@stellartools/shared-ui";
+import {
+  AppModal,
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  DataTable,
+  TableAction,
+  cn,
+} from "@stellartools/shared-ui";
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, CloudUpload, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";

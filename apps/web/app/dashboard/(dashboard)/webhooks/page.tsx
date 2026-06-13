@@ -19,7 +19,6 @@ import {
   Button,
   ChartConfig,
   Checkbox,
-  cn,
   CodeBlock,
   DataTable,
   Label,
@@ -31,6 +30,7 @@ import {
   TabsTrigger,
   TextAreaField,
   TextField,
+  cn,
   useCopy,
 } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";

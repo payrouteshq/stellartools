@@ -2,7 +2,7 @@
 
 import DashboardHeader from "@/components/dashboard-header";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { cn, SidebarInset } from "@stellartools/shared-ui";
+import { SidebarInset, cn } from "@stellartools/shared-ui";
 
 export const DashboardSidebarInset = ({ children }: { children: React.ReactNode }) => {
   const { data: orgContext } = useOrgContext();
