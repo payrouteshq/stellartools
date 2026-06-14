@@ -21,6 +21,7 @@ export const POST = apiHandler({
       metadata: body.metadata,
       priceCents: body.price_amount_cents,
       recurringPeriod: body.recurring_period ?? null,
+      customDurationMs: (body as any).custom_duration_ms ?? null,
       unit: body.unit ?? null,
       unitsPerCredit: body.units_per_credit ?? null,
       totalCredits: body.total_credits ?? null,

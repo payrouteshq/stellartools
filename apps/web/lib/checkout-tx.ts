@@ -171,7 +171,7 @@ export async function finalizeSubscriptionCheckout(
   signedApprovalXDR: string,
   customerAddress: string,
   selectedAssetCode: string,
-  selectedAssetIssuer: string | null
+  selectedAssetIssuer: string
 ): Promise<{ success: boolean; error?: string }> {
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
   if (!checkout) throw new AppError("Checkout not found");
@@ -196,11 +196,7 @@ export async function finalizeSubscriptionCheckout(
     return { success: false, error: "Period data missing — call prepareSubscriptionApproval first" };
   }
 
-  const tokenContractId = await retrieveAssetContractId(
-    selectedAssetCode,
-    selectedAssetIssuer ?? "",
-    checkout.environment
-  );
+  const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
   const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
 
   const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);

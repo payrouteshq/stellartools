@@ -12,7 +12,7 @@ export const productStatusEnum = z.enum(["active", "archived"]);
 
 export type ProductStatus = z.infer<typeof productStatusEnum>;
 
-export const recurringPeriodEnum = z.enum(["day", "week", "month", "year"]);
+export const recurringPeriodEnum = z.enum(["day", "week", "month", "year", "custom"]);
 
 export type RecurringPeriod = z.infer<typeof recurringPeriodEnum>;
 
@@ -56,6 +56,12 @@ export interface Product {
    * The billing interval for subscription products.
    */
   recurring_period?: RecurringPeriod;
+
+  /**
+   * Duration in milliseconds for custom billing intervals.
+   * Only present when recurring_period is "custom".
+   */
+  custom_duration_ms?: number;
 
   /**
    * The created at timestamp for the product.
@@ -103,6 +109,7 @@ export const productSchema = schemaFor<Product>()(
     type: productTypeEnum,
     price_amount_cents: z.number(),
     recurring_period: recurringPeriodEnum.optional(),
+    custom_duration_ms: z.number().int().positive().optional(),
     created_at: z.string(),
     updated_at: z.string(),
     metadata: z.record(z.string(), z.any()).default({}),
@@ -120,6 +127,7 @@ export const createProductSchema = z.object({
   type: productTypeEnum,
   price_amount_cents: z.number(),
   recurring_period: recurringPeriodEnum.optional(),
+  custom_duration_ms: z.number().int().min(3600000, "Minimum duration is 1 hour").optional(),
   metadata: z.record(z.string(), z.any()).optional().default({}),
   unit: z.string().optional(),
   units_per_credit: z.number().optional(),
@@ -138,6 +146,7 @@ export const updateProductSchema = z.object({
   units_per_credit: z.number().optional(),
   price_amount: z.number().optional(),
   recurring_period: recurringPeriodEnum.optional(),
+  custom_duration_ms: z.number().int().min(3600000).nullable().optional(),
   total_credits: z.number().nullable().optional(),
 });
 
