@@ -19,7 +19,7 @@ export function PortalSessionError({ reason }: { reason: keyof typeof MESSAGES }
 
   return (
     <div className="bg-background flex min-h-screen">
-      <aside className="border-border bg-background hidden w-[280px] shrink-0 flex-col border-r px-8 py-10 md:flex">
+      <aside className="border-border bg-background hidden w-[280px] shrink-0 flex-col border-r px-8 py-10 md:flex!">
         <div className="mb-6 flex items-center gap-3">
           <StellarTools width={28} height={28} className="shrink-0 object-contain" />
           <span className="text-foreground truncate text-sm font-semibold">StellarTools</span>
