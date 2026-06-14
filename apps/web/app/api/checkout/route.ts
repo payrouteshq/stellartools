@@ -69,7 +69,10 @@ export const POST = async (req: NextRequest) => {
           return Result.err(new AppError("Subscription product does not have a recurring period"));
         }
 
-        const durationDays = subscriptionIntervals[product.recurringPeriod!];
+        const durationDays =
+          product.recurringPeriod === "custom"
+            ? Math.round((product.customDurationMs ?? 0) / 86_400_000)
+            : subscriptionIntervals[product.recurringPeriod as keyof typeof subscriptionIntervals];
 
         subscriptionData = {
           periodStart: moment().toISOString(),
