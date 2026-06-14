@@ -12,10 +12,11 @@ export const PUT = apiHandler({
   requiredAppScope: "write:products",
   schema: { body: updateProductSchema, params: paramsSchema },
   mcp: { name: "update_product", description: "Update a product" },
-  handler: async ({ body, auth: { organizationId }, params: { id } }) => {
+  handler: async ({ body, auth: { organizationId, environment }, params: { id } }) => {
     const product = await putProduct(
       id,
       organizationId,
+      environment,
       toCamelCase({
         ...body,
         unitsPerCredit: body.units_per_credit ? body.units_per_credit : null,

@@ -5,7 +5,7 @@ import { resolveOrgContext } from "@/actions/organization";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
 import { verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
-import { generateResourceId } from "@/lib/utils";
+import { generateResourceId, patchJSON } from "@/lib/utils";
 import { AuthContext } from "@/types";
 import { and, eq } from "drizzle-orm";
 
@@ -48,11 +48,22 @@ export const retrieveApiKey = async (id: string, orgId?: string, env?: Network) 
 };
 
 export const putApiKey = safeAction(async (id: string, retUpdate: Partial<ApiKey>, orgId?: string, env?: Network) => {
-  const { organizationId, environment } = await resolveOrgContext(orgId, env);
+  const [{ organizationId, environment }, oldApiKey] = await Promise.all([
+    resolveOrgContext(orgId, env),
+    retrieveApiKey(id),
+  ]);
+
+  if (!oldApiKey) throw new AppError("API Key not found");
+
+  const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
 
   return await db
     .update(apiKeys)
-    .set({ ...retUpdate, updatedAt: new Date() })
+    .set({
+      ...baseUpdate,
+      updatedAt: new Date(),
+      ...(metadataPatch !== undefined ? { metadata: patchJSON(oldApiKey.metadata, metadataPatch) } : {}),
+    })
     .where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)))
     .returning()
     .then(([apiKey]) => apiKey);

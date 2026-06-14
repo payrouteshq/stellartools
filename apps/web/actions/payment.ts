@@ -34,7 +34,7 @@ import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription
 import { sendEmail } from "@/integrations/email";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
-import { generateResourceId, toSnakeCase } from "@/lib/utils";
+import { generateResourceId, patchJSON, toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
 import { and, count, desc, eq, sql } from "drizzle-orm";
@@ -359,17 +359,27 @@ export const retrievePayments = async (
   );
 };
 
-export const putPayment = async (
-  id: string,
-  organizationId: string,
-  environment: Network,
-  params: Partial<Payment>
-) => {
+export const putPayment = async (id: string, orgId: string, env: Network, params: Partial<Payment>) => {
+  const [
+    { organizationId, environment },
+    {
+      data: [oldPayment],
+    },
+  ] = await Promise.all([resolveOrgContext(orgId, env), retrievePayments(orgId, env, { paymentId: id })]);
+
+  if (!oldPayment) throw new AppError("Payment not found");
+
+  const { metadata: metadataPatch, ...baseUpdate } = params;
+
   return paymentActionHandler(
     async () => {
       return await db
         .update(payments)
-        .set({ ...params, updatedAt: new Date() })
+        .set({
+          ...baseUpdate,
+          updatedAt: new Date(),
+          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldPayment.metadata, metadataPatch) } : {}),
+        })
         .where(and(eq(payments.id, id), eq(payments.organizationId, organizationId)))
         .returning()
         .then(([payment]) => payment);

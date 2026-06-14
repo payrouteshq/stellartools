@@ -21,7 +21,7 @@ import { CustomerWallet as CustomerWalletSchema } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
-import { mergeWithNullDeletes } from "@/lib/utils";
+import { patchJSON } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { MaybeArray } from "@stellartools/core";
 import crypto from "crypto";
@@ -145,19 +145,18 @@ export const putCustomer = async (
     retrieveCustomers({ id }, { requireLookUpParams: true }, orgId, env),
   ]);
 
+  if (!oldCustomer) throw new AppError("Customer not found");
+
+  const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
+
   return withEvent(
     async () => {
       const [customer] = await db
         .update(customersSchema)
         .set({
-          ...retUpdate,
+          ...baseUpdate,
           updatedAt: new Date(),
-
-          ...(retUpdate.metadata !== undefined
-            ? {
-                metadata: mergeWithNullDeletes(oldCustomer?.metadata, retUpdate.metadata) as CustomerMetadata,
-              }
-            : {}),
+          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldCustomer.metadata, metadataPatch) } : {}),
         })
         .where(
           and(

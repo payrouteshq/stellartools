@@ -1,3 +1,4 @@
+import { AppError } from "@/lib/action-handler";
 import { Camelize, Snakize } from "@/types";
 import { DocumentProps, pdf } from "@react-pdf/renderer";
 import crypto from "crypto";
@@ -6,9 +7,6 @@ import _ from "lodash";
 import moment from "moment";
 import { z } from "zod";
 
-import { AppError } from "./action-handler";
-
-export const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 type HashAlgorithm = "shake128" | "sha256";
 
 export const truncate = (
@@ -140,14 +138,14 @@ export function generateResourceId(
   let signature = "";
   let value = (hash[0] << 16) | (hash[1] << 8) | hash[2];
   for (let i = 0; i < 4; i++) {
-    signature += ALPHABET[value % 62];
+    signature += process.env.NEXT_PUBLIC_RESOURCE_ID_ALPHABET![value % 62];
     value = Math.floor(value / 62);
   }
 
   const bytes = crypto.randomBytes(length);
   let entropy = "";
   for (let i = 0; i < length; i++) {
-    entropy += ALPHABET[bytes[i] % 62];
+    entropy += process.env.NEXT_PUBLIC_RESOURCE_ID_ALPHABET![bytes[i] % 62];
   }
 
   return `${prefix}_${signature}${entropy}`;
@@ -188,24 +186,25 @@ export function normalizeTimeSeries<T extends RawDataPoint>(
   return result;
 }
 
-export const mergeWithNullDeletes = (
-  base: Record<string, unknown> | null | undefined,
-  patch: Record<string, unknown> | null | undefined
-): Record<string, unknown> => {
-  const result = { ...(base ?? {}) };
-  if (!patch || typeof patch !== "object") return result;
-  for (const key of Object.keys(patch)) {
-    const v = patch[key];
-    if (v === null || v === undefined) {
-      delete result[key];
+export const patchJSON = <T extends Record<string, any>>(
+  base: T | null | undefined,
+  patch: Partial<T> | null | undefined
+): T => {
+  const result = { ...(base || {}) } as T;
+  if (!patch) return result;
+
+  Object.entries(patch).forEach(([key, value]) => {
+    if (value === null) {
+      delete result[key as keyof T];
     } else {
-      result[key] = v;
+      result[key as keyof T] = value as any;
     }
-  }
+  });
+
   return result;
 };
 
-export async function downloadReceipt(Component: React.ReactElement, filename: string) {
+export const downloadReceipt = async (Component: React.ReactElement, filename: string) => {
   try {
     const blob = await pdf(Component as unknown as React.ReactElement<DocumentProps>).toBlob();
     saveAs(blob, `${filename}-${new Date().toISOString().split("T")[0]}.pdf`);
@@ -213,4 +212,4 @@ export async function downloadReceipt(Component: React.ReactElement, filename: s
     console.error("PDF Export Failed:", error);
     throw new AppError("Could not generate receipt");
   }
-}
+};

@@ -4,7 +4,7 @@ import { resolveOrgContext } from "@/actions/organization";
 import { Network, Product, ProductStatus, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
-import { generateResourceId } from "@/lib/utils";
+import { generateResourceId, patchJSON } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
 
 export const createProductImage = async (formData: FormData) => {
@@ -63,10 +63,23 @@ export const retrieveProducts = async (
   return productsList;
 };
 
-export const putProduct = async (id: string, organizationId: string, retUpdate: Partial<Product>) => {
+export const putProduct = async (id: string, orgId: string, env: Network, retUpdate: Partial<Product>) => {
+  const [{ organizationId }, [oldProduct]] = await Promise.all([
+    resolveOrgContext(orgId, env),
+    retrieveProducts(orgId, env, { productId: id }),
+  ]);
+
+  if (!oldProduct) throw new AppError("Product not found");
+
+  const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
+
   const [product] = await db
     .update(products)
-    .set({ ...retUpdate, updatedAt: new Date() })
+    .set({
+      ...baseUpdate,
+      updatedAt: new Date(),
+      ...(metadataPatch !== undefined ? { metadata: patchJSON(oldProduct.metadata, metadataPatch) } : {}),
+    })
     .where(and(eq(products.id, id), eq(products.organizationId, organizationId)))
     .returning();
 
