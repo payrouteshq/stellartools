@@ -57,6 +57,7 @@ const recurringPeriodLabels: Record<string, string> = {
   week: "Weekly",
   month: "Monthly",
   year: "Yearly",
+  custom: "Custom",
 };
 
 const CopyButton = ({ text, label }: { text: string; label?: string }) => {
@@ -379,8 +380,10 @@ export default function ProductDetailPage() {
                     {isSubscription && product.recurringPeriod && (
                       <>
                         {" "}
-                        · Billed{" "}
-                        {recurringPeriodLabels[product.recurringPeriod]?.toLowerCase() ?? product.recurringPeriod}
+                        · Billed every{" "}
+                        {(product.recurringPeriod as string) === "custom" && product.customDurationMs
+                          ? `${Math.round(product.customDurationMs / 86400000)} days`
+                          : recurringPeriodLabels[product.recurringPeriod]?.toLowerCase() ?? product.recurringPeriod}
                       </>
                     )}
                   </p>
@@ -437,7 +440,11 @@ export default function ProductDetailPage() {
                           </TableCell>
                           {isSubscription && (
                             <TableCell className="text-muted-foreground text-sm">
-                              {product.recurringPeriod ? recurringPeriodLabels[product.recurringPeriod] : "—"}
+                              {product.recurringPeriod
+                                ? (product.recurringPeriod as string) === "custom" && product.customDurationMs
+                                  ? `Custom (${Math.round(product.customDurationMs / 86400000)} days)`
+                                  : recurringPeriodLabels[product.recurringPeriod]
+                                : "—"}
                             </TableCell>
                           )}
                           <TableCell className="text-muted-foreground text-sm">{createdAtLabel}</TableCell>

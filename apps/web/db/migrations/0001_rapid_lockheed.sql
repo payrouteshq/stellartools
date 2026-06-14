@@ -1,0 +1,1 @@
+ALTER TABLE "product" ADD COLUMN "custom_duration_ms" bigint;

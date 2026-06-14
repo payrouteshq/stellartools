@@ -3,6 +3,12 @@
 import * as React from "react";
 
 import { retrieveProducts } from "@/actions/product";
+import {
+  type ProductEsque,
+  ProductsModalContent,
+  ProductsModalFooter,
+  msToDisplay,
+} from "@/app/dashboard/(dashboard)/products/_shared";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useOrgQuery } from "@/hooks/use-org-query";
@@ -35,8 +41,6 @@ import {
   X,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-import { ProductEsque, ProductsModalContent, ProductsModalFooter } from "./_shared";
 
 const SortableHeader = ({ column, title }: { column: Column<ProductEsque, unknown>; title: string }) => {
   const isSorted = column.getIsSorted();
@@ -133,9 +137,22 @@ function ProductsPageContent() {
           return (
             <div className="flex flex-col py-1">
               <div className="font-semibold">{priceCents ? Money.formatFiat(priceCents, currencyCode) : "—"}</div>
-              {row.original.type === "subscription" && (
+              {row.original.type === "subscription" && row.original.recurringPeriod && (
                 <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                  <RefreshCw className="h-3 w-3" /> <span>Per {row.original.recurringPeriod}</span>
+                  <RefreshCw className="h-3 w-3" />
+                  {row.original.recurringPeriod === "custom" && row.original.customDurationMs ? (
+                    (() => {
+                      const { qty, unit } = msToDisplay(row.original.customDurationMs);
+                      return (
+                        <span>
+                          Every {qty} {unit}
+                          {qty !== 1 ? "s" : ""}
+                        </span>
+                      );
+                    })()
+                  ) : (
+                    <span>Per {row.original.recurringPeriod}</span>
+                  )}
                 </div>
               )}
             </div>
@@ -157,6 +174,7 @@ function ProductsPageContent() {
   const openCreateModal = React.useCallback(() => {
     isProductModalOpenRef.current = true;
     setProductModalFooterProps({ isPending: false, isEditMode: false });
+
     AppModal.open({
       title: "Add a product",
       description: undefined,
@@ -189,6 +207,7 @@ function ProductsPageContent() {
   const openEditModal = React.useCallback((product: ProductEsque) => {
     isProductModalOpenRef.current = true;
     setProductModalFooterProps({ isPending: false, isEditMode: true });
+
     AppModal.open({
       title: "Edit product",
       description: undefined,
@@ -255,6 +274,7 @@ function ProductsPageContent() {
             unitsPerCredit: product.unitsPerCredit ?? null,
             totalCredits: product.totalCredits ?? null,
             recurringPeriod: product.recurringPeriod ?? null,
+            customDurationMs: product.customDurationMs ?? null,
           };
         });
       },
@@ -294,7 +314,7 @@ function ProductsPageContent() {
                 <h1 className="text-3xl font-bold tracking-tight">Product catalog</h1>
                 <p className="text-muted-foreground mt-1.5 text-sm">Manage and organize your product offerings</p>
               </div>
-              <Button onClick={openCreateModal} className="gap-2 shadow-sm">
+              <Button onClick={() => openCreateModal()} className="gap-2 shadow-sm">
                 <Plus className="h-4 w-4" /> Create product
               </Button>
             </div>
@@ -327,7 +347,7 @@ function ProductsPageContent() {
             <div className="overflow-hidden">
               <DataTable
                 columns={columns}
-                data={products!}
+                data={products ?? []}
                 actions={tableActions}
                 enableBulkSelect
                 isLoading={isLoading}

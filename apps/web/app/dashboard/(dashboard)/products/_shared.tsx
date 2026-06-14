@@ -24,8 +24,8 @@ import {
   SelectInput,
   TextAreaField,
   TextField,
+  useFilePreview,
 } from "@stellartools/shared-ui";
-import { useFilePreview } from "@stellartools/shared-ui";
 import { Info, Trash2 } from "lucide-react";
 import Image from "next/image";
 import * as RHF from "react-hook-form";
@@ -41,6 +41,7 @@ export interface ProductEsque extends Pick<
   | "currencyCode"
   | "type"
   | "recurringPeriod"
+  | "customDurationMs"
   | "status"
   | "createdAt"
   | "updatedAt"
@@ -56,7 +57,8 @@ const productSchema = z.object({
   description: z.string().optional(),
   images: z.array(z.any()).transform((val) => val as FileWithPreview[]),
   type: z.enum(["one_time", "subscription", "metered"]),
-  recurringPeriod: z.enum(["day", "week", "month", "year"]).optional(),
+  recurringPeriod: z.enum(["day", "week", "month", "year", "custom"]).optional(),
+  customDurationMs: z.number().int().min(3600000, "Minimum duration is 1 hour").optional(),
   pricing: z.object({
     amount: z
       .string()
@@ -78,22 +80,35 @@ const productSchema = z.object({
     .optional(),
 });
 
-type ProductFormData = z.infer<typeof productSchema>;
+export type ProductFormData = z.infer<typeof productSchema>;
+
+export const MS_PER = { day: 86_400_000, week: 604_800_000, month: 2_592_000_000 } as const;
+type DurationUnit = keyof typeof MS_PER;
+
+export function msToDisplay(ms: number): { qty: number; unit: DurationUnit } {
+  if (ms % MS_PER.month === 0) return { qty: ms / MS_PER.month, unit: "month" };
+  if (ms % MS_PER.week === 0) return { qty: ms / MS_PER.week, unit: "week" };
+  return { qty: Math.round(ms / MS_PER.day), unit: "day" };
+}
 
 export function ProductsModalContent({
   onClose,
   onSuccess,
   editingProduct,
+  initialDraft,
   setSubmitRef,
   onFooterChange,
 }: {
   onClose: () => void;
   onSuccess: () => void;
   editingProduct?: ProductEsque | null;
+  initialDraft?: Partial<ProductFormData>;
   setSubmitRef?: React.MutableRefObject<(() => void) | null>;
   onFooterChange?: (props: { isPending: boolean }) => void;
 }) {
   const isEditMode = !!editingProduct;
+  const [customQty, setCustomQty] = React.useState(1);
+  const [customUnit, setCustomUnit] = React.useState<DurationUnit>("month");
   const { data: orgContext } = useOrgContext();
   const { currency: orgCurrency } = useCurrencyConverter();
   const { file: imagesFile, isLoading: isLoadingImages } = useFilePreview(editingProduct?.images?.[0] ?? null);
@@ -114,17 +129,18 @@ export function ProductsModalContent({
   const form = RHF.useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     values: {
-      name: editingProduct?.name ?? "",
-      description: editingProduct?.description ?? "",
-      type: editingProduct?.type ?? "one_time",
-      recurringPeriod: editingProduct?.recurringPeriod ?? "month",
-      pricing: { amount: editDisplayAmount, option: editCurrency },
-      totalCredits: 0,
-      unitsPerCredit: 1,
+      name: editingProduct?.name ?? initialDraft?.name ?? "",
+      description: editingProduct?.description ?? initialDraft?.description ?? "",
+      type: editingProduct?.type ?? initialDraft?.type ?? "one_time",
+      recurringPeriod: editingProduct?.recurringPeriod ?? initialDraft?.recurringPeriod ?? "month",
+      customDurationMs: editingProduct?.customDurationMs ?? initialDraft?.customDurationMs ?? undefined,
+      pricing: initialDraft?.pricing ?? { amount: editDisplayAmount, option: editCurrency },
+      totalCredits: initialDraft?.totalCredits ?? 0,
+      unitsPerCredit: initialDraft?.unitsPerCredit ?? 1,
       metadata: editingProduct?.metadata
         ? Object.entries(editingProduct.metadata).map(([key, value]) => ({ key, value: String(value) }))
-        : [],
-      images: imagesFile ? [imagesFile] : [],
+        : (initialDraft?.metadata ?? []),
+      images: imagesFile ? [imagesFile] : (initialDraft?.images ?? []),
     },
   });
 
@@ -155,22 +171,31 @@ export function ProductsModalContent({
         images: imagesFile ? [imagesFile] : [],
         type: editingProduct.type,
         recurringPeriod: editingProduct.recurringPeriod ?? "month",
+        customDurationMs: editingProduct.customDurationMs ?? undefined,
         pricing: { amount: editDisplayAmount, option: editCurrency },
         unit: editingProduct.unit ?? "",
         totalCredits: Number(editingProduct.totalCredits ?? 0),
         unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
         metadata: metadataArray,
       });
-    } else {
+      if (editingProduct.customDurationMs) {
+        const { qty, unit } = msToDisplay(editingProduct.customDurationMs);
+        setCustomQty(qty);
+        setCustomUnit(unit);
+      }
+    } else if (!initialDraft) {
       form.reset({
         name: "",
         description: "",
         images: [],
         type: "one_time",
         recurringPeriod: "month",
+        customDurationMs: undefined,
         pricing: { amount: "", option: orgCurrency },
         metadata: [],
       });
+      setCustomQty(1);
+      setCustomUnit("month");
     }
   }, [editingProduct, form, imagesFile]);
 
@@ -219,6 +244,7 @@ export function ProductsModalContent({
           price_amount_cents: priceAmountCents,
           currency_code: pricingCurrency,
           recurring_period: data.recurringPeriod,
+          custom_duration_ms: data.recurringPeriod === "custom" ? data.customDurationMs : null,
           unit: data.unit,
           total_credits: data.totalCredits,
           units_per_credit: data.unitsPerCredit,
@@ -237,6 +263,7 @@ export function ProductsModalContent({
         price_amount_cents: priceAmountCents,
         currency_code: pricingCurrency,
         recurring_period: data.recurringPeriod,
+        custom_duration_ms: data.recurringPeriod === "custom" ? data.customDurationMs : undefined,
         unit: data.unit,
         total_credits: data.totalCredits,
         units_per_credit: data.unitsPerCredit,
@@ -538,8 +565,8 @@ export function ProductsModalContent({
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <div className="flex items-end gap-2">
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
                 <RHF.Controller
                   control={form.control}
                   name="pricing"
@@ -565,29 +592,68 @@ export function ProductsModalContent({
                 />
 
                 {watched.type == "subscription" && (
-                  <RHF.Controller
-                    name="recurringPeriod"
-                    control={form.control}
-                    render={({ field, fieldState: { error } }) => (
-                      <SelectField
-                        id={field.name}
-                        value={field.value as string}
-                        onChange={field.onChange}
-                        triggerValuePlaceholder="Select recurring period"
-                        triggerClassName="h-12 w-[150px]"
-                        items={[
-                          { value: "day", label: "Daily" },
-                          { value: "week", label: "Weekly" },
-                          { value: "month", label: "Monthly" },
-                          { value: "year", label: "Yearly" },
-                        ]}
-                        error={error?.message}
-                        disabled={isEditMode}
-                      />
-                    )}
-                  />
+                  <div className="mt-7">
+                    <RHF.Controller
+                      name="recurringPeriod"
+                      control={form.control}
+                      render={({ field, fieldState: { error } }) => (
+                        <SelectField
+                          id={field.name}
+                          value={field.value as string}
+                          onChange={field.onChange}
+                          triggerValuePlaceholder="Period"
+                          triggerClassName="h-12 w-[130px]"
+                          items={[
+                            { value: "day", label: "Daily" },
+                            { value: "week", label: "Weekly" },
+                            { value: "month", label: "Monthly" },
+                            { value: "year", label: "Yearly" },
+                            { value: "custom", label: "Custom" },
+                          ]}
+                          error={error?.message}
+                          disabled={isEditMode}
+                        />
+                      )}
+                    />
+                  </div>
                 )}
               </div>
+
+              {watched.type === "subscription" && watched.recurringPeriod === "custom" && (
+                <div className="animate-in fade-in slide-in-from-top-1 relative ml-3 flex items-center gap-2 pl-5">
+                  <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
+                  <span className="text-muted-foreground shrink-0 text-sm font-medium">Every</span>
+                  <NumberField
+                    id="custom-duration-qty"
+                    value={String(customQty)}
+                    onChange={(v) => {
+                      const n = Math.max(1, Number(v) || 1);
+                      setCustomQty(n);
+                      form.setValue("customDurationMs", n * MS_PER[customUnit], { shouldValidate: true });
+                    }}
+                    placeholder="1"
+                    className="w-24"
+                    error={form.formState.errors.customDurationMs?.message}
+                    disabled={isEditMode}
+                  />
+                  <SelectField
+                    id="custom-duration-unit"
+                    value={customUnit}
+                    onChange={(v) => {
+                      const u = v as DurationUnit;
+                      setCustomUnit(u);
+                      form.setValue("customDurationMs", customQty * MS_PER[u], { shouldValidate: true });
+                    }}
+                    items={[
+                      { value: "day", label: "days" },
+                      { value: "week", label: "weeks" },
+                      { value: "month", label: "months" },
+                    ]}
+                    triggerClassName="h-9 w-28"
+                    disabled={isEditMode}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -632,7 +698,9 @@ export function ProductsModalContent({
                 </div>
                 {watched.type === "subscription" && (
                   <p className="text-muted-foreground mt-1 text-right text-xs">
-                    Billed every {watched.recurringPeriod}
+                    {watched.recurringPeriod === "custom" && watched.customDurationMs
+                      ? `Billed every ${customQty} ${customUnit}${customQty !== 1 ? "s" : ""}`
+                      : `Billed every ${watched.recurringPeriod}`}
                   </p>
                 )}
               </div>

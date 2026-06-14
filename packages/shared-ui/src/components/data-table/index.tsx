@@ -431,7 +431,6 @@ const FilterPill = <TData, TValue>({
             {filterVariant === "date" && (
               <DateField
                 id={`filter-${column.id}`}
-                mode="single"
                 value={tempValue as any}
                 onChange={(val) => setTempValue(val as any)}
               />

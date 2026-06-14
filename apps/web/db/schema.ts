@@ -22,6 +22,7 @@ import {
 } from "@stellartools/core";
 import { InferSelectModel, relations, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -265,6 +266,7 @@ export const products = pgTable("product", {
   currencyCode: text("currency_code").notNull().default("USD"),
   type: productTypeEnum("type").notNull().default("one_time"),
   recurringPeriod: recurringPeriodEnum("recurring_period"),
+  customDurationMs: bigint("custom_duration_ms", { mode: "number" }),
   status: productStatusEnum("status").notNull().default("active"),
   images: text("images").array(),
   metadata: jsonb("metadata").$type<Record<string, string> | null>(),

@@ -4,16 +4,30 @@ import React from "react";
 
 import { MixinProps, splitProps } from "../../lib/mixin";
 import { cn } from "../../lib/utils";
-import { Input } from "../../ui/input";
+import { InputGroup, InputGroupInput } from "../../ui/input-group";
 import { Label } from "../../ui/label";
 
 type LabelProps = React.ComponentProps<typeof Label>;
 type ErrorProps = React.ComponentProps<"p">;
 type HelpTextProps = React.ComponentProps<"p">;
 
+const Formatter = {
+  addCommas: (raw: string) => {
+    if (!raw) return raw;
+    const [int, dec] = raw.split(".");
+    const withCommas = int!.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec !== undefined ? `${withCommas}.${dec}` : withCommas;
+  },
+  stripCommas: (str: string) => str.replace(/,/g, ""),
+  isValid: (str: string, allowDecimal = false) => {
+    if (str === "" || str === ".") return true;
+    return (allowDecimal ? /^\d*\.?\d*$/ : /^\d*$/).test(str);
+  },
+};
+
 export interface NumberFieldProps
   extends
-    Omit<React.ComponentProps<typeof Input>, "value" | "onChange" | "type">,
+    Omit<React.ComponentProps<"input">, "value" | "onChange" | "type">,
     MixinProps<"label", Omit<LabelProps, "children">>,
     MixinProps<"error", Omit<ErrorProps, "children">>,
     MixinProps<"helpText", Omit<HelpTextProps, "children">> {
@@ -24,10 +38,11 @@ export interface NumberFieldProps
   error?: React.ReactNode;
   helpText?: React.ReactNode;
   allowDecimal?: boolean;
+  className?: string;
 }
 
 export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>((props, ref) => {
-  const { id, value, onChange, label, error, helpText, allowDecimal = false, disabled, ...mixProps } = props;
+  const { id, value, onChange, label, error, helpText, allowDecimal = false, disabled, className, ...mixProps } = props;
 
   const {
     label: labelProps,
@@ -36,66 +51,65 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
     rest,
   } = splitProps(mixProps, "label", "error", "helpText");
 
-  // Helper to format string with commas
-  const formatNumberWithCommas = (val: string) => {
-    if (!val) return "";
-    const parts = val.split(".");
-    // Remove all non-digits from the integer part for formatting
-    parts[0] = parts[0].replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    // Join back with decimal part if it exists
-    return parts.length > 1 ? `${parts[0]}.${parts[1].replace(/\D/g, "")}` : parts[0];
-  };
-
-  const [displayValue, setDisplayValue] = React.useState<string>(() =>
-    value !== undefined ? formatNumberWithCommas(String(value)) : ""
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const setRefs = React.useCallback(
+    (node: HTMLInputElement | null) => {
+      inputRef.current = node;
+      if (!ref) return;
+      if (typeof ref === "function") ref(node);
+      else ref.current = node;
+    },
+    [ref]
   );
 
-  // Sync internal display state with external value changes
+  const [displayValue, setDisplayValue] = React.useState<string>(() =>
+    value !== undefined ? Formatter.addCommas(String(value)) : ""
+  );
+
   React.useEffect(() => {
-    if (value !== undefined) {
-      const formatted = formatNumberWithCommas(String(value));
-      // Only update if the numeric value actually differs to avoid cursor jumps
-      if (formatted.replace(/,/g, "") !== displayValue.replace(/,/g, "")) {
-        setDisplayValue(formatted);
-      }
-    } else if (displayValue !== "") {
-      setDisplayValue("");
+    const incoming = value !== undefined ? String(value) : "";
+    const current = Formatter.stripCommas(displayValue);
+    if (current !== incoming) {
+      setDisplayValue(value !== undefined ? Formatter.addCommas(String(value)) : "");
     }
-  }, [value, displayValue]);
+  }, [value]);
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawInput = e.target.value;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const el = e.target;
+    const raw = Formatter.stripCommas(el.value);
 
-    // 1. Remove commas to get the raw string for validation/parsing
-    const cleanValue = rawInput.replace(/,/g, "");
+    if (!Formatter.isValid(raw, allowDecimal)) return;
 
-    if (cleanValue === "") {
+    const start = el.selectionStart || 0;
+    const before = el.value.substring(0, start);
+    const digitCount = before.replace(/\D/g, "").length;
+
+    if (raw === "") {
       setDisplayValue("");
       onChange(undefined);
       return;
     }
 
-    // 2. Validate raw string (allow digits and one decimal point)
-    const regex = allowDecimal ? /^\d*\.?\d*$/ : /^\d*$/;
+    setDisplayValue(Formatter.addCommas(raw));
 
-    if (regex.test(cleanValue)) {
-      // 3. Update the visible input with commas
-      setDisplayValue(formatNumberWithCommas(cleanValue));
+    const parsed = parseFloat(raw);
+    onChange(!isNaN(parsed) ? parsed : undefined);
 
-      // 4. Update the parent with the actual number
-      const parsed = parseFloat(cleanValue);
-      if (!isNaN(parsed)) {
-        // If the string is just "10." we don't want to parse yet or we lose the dot
-        // but the parent usually wants the number 10 in the meantime.
-        onChange(parsed);
-      } else {
-        onChange(undefined);
+    requestAnimationFrame(() => {
+      if (!inputRef.current) return;
+      const formatted = Formatter.addCommas(raw);
+      let newPos = 0;
+      let foundDigits = 0;
+      for (let i = 0; i < formatted.length && foundDigits < digitCount; i++) {
+        if (/\d/.test(formatted[i])) foundDigits++;
+        newPos = i + 1;
       }
-    }
+      inputRef.current.setSelectionRange(newPos, newPos);
+    });
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
         <Label {...labelProps} htmlFor={id} className={cn("text-sm leading-none font-medium", labelProps.className)}>
           {label}
@@ -108,21 +122,20 @@ export const NumberField = React.forwardRef<HTMLInputElement, NumberFieldProps>(
         </p>
       )}
 
-      <Input
-        {...rest}
-        id={id}
-        ref={ref}
-        type="text"
-        inputMode={allowDecimal ? "decimal" : "numeric"}
-        value={displayValue}
-        disabled={disabled}
-        aria-invalid={!!error}
-        onChange={handleAmountChange}
-        className={cn(
-          "w-full [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-          rest.className
-        )}
-      />
+      <InputGroup data-disabled={disabled} aria-invalid={!!error}>
+        <InputGroupInput
+          {...rest}
+          id={id}
+          ref={setRefs}
+          type="text"
+          inputMode={allowDecimal ? "decimal" : "numeric"}
+          value={displayValue}
+          disabled={disabled}
+          aria-invalid={!!error}
+          onChange={handleChange}
+          className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+      </InputGroup>
 
       {error && (
         <p {...errorProps} role="alert" className={cn("text-destructive text-sm font-medium", errorProps.className)}>

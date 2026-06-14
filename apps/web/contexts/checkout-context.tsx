@@ -207,7 +207,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
             res.txHash!,
             wallet.walletAddress,
             selectedAsset.code,
-            selectedAsset.canonicalIssuer
+            selectedAsset.canonicalIssuer!
           );
           toast.success("Subscription Active!");
         } else if (res?.txHash) {

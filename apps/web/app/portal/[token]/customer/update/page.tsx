@@ -19,8 +19,8 @@ import {
   phoneNumberSchema,
   phoneNumberToString,
   toast,
+  useFilePreview,
 } from "@stellartools/shared-ui";
-import { useFilePreview } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Building2, ChevronRight } from "lucide-react";
 import Link from "next/link";
