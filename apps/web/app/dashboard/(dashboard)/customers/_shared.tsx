@@ -287,7 +287,7 @@ export function CustomerModalContent({
               {fields.length > 0 && (
                 <div className="space-y-2 pl-6">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="animate-in slide-in-from-top-1 flex items-end gap-2">
+                    <div key={field.id} className="animate-in slide-in-from-top-1 flex items-start gap-2">
                       <RHF.Controller
                         control={form.control}
                         name={`metadata.${index}.key`}

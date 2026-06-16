@@ -65,6 +65,11 @@ export const Client$SelectOrganizationPage = ({
           onFooterChange={setCreateModalFooterProps}
           xVercelIpCountry={xVercelIpCountry}
           acceptLanguage={acceptLanguage}
+          onSuccess={async (orgId) => {
+            AppModal.close();
+            await setCurrentOrganization(orgId);
+            router.push(next ?? "/");
+          }}
         />
       ),
       footer: (
@@ -257,11 +262,13 @@ const CreateOrganizationModalContent = ({
   onFooterChange,
   xVercelIpCountry,
   acceptLanguage,
+  onSuccess,
 }: {
   setSubmitRef: React.MutableRefObject<(() => void) | null>;
   onFooterChange: (props: { isPending: boolean }) => void;
   xVercelIpCountry: string | null;
   acceptLanguage: string | null;
+  onSuccess: (orgId: string) => void;
 }) => {
   const form = RHF.useForm({
     resolver: zodResolver(createOrganizationSchema),
@@ -323,10 +330,10 @@ const CreateOrganizationModalContent = ({
     {
       onSuccess: (org) => {
         if (org.success && "id" in org) {
-          form.reset();
           const orgName = form.getValues("name");
           identifyOrganization(org.id, { name: orgName, environment: "testnet", createdAt: new Date().toISOString() });
           capture("organization_created", { org_id: org.id, org_name: orgName, environment: "testnet" });
+          onSuccess(org.id);
         } else if (!org.success && "error" in org) {
           toast.error(org.error as string);
         }
