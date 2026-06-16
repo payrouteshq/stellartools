@@ -10,9 +10,10 @@ import { usePathname, useRouter } from "next/navigation";
 interface PluginFrameProps extends React.ComponentProps<"iframe"> {
   appBaseUrl: string;
   installationId: string;
+  scopes?: string[];
 }
 
-export function PluginFrame({ appBaseUrl, installationId, ...forwardedProps }: PluginFrameProps) {
+export function PluginFrame({ appBaseUrl, installationId, scopes, ...forwardedProps }: PluginFrameProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
@@ -21,7 +22,6 @@ export function PluginFrame({ appBaseUrl, installationId, ...forwardedProps }: P
   const frameRef = React.useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = React.useState(150);
 
-  // 1. Build initial URL (The Handshake)
   const src = React.useMemo(() => {
     const url = new URL(appBaseUrl);
     url.searchParams.set("orgId", org!.id);
@@ -29,8 +29,9 @@ export function PluginFrame({ appBaseUrl, installationId, ...forwardedProps }: P
     url.searchParams.set("theme", theme === "dark" ? "dark" : "light");
     url.searchParams.set("pathname", pathname);
     url.searchParams.set("instId", installationId);
+    if (scopes?.length) url.searchParams.set("scopes", scopes.join(","));
     return url.toString();
-  }, [appBaseUrl, org, installationId]); // excludes pathname/theme to prevent iframe reloads
+  }, [appBaseUrl, org, installationId, scopes]);
 
   React.useEffect(() => {
     frameRef.current?.contentWindow?.postMessage(
@@ -69,8 +70,8 @@ export function PluginFrame({ appBaseUrl, installationId, ...forwardedProps }: P
       {...forwardedProps}
       ref={frameRef}
       src={src}
-      className={cn("w-full border-none transition-all duration-200", forwardedProps.className)}
-      style={{ height: `${height}px`, overflow: "hidden" }}
+      className={cn("block w-full border-none transition-all duration-200", forwardedProps.className)}
+      style={{ height: `${height}px` }}
       sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
     />
   );

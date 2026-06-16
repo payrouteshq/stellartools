@@ -1,12 +1,33 @@
 import { Network as StellarToolsNetwork } from "@stellartools/core";
 
+/** Host typography for embedded apps — applied automatically by stellar.init(). */
+export const STELLAR_EMBED_FONT = '"DM Sans", sans-serif';
+
 export type BridgeContext = {
   organizationId: string;
   environment: StellarToolsNetwork;
   pathname: string;
   theme: "light" | "dark";
   installationId: string;
+  scopes: string[];
 };
+
+const FONT_STYLESHEET = "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap";
+
+function applyHostFont() {
+  if (document.querySelector("[data-stellar-font]")) return;
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = FONT_STYLESHEET;
+  link.dataset.stellarFont = "true";
+  document.head.appendChild(link);
+
+  const style = document.createElement("style");
+  style.dataset.stellarFont = "true";
+  style.textContent = `html,body{font-family:${STELLAR_EMBED_FONT}!important}`;
+  document.head.appendChild(style);
+}
 
 export const stellar = {
   init: (onUpdate?: (context: Partial<BridgeContext>) => void) => {
@@ -15,25 +36,22 @@ export const stellar = {
     const params = new URLSearchParams(window.location.search);
     const context: BridgeContext = {
       organizationId: params.get("orgId")!,
-      environment: params.get("env") as any,
+      environment: params.get("env") as StellarToolsNetwork,
       pathname: params.get("pathname")!,
-      theme: params.get("theme") as any,
+      theme: params.get("theme") as "light" | "dark",
       installationId: params.get("instId")!,
+      scopes: params.get("scopes")?.split(",").filter(Boolean) ?? [],
     };
 
-    // 2. Setup Auto-Resize
+    if (context.installationId) applyHostFont();
+
     const observer = new ResizeObserver((entries) => {
-      const height = entries[0].contentRect.height;
-      window.parent.postMessage({ type: "stellar:resize", payload: { height } }, "*");
+      window.parent.postMessage({ type: "stellar:resize", payload: { height: entries[0].contentRect.height } }, "*");
     });
     observer.observe(document.body);
 
-    // 3. Listen for Host Updates (e.g. merchant navigated to a new page)
     window.addEventListener("message", (event) => {
-      const { type, payload } = event.data;
-      if (type === "stellar:context_update") {
-        onUpdate?.(payload);
-      }
+      if (event.data?.type === "stellar:context_update") onUpdate?.(event.data.payload);
     });
 
     return context;

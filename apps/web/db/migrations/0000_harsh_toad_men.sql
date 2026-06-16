@@ -315,6 +315,7 @@ CREATE TABLE "product" (
 	"currency_code" text DEFAULT 'USD' NOT NULL,
 	"type" "product_type" DEFAULT 'one_time' NOT NULL,
 	"recurring_period" "recurring_period",
+	"custom_duration_ms" bigint,
 	"status" "product_status" DEFAULT 'active' NOT NULL,
 	"images" text[],
 	"metadata" jsonb,

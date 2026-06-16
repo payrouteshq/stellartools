@@ -23,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!currentOrg) redirect(`/select-organization?next=${url}`);
 
   return (
-    <div className={cn(process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER === "true" ? "mr-8" : "")}>
+    <div className={cn(process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER !== "false" ? "mr-12" : "")}>
       {children}
       <MainnetReadinessModal />
       <PluginLauncher />

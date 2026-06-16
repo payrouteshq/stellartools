@@ -2,12 +2,13 @@
 
 import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
-import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
+import { ApiKey, Network, apiKeys, appInstallations, apps, db, organizations } from "@/db";
 import { verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, patchJSON } from "@/lib/utils";
 import { AuthContext } from "@/types";
 import { and, eq } from "drizzle-orm";
+import jwt from "jsonwebtoken";
 
 export const postApiKey = safeAction(
   async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
@@ -112,8 +113,16 @@ export const resolveAuthContext = async (params: {
 
   // 3. App Degree (Third-party Plugin/Embedded App)
   if (appToken) {
+    const decoded = jwt.decode(appToken) as { appId?: string } | null;
+    if (!decoded?.appId) throw new AppError("Invalid app token");
+
+    const [app] = await db.select().from(apps).where(eq(apps.id, decoded.appId)).limit(1);
+    if (!app) throw new AppError("Invalid app token");
+
     const payload = verifyJwt<{ appId: string; orgId: string; instId: string; scopes: string[]; env: Network }>(
-      appToken
+      appToken,
+      app.appSecret,
+      app.id
     );
 
     return {

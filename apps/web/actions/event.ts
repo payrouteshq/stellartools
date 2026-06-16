@@ -99,16 +99,18 @@ export async function withEvent<T>(
       // B. Plugin/App Webhooks (Partner servers)
       if (installedApps.length > 0) {
         installedApps.forEach(({ app, app_installation }) => {
-          const envelope = {
-            id: webhookLogId!,
-            type: primaryEvent!.type,
-            created: new Date().toISOString(),
-            livemode: env === "mainnet",
-            installationId: app_installation.id,
-            data: primaryEvent!.map(result) as Record<string, unknown>,
-          };
+          triggers.forEach((trigger) => {
+            const envelope = {
+              id: webhookLogId!,
+              type: trigger.event,
+              created: new Date().toISOString(),
+              livemode: env === "mainnet",
+              installationId: app_installation.id,
+              data: trigger.map(result),
+            };
 
-          deliveries.push(deliverToApp(app, app_installation.id, envelope, webhookLogId!));
+            deliveries.push(deliverToApp(app, app_installation.id, envelope, webhookLogId!));
+          });
         });
       }
 

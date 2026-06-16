@@ -1,7 +1,6 @@
 import ThemeProvider from "@/providers";
 import { Providers } from "@/providers";
 import { Toaster } from "@stellartools/shared-ui";
-import "katex/dist/katex.min.css";
 import type { Metadata } from "next";
 import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 

@@ -1,5 +1,5 @@
 {
-  "id": "bfc83fc3-479b-4cb0-8e2d-12cc6097c179",
+  "id": "04b852a5-b91e-401b-87c2-f975533de71b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2340,6 +2340,12 @@
         "recurring_period": {
           "name": "recurring_period",
           "type": "recurring_period",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_duration_ms": {
+          "name": "custom_duration_ms",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },

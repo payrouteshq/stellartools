@@ -30,7 +30,7 @@ export const MARKETPLACE_APPS: MarketplaceApp[] = [
     supportEmail: "support@resend.com",
     supportSiteUrl: "https://resend.com/docs",
     companyWebsiteUrl: "https://resend.com",
-    status: "coming-soon",
+    status: "available",
     iconUrl: "https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF",
     features: [
       {
