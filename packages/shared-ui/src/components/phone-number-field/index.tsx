@@ -249,6 +249,7 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
               "no-autofill-bg mr-3 ml-1 flex-1 border-0 bg-transparent px-3 py-1 text-sm shadow-none focus-visible:ring-0",
               input.className
             )}
+            aria-invalid={!!error}
           />
         </InputGroup>
 
