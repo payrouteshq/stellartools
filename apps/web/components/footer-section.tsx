@@ -24,7 +24,7 @@ export const FooterSection = () => (
         </Link>
         <p className="text-muted-foreground text-xs">built for the Stellar blockchain</p>
         <Link
-          href="https://usepaykit.dev"
+          href="https://payroutes.sh"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-1 flex items-center gap-1.5 no-underline"

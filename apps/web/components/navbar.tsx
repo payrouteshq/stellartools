@@ -80,7 +80,7 @@ export function Header() {
       <div className="px-4 pt-3 pb-1 md:hidden">
         <div className="bg-background/95 border-border flex items-center justify-between rounded-2xl border px-4 py-2.5 shadow-sm backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <Link href="https://usepaykit.dev" target="_blank">
+            <Link href="https://payroutes.sh" target="_blank">
               <Payroutes className="text-foreground size-7" />
             </Link>
             <span className="text-foreground text-sm">/</span>
@@ -165,7 +165,7 @@ export function Header() {
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
-            <Link href="https://usepaykit.dev" target="_blank">
+            <Link href="https://payroutes.sh" target="_blank">
               <Payroutes className="text-foreground size-8" />
             </Link>
             <span className="text-foreground">/</span>
