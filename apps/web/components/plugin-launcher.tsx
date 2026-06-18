@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 
+import { generateAppToken } from "@/actions/app";
 import { PluginFrame } from "@/components/plugin-frame";
 import { usePlugins } from "@/hooks/use-plugin";
 import { Button, Separator } from "@stellartools/shared-ui";
@@ -9,12 +10,20 @@ import { cn, useMounted } from "@stellartools/shared-ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, XIcon } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function PluginLauncher() {
   const router = useRouter();
   const isMounted = useMounted();
   const { activePlugin, isOpen, selectApp, setIsOpen, installations } = usePlugins();
+  const [appToken, setAppToken] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!activePlugin?.installation.id) return;
+    setAppToken(undefined);
+    generateAppToken(activePlugin.installation.id).then((token) => setAppToken(token ?? undefined));
+  }, [activePlugin?.installation.id]);
 
   if (process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER === "false") return null;
 
@@ -115,6 +124,7 @@ export function PluginLauncher() {
                 <PluginFrame
                   appBaseUrl={activePlugin.app.baseUrl}
                   installationId={activePlugin.installation.id}
+                  appToken={appToken}
                   scopes={activePlugin.installation.scopes}
                   title={activePlugin.app.name}
                   className="bg-background w-full border-none"

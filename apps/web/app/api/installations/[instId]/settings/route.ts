@@ -1,4 +1,4 @@
-import { patchInstallationSettings } from "@/actions/app";
+import { updateAppInstallation } from "@/actions/app";
 import { appInstallations, db } from "@/db";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
@@ -31,7 +31,7 @@ export const PATCH = apiHandler({
   },
   handler: async ({ params, body, auth }) => {
     if (auth.installationId !== params.instId) return Result.err(new Error("Forbidden"));
-    const settings = await patchInstallationSettings(params.instId, body);
+    const settings = await updateAppInstallation(params.instId, body, auth.organizationId, auth.environment);
     return Result.ok(settings);
   },
 });

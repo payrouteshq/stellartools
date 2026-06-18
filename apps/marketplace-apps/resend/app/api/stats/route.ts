@@ -1,4 +1,4 @@
-import { stellarFetch } from "@/lib/utils";
+import { verifyJwt } from "@stellartools/app-embed-bridge/server";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
@@ -15,28 +15,20 @@ const TERMINAL = new Set([
 const DELIVERED = new Set(["delivered", "opened", "clicked", "complained"]);
 const BOUNCED = new Set(["bounced", "failed", "suppressed"]);
 
+type AppTokenPayload = { instId: string; settings: Record<string, unknown> };
+
 export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl;
-  const installationId = searchParams.get("installationId");
-  const organizationId = searchParams.get("organizationId");
-  const environment = searchParams.get("environment");
-  const scopes = searchParams.get("scopes")?.split(",").filter(Boolean) ?? [];
+  const appToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
+  if (!appToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!installationId || !organizationId || !environment) {
-    return NextResponse.json({ error: "installationId, organizationId and environment are required" }, { status: 400 });
-  }
+  let payload: AppTokenPayload;
+  try { payload = verifyJwt<AppTokenPayload>(appToken); }
+  catch { return NextResponse.json({ error: "Invalid token" }, { status: 401 }); }
 
-  const settingsRes = await stellarFetch(
-    `/installations/${installationId}/settings`,
-    { orgId: organizationId, instId: installationId, scopes, env: environment }
-  );
+  const resendApiKey = payload.settings?.resendApiKey as string | undefined;
+  if (!resendApiKey) return NextResponse.json({ error: "No API key configured" }, { status: 404 });
 
-  if (!settingsRes.ok) return NextResponse.json({ error: "Failed to load settings" }, { status: settingsRes.status });
-
-  const settings = await settingsRes.json();
-  if (!settings.resendApiKey) return NextResponse.json({ error: "No API key configured" }, { status: 404 });
-
-  const resend = new Resend(settings.resendApiKey);
+  const resend = new Resend(resendApiKey);
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   type EmailItem = NonNullable<Awaited<ReturnType<typeof resend.emails.list>>["data"]>["data"][number];
   const allEmails: EmailItem[] = [];

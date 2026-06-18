@@ -10,10 +10,11 @@ import { usePathname, useRouter } from "next/navigation";
 interface PluginFrameProps extends React.ComponentProps<"iframe"> {
   appBaseUrl: string;
   installationId: string;
+  appToken?: string;
   scopes?: string[];
 }
 
-export function PluginFrame({ appBaseUrl, installationId, scopes, ...forwardedProps }: PluginFrameProps) {
+export function PluginFrame({ appBaseUrl, installationId, appToken, scopes, ...forwardedProps }: PluginFrameProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
@@ -30,8 +31,9 @@ export function PluginFrame({ appBaseUrl, installationId, scopes, ...forwardedPr
     url.searchParams.set("pathname", pathname);
     url.searchParams.set("instId", installationId);
     if (scopes?.length) url.searchParams.set("scopes", scopes.join(","));
+    if (appToken) url.searchParams.set("appToken", appToken);
     return url.toString();
-  }, [appBaseUrl, org, installationId, scopes]);
+  }, [appBaseUrl, org, installationId, appToken, scopes]);
 
   React.useEffect(() => {
     frameRef.current?.contentWindow?.postMessage(

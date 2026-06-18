@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+
 import { useResendApp } from "@/app/context/resend-app-context";
 import {
   Badge,
@@ -48,11 +49,6 @@ const EMAIL_STATUS_OPTIONS = [
   { value: "sent", label: "Sent" },
 ];
 
-const SEGMENT_OPTIONS = [
-  { value: "all-customers", label: "All StellarTools customers" },
-  { value: "active-subscribers", label: "Active subscribers" },
-  { value: "recent-checkout", label: "Recent checkout" },
-];
 
 const TEMPLATE_OPTIONS = [
   { value: "receipt-default", label: "Receipt default" },
@@ -86,24 +82,21 @@ const EMAIL_COLUMNS = [
 ];
 
 export function OverviewStep() {
-  const { bridge } = useResendApp();
+  const { bridge, syncEnabled, notificationRules, saveSyncSettings, saveNotificationRules } = useResendApp();
   const [stats, setStats] = useState<Stats | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [syncEnabled, setSyncEnabled] = useState(true);
-  const [segment, setSegment] = useState("all-customers");
-  const [rules, setRules] = useState<NotificationRule[]>(NOTIFICATION_RULES);
 
   useEffect(() => {
-    const { installationId, organizationId, environment, scopes } = bridge;
-    fetch(`/api/stats?installationId=${installationId}&organizationId=${organizationId}&environment=${environment}&scopes=${scopes.join(",")}`)
+    fetch("/api/stats", { headers: { Authorization: `Bearer ${bridge.appToken}` } })
       .then((r) => r.json())
       .then((data) => { if (!data.error) setStats(data); })
-      .catch(console.error);
+      .catch(() => {});
   }, [bridge.installationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function updateRule(id: string, patch: Partial<NotificationRule>) {
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  function updateRule(event: string, patch: { sendReceipt?: boolean; template?: string }) {
+    const current = notificationRules[event] ?? NOTIFICATION_RULES.find((r) => r.event === event)!;
+    void saveNotificationRules({ ...notificationRules, [event]: { ...current, ...patch } });
   }
 
   const filteredEmails = useMemo(() => {
@@ -200,18 +193,9 @@ export function OverviewStep() {
           </div>
           <div className="flex items-center gap-2 pt-0.5">
             <span className="text-muted-foreground text-xs">{syncEnabled ? "On" : "Off"}</span>
-            <Switch checked={syncEnabled} onCheckedChange={setSyncEnabled} />
+            <Switch checked={syncEnabled} onCheckedChange={(v: boolean) => saveSyncSettings({ syncEnabled: v })} />
           </div>
         </div>
-        <SelectField
-          id="default-segment"
-          label="Default segment"
-          value={segment}
-          onChange={setSegment}
-          items={SEGMENT_OPTIONS}
-          disabled={!syncEnabled}
-          trigger={{ className: "shadow-none max-w-sm" }}
-        />
       </div>
 
       <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
@@ -229,33 +213,38 @@ export function OverviewStep() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rules.map((rule) => (
-                <TableRow key={rule.id}>
-                  <TableCell className="font-mono text-xs">{rule.event}</TableCell>
-                  <TableCell>
-                    <Checkbox
-                      checked={rule.sendReceipt}
-                      disabled={!rule.enabled}
-                      onCheckedChange={(checked: boolean | "indeterminate") =>
-                        updateRule(rule.id, { sendReceipt: checked === true })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {rule.enabled ? (
-                      <SelectField
-                        id={`template-${rule.id}`}
-                        value={rule.template}
-                        onChange={(v: string) => updateRule(rule.id, { template: v })}
-                        items={TEMPLATE_OPTIONS}
-                        trigger={{ className: "shadow-none h-8 text-xs" }}
+              {NOTIFICATION_RULES.map((rule) => {
+                const saved = notificationRules[rule.event];
+                const sendReceipt = saved?.sendReceipt ?? rule.sendReceipt;
+                const template = saved?.template ?? rule.template;
+                return (
+                  <TableRow key={rule.id}>
+                    <TableCell className="font-mono text-xs">{rule.event}</TableCell>
+                    <TableCell>
+                      <Checkbox
+                        checked={sendReceipt}
+                        disabled={!rule.enabled}
+                        onCheckedChange={(checked: boolean | "indeterminate") =>
+                          updateRule(rule.event, { sendReceipt: checked === true })
+                        }
                       />
-                    ) : (
-                      <span className="text-muted-foreground text-xs">— disabled —</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      {rule.enabled ? (
+                        <SelectField
+                          id={`template-${rule.id}`}
+                          value={template}
+                          onChange={(v: string) => updateRule(rule.event, { template: v })}
+                          items={TEMPLATE_OPTIONS}
+                          trigger={{ className: "shadow-none h-8 text-xs" }}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">— disabled —</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

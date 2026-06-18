@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@stellartools/app-embed-bridge": "workspace:*",
+    "@stellartools/core": "workspace:*",
     "@stellartools/shared-ui": "workspace:*",
     "jsonwebtoken": "^9.0.3",
     "next": "16.2.9",

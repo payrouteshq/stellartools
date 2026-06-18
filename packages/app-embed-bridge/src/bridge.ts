@@ -10,6 +10,7 @@ export type BridgeContext = {
   theme: "light" | "dark";
   installationId: string;
   scopes: string[];
+  appToken: string;
 };
 
 const FONT_STYLESHEET = "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap";
@@ -41,6 +42,7 @@ export const stellar = {
       theme: params.get("theme") as "light" | "dark",
       installationId: params.get("instId")!,
       scopes: params.get("scopes")?.split(",").filter(Boolean) ?? [],
+      appToken: params.get("appToken")!,
     };
 
     if (context.installationId) applyHostFont();
