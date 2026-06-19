@@ -84,8 +84,24 @@ export const resolveAuthContext = async (params: {
   sessionToken?: string | null;
   portalToken?: string | null;
   appToken?: string | null;
+  vercelToken?: string | null;
 }): Promise<AuthContext | null> => {
-  const { apiKey, sessionToken, portalToken, appToken } = params;
+  const { apiKey, sessionToken, portalToken, appToken, vercelToken } = params;
+
+  if (vercelToken) {
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (cronSecret && vercelToken === `Bearer ${cronSecret}`) {
+      // Cron jobs usually iterate over all orgs, so we return a system-level context
+      return {
+        organizationId: "system",
+        environment: "mainnet",
+        type: "vercelToken",
+      };
+    }
+
+    throw new AppError("Invalid Cron Secret");
+  }
 
   // 1. Portal Degree (End-user/Customer)
   if (portalToken) {
