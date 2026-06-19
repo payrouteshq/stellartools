@@ -18,8 +18,7 @@ export const GET = apiHandler({
 });
 
 export const PUT = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:webhooks",
+  auth: ["session", "apikey"],
   schema: { params: paramsSchema, body: updateWebhookSchema },
   handler: async ({ params: { id }, body, auth: { organizationId, environment } }) => {
     const response = await putWebhook(id, toCamelCase(body), organizationId, environment);
@@ -28,8 +27,7 @@ export const PUT = apiHandler({
 });
 
 export const DELETE = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:webhooks",
+  auth: ["session", "apikey"],
   schema: { params: paramsSchema },
   handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
     const response = await deleteWebhook(id, organizationId, environment);

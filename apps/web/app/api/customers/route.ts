@@ -5,9 +5,8 @@ import { Result, z as Schema, createCustomerSchema } from "@stellartools/core";
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
-  auth: ["session", "apikey", "app"],
+  auth: ["session", "apikey"],
   schema: { body: Schema.array(createCustomerSchema) },
-  requiredAppScope: "write:customers",
   mcp: { name: "create_customers", description: "Create one or more customers" },
   handler: async ({ body, auth: { organizationId, environment }, req }) => {
     const arrayBody = Array.isArray(body) ? body : [body];
@@ -31,7 +30,7 @@ export const POST = apiHandler({
 });
 
 export const GET = apiHandler({
-  auth: ["session", "apikey", "app"],
+  auth: ["session", "apikey"],
   requiredAppScope: "read:customers",
   mcp: { name: "get_customers", description: "Get all customers for an organization" },
   schema: {},

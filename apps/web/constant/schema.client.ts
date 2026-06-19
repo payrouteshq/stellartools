@@ -13,7 +13,7 @@ export const payoutStatusEnum = ["pending", "succeeded", "failed"] as const;
 export const APP_RESOURCES = ["customers", "payments", "checkouts", "subscriptions", "refunds", "payouts"] as const;
 
 export type AppResource = (typeof APP_RESOURCES)[number];
-export type AppScope = `read:${AppResource}` | `write:${AppResource}` | "*";
+export type AppScope = `read:${AppResource}` | "*";
 
 export const subscriptionStatusEnum = subscriptionStatusEnum$1.enum;
 

@@ -17,8 +17,7 @@ export const GET = apiHandler({
 });
 
 export const PUT = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:checkouts",
+  auth: ["session", "apikey"],
   mcp: { name: "update_checkout", description: "Update a checkout" },
   schema: { params: paramsSchema, body: updateCheckoutSchema },
   handler: async ({ params: { id }, auth: { organizationId, environment }, body }) => {
@@ -28,8 +27,7 @@ export const PUT = apiHandler({
 });
 
 export const DELETE = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:checkouts",
+  auth: ["session", "apikey"],
   mcp: { name: "delete_checkout", description: "Delete a checkout" },
   schema: { params: paramsSchema },
   handler: async ({ params: { id }, auth: { organizationId, environment } }) => {

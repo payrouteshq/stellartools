@@ -48,4 +48,4 @@ export const eventTypeEnum = Object.values(APP_CONFIG).flatMap((v) => v.events);
 
 export type EventType = (typeof eventTypeEnum)[number];
 
-export type AppScope = `read:${AppResource}` | `write:${AppResource}` | "*";
+export type AppScope = `read:${AppResource}` | "*";
