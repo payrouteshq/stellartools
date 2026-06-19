@@ -1,6 +1,6 @@
 import { runAtomic } from "@/actions/event";
 import { postPayment } from "@/actions/payment";
-import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscription";
+import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import {
   cancelSubscription as cancelSoroban,
   chargeSubscription as chargeSoroban,
@@ -10,22 +10,34 @@ import { Result } from "@stellartools/core";
 
 export const GET = apiHandler({
   auth: null, // TODO: protect with Vercel secret
+
   handler: async () => {
-    const subs = await retrieveDueSubscriptions();
+    const { data: subs } = await retrieveSubscriptions(
+      undefined,
+      undefined,
+      { isDue: true },
+      { withCustomer: true, withProduct: true, withCustomerWallets: true }
+    );
     const stats = { processed: 0, succeeded: 0, failed: 0 };
 
     for (const sub of subs) {
-      const { id: subId, organizationId: orgId, environment: env, productId } = sub.subscription;
+      const { id: subId, organizationId: orgId, environment: env, productId } = sub;
+
+      if (!sub.product) continue;
+
       const { priceCents: productPriceCents, currencyCode: productCurrencyCode } = sub.product;
-      const walletAddress = sub.wallet.address;
+
+      if (!sub?.customerWallet) continue;
+
+      const walletAddress = sub.customerWallet.address;
 
       if (!walletAddress) continue;
       stats.processed++;
 
       try {
         // --- 1. HANDLE CANCELLATIONS ---
-        if (sub.subscription.cancelAtPeriodEnd) {
-          const res = await cancelSoroban(env, orgId, sub.customer.id, productId);
+        if (sub.cancelAtPeriodEnd) {
+          const res = await cancelSoroban(env, orgId, sub.customerId, productId);
           if (res.isOk()) {
             await runAtomic(() => putSubscription(subId, { status: "canceled", canceledAt: new Date() }, orgId, env));
             stats.succeeded++;
@@ -34,7 +46,7 @@ export const GET = apiHandler({
         }
 
         // --- 2. EXECUTE ON-CHAIN CHARGE ---
-        const chargeRes = await chargeSoroban(env, orgId, sub.customer.id, productId);
+        const chargeRes = await chargeSoroban(env, orgId, sub.customerId, productId);
 
         if (chargeRes.isErr()) {
           console.error(`[Cron] Soroban Charge Error for ${subId}:`, chargeRes.error.message);
@@ -75,7 +87,7 @@ export const GET = apiHandler({
               subscriptionId: subId,
               checkoutId: null,
               productId,
-              customerId: sub.customer.id,
+              customerId: sub.customerId,
               amountCents: productPriceCents,
               currencyCode: productCurrencyCode,
               cryptoAmount,

@@ -44,13 +44,13 @@ export default function SubscriptionsPage() {
   const [footerState, setFooterState] = React.useState({ isPending: false });
 
   const { data: subs = [], isLoading } = useOrgQuery(["subscriptions"], async () =>
-    retrieveSubscriptions(undefined, undefined, undefined).then((res) => res.data)
+    retrieveSubscriptions(undefined, undefined).then((res) => res.data)
   );
 
   const stats = React.useMemo(() => {
     const counts = { all: subs.length, active: 0, paused: 0, canceled: 0 };
     subs.forEach((s) => {
-      if (s.subscription.status in counts) counts[s.subscription.status as keyof typeof counts]++;
+      if (s.status in counts) counts[s.status as keyof typeof counts]++;
     });
     return counts;
   }, [subs]);
@@ -58,15 +58,15 @@ export default function SubscriptionsPage() {
   const rows = React.useMemo(
     () =>
       subs
-        .filter((s) => activeTab === "all" || s.subscription.status === activeTab)
+        .filter((s) => activeTab === "all" || s.status === activeTab)
         .map((s) => ({
-          id: s.subscription.id,
-          customer: s.customer.name ?? "—",
-          customerEmail: s.customer.email,
-          status: s.subscription.status,
-          product: s.product.name,
-          amount: s.product.priceCents,
-          createdAt: s.subscription.createdAt,
+          id: s.id,
+          customer: s.customer?.name ?? "—",
+          customerEmail: s.customer?.email,
+          status: s.status,
+          product: s.product?.name,
+          amount: s.product?.priceCents,
+          createdAt: s.createdAt,
         })),
     [subs, activeTab]
   );

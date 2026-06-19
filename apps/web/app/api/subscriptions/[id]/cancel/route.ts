@@ -1,10 +1,8 @@
-import { retrieveCustomerWallets } from "@/actions/customers";
-import { putSubscription, retrieveSubscription } from "@/actions/subscription";
+import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
-import { all } from "better-all";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -12,24 +10,16 @@ export const POST = apiHandler({
   auth: ["session", "apikey", "portal"],
   schema: { params: Schema.object({ id: Schema.string() }) },
   handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
-    const { subscription, customerWallet } = await all({
-      subscription: async () => {
-        const {
-          data: [subscription],
-        } = await retrieveSubscription(id, organizationId, environment, { limit: 1 });
-        return subscription;
-      },
+    const {
+      data: [subscription],
+    } = await retrieveSubscriptions(
+      organizationId,
+      environment,
+      { subscriptionId: id },
+      { withCustomer: true, withProduct: true, withCustomerWallets: true }
+    );
 
-      async customerWallet() {
-        const subscription = await this.$.subscription;
-        return await retrieveCustomerWallets(
-          subscription.customerId,
-          { id: subscription.customerWalletId },
-          organizationId,
-          environment
-        ).then(([w]) => w ?? null);
-      },
-    });
+    const customerWallet = subscription?.customerWallet;
 
     if (!customerWallet?.address) throw new AppError("Customer wallet not found");
 
