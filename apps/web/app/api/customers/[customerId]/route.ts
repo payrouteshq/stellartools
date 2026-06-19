@@ -26,8 +26,7 @@ export const GET = apiHandler({
 });
 
 export const PUT = apiHandler({
-  auth: ["session", "apikey", "portal", "app"],
-  requiredAppScope: "write:customers",
+  auth: ["session", "apikey", "portal"],
   schema: {
     params: paramsSchema,
     body: updateCustomerSchema,
@@ -43,8 +42,7 @@ export const PUT = apiHandler({
 });
 
 export const DELETE = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:customers",
+  auth: ["session", "apikey"],
   schema: { params: paramsSchema },
   mcp: { name: "delete_customer", description: "Delete a customer by ID" },
   handler: async ({ params, auth }) => {

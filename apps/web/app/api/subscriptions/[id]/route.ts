@@ -95,8 +95,7 @@ export const GET = apiHandler({
 });
 
 export const PUT = apiHandler({
-  auth: ["session", "apikey", "app", "portal"],
-  requiredAppScope: "write:subscriptions",
+  auth: ["session", "apikey", "portal"],
   schema: { body: updateSubscriptionSchema, params: Schema.object({ id: Schema.string() }) },
   handler: async ({ body, params: { id }, auth: { organizationId, environment } }) => {
     const { metadata, cancelAtPeriodEnd, productId } = toCamelCase<any>(body);

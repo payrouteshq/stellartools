@@ -8,8 +8,7 @@ export const OPTIONS = createOptionsHandler();
 const paramsSchema = Schema.object({ id: Schema.string() });
 
 export const PUT = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:products",
+  auth: ["session", "apikey"],
   schema: { body: updateProductSchema, params: paramsSchema },
   mcp: { name: "update_product", description: "Update a product" },
   handler: async ({ body, auth: { organizationId, environment }, params: { id } }) => {
@@ -19,9 +18,10 @@ export const PUT = apiHandler({
       environment,
       toCamelCase({
         ...body,
-        unitsPerCredit: body.units_per_credit ? body.units_per_credit : null,
-        totalCredits: body.total_credits ? body.total_credits : null,
-        priceAmount: body.price_amount ? body.price_amount : undefined,
+        ...(body?.name && { name: body.name }),
+        ...(body?.description && { description: body.description }),
+        ...(body?.images && { images: body.images }),
+        ...(body?.metadata && { metadata: body.metadata }),
       })
     );
     return Result.ok(product);
@@ -29,8 +29,7 @@ export const PUT = apiHandler({
 });
 
 export const DELETE = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:products",
+  auth: ["session", "apikey"],
   schema: { params: paramsSchema },
   mcp: { name: "delete_product", description: "Delete a product" },
   handler: async ({ params: { id }, auth: { organizationId } }) => {

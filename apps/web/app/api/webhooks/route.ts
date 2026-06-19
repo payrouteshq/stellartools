@@ -6,8 +6,7 @@ import { Result, z as Schema, createWebhookSchema } from "@stellartools/core";
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
-  auth: ["session", "apikey", "app"],
-  requiredAppScope: "write:webhooks",
+  auth: ["session", "apikey"],
   schema: { body: createWebhookSchema.extend({ secret: Schema.string().optional() }) },
   handler: async ({ body, auth: { organizationId, environment }, sessionToken }) => {
     const webhookPayload = {
