@@ -52,39 +52,3 @@ export const eventTypeEnum = Object.values(APP_CONFIG).flatMap((v) => v.events);
 export type EventType = (typeof eventTypeEnum)[number];
 
 export type AppScope = `read:${AppResource}` | "*";
-
-// -- APP MANIFEST
-
-export const appManifestSchema = Schema.object({
-  name: Schema.string().min(2).max(50),
-  description: Schema.string().max(200),
-  iconUrl: Schema.url().optional(),
-  homepageUrl: Schema.url(),
-
-  baseUrl: Schema.url(),
-  webhookUrl: Schema.url().optional(),
-
-  scopes: Schema.array(
-    Schema.string().refine(
-      (val): val is AppScope => {
-        const [action, resource] = val.split(":");
-        return (
-          val === "*" ||
-          (["read"]?.includes(action) &&
-            APP_CONFIG[resource as AppResource].events.some((event) => event.includes(val)))
-        );
-      },
-      {
-        message: `Invalid scope format. Use 'read:resource' or 'write:resource' e.g ${Object.keys(APP_CONFIG).join(", ")} `,
-      }
-    )
-  ).min(1, "At least one scope is required"),
-
-  sensitiveKeys: Schema.array(Schema.string()).default([]),
-
-  version: Schema.string()
-    .regex(/^\d+\.\d+\.\d+$/)
-    .default("1.0.0"),
-});
-
-export type AppManifest = Schema.infer<typeof appManifestSchema>;
