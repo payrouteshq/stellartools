@@ -8,13 +8,6 @@ import { nanoid } from "nanoid";
 
 import { resolveOrgContext } from "./organization";
 
-const MARKETPLACE_INSTALL_CONFIG: Record<string, { scopes: string[]; version: string; getBaseUrl: () => string }> = {
-  resend: {
-    scopes: ["read:customers", "read:payments"],
-    version: "1.0.0",
-    getBaseUrl: () => process.env.RESEND_APP_BASE_URL ?? "http://localhost:3001",
-  },
-};
 
 export const generateAppToken = async (installationId: string): Promise<string | null> => {
   const [row] = await db
@@ -45,7 +38,7 @@ export const generateAppToken = async (installationId: string): Promise<string |
     },
     "1h",
     row.appSecret,
-    row.appId
+    "STELLARTOOLS"
   );
 };
 
@@ -127,53 +120,22 @@ export const updateAppInstallation = async (
 
 export const installMarketplaceApp = async (marketplaceId: string) => {
   const marketplaceApp = getMarketplaceApp(marketplaceId);
-  const config = MARKETPLACE_INSTALL_CONFIG[marketplaceId];
-
-  if (!marketplaceApp || marketplaceApp.status !== "available" || !config) {
+  if (!marketplaceApp || marketplaceApp.status !== "available") {
     throw new Error("This app is not available to install yet.");
   }
 
   const { organizationId, environment } = await resolveOrgContext();
-  const baseUrl = config.getBaseUrl();
-  const manifest = {
-    name: marketplaceApp.name,
-    description: marketplaceApp.tagline,
-    iconUrl: marketplaceApp.iconUrl,
-    homepageUrl: marketplaceApp.companyWebsiteUrl,
-    baseUrl,
-    scopes: config.scopes,
-    version: config.version,
-  };
 
-  const [app] = await db
-    .insert(apps)
-    .values({
-      id: `app_${nanoid(25)}`,
-      slug: marketplaceId,
-      name: marketplaceApp.name,
-      baseUrl,
-      appSecret: `sec_${nanoid(32)}`,
-      publisher: marketplaceApp.publisher,
-      featuresMarkdown: marketplaceApp.features
-        .map((f) => `## ${f.title}\n\n${f.description}`)
-        .join("\n\n"),
-      tagline: marketplaceApp.tagline,
-      price: marketplaceApp.pricing,
-      websiteUrl: marketplaceApp.companyWebsiteUrl,
-      supportEmail: marketplaceApp.supportEmail,
-      manifest,
-    })
-    .onConflictDoUpdate({
-      target: apps.slug,
-      set: { baseUrl, manifest, name: marketplaceApp.name },
-    })
-    .returning();
+  const [app] = await db.select().from(apps).where(eq(apps.slug, marketplaceId)).limit(1);
+  if (!app) throw new Error("App not found");
+
+  const scopes = (app.manifest?.scopes ?? []) as string[];
 
   const { installation, alreadyInstalled } = await postAppInstallation({
     appId: app.id,
     organizationId,
     environment,
-    scopes: config.scopes,
+    scopes,
     status: "active",
     settings: {},
   });

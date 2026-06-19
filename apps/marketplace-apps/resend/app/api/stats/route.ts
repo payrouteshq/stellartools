@@ -1,4 +1,4 @@
-import { verifyJwt } from "@stellartools/app-embed-bridge/server";
+import { verifyJwt } from "@stellartools/app-embed-bridge";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 

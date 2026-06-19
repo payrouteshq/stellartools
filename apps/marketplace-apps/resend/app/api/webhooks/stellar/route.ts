@@ -1,5 +1,4 @@
-import type { WebhookEvent } from "@stellartools/core";
-import { createHmac, timingSafeEqual } from "crypto";
+import { WebhookSigner, type WebhookEvent } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
@@ -7,89 +6,120 @@ type Settings = {
   resendApiKey: string;
   fromEmail: string;
   fromName?: string;
-  syncEnabled?: boolean;
-  notificationRules?: Record<string, { sendReceipt: boolean; template: string; enabled: boolean }>;
+  customerSyncEnabled?: boolean;
+  notificationRules?: Record<string, { sendReceipt: boolean; enabled: boolean }>;
+  paymentReceivedTemplateId?: string;
+  paymentFailedTemplateId?: string;
+  refundSucceededTemplateId?: string;
+  subscriptionCreatedTemplateId?: string;
+  subscriptionCanceledTemplateId?: string;
+  customerWelcomeTemplateId?: string;
 };
+
+const wh = new WebhookSigner();
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
-  const signature = req.headers.get("x-stellartools-signature");
-  const expected = `sha256=${createHmac("sha256", process.env.WEBHOOK_SECRET!).update(rawBody).digest("hex")}`;
+  const signature = req.headers.get("x-stellartools-signature") ?? "";
 
-  if (!signature || !timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) {
+  let event: WebhookEvent;
+  let settings: Settings;
+  try {
+    ({ event, settings } = wh.constructEvent(rawBody, signature, process.env.WEBHOOK_SECRET!) as unknown as { event: WebhookEvent; settings: Settings });
+  } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const { event, settings }: { event: WebhookEvent; settings: Settings } = JSON.parse(rawBody);
   const resend = new Resend(settings.resendApiKey);
   const from = settings.fromName ? `${settings.fromName} <${settings.fromEmail}>` : settings.fromEmail;
 
   switch (event.type) {
     case "payment.confirmed": {
       if (settings.notificationRules?.["payment.confirmed"]?.sendReceipt === false) break;
+      if (!settings.paymentReceivedTemplateId) break;
       const payment = event.data.object;
       await resend.emails.send({
         from,
         to: settings.fromEmail,
-        subject: "Your payment was received",
-        html: `<p>Your payment of <strong>${payment.amount}</strong> was confirmed. Transaction: <code>${payment.transaction_hash}</code></p>`,
+        template: {
+          id: settings.paymentReceivedTemplateId,
+          variables: { amount: String(payment.amount), transaction_hash: payment.transaction_hash ?? "" },
+        },
       });
       break;
     }
 
     case "payment.failed": {
       if (settings.notificationRules?.["payment.failed"]?.sendReceipt === false) break;
+      if (!settings.paymentFailedTemplateId) break;
       const payment = event.data.object;
       await resend.emails.send({
         from,
         to: settings.fromEmail,
-        subject: "Your payment didn't go through",
-        html: `<p>Your payment of <strong>${payment.amount}</strong> couldn't be processed. Please try again.</p>`,
+        template: {
+          id: settings.paymentFailedTemplateId,
+          variables: { amount: String(payment.amount) },
+        },
       });
       break;
     }
 
     case "refund.succeeded": {
       if (settings.notificationRules?.["refund.succeeded"]?.sendReceipt === false) break;
+      if (!settings.refundSucceededTemplateId) break;
       const refund = event.data.object;
       await resend.emails.send({
         from,
         to: settings.fromEmail,
-        subject: "Your refund has been processed",
-        html: `<p>Your refund of <strong>${refund.amount}</strong> has been sent to your wallet.</p>`,
+        template: {
+          id: settings.refundSucceededTemplateId,
+          variables: { amount: String(refund.amount) },
+        },
       });
       break;
     }
 
     case "subscription.created": {
       if (settings.notificationRules?.["subscription.created"]?.sendReceipt === false) break;
+      if (!settings.subscriptionCreatedTemplateId) break;
       await resend.emails.send({
         from,
         to: settings.fromEmail,
-        subject: "Your subscription is active",
-        html: `<p>Your subscription is now active.</p>`,
+        template: { id: settings.subscriptionCreatedTemplateId },
       });
       break;
     }
 
     case "subscription.canceled": {
       if (settings.notificationRules?.["subscription.canceled"]?.enabled === false) break;
+      if (!settings.subscriptionCanceledTemplateId) break;
       const sub = event.data.object;
       await resend.emails.send({
         from,
         to: settings.fromEmail,
-        subject: "Your subscription has been canceled",
-        html: `<p>Your subscription has been canceled.${sub.canceled_at ? ` Effective: ${sub.canceled_at}.` : ""}</p>`,
+        template: {
+          id: settings.subscriptionCanceledTemplateId,
+          variables: { canceled_at: sub.canceled_at ?? "" },
+        },
       });
       break;
     }
 
-    case "checkout.created": {
-      if (!settings.syncEnabled) break;
-      const { customer_id } = event.data.object;
-      if (!customer_id) break;
-      // TODO: replace customer_id with customer email once StellarTools expands the customer on checkout events
-      await resend.contacts.create({ email: customer_id, unsubscribed: false });
+    case "customer.created": {
+      const { email, name } = event.data.object;
+
+      if (settings.customerSyncEnabled) {
+        await resend.contacts.create({ email, firstName: name, unsubscribed: false });
+      }
+
+      if (settings.notificationRules?.["customer.created"]?.sendReceipt !== false && settings.customerWelcomeTemplateId) {
+        await resend.emails.send({
+          from,
+          to: email,
+          template: { id: settings.customerWelcomeTemplateId, variables: { name } },
+        });
+      }
+
       break;
     }
   }

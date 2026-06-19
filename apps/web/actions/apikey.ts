@@ -122,7 +122,7 @@ export const resolveAuthContext = async (params: {
     const payload = verifyJwt<{ appId: string; orgId: string; instId: string; scopes: string[]; env: Network }>(
       appToken,
       app.appSecret,
-      app.id
+      "STELLARTOOLS"
     );
 
     return {

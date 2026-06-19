@@ -3,17 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 
 
-import { useResendApp } from "@/app/context/resend-app-context";
+import { type TemplateIds, useResendApp } from "@/app/context/resend-app-context";
 import {
   Badge,
   Checkbox,
   DataTable,
   Input,
   LineChart,
-  SelectField,
   Switch,
   Table,
   TableBody,
+  SelectField,
   TableCell,
   TableHead,
   TableHeader,
@@ -22,7 +22,7 @@ import {
 
 type StatsEmail = { id: string; to: string; subject: string; status: string; sentAt: string };
 type EmailRow = { original: StatsEmail };
-type NotificationRule = { id: string; event: string; sendReceipt: boolean; template: string; enabled: boolean };
+type NotificationRule = { id: string; event: string; sendReceipt: boolean; enabled: boolean; templateKey?: keyof TemplateIds };
 
 type Stats = {
   totalSent: number;
@@ -50,19 +50,13 @@ const EMAIL_STATUS_OPTIONS = [
 ];
 
 
-const TEMPLATE_OPTIONS = [
-  { value: "receipt-default", label: "Receipt default" },
-  { value: "failure-default", label: "Failure default" },
-  { value: "refund-default", label: "Refund default" },
-  { value: "churn-default", label: "Churn default" },
-];
-
 const NOTIFICATION_RULES: NotificationRule[] = [
-  { id: "rule_01", event: "payment.confirmed", sendReceipt: true, template: "receipt-default", enabled: true },
-  { id: "rule_02", event: "payment.failed", sendReceipt: true, template: "failure-default", enabled: true },
-  { id: "rule_03", event: "refund.succeeded", sendReceipt: true, template: "refund-default", enabled: true },
-  { id: "rule_04", event: "subscription.canceled", sendReceipt: true, template: "churn-default", enabled: true },
-  { id: "rule_05", event: "checkout.created", sendReceipt: false, template: "receipt-default", enabled: false },
+  { id: "rule_01", event: "payment.confirmed", sendReceipt: true, enabled: true, templateKey: "paymentReceivedTemplateId" },
+  { id: "rule_02", event: "payment.failed", sendReceipt: true, enabled: true, templateKey: "paymentFailedTemplateId" },
+  { id: "rule_03", event: "refund.succeeded", sendReceipt: true, enabled: true, templateKey: "refundSucceededTemplateId" },
+  { id: "rule_04", event: "subscription.canceled", sendReceipt: true, enabled: true, templateKey: "subscriptionCanceledTemplateId" },
+  { id: "rule_05", event: "customer.created", sendReceipt: true, enabled: true, templateKey: "customerWelcomeTemplateId" },
+  { id: "rule_06", event: "checkout.created", sendReceipt: false, enabled: false },
 ];
 
 const EMAIL_COLUMNS = [
@@ -82,7 +76,7 @@ const EMAIL_COLUMNS = [
 ];
 
 export function OverviewStep() {
-  const { bridge, syncEnabled, notificationRules, saveSyncSettings, saveNotificationRules } = useResendApp();
+  const { bridge, customerSyncEnabled, notificationRules, templateIds, saveSyncSettings, saveNotificationRules, saveTemplateIds } = useResendApp();
   const [stats, setStats] = useState<Stats | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -94,7 +88,7 @@ export function OverviewStep() {
       .catch(() => {});
   }, [bridge.installationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function updateRule(event: string, patch: { sendReceipt?: boolean; template?: string }) {
+  function updateRule(event: string, patch: { sendReceipt?: boolean }) {
     const current = notificationRules[event] ?? NOTIFICATION_RULES.find((r) => r.event === event)!;
     void saveNotificationRules({ ...notificationRules, [event]: { ...current, ...patch } });
   }
@@ -192,8 +186,8 @@ export function OverviewStep() {
             </p>
           </div>
           <div className="flex items-center gap-2 pt-0.5">
-            <span className="text-muted-foreground text-xs">{syncEnabled ? "On" : "Off"}</span>
-            <Switch checked={syncEnabled} onCheckedChange={(v: boolean) => saveSyncSettings({ syncEnabled: v })} />
+            <span className="text-muted-foreground text-xs">{customerSyncEnabled ? "On" : "Off"}</span>
+            <Switch checked={customerSyncEnabled} onCheckedChange={(v: boolean) => saveSyncSettings({ customerSyncEnabled: v })} />
           </div>
         </div>
       </div>
@@ -209,14 +203,13 @@ export function OverviewStep() {
               <TableRow>
                 <TableHead>Payment event</TableHead>
                 <TableHead>Send receipt</TableHead>
-                <TableHead>Template</TableHead>
+                <TableHead>Template ID</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {NOTIFICATION_RULES.map((rule) => {
                 const saved = notificationRules[rule.event];
                 const sendReceipt = saved?.sendReceipt ?? rule.sendReceipt;
-                const template = saved?.template ?? rule.template;
                 return (
                   <TableRow key={rule.id}>
                     <TableCell className="font-mono text-xs">{rule.event}</TableCell>
@@ -230,16 +223,15 @@ export function OverviewStep() {
                       />
                     </TableCell>
                     <TableCell>
-                      {rule.enabled ? (
-                        <SelectField
-                          id={`template-${rule.id}`}
-                          value={template}
-                          onChange={(v: string) => updateRule(rule.event, { template: v })}
-                          items={TEMPLATE_OPTIONS}
-                          trigger={{ className: "shadow-none h-8 text-xs" }}
+                      {rule.templateKey ? (
+                        <Input
+                          placeholder="tmpl_..."
+                          defaultValue={templateIds[rule.templateKey] ?? ""}
+                          onBlur={(e) => saveTemplateIds({ [rule.templateKey!]: e.target.value || undefined })}
+                          className="shadow-none h-8 text-xs w-48"
                         />
                       ) : (
-                        <span className="text-muted-foreground text-xs">— disabled —</span>
+                        <span className="text-muted-foreground text-xs">—</span>
                       )}
                     </TableCell>
                   </TableRow>

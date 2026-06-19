@@ -1,4 +1,4 @@
-import { verifyJwt } from "@stellartools/app-embed-bridge/server";
+import { verifyJwt } from "@stellartools/app-embed-bridge";
 import { stellarFetch } from "@/lib/utils";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,25 +6,6 @@ type AppTokenPayload = { instId: string; orgId: string; scopes: string[]; env: s
 
 function getAppToken(req: NextRequest) {
   return req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
-}
-
-export async function GET(req: NextRequest) {
-  const appToken = getAppToken(req);
-  if (!appToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let payload: AppTokenPayload;
-  try { payload = verifyJwt<AppTokenPayload>(appToken); }
-  catch { return NextResponse.json({ error: "Invalid token" }, { status: 401 }); }
-
-  const { instId } = payload;
-
-  const res = await stellarFetch(`/installations/${instId}/settings`, appToken);
-
-  if (res.status === 404) return NextResponse.json({ installationId: instId, hasApiKey: false, sendReceiptOnPayment: false });
-  if (!res.ok) return NextResponse.json({ error: "Failed to load settings" }, { status: res.status });
-
-  const { resendApiKey, ...rest } = await res.json();
-  return NextResponse.json({ ...rest, hasApiKey: Boolean(resendApiKey) });
 }
 
 export async function POST(req: NextRequest) {
