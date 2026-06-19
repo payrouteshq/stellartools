@@ -8,8 +8,7 @@ import { Result, z as Schema } from "@stellartools/core";
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
-  auth: ["session", "apikey", "app", "portal"],
-  requiredAppScope: "write:subscriptions",
+  auth: ["session", "apikey", "portal"],
   schema: { params: Schema.object({ id: Schema.string() }) },
   handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
     const {
