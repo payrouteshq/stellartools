@@ -2,8 +2,6 @@ import "server-only";
 
 import { Resend as ResendClient } from "resend";
 
-const resend = new ResendClient(process.env.RESEND_API_KEY);
-
 type SendEmailOptions = {
   cc?: string[];
   replyTo?: string;
@@ -15,6 +13,7 @@ export const sendEmail = async (
   content: string | React.ReactNode,
   options?: SendEmailOptions
 ) => {
+  const resend = new ResendClient(process.env.RESEND_API_KEY);
   const result = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
     to: email,
