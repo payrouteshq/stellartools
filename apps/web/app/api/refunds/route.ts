@@ -2,7 +2,7 @@ import { putCreditBalance } from "@/actions/credit";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
-import { putSubscription, retrieveSubscription as retrieveDBSubscription } from "@/actions/subscription";
+import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } from "@/actions/subscription";
 import { decrypt } from "@/integrations/encryption";
 import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
@@ -26,8 +26,13 @@ export const POST = apiHandler({
         const {
           data: [p],
         } = await retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true });
+
         if (!p) throw new AppError("Payment not found");
-        if (!p.wallets?.address) throw new AppError("Customer wallet address not found");
+
+        if (!p.wallets?.address && !wallet_address) {
+          throw new AppError("Customer wallet address not found, please provide a wallet address in the request body");
+        }
+
         return p;
       },
       secret: async () => {
@@ -83,9 +88,12 @@ export const POST = apiHandler({
       if (payment.subscriptionId && payment.customerId) {
         const {
           data: [subscription],
-        } = await retrieveDBSubscription(payment.subscriptionId, organizationId, environment, {
-          limit: 1,
-        });
+        } = await retrieveDBSubscriptions(
+          organizationId,
+          environment,
+          { subscriptionId: payment.subscriptionId },
+          { withCustomer: true, withProduct: true }
+        );
 
         if (!subscription) throw new AppError("Subscription not found");
 
