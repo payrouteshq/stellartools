@@ -90,7 +90,7 @@ export const createSubscription = (options: BillingConfig) =>
     async (ctx) => {
       const customerId = await retrieveOrCreateCustomer(ctx);
       const { stellar } = getContext(ctx, options);
-      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_ids: [customerId] });
+      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_id: [customerId] });
 
       options?.on_subscription_created?.(sub);
 

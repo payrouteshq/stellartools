@@ -4,12 +4,20 @@ import { paginate, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrievePaymentCount } from "@/actions/payment";
 import { SubscriptionStatus } from "@/constant/schema.client";
-import { Network, Subscription, customerWallets, customers, db, products, subscriptions } from "@/db";
+import {
+  Network,
+  ResolvedSubscription,
+  Subscription,
+  customerWallets,
+  customers,
+  db,
+  products,
+  subscriptions,
+} from "@/db";
 import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
-import { OverrideProps, Prettify } from "@stellartools/core";
 import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
 
 export const postSubscriptionsBulk = async (
@@ -96,95 +104,65 @@ export const postSubscriptionsBulk = async (
   );
 };
 
-export const retrieveSubscription = async (
-  id: string,
+export const retrieveSubscriptions = async (
   orgId?: string,
   env?: Network,
-  params?: ApiListParams
-): Promise<PaginatedResult<Subscription>> => {
+  params?: {
+    customerId?: string;
+    subscriptionId?: string;
+    status?: SubscriptionStatus;
+    isDue?: boolean;
+  } & ApiListParams,
+  options?: { withCustomer?: boolean; withProduct?: boolean; withCustomerWallets?: boolean }
+): Promise<PaginatedResult<ResolvedSubscription>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
-  const limit = params?.limit ?? 10;
-
-  const [subscription] = await db
-    .select()
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.id, id),
-        eq(subscriptions.organizationId, organizationId),
-        eq(subscriptions.environment, environment)
-      )
-    )
-    .limit(limit)
-    .offset(params?.starting_after ? parseInt(params.starting_after) : 0);
-
-  if (!subscription) return { data: [], has_more: false };
-
-  return await paginate([subscription], limit);
-};
-
-type SubscriptionRow<S extends SubscriptionStatus> = {
-  subscription: OverrideProps<Subscription, { status: S }>;
-  customer: { name: string | null; email: string | null };
-  product: { name: string; priceCents: number };
-};
-
-export const retrieveSubscriptions = async <S extends SubscriptionStatus = SubscriptionStatus>(
-  orgId?: string,
-  env?: Network,
-  filters?: { customerId?: string; status?: S },
-  params?: ApiListParams
-): Promise<Prettify<PaginatedResult<SubscriptionRow<S>>>> => {
-  const { organizationId, environment } = await resolveOrgContext(orgId, env);
-
   const limit = params?.limit ?? 10;
 
   const rows = await db
     .select({
       subscription: subscriptions,
-      customer: { name: customers.name, email: customers.email },
-      product: { name: products.name, priceAmount: products.priceCents },
+      ...(options?.withCustomer && { customer: customers }),
+      ...(options?.withProduct && { product: products }),
+      ...(options?.withCustomerWallets && { customerWallets: customerWallets }),
     })
     .from(subscriptions)
-    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
-    .innerJoin(products, eq(subscriptions.productId, products.id))
+    .leftJoin(customers, eq(subscriptions.customerId, customers.id))
+    .leftJoin(products, eq(subscriptions.productId, products.id))
+    .leftJoin(customerWallets, eq(subscriptions.customerWalletId, customerWallets.id))
     .where(
       and(
+        params?.subscriptionId ? eq(subscriptions.id, params.subscriptionId) : undefined,
+        params?.customerId ? eq(subscriptions.customerId, params.customerId) : undefined,
+        params?.status ? eq(subscriptions.status, params.status) : undefined,
         eq(subscriptions.organizationId, organizationId),
         eq(subscriptions.environment, environment),
-        filters?.customerId ? eq(subscriptions.customerId, filters.customerId) : undefined,
-        filters?.status ? eq(subscriptions.status, filters.status) : undefined
-      )
-    )
-    .orderBy(desc(subscriptions.createdAt));
-
-  return await paginate(rows as unknown as SubscriptionRow<S>[], limit);
-};
-
-export const listSubscriptions = async (
-  customerId: string,
-  orgId?: string,
-  env?: Network,
-  params?: ApiListParams
-): Promise<PaginatedResult<Subscription>> => {
-  const { organizationId, environment } = await resolveOrgContext(orgId, env);
-
-  const limit = params?.limit ?? 10;
-
-  const subscriptionList = await db
-    .select()
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.customerId, customerId),
-        eq(subscriptions.organizationId, organizationId),
-        eq(subscriptions.environment, environment)
+        ...(params?.isDue
+          ? [
+              or(
+                and(lt(subscriptions.currentPeriodEnd, new Date()), eq(subscriptions.status, "active")),
+                and(
+                  eq(subscriptions.cancelAtPeriodEnd, true),
+                  lt(subscriptions.currentPeriodEnd, new Date()),
+                  isNull(subscriptions.canceledAt)
+                )
+              ),
+            ]
+          : [])
       )
     )
     .limit(limit)
+    .orderBy(desc(subscriptions.createdAt))
     .offset(params?.starting_after ? parseInt(params.starting_after) : 0);
 
-  return await paginate(subscriptionList, limit);
+  return await paginate(
+    rows.map(({ customer, product, customerWallets, subscription }) => ({
+      ...subscription,
+      customer,
+      product,
+      customerWallets,
+    })),
+    limit
+  );
 };
 
 export const putSubscription = async (id: string, retUpdate: Partial<Subscription>, orgId?: string, env?: Network) => {
@@ -193,7 +171,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
     {
       data: [oldSubscription],
     },
-  ] = await Promise.all([resolveOrgContext(orgId, env), retrieveSubscription(id)]);
+  ] = await Promise.all([resolveOrgContext(orgId, env), retrieveSubscriptions(orgId, env, { subscriptionId: id })]);
 
   return withEvent(
     async () => {
@@ -322,41 +300,4 @@ export const deleteSubscription = async (id: string, orgId?: string, env?: Netwo
     .returning();
 
   return null;
-};
-
-export const retrieveDueSubscriptions = async () => {
-  const results = await db
-    .select({
-      subscription: {
-        id: subscriptions.id,
-        productId: subscriptions.productId,
-        organizationId: subscriptions.organizationId,
-        environment: subscriptions.environment,
-        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
-        currentPeriodEnd: subscriptions.currentPeriodEnd,
-      },
-      product: {
-        priceCents: products.priceCents,
-        currencyCode: products.currencyCode,
-      },
-      customer: { id: customers.id },
-      wallet: customerWallets,
-    })
-    .from(subscriptions)
-    .where(
-      or(
-        and(lt(subscriptions.currentPeriodEnd, new Date()), eq(subscriptions.status, "active")),
-        and(
-          eq(subscriptions.cancelAtPeriodEnd, true),
-          lt(subscriptions.currentPeriodEnd, new Date()),
-          isNull(subscriptions.canceledAt)
-        )
-      )
-    )
-    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
-    .innerJoin(products, eq(subscriptions.productId, products.id))
-    .innerJoin(customerWallets, eq(subscriptions.customerWalletId, customerWallets.id))
-    .orderBy(desc(subscriptions.currentPeriodEnd));
-
-  return results;
 };

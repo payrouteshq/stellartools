@@ -1,5 +1,4 @@
-import { retrieveCustomerWallets } from "@/actions/customers";
-import { putSubscription, retrieveSubscription } from "@/actions/subscription";
+import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import { pauseSubscription as pauseSorobanSubscription } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
@@ -13,11 +12,14 @@ export const POST = apiHandler({
   handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
     const {
       data: [subscription],
-    } = await retrieveSubscription(id, organizationId, environment, { limit: 1 });
+    } = await retrieveSubscriptions(
+      organizationId,
+      environment,
+      { subscriptionId: id },
+      { withCustomer: true, withProduct: true, withCustomerWallets: true }
+    );
 
-    const [customerWallet] = await retrieveCustomerWallets(subscription.customerId, {
-      id: subscription.customerWalletId,
-    });
+    const customerWallet = subscription?.customerWallet;
 
     if (!customerWallet?.address) throw new AppError("Customer wallet not found");
 
