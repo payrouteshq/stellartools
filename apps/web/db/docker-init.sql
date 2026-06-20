@@ -31,7 +31,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Send transactional emails to your customers without leaving StellarTools.',
     'https://resend.com',
     'support@resend.com',
-    '{"name":"Resend","description":"Send transactional emails to your customers without leaving StellarTools.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF","homepageUrl":"https://resend.com","baseUrl":"http://localhost:3001","webhookUrl":"http://localhost:3001/api/webhook","scopes":["read:customers","read:payments"]}'::jsonb
+    '{"name":"Resend","description":"Send transactional emails to your customers without leaving StellarTools.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF","homepageUrl":"https://resend.com","baseUrl":"http://localhost:3001","webhookUrl":"http://localhost:3001/api/webhook","scopes":["read:customers","read:payments","read:refunds","read:subscriptions"]}'::jsonb
   )
 ON CONFLICT (slug) DO UPDATE SET app_secret = EXCLUDED.app_secret;
 
