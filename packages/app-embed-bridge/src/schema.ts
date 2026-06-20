@@ -14,17 +14,8 @@ export const appManifestSchema = z.object({
   scopes: z
     .array(
       z.string().refine(
-        (val) => {
-          const [action, resource] = val.split(":");
-          return (
-            val === "*" ||
-            (["read"]?.includes(action) &&
-              APP_CONFIG[resource as AppResource].events.some((event) => event.includes(val)))
-          );
-        },
-        {
-          message: `Invalid scope format. Use 'read:resource' or 'write:resource' e.g ${Object.keys(APP_CONFIG).join(", ")} `,
-        }
+        (val) => val === "*" || (val.startsWith("read:") && (val.split(":")[1] as AppResource) in APP_CONFIG),
+        { message: `Invalid scope. Use 'read:<resource>' where resource is one of: ${Object.keys(APP_CONFIG).join(", ")}` }
       )
     )
     .min(1, "At least one scope is required"),

@@ -67,3 +67,18 @@ export const stellar = {
     window.parent.postMessage({ type: "stellar:reload" }, "*");
   },
 };
+
+/**
+ * Creates an authenticated fetch bound to the app's BFF.
+ * Every request automatically carries the appToken as a Bearer header.
+ *
+ * Usage: const apiFetch = createBridgeFetch(bridge.appToken);
+ *        await apiFetch("/api/settings", { method: "POST", body: ... });
+ */
+export function createBridgeFetch(appToken: string) {
+  return (path: string, init?: RequestInit): Promise<Response> =>
+    fetch(path, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${appToken}` },
+    });
+}

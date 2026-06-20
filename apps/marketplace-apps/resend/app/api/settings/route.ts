@@ -9,6 +9,11 @@ function getAppToken(req: NextRequest) {
   return req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
 }
 
+async function testConnection(apiKey: string): Promise<boolean> {
+  const resend = new Resend(apiKey);
+  const { error } = await resend.domains.list();
+  return !error;
+}
 
 async function resolveSegmentId(apiKey: string): Promise<string> {
   const resend = new Resend(apiKey);
@@ -26,7 +31,6 @@ async function resolveFromEmail(apiKey: string): Promise<string> {
   return verified ? `noreply@${verified.name}` : "onboarding@resend.dev";
 }
 
-
 export async function POST(req: NextRequest) {
   const appToken = getAppToken(req);
   if (!appToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,11 +44,10 @@ export async function POST(req: NextRequest) {
   const patch = await req.json().catch(() => null);
   if (!patch) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  if (patch.resendApiKey && !/^re_[a-zA-Z0-9_]{10,}$/.test(patch.resendApiKey)) {
-    return NextResponse.json({ error: "Invalid Resend API key format" }, { status: 422 });
-  }
-
   if (patch.resendApiKey) {
+    const connected = await testConnection(patch.resendApiKey);
+    if (!connected) return NextResponse.json({ error: "Could not connect to Resend. Check your API key." }, { status: 422 });
+
     const [fromEmail, segmentId] = await Promise.all([
       resolveFromEmail(patch.resendApiKey),
       resolveSegmentId(patch.resendApiKey),

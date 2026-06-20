@@ -3,7 +3,7 @@
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 
-import { type BridgeContext, stellar } from "@stellartools/app-embed-bridge";
+import { type BridgeContext, createBridgeFetch, stellar } from "@stellartools/app-embed-bridge";
 import { Skeleton } from "@stellartools/shared-ui";
 
 type AppStep = "connect" | "overview";
@@ -85,10 +85,12 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
     setSaving(true);
     setError(null);
 
+    const apiFetch = createBridgeFetch(bridge.appToken);
+
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${bridge.appToken}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resendApiKey }),
       });
 
@@ -114,9 +116,10 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
   const saveSyncSettings = useCallback(async (patch: { customerSyncEnabled?: boolean }) => {
     if (!bridge) return;
     if ("customerSyncEnabled" in patch) setSyncEnabled(patch.customerSyncEnabled!);
-    await fetch("/api/settings", {
+    const apiFetch = createBridgeFetch(bridge.appToken);
+    await apiFetch("/api/settings", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bridge.appToken}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
   }, [bridge]);
@@ -124,9 +127,10 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
   const saveTemplateIds = useCallback(async (patch: Partial<TemplateIds>) => {
     if (!bridge) return;
     setTemplateIds((prev) => ({ ...prev, ...patch }));
-    await fetch("/api/settings", {
+    const apiFetch = createBridgeFetch(bridge.appToken);
+    await apiFetch("/api/settings", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bridge.appToken}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
   }, [bridge]);

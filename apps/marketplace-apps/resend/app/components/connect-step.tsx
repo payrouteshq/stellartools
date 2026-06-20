@@ -28,8 +28,6 @@ export function ConnectStep() {
         />
       </div>
 
-      {error && <p className="text-destructive text-xs">{error}</p>}
-
       <Button className="w-full shadow-none" disabled={saving} onClick={() => void saveConnectStep()}>
         {saving ? "Saving…" : "Continue"}
       </Button>
