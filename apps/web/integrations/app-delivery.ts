@@ -2,17 +2,14 @@ import "server-only";
 
 import { postWebhookLog } from "@/actions/webhook";
 import { App } from "@/db/schema";
-import { decrypt } from "@/integrations/encryption";
 import { WebhookSigner } from "@stellartools/core";
 
 export const deliverToApp = async (app: App, appInstallationId: string, envelope: any, webhookLogId: string) => {
   const startTime = Date.now();
 
-  const decryptedSecret = decrypt(app.appSecret);
-
   const body = JSON.stringify(envelope);
 
-  const signature = new WebhookSigner().generateSignature(body, decryptedSecret);
+  const signature = new WebhookSigner().generateSignature(body, app.appSecret);
 
   try {
     const response = await fetch(app.webhookUrl!, {

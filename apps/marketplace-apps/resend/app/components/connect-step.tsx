@@ -6,7 +6,7 @@ import { useResendApp } from "@/app/context/resend-app-context";
 import { Button, Input, Label } from "@stellartools/shared-ui";
 
 export function ConnectStep() {
-  const { hasApiKey, resendApiKey, setResendApiKey, saving, saveConnectStep } = useResendApp();
+  const { hasApiKey, resendApiKey, setResendApiKey, saving, error, saveConnectStep } = useResendApp();
 
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-6 py-8">
@@ -27,6 +27,8 @@ export function ConnectStep() {
           className="shadow-none"
         />
       </div>
+
+      {error && <p className="text-destructive text-xs">{error}</p>}
 
       <Button className="w-full shadow-none" disabled={saving} onClick={() => void saveConnectStep()}>
         {saving ? "Saving…" : "Continue"}

@@ -1,21 +1,12 @@
-import { verifyJwt } from "@stellartools/app-embed-bridge";
+import { verifyJwt } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const TERMINAL = new Set([
-  "delivered",
-  "opened",
-  "clicked",
-  "complained",
-  "bounced",
-  "failed",
-  "suppressed",
-  "canceled",
-]);
+const TERMINAL = new Set(["delivered", "opened", "clicked", "complained", "bounced", "failed", "suppressed", "canceled"]);
 const DELIVERED = new Set(["delivered", "opened", "clicked", "complained"]);
 const BOUNCED = new Set(["bounced", "failed", "suppressed"]);
 
-type AppTokenPayload = { instId: string; settings: Record<string, unknown> };
+type AppTokenPayload = { settings: Record<string, unknown> };
 
 export async function GET(req: NextRequest) {
   const appToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
@@ -31,42 +22,37 @@ export async function GET(req: NextRequest) {
   const resend = new Resend(resendApiKey);
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   type EmailItem = NonNullable<Awaited<ReturnType<typeof resend.emails.list>>["data"]>["data"][number];
-  const allEmails: EmailItem[] = [];
+  const emails: EmailItem[] = [];
 
   let cursor: string | undefined;
-
   while (true) {
     const { data: list, error } = await resend.emails.list({ limit: 100, ...(cursor ? { after: cursor } : {}) });
-
     if (error || !list) break;
-
     const inWindow = list.data.filter((e) => new Date(e.created_at).getTime() >= cutoff);
-    allEmails.push(...inWindow);
-
+    emails.push(...inWindow);
     if (!list.has_more || inWindow.length < list.data.length) break;
-
     cursor = list.data[list.data.length - 1]?.id;
     if (!cursor) break;
   }
 
   const now = Date.now();
-  const terminal = allEmails.filter((e) => TERMINAL.has(e.last_event));
+  const terminal = emails.filter((e) => TERMINAL.has(e.last_event));
   const delivered = terminal.filter((e) => DELIVERED.has(e.last_event)).length;
   const bounced = terminal.filter((e) => BOUNCED.has(e.last_event)).length;
   const t = terminal.length;
 
   const daily = Array.from({ length: 30 }, (_, i) => ({ day: i + 1, sent: 0 }));
-  for (const email of allEmails) {
+  for (const email of emails) {
     const idx = 29 - Math.floor((now - new Date(email.created_at).getTime()) / (24 * 60 * 60 * 1000));
     if (idx >= 0 && idx < 30) daily[idx].sent++;
   }
 
   return NextResponse.json({
-    totalSent: allEmails.length,
+    totalSent: emails.length,
     deliveredRate: t > 0 ? `${((delivered / t) * 100).toFixed(1)}%` : "—",
     bounceRate: t > 0 ? `${((bounced / t) * 100).toFixed(1)}%` : "—",
     daily,
-    emails: allEmails.map((e) => ({
+    emails: emails.map((e) => ({
       id: e.id,
       to: e.to[0],
       subject: e.subject,

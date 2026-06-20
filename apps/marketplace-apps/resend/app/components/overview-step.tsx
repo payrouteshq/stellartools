@@ -2,11 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-
 import { type TemplateIds, useResendApp } from "@/app/context/resend-app-context";
 import {
   Badge,
-  Checkbox,
   DataTable,
   Input,
   LineChart,
@@ -22,7 +20,7 @@ import {
 
 type StatsEmail = { id: string; to: string; subject: string; status: string; sentAt: string };
 type EmailRow = { original: StatsEmail };
-type NotificationRule = { id: string; event: string; sendReceipt: boolean; enabled: boolean; templateKey?: keyof TemplateIds };
+type NotificationRule = { id: string; event: string; templateKey: keyof TemplateIds };
 
 type Stats = {
   totalSent: number;
@@ -51,12 +49,12 @@ const EMAIL_STATUS_OPTIONS = [
 
 
 const NOTIFICATION_RULES: NotificationRule[] = [
-  { id: "rule_01", event: "payment.confirmed", sendReceipt: true, enabled: true, templateKey: "paymentReceivedTemplateId" },
-  { id: "rule_02", event: "payment.failed", sendReceipt: true, enabled: true, templateKey: "paymentFailedTemplateId" },
-  { id: "rule_03", event: "refund.succeeded", sendReceipt: true, enabled: true, templateKey: "refundSucceededTemplateId" },
-  { id: "rule_04", event: "subscription.canceled", sendReceipt: true, enabled: true, templateKey: "subscriptionCanceledTemplateId" },
-  { id: "rule_05", event: "customer.created", sendReceipt: true, enabled: true, templateKey: "customerWelcomeTemplateId" },
-  { id: "rule_06", event: "checkout.created", sendReceipt: false, enabled: false },
+  { id: "rule_01", event: "payment.confirmed", templateKey: "paymentReceivedTemplateId" },
+  { id: "rule_02", event: "payment.failed", templateKey: "paymentFailedTemplateId" },
+  { id: "rule_03", event: "refund.succeeded", templateKey: "refundSucceededTemplateId" },
+  { id: "rule_04", event: "subscription.created", templateKey: "subscriptionCreatedTemplateId" },
+  { id: "rule_05", event: "subscription.canceled", templateKey: "subscriptionCanceledTemplateId" },
+  { id: "rule_06", event: "customer.created", templateKey: "customerWelcomeTemplateId" },
 ];
 
 const EMAIL_COLUMNS = [
@@ -76,7 +74,7 @@ const EMAIL_COLUMNS = [
 ];
 
 export function OverviewStep() {
-  const { bridge, customerSyncEnabled, notificationRules, templateIds, saveSyncSettings, saveNotificationRules, saveTemplateIds } = useResendApp();
+  const { bridge, customerSyncEnabled, templateIds, saveSyncSettings, saveTemplateIds } = useResendApp();
   const [stats, setStats] = useState<Stats | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -87,11 +85,6 @@ export function OverviewStep() {
       .then((data) => { if (!data.error) setStats(data); })
       .catch(() => {});
   }, [bridge.installationId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function updateRule(event: string, patch: { sendReceipt?: boolean }) {
-    const current = notificationRules[event] ?? NOTIFICATION_RULES.find((r) => r.event === event)!;
-    void saveNotificationRules({ ...notificationRules, [event]: { ...current, ...patch } });
-  }
 
   const filteredEmails = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -182,7 +175,7 @@ export function OverviewStep() {
           <div className="space-y-1">
             <h3 className="text-sm font-medium">Contact sync</h3>
             <p className="text-muted-foreground max-w-md text-sm">
-              Auto-sync customers to Resend on checkout.created. Keeps your Resend audience up to date automatically.
+              Auto-sync new customers to your Resend audience on customer.created. Keeps your contacts up to date automatically.
             </p>
           </div>
           <div className="flex items-center gap-2 pt-0.5">
@@ -195,48 +188,30 @@ export function OverviewStep() {
       <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
         <div className="flex items-center justify-between gap-4">
           <h3 className="text-sm font-medium">Notification rules</h3>
-          <span className="text-muted-foreground text-xs">Which events trigger email</span>
+          <span className="text-muted-foreground text-xs">Set a template ID to enable; leave blank to disable</span>
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Payment event</TableHead>
-                <TableHead>Send receipt</TableHead>
+                <TableHead>Event</TableHead>
                 <TableHead>Template ID</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {NOTIFICATION_RULES.map((rule) => {
-                const saved = notificationRules[rule.event];
-                const sendReceipt = saved?.sendReceipt ?? rule.sendReceipt;
-                return (
-                  <TableRow key={rule.id}>
-                    <TableCell className="font-mono text-xs">{rule.event}</TableCell>
-                    <TableCell>
-                      <Checkbox
-                        checked={sendReceipt}
-                        disabled={!rule.enabled}
-                        onCheckedChange={(checked: boolean | "indeterminate") =>
-                          updateRule(rule.event, { sendReceipt: checked === true })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {rule.templateKey ? (
-                        <Input
-                          placeholder="tmpl_..."
-                          defaultValue={templateIds[rule.templateKey] ?? ""}
-                          onBlur={(e) => saveTemplateIds({ [rule.templateKey!]: e.target.value || undefined })}
-                          className="shadow-none h-8 text-xs w-48"
-                        />
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {NOTIFICATION_RULES.map((rule) => (
+                <TableRow key={rule.id}>
+                  <TableCell className="font-mono text-xs">{rule.event}</TableCell>
+                  <TableCell>
+                    <Input
+                      placeholder="tmpl_..."
+                      defaultValue={templateIds[rule.templateKey] ?? ""}
+                      onBlur={(e) => saveTemplateIds({ [rule.templateKey]: e.target.value || undefined })}
+                      className="shadow-none h-8 text-xs w-48"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>

@@ -3,7 +3,7 @@
 import { retrieveInstalledApps } from "@/actions/app";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrieveWebhooks, triggerWebhooks } from "@/actions/webhook";
-import { Event, Network, db, events, rawDb, txContext } from "@/db";
+import { Event, Network, customers, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
 import { getResourceForEvent } from "@/lib/app-utils";
 import { generateResourceId } from "@/lib/utils";
@@ -54,6 +54,7 @@ export async function withEvent<T>(
         ? await retrieveInstalledApps({ status: "active", scopes: [requiredScope] }, orgId, env)
         : [];
 
+
       const webhookLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
 
       // 3. EMIT INTERNAL EVENTS (Dashboard Timeline)
@@ -98,18 +99,35 @@ export async function withEvent<T>(
 
       // B. Plugin/App Webhooks (Partner servers)
       if (installedApps.length > 0) {
+        const customerIds = triggers
+          .map((t) => (t.map(result).object as any)?.customer_id)
+          .filter((id): id is string => typeof id === "string");
+
+        const customerRows = customerIds.length
+          ? await db.select({ id: customers.id, email: customers.email }).from(customers).where(inArray(customers.id, customerIds))
+          : [];
+
+        const customerEmailById = new Map(customerRows.map((c) => [c.id, c.email]));
+
         installedApps.forEach(({ app, app_installation }) => {
           triggers.forEach((trigger) => {
-            const envelope = {
+            const mapped = trigger.map(result);
+            const customerId = (mapped.object as any)?.customer_id;
+            const object = customerId
+              ? { ...mapped.object, customer_email: customerEmailById.get(customerId) }
+              : mapped.object;
+
+            const event = {
               id: webhookLogId!,
               type: trigger.event,
               created: new Date().toISOString(),
               livemode: env === "mainnet",
               installationId: app_installation.id,
-              data: trigger.map(result),
+              data: { ...mapped, object },
             };
 
-            deliveries.push(deliverToApp(app, app_installation.id, envelope, webhookLogId!));
+            const payload = { event, settings: app_installation.settings ?? {} };
+            deliveries.push(deliverToApp(app, app_installation.id, payload, webhookLogId!));
           });
         });
       }

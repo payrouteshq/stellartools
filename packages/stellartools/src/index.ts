@@ -69,3 +69,4 @@ export * from "./schema/currencies";
 export * from "./schema/credits";
 export * from "./schema/subscription";
 export * from "./schema/webhooks";
+export * from "./jwt";

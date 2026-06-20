@@ -24,14 +24,14 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'resend',
     'http://localhost:3001',
     'sec_8Jx4rcuqeRf-UUjTqBMgZBcjnafOM_K7',
-    'http://localhost:3001/api/webhooks/stellar',
+    'http://localhost:3001/api/webhook',
     'Resend',
     E'## Payment receipts and invoices, automatically\n\nEvery successful payment triggers a branded email receipt via Resend. Configure your template once — StellarTools handles delivery, retries, and logging so nothing slips through.\n\n## Full delivery visibility inside your dashboard\n\nTrack opens, bounces, and click-throughs without leaving StellarTools so your support team always knows exactly what a customer received and when.',
     'Free up to 3,000 emails/mo, then $20/mo',
     'Send transactional emails to your customers without leaving StellarTools.',
     'https://resend.com',
     'support@resend.com',
-    '{"name":"Resend","description":"Send transactional emails to your customers without leaving StellarTools.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF","homepageUrl":"https://resend.com","baseUrl":"http://localhost:3001","webhookUrl":"http://localhost:3001/api/webhooks/stellar","scopes":["read:customers","read:payments"]}'::jsonb
+    '{"name":"Resend","description":"Send transactional emails to your customers without leaving StellarTools.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF","homepageUrl":"https://resend.com","baseUrl":"http://localhost:3001","webhookUrl":"http://localhost:3001/api/webhook","scopes":["read:customers","read:payments"]}'::jsonb
   )
 ON CONFLICT (slug) DO UPDATE SET app_secret = EXCLUDED.app_secret;
 

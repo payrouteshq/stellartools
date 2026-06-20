@@ -8,8 +8,6 @@ import { Skeleton } from "@stellartools/shared-ui";
 
 type AppStep = "connect" | "overview";
 
-export type NotificationRuleSettings = Record<string, { sendReceipt: boolean; enabled: boolean }>;
-
 export type TemplateIds = {
   paymentReceivedTemplateId?: string;
   paymentFailedTemplateId?: string;
@@ -25,14 +23,12 @@ type ResendAppContextValue = {
   hasApiKey: boolean;
   resendApiKey: string;
   customerSyncEnabled: boolean;
-  notificationRules: NotificationRuleSettings;
   templateIds: TemplateIds;
   error: string | null;
   saving: boolean;
   setResendApiKey: (value: string) => void;
   saveConnectStep: () => Promise<boolean>;
   saveSyncSettings: (patch: { customerSyncEnabled?: boolean }) => Promise<void>;
-  saveNotificationRules: (rules: NotificationRuleSettings) => Promise<void>;
   saveTemplateIds: (patch: Partial<TemplateIds>) => Promise<void>;
 };
 
@@ -44,7 +40,6 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [resendApiKey, setResendApiKey] = useState("");
   const [customerSyncEnabled, setSyncEnabled] = useState(false);
-  const [notificationRules, setNotificationRules] = useState<NotificationRuleSettings>({});
   const [templateIds, setTemplateIds] = useState<TemplateIds>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -60,18 +55,13 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
     if (!bridge?.appToken) return;
     try {
       const payload = JSON.parse(atob(bridge.appToken.split(".")[1])) as {
-        settings?: {
-          resendApiKey?: string;
-          customerSyncEnabled?: boolean;
-          notificationRules?: NotificationRuleSettings;
-        } & TemplateIds;
+        settings?: { resendApiKey?: string; customerSyncEnabled?: boolean } & TemplateIds;
       };
       const settings = payload.settings ?? {};
       const hasKey = Boolean(settings.resendApiKey);
       setHasApiKey(hasKey);
       setStep(hasKey ? "overview" : "connect");
       setSyncEnabled(Boolean(settings.customerSyncEnabled));
-      if (settings.notificationRules) setNotificationRules(settings.notificationRules);
       const { paymentReceivedTemplateId, paymentFailedTemplateId, refundSucceededTemplateId, subscriptionCreatedTemplateId, subscriptionCanceledTemplateId, customerWelcomeTemplateId } = settings;
       setTemplateIds({ paymentReceivedTemplateId, paymentFailedTemplateId, refundSucceededTemplateId, subscriptionCreatedTemplateId, subscriptionCanceledTemplateId, customerWelcomeTemplateId });
     } catch {
@@ -121,16 +111,6 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
     }
   }, [bridge, resendApiKey]);
 
-  const saveNotificationRules = useCallback(async (rules: NotificationRuleSettings) => {
-    if (!bridge) return;
-    setNotificationRules(rules);
-    await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${bridge.appToken}` },
-      body: JSON.stringify({ notificationRules: rules }),
-    });
-  }, [bridge]);
-
   const saveSyncSettings = useCallback(async (patch: { customerSyncEnabled?: boolean }) => {
     if (!bridge) return;
     if ("customerSyncEnabled" in patch) setSyncEnabled(patch.customerSyncEnabled!);
@@ -164,7 +144,7 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
 
   return (
     <ResendAppContext.Provider
-      value={{ bridge, step, hasApiKey, resendApiKey, customerSyncEnabled, notificationRules, templateIds, error, saving, setResendApiKey: handleSetResendApiKey, saveConnectStep, saveSyncSettings, saveNotificationRules, saveTemplateIds }}
+      value={{ bridge, step, hasApiKey, resendApiKey, customerSyncEnabled, templateIds, error, saving, setResendApiKey: handleSetResendApiKey, saveConnectStep, saveSyncSettings, saveTemplateIds }}
     >
       {children}
     </ResendAppContext.Provider>
