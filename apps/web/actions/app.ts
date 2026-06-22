@@ -8,7 +8,6 @@ import { nanoid } from "nanoid";
 
 import { resolveOrgContext } from "./organization";
 
-
 export const generateAppToken = async (installationId: string): Promise<string | null> => {
   const [row] = await db
     .select({
@@ -97,7 +96,7 @@ export const updateAppInstallation = async (
   id: string,
   patch: Record<string, unknown>,
   orgId?: string,
-  env?: Network,
+  env?: Network
 ) => {
   const { organizationId } = await resolveOrgContext(orgId, env);
 

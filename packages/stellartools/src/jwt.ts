@@ -8,10 +8,7 @@ const ISSUER = "STELLARTOOLS";
  *
  * Required env vars: STELLARTOOLS_APP_SECRET
  */
-export const signJwt = (
-  payload: object,
-  expiresIn: Parameters<typeof jwt.sign>[2]["expiresIn"]
-) => {
+export const signJwt = (payload: object, expiresIn: Parameters<typeof jwt.sign>[2]["expiresIn"]) => {
   return jwt.sign(payload, process.env.STELLARTOOLS_APP_SECRET!, { expiresIn, issuer: ISSUER });
 };
 

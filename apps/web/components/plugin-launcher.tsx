@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { createPortal } from "react-dom";
 
 import { generateAppToken } from "@/actions/app";
@@ -10,7 +12,6 @@ import { cn, useMounted } from "@stellartools/shared-ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, XIcon } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function PluginLauncher() {
@@ -78,7 +79,7 @@ export function PluginLauncher() {
             key="plugin-drawer"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className="bg-background border-border/80 fixed inset-y-0 right-12 z-[100] flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
             role="complementary"
@@ -111,10 +112,10 @@ export function PluginLauncher() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground size-8 shrink-0"
+                  className="text-muted-foreground hover:text-foreground size-10 shrink-0"
                   onClick={() => setIsOpen(false)}
                 >
-                  <XIcon className="size-4" />
+                  <XIcon className="size-5" />
                 </Button>
               </div>
             </div>

@@ -13,10 +13,11 @@ export const appManifestSchema = z.object({
 
   scopes: z
     .array(
-      z.string().refine(
-        (val) => val === "*" || (val.startsWith("read:") && (val.split(":")[1] as AppResource) in APP_CONFIG),
-        { message: `Invalid scope. Use 'read:<resource>' where resource is one of: ${Object.keys(APP_CONFIG).join(", ")}` }
-      )
+      z
+        .string()
+        .refine((val) => val === "*" || (val.startsWith("read:") && (val.split(":")[1] as AppResource) in APP_CONFIG), {
+          message: `Invalid scope. Use 'read:<resource>' where resource is one of: ${Object.keys(APP_CONFIG).join(", ")}`,
+        })
     )
     .min(1, "At least one scope is required"),
 

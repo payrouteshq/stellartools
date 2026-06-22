@@ -8,15 +8,17 @@ import {
   DataTable,
   Input,
   LineChart,
+  SelectField,
   Switch,
   Table,
   TableBody,
-  SelectField,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@stellartools/shared-ui";
+
+type Template = { id: string; name: string };
 
 type StatsEmail = { id: string; to: string; subject: string; status: string; sentAt: string };
 type EmailRow = { original: StatsEmail };
@@ -46,7 +48,6 @@ const EMAIL_STATUS_OPTIONS = [
   { value: "opened", label: "Opened" },
   { value: "sent", label: "Sent" },
 ];
-
 
 const NOTIFICATION_RULES: NotificationRule[] = [
   { id: "rule_01", event: "payment.confirmed", templateKey: "paymentReceivedTemplateId" },
@@ -78,13 +79,32 @@ export function OverviewStep() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/stats", { headers: { Authorization: `Bearer ${bridge.appToken}` } })
       .then((r) => r.json())
-      .then((data) => { if (!data.error) setStats(data); })
+      .then((data) => {
+        if (!data.error) setStats(data);
+      })
       .catch(() => {});
   }, [bridge.installationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetch("/api/templates", { headers: { Authorization: `Bearer ${bridge.appToken}` } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.templates) setTemplates(data.templates);
+      })
+      .catch(() => {})
+      .finally(() => setTemplatesLoading(false));
+  }, [bridge.appToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const templateOptions = useMemo(
+    () => [{ value: "__none__", label: "None" }, ...templates.map((t) => ({ value: t.id, label: t.name }))],
+    [templates]
+  );
 
   const filteredEmails = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -150,7 +170,7 @@ export function OverviewStep() {
           <Input
             placeholder="Search by email or subject..."
             value={search}
-            onChange={setSearch}
+            onChange={(e) => setSearch(e.target.value)}
             className="shadow-none sm:flex-1"
           />
           <SelectField
@@ -158,7 +178,7 @@ export function OverviewStep() {
             value={statusFilter}
             onChange={setStatusFilter}
             items={EMAIL_STATUS_OPTIONS}
-            trigger={{ className: "shadow-none sm:w-40" }}
+            triggerClassName="shadow-none sm:w-40"
           />
         </div>
         <DataTable
@@ -166,7 +186,7 @@ export function OverviewStep() {
           columns={EMAIL_COLUMNS}
           withFilterPill={false}
           emptyMessage="No emails match your search."
-          container={{ className: "[&_.bg-card]:shadow-none" }}
+          containerClassName="[&_.bg-card]:shadow-none"
         />
       </div>
 
@@ -175,12 +195,16 @@ export function OverviewStep() {
           <div className="space-y-1">
             <h3 className="text-sm font-medium">Contact sync</h3>
             <p className="text-muted-foreground max-w-md text-sm">
-              Auto-sync new customers to your Resend audience on customer.created. Keeps your contacts up to date automatically.
+              Auto-sync new customers to your Resend audience on customer.created. Keeps your contacts up to date
+              automatically.
             </p>
           </div>
           <div className="flex items-center gap-2 pt-0.5">
             <span className="text-muted-foreground text-xs">{customerSyncEnabled ? "On" : "Off"}</span>
-            <Switch checked={customerSyncEnabled} onCheckedChange={(v: boolean) => saveSyncSettings({ customerSyncEnabled: v })} />
+            <Switch
+              checked={customerSyncEnabled}
+              onCheckedChange={(v: boolean) => saveSyncSettings({ customerSyncEnabled: v })}
+            />
           </div>
         </div>
       </div>
@@ -188,14 +212,14 @@ export function OverviewStep() {
       <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
         <div className="flex items-center justify-between gap-4">
           <h3 className="text-sm font-medium">Notification rules</h3>
-          <span className="text-muted-foreground text-xs">Set a template ID to enable; leave blank to disable</span>
+          <span className="text-muted-foreground text-xs">Select a template to enable; leave blank to disable</span>
         </div>
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Event</TableHead>
-                <TableHead>Template ID</TableHead>
+                <TableHead>Template</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -203,11 +227,13 @@ export function OverviewStep() {
                 <TableRow key={rule.id}>
                   <TableCell className="font-mono text-xs">{rule.event}</TableCell>
                   <TableCell>
-                    <Input
-                      placeholder="tmpl_..."
-                      defaultValue={templateIds[rule.templateKey] ?? ""}
-                      onBlur={(e) => saveTemplateIds({ [rule.templateKey]: e.target.value || undefined })}
-                      className="shadow-none h-8 text-xs w-48"
+                    <SelectField
+                      id={rule.id}
+                      value={templateIds[rule.templateKey] || "__none__"}
+                      onChange={(v) => saveTemplateIds({ [rule.templateKey]: v === "__none__" ? undefined : v })}
+                      items={templateOptions}
+                      isLoading={templatesLoading}
+                      triggerClassName="shadow-none h-8 text-xs w-48"
                     />
                   </TableCell>
                 </TableRow>

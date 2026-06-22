@@ -52,6 +52,11 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!bridge?.theme) return;
+    document.documentElement.classList.toggle("dark", bridge.theme === "dark");
+  }, [bridge?.theme]);
+
+  useEffect(() => {
     if (!bridge?.appToken) return;
     try {
       const payload = JSON.parse(atob(bridge.appToken.split(".")[1])) as {
@@ -62,8 +67,22 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
       setHasApiKey(hasKey);
       setStep(hasKey ? "overview" : "connect");
       setSyncEnabled(Boolean(settings.customerSyncEnabled));
-      const { paymentReceivedTemplateId, paymentFailedTemplateId, refundSucceededTemplateId, subscriptionCreatedTemplateId, subscriptionCanceledTemplateId, customerWelcomeTemplateId } = settings;
-      setTemplateIds({ paymentReceivedTemplateId, paymentFailedTemplateId, refundSucceededTemplateId, subscriptionCreatedTemplateId, subscriptionCanceledTemplateId, customerWelcomeTemplateId });
+      const {
+        paymentReceivedTemplateId,
+        paymentFailedTemplateId,
+        refundSucceededTemplateId,
+        subscriptionCreatedTemplateId,
+        subscriptionCanceledTemplateId,
+        customerWelcomeTemplateId,
+      } = settings;
+      setTemplateIds({
+        paymentReceivedTemplateId,
+        paymentFailedTemplateId,
+        refundSucceededTemplateId,
+        subscriptionCreatedTemplateId,
+        subscriptionCanceledTemplateId,
+        customerWelcomeTemplateId,
+      });
     } catch {
       setError("Failed to load settings");
     }
@@ -113,27 +132,33 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
     }
   }, [bridge, resendApiKey]);
 
-  const saveSyncSettings = useCallback(async (patch: { customerSyncEnabled?: boolean }) => {
-    if (!bridge) return;
-    if ("customerSyncEnabled" in patch) setSyncEnabled(patch.customerSyncEnabled!);
-    const apiFetch = createBridgeFetch(bridge.appToken);
-    await apiFetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-  }, [bridge]);
+  const saveSyncSettings = useCallback(
+    async (patch: { customerSyncEnabled?: boolean }) => {
+      if (!bridge) return;
+      if ("customerSyncEnabled" in patch) setSyncEnabled(patch.customerSyncEnabled!);
+      const apiFetch = createBridgeFetch(bridge.appToken);
+      await apiFetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    },
+    [bridge]
+  );
 
-  const saveTemplateIds = useCallback(async (patch: Partial<TemplateIds>) => {
-    if (!bridge) return;
-    setTemplateIds((prev) => ({ ...prev, ...patch }));
-    const apiFetch = createBridgeFetch(bridge.appToken);
-    await apiFetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-  }, [bridge]);
+  const saveTemplateIds = useCallback(
+    async (patch: Partial<TemplateIds>) => {
+      if (!bridge) return;
+      setTemplateIds((prev) => ({ ...prev, ...patch }));
+      const apiFetch = createBridgeFetch(bridge.appToken);
+      await apiFetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    },
+    [bridge]
+  );
 
   if (!bridge) {
     return (
@@ -148,7 +173,20 @@ export function ResendAppProvider({ children }: { children: ReactNode }) {
 
   return (
     <ResendAppContext.Provider
-      value={{ bridge, step, hasApiKey, resendApiKey, customerSyncEnabled, templateIds, error, saving, setResendApiKey: handleSetResendApiKey, saveConnectStep, saveSyncSettings, saveTemplateIds }}
+      value={{
+        bridge,
+        step,
+        hasApiKey,
+        resendApiKey,
+        customerSyncEnabled,
+        templateIds,
+        error,
+        saving,
+        setResendApiKey: handleSetResendApiKey,
+        saveConnectStep,
+        saveSyncSettings,
+        saveTemplateIds,
+      }}
     >
       {children}
     </ResendAppContext.Provider>
