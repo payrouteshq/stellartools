@@ -96,7 +96,6 @@ export const GET = apiHandler({
               transactionHash: chargeRes.value.hash,
               status,
               metadata: null,
-              creditBalanceId: null,
               failureReason: payEvent.success ? null : "On-chain payment failure",
             },
             orgId,

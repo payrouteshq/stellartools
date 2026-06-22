@@ -13,7 +13,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2 } from "@/components/icon";
 import { PaymentStatus, paymentStatusEnum } from "@/constant/schema.client";
 import { ResolvedPayment } from "@/db";
-import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { Money } from "@/lib/money";
 import { truncate } from "@/lib/utils";
@@ -186,7 +186,6 @@ function TransactionsPageContent() {
   const paymentId = searchParams?.get("paymentId");
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<TabType>("all");
-  const invalidate = useInvalidateOrgQuery();
 
   const refundModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [refundModalFooterProps, setRefundModalFooterProps] = React.useState({
@@ -209,37 +208,29 @@ function TransactionsPageContent() {
     });
   }, [refundModalFooterProps.isPending]);
 
-  const openRefundModal = React.useCallback(
-    (paymentToRefund: ResolvedPayment | null) => {
-      isRefundModalOpenRef.current = true;
-      setRefundModalFooterProps({ isPending: false });
-      AppModal.open({
-        title: "Create Refund",
-        description: "Process a refund for a transaction by providing the payment details.",
-        content: (
-          <RefundModalContent
-            payment={paymentToRefund}
-            initialPaymentId={paymentToRefund?.id}
-            onClose={() => {
-              isRefundModalOpenRef.current = false;
-              AppModal.close();
-            }}
-            onSuccess={() => {
-              invalidate(["refunds"]);
-              isRefundModalOpenRef.current = false;
-              AppModal.close();
-            }}
-            setSubmitRef={refundModalSubmitRef}
-            onFooterChange={(props) => setRefundModalFooterProps(props)}
-          />
-        ),
-        footer: <RefundModalFooter onClose={AppModal.close} submitRef={refundModalSubmitRef} isPending={false} />,
-        size: "small",
-        showCloseButton: true,
-      });
-    },
-    [invalidate]
-  );
+  const openRefundModal = React.useCallback((paymentToRefund: ResolvedPayment | null) => {
+    isRefundModalOpenRef.current = true;
+    setRefundModalFooterProps({ isPending: false });
+    AppModal.open({
+      title: "Create Refund",
+      description: "Process a refund for a transaction by providing the payment details.",
+      content: (
+        <RefundModalContent
+          payment={paymentToRefund}
+          initialPaymentId={paymentToRefund?.id}
+          onSuccess={() => {
+            isRefundModalOpenRef.current = false;
+            AppModal.close();
+          }}
+          setSubmitRef={refundModalSubmitRef}
+          onFooterChange={(props) => setRefundModalFooterProps(props)}
+        />
+      ),
+      footer: <RefundModalFooter onClose={AppModal.close} submitRef={refundModalSubmitRef} isPending={false} />,
+      size: "small",
+      showCloseButton: true,
+    });
+  }, []);
 
   const { data: payments, isLoading } = useOrgQuery(["payments"], () =>
     retrievePayments(undefined, undefined, undefined, {

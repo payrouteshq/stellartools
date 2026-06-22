@@ -273,6 +273,7 @@ export const products = pgTable("product", {
   unit: text("unit"),
   totalCredits: integer("total_credits"),
   unitsPerCredit: integer("units_per_credit"),
+  creditsExpiryDays: integer("credits_expiry_days"),
   environment: networkEnum("environment").notNull().default("testnet"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -354,7 +355,6 @@ export const payments = pgTable("payment", {
   customerId: text("customer_id").references(() => customers.id),
   subscriptionId: text("subscription_id").references(() => subscriptions.id),
   customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
-  creditBalanceId: text("credit_balance_id"),
   productId: text("product_id").references(() => products.id),
   amountCents: integer("amount_cents").notNull(),
   currencyCode: text("currency_code").notNull().default("USD"),
@@ -504,52 +504,38 @@ export const creditBalances = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id),
-    customerId: text("customer_id").references(() => customers.id),
-    productId: text("product_id").references(() => products.id),
+    customerId: text("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id),
+    paymentId: text("payment_id").references(() => payments.id),
     environment: networkEnum("network").notNull(),
-    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    granted: integer("granted").notNull().default(0),
-    consumed: integer("consumed").notNull().default(0),
-    balance: integer("balance").notNull().default(0),
+
+    // -- ON-CHAIN IDENTITY --
+    channelAddress: text("channel_address").unique(), // The C... address of the deployed channel
+    funderPublicKey: text("funder_public_key"), // The Customer's G... address
+    startLedger: integer("start_ledger"), // For fast history scanning
+
+    // -- SYSTEM-MANAGED KEYPAIR --
+    // Nullable: set immediately in the customer-managed flow, set after channel deploy in the platform-managed flow.
+    commitmentPublicKey: text("commitment_public_key"),
+    encryptedMeteringSecret: text("encrypted_metering_secret"),
+
+    // -- THE OFF-CHAIN VOUCHER --
+    // This is the "Latest Check" we haven't cashed yet.
+    latestCumulativeAmount: bigint("latest_cumulative_amount", { mode: "number" }).default(0),
+    latestSignature: text("latest_signature"), // Hex string of the signature
+
+    settledAt: timestamp("settled_at"), // Set when the balance is settled; null = active
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    isRevoked: boolean("is_revoked").default(false).notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   },
   (table) => ({
-    // One balance per customer per product
     uniqueCustomerProduct: unique().on(table.customerId, table.productId, table.environment),
-    balanceIndex: index("credit_balance_customer_idx").on(table.customerId, table.organizationId),
-  })
-);
-
-export const creditTransactionTypeEnum = pgEnum("credit_transaction_type", ["deduct", "refund", "grant"]);
-
-export const creditTransactions = pgTable(
-  "credit_transaction",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
-    customerId: text("customer_id").references(() => customers.id),
-    productId: text("product_id").references(() => products.id),
-    balanceId: text("balance_id")
-      .notNull()
-      .references(() => creditBalances.id),
-    environment: networkEnum("network").notNull(),
-    amount: integer("amount").notNull(),
-    balanceBefore: integer("balance_before").notNull(),
-    balanceAfter: integer("balance_after").notNull(),
-    reason: text("reason"),
-    type: creditTransactionTypeEnum("type").notNull(),
-    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    customerIdx: index("credit_tx_customer_idx").on(table.customerId, table.productId),
-    balanceIdx: index("credit_tx_balance_idx").on(table.balanceId),
-    createdAtIdx: index("credit_tx_created_at_idx").on(table.createdAt),
   })
 );
 
@@ -683,7 +669,6 @@ export type WebhookLog = InferSelectModel<typeof webhookLogs>;
 export type Network = (typeof networkEnum.enumValues)[number];
 export type Refund = InferSelectModel<typeof refunds>;
 export type CreditBalance = InferSelectModel<typeof creditBalances>;
-export type CreditTransaction = InferSelectModel<typeof creditTransactions>;
 export type Subscription = InferSelectModel<typeof subscriptions>;
 export type Auth = InferSelectModel<typeof auth>;
 export type PasswordReset = InferSelectModel<typeof passwordReset>;
@@ -704,12 +689,19 @@ export type ResolvedPayment = Payment & {
   refunds?: Refund | null;
   customer?: Customer | null;
   org?: Organization | null;
+  creditBalance?: CreditBalance | null;
 };
 
 export type ResolvedSubscription = Subscription & {
   customer?: Customer | null;
   product?: Product | null;
   customerWallet?: CustomerWallet | null;
+};
+
+export type ResolvedCreditBalance = CreditBalance & {
+  product?: Product | null;
+  payment?: Payment | null;
+  customer?: Customer | null;
 };
 
 export type { ProductStatus, ProductType };

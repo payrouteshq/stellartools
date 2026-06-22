@@ -1,4 +1,10 @@
-import { z as Schema, stringifyObjectFields } from "@stellartools/core";
+import {
+  z as Schema,
+  createRefundSchema,
+  createSubscriptionSchema,
+  stringifyObjectFields,
+  updateCustomerSchema,
+} from "@stellartools/core";
 import { GenericEndpointContext } from "better-auth";
 import { createAuthEndpoint, sessionMiddleware } from "better-auth/api";
 
@@ -58,12 +64,7 @@ export const updateCustomer = (options: BillingConfig) =>
     "/stellar/customer/update",
     {
       method: "POST",
-      body: Schema.object({
-        email: Schema.email().optional(),
-        name: Schema.string().optional(),
-        phone: Schema.string().optional(),
-        metadata: Schema.record(Schema.string(), Schema.string()).nullable().optional(),
-      }),
+      body: updateCustomerSchema,
       use: [sessionMiddleware],
     },
     async (ctx) => {
@@ -79,18 +80,13 @@ export const createSubscription = (options: BillingConfig) =>
     "/stellar/subscription/create",
     {
       method: "POST",
-      body: Schema.object({
-        product_id: Schema.string(),
-        metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
-        cancel_at_period_end: Schema.boolean(),
-        period: Schema.object({ from: Schema.coerce.date(), to: Schema.coerce.date() }),
-      }),
+      body: createSubscriptionSchema.omit({ customer_id: true }),
       use: [sessionMiddleware],
     },
     async (ctx) => {
       const customerId = await retrieveOrCreateCustomer(ctx);
       const { stellar } = getContext(ctx, options);
-      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_id: [customerId] });
+      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_id: customerId });
 
       options?.on_subscription_created?.(sub);
 
@@ -169,11 +165,7 @@ export const createRefund = (options: BillingConfig) =>
     "/stellar/refund/create",
     {
       method: "POST",
-      body: Schema.object({
-        payment_id: Schema.string(),
-        reason: Schema.string(),
-        metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
-      }),
+      body: createRefundSchema,
       use: [sessionMiddleware],
     },
     async (ctx) => {

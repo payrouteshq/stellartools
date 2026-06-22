@@ -5,7 +5,7 @@ import * as React from "react";
 import { retrieveCustomerWallets } from "@/actions/customers";
 import { ResolvedPayment } from "@/db";
 import { useAction } from "@/hooks/use-action";
-import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,21 +35,18 @@ type RefundFormData = z.infer<typeof refundSchema>;
 
 export function RefundModalContent({
   initialPaymentId,
-  onClose,
   onSuccess,
   setSubmitRef,
   onFooterChange,
   payment,
 }: {
   initialPaymentId?: string;
-  onClose: () => void;
   onSuccess: () => void;
   setSubmitRef?: React.MutableRefObject<(() => void) | null>;
   onFooterChange?: (props: { isPending: boolean }) => void;
   payment: ResolvedPayment | null;
 }) {
   const { data: orgContext } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
   const form = RHF.useForm<RefundFormData>({
     resolver: zodResolver(refundSchema),
     defaultValues: {
@@ -88,8 +85,11 @@ export function RefundModalContent({
       return result.value;
     },
     {
-      onSuccess: () => form.reset(),
-      invalidate: ["payments"],
+      onSuccess: () => {
+        form.reset();
+        onSuccess();
+      },
+      invalidate: [["payments"], ...(initialPaymentId ? ["payment", initialPaymentId] : []), ["refunds"]],
       successMsg: "Refund successful",
       errorMsg: "Failed to create refund",
     }
@@ -138,7 +138,7 @@ export function RefundModalContent({
                 label="Refund to wallet"
                 value={field.value ?? ""}
                 onChange={field.onChange}
-                items={customerWalletsList.map((w: { id: string; address: string }) => ({
+                items={customerWalletsList.map((w) => ({
                   value: w.address,
                   label: truncate(w.address, { start: 10, end: 10 }),
                 }))}

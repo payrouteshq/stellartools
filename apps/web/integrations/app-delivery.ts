@@ -3,9 +3,14 @@ import "server-only";
 import { postWebhookLog } from "@/actions/webhook";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
-import { WebhookSigner } from "@stellartools/core";
+import { Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
 
-export const deliverToApp = async (app: App, appInstallationId: string, envelope: any, webhookLogId: string) => {
+export const deliverToApp = async <TName extends string, TObject>(
+  app: App,
+  appInstallationId: string,
+  envelope: WebhookEventBase<TName, TObject> & { organizationId: string; environment: Network },
+  webhookLogId: string
+) => {
   const startTime = Date.now();
 
   const decryptedSecret = decrypt(app.appSecret);

@@ -1,6 +1,6 @@
-import { CreditBalance, z as Schema, StellarTools, schemaFor, validateSchema } from "@stellartools/core";
+import { z as Schema, StellarTools, schemaFor, validateSchema } from "@stellartools/core";
 
-import { BillingError, InsufficientCreditsError, InvalidProductTypeError } from "./errors";
+import { InsufficientCreditsError, InvalidProductTypeError } from "./errors";
 
 export interface MeteredPluginConfig {
   /**
@@ -14,11 +14,6 @@ export const meteredPluginConfigSchema = schemaFor<MeteredPluginConfig>()(
     api_key: Schema.string().min(1, "API key is required"),
   })
 );
-
-export interface ChargeMetadata {
-  operation?: string;
-  [key: string]: unknown;
-}
 
 export interface ChargeResult {
   /**
@@ -46,52 +41,29 @@ export interface MeteredPlugin {
   /**
    * Charge credits to customer
    */
-  charge(customerId: string, productId: string, amount: number, metadata?: ChargeMetadata): Promise<ChargeResult>;
+  charge(customerId: string, productId: string, amount: number): Promise<ChargeResult>;
 
   /**
-   * Refund credits to customer
-   */
-  refund(
-    customerId: string,
-    productId: string,
-    amount: number,
-    reason?: string,
-    metadata?: ChargeMetadata
-  ): Promise<ChargeResult>;
-
-  /**
-   * High-level: preflight → execute → charge (based on usage)
+   * @example
+   * import { createMeteredPlugin } from "@stellartools/plugin-sdk";
+   * import { ffmpeg } from "../lib/ffmpeg";
+   * const billing = createMeteredPlugin({ api_key: "your-api-key", productId: "your-product-id" });
+   *
+   * app.post("/transcode", async (req, res) => {
+   *   const { customerId, videoUrl, format } = req.body;
+   *   const result = await billing.meter(customerId, async () => {
+   *     const video = await ffmpeg.transcode(videoUrl, format);
+   *     return { url: video.outputUrl, durationSeconds: video.duration };
+   *   }, (result) => Math.ceil(result.durationSeconds)); // 1 credit per second
+   *   res.json({ url: result.url });
+   * });
    */
   meter<T>(
     customerId: string,
     productId: string,
     execute: () => Promise<T>,
-    getUsage: (result: T) => number,
-    metadata?: ChargeMetadata
+    getUsage: (result: T) => number
   ): Promise<T>;
-
-  /**
-   * High-level: preflight → execute → charge (fixed cost)
-   * @param customerId - The ID of the customer to charge
-   * @param cost - The cost to charge
-   * @param execute - The function to execute
-   * @param metadata - The metadata to charge
-   * @returns The result of the function
-   */
-  gate<T>(
-    customerId: string,
-    productId: string,
-    cost: number,
-    execute: () => Promise<T>,
-    metadata?: ChargeMetadata
-  ): Promise<T>;
-
-  /**
-   *  Get current balance for customer
-   *  @param customerId - The ID of the customer to get the balance for
-   *  @returns The current balance for the customer
-   */
-  getBalance(customerId: string): Promise<CreditBalance>;
 
   /**
    * Access to underlying StellarTools client for low-level access
@@ -109,136 +81,50 @@ export interface MeteredPlugin {
 
 export function createMeteredPlugin(config: MeteredPluginConfig): MeteredPlugin {
   const response = validateSchema(meteredPluginConfigSchema, config);
+  if (response.isErr()) throw new Error("Invalid Config");
 
-  if (response.isErr()) {
-    throw new BillingError(`Invalid config: ${response.error.message}`, "UNKNOWN");
-  }
-
-  const { api_key } = response.value;
-
-  const stellar = new StellarTools({ api_key });
+  const stellar = new StellarTools({ api_key: response.value.api_key });
 
   const preflight = async (customerId: string, productId: string): Promise<void> => {
-    try {
-      const product = await stellar.products.retrieve(productId);
-      if (product.type !== "metered") {
-        throw new InvalidProductTypeError(productId);
-      }
+    const product = await stellar.products.retrieve(productId);
 
-      const result = await stellar.credits.check(customerId, { product_id: productId, raw_amount: 1 });
+    if (product.type !== "metered") throw new InvalidProductTypeError(productId);
 
-      if (!result.isSufficient) {
-        throw new InsufficientCreditsError("Insufficient credits", 1, 0);
-      }
-    } catch (err) {
-      if (err instanceof InvalidProductTypeError) throw err;
-      if (err instanceof InsufficientCreditsError) throw err;
-      throw new BillingError(err instanceof Error ? err.message : "Preflight check failed", "UNKNOWN");
+    await stellar.credits.sync(customerId, productId);
+
+    const balance = await stellar.credits.getLeanBalance(customerId, productId);
+
+    if (balance.availableBalance <= 0) {
+      throw new InsufficientCreditsError("Insufficient credits", 1, 0);
     }
   };
 
-  const charge = async (
-    customerId: string,
-    productId: string,
-    amount: number,
-    metadata?: ChargeMetadata
-  ): Promise<ChargeResult> => {
+  // 2. CHARGE: Cryptographic Voucher Swap
+  const charge = async (customerId: string, productId: string, amount: number): Promise<ChargeResult> => {
     if (amount <= 0) return { balance: 0, charged: 0 };
 
-    try {
-      const result = await stellar.credits.consume(customerId, {
-        product_id: productId,
-        raw_amount: amount,
-        reason: "deduct",
-        metadata: { source: "Plugin SDK", ...metadata },
-      });
+    const result = await stellar.credits.consume(customerId, {
+      product_id: productId,
+      raw_amount: amount,
+    });
 
-      return { balance: result.balance, charged: amount, transaction_id: result.id };
-    } catch (err) {
-      throw new BillingError(err instanceof Error ? err.message : "Charge failed", "UNKNOWN");
-    }
-  };
-
-  const refund = async (
-    customerId: string,
-    productId: string,
-    amount: number,
-    reason?: string,
-    metadata?: ChargeMetadata
-  ): Promise<ChargeResult> => {
-    if (amount <= 0) return { balance: 0, charged: 0 };
-
-    try {
-      const result = await stellar.credits.refund(customerId, {
-        product_id: productId,
-        amount,
-        reason: reason ?? "refund",
-        metadata: { source: "Plugin SDK", ...metadata },
-      });
-
-      return { balance: result.balance, charged: -amount, transaction_id: result.id };
-    } catch (err) {
-      throw new BillingError(err instanceof Error ? err.message : "Refund failed", "UNKNOWN");
-    }
-  };
-
-  /**
-   * @example
-   * import { createMeteredPlugin } from "@stellartools/plugin-sdk";
-   * import { ffmpeg } from "../lib/ffmpeg";
-   * const billing = createMeteredPlugin({ api_key: "your-api-key", productId: "your-product-id" });
-   *
-   * app.post("/transcode", async (req, res) => {
-   *   const { customerId, videoUrl, format } = req.body;
-   *   const result = await billing.meter(customerId, async () => {
-   *     const video = await ffmpeg.transcode(videoUrl, format);
-   *     return { url: video.outputUrl, durationSeconds: video.duration };
-   *   }, (result) => Math.ceil(result.durationSeconds)); // 1 credit per second
-   *   res.json({ url: result.url });
-   * });
-   */
-  const meter = async <T>(
-    customerId: string,
-    productId: string,
-    execute: () => Promise<T>,
-    getUsage: (result: T) => number,
-    metadata?: ChargeMetadata
-  ): Promise<T> => {
-    await preflight(customerId, productId);
-    const result = await execute();
-    const usage = getUsage(result);
-    if (usage > 0) {
-      await charge(customerId, productId, usage, metadata);
-    }
-    return result;
-  };
-
-  const gate = async <T>(
-    customerId: string,
-    productId: string,
-    cost: number,
-    execute: () => Promise<T>,
-    metadata?: ChargeMetadata
-  ): Promise<T> => {
-    await preflight(customerId, productId);
-    const result = await execute();
-    if (cost > 0) {
-      await charge(customerId, productId, cost, metadata);
-    }
-    return result;
-  };
-
-  const getBalance = async (customerId: string): Promise<CreditBalance> => {
-    throw new BillingError("getBalance not yet implemented", "UNKNOWN");
+    return {
+      balance: result.remaining_balance,
+      charged: amount,
+      transaction_id: "off-chain-voucher",
+    };
   };
 
   return {
     preflight,
     charge,
-    refund,
-    meter,
-    gate,
-    getBalance,
+    meter: async (customerId, productId, execute, getUsage) => {
+      await preflight(customerId, productId);
+      const result = await execute();
+      const usage = getUsage(result);
+      await charge(customerId, productId, usage);
+      return result;
+    },
     client: stellar,
     config: Object.freeze({ ...config }),
   };

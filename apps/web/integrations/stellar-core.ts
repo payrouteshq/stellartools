@@ -3,11 +3,19 @@ import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
 
+const getRpcUrl = (network: Network) =>
+  network === "testnet" ? process.env.NEXT_PUBLIC_RPC_URL_TESTNET! : process.env.NEXT_PUBLIC_RPC_URL_MAINNET!;
+
+const getFactoryAddress = (network: Network) =>
+  network === "testnet" ? process.env.CHANNEL_FACTORY_TESTNET! : process.env.CHANNEL_FACTORY_MAINNET!;
+
 export const getStellarConfig = (network: Network) => {
   const isTestnet = network === "testnet";
+
   const horizonUrl = isTestnet
     ? process.env.NEXT_PUBLIC_STELLAR_HORIZON_TESTNET!
     : process.env.NEXT_PUBLIC_STELLAR_HORIZON_MAINNET!;
+
   return {
     passphrase: isTestnet ? StellarSDK.Networks.TESTNET : StellarSDK.Networks.PUBLIC,
     server: new StellarSDK.Horizon.Server(horizonUrl),
@@ -307,4 +315,111 @@ export function parseError(
   }
 
   return new ContractError(ContractErrorType.UnknownError);
+}
+
+export type DeployChannelParams = {
+  /** Secret key of the account signing + paying for the deployment (org keypair). */
+  signerSecret: string;
+  /** Ed25519 public key (G...) used to sign usage commitments. */
+  commitmentPubkey: string;
+  /** Wallet address of the funder (org wallet — already received customer USDC at checkout). */
+  funderPublicKey: string;
+  /** Wallet address of the recipient (org wallet — receives USDC on channel close). */
+  recipientPublicKey: string;
+  /** SEP-41 token contract address (USDC SAC C...). */
+  tokenContract: string;
+  /** Deposit amount in base units (stroops). 1 USDC = 10_000_000. */
+  depositAmountStroops: bigint;
+  /**
+   * Safety window in ledgers after close_start before funder can self-refund.
+   * 17280 ledgers ≈ 1 day at 5s/ledger. Must be long enough for the platform
+   * to call close() and settle before the customer self-refunds.
+   */
+  refundWaitingPeriodLedgers?: number;
+  network: Network;
+};
+
+/**
+ * Deploys a new one-way payment channel instance via the factory contract.
+ *
+ * Calls `factory.open(salt, token, from, commitment_key, to, amount, refund_waiting_period)`.
+ * The factory deploys a fresh channel contract and returns its address.
+ *
+ * One factory → many per-customer channel instances. The factory address is
+ * set via CHANNEL_FACTORY_TESTNET / CHANNEL_FACTORY_MAINNET env vars.
+ *
+ * @returns The deployed channel contract address (C...).
+ */
+export async function deployChannelInstance(params: DeployChannelParams): Promise<string> {
+  const {
+    signerSecret,
+    commitmentPubkey,
+    funderPublicKey,
+    recipientPublicKey,
+    tokenContract,
+    depositAmountStroops,
+    refundWaitingPeriodLedgers = 17280,
+    network,
+  } = params;
+
+  const factoryAddress = getFactoryAddress(network);
+  if (!factoryAddress) throw new AppError("Channel factory address not configured for " + network);
+
+  const { passphrase } = getStellarConfig(network);
+  const rpcServer = new StellarSDK.rpc.Server(getRpcUrl(network));
+  const signerKeypair = StellarSDK.Keypair.fromSecret(signerSecret);
+  const account = await rpcServer.getAccount(signerKeypair.publicKey());
+
+  // Decode G... commitment pubkey → raw 32-byte BytesN<32> for the contract
+  const commitmentKeyBytes = StellarSDK.StrKey.decodeEd25519PublicKey(commitmentPubkey);
+
+  // Random 32-byte salt → deterministic per-customer channel address
+  const salt = StellarSDK.hash(Buffer.concat([Buffer.from(funderPublicKey), Buffer.from(Date.now().toString())]));
+
+  const factory = new StellarSDK.Contract(factoryAddress);
+  const openOp = factory.call(
+    "open",
+    StellarSDK.nativeToScVal(Buffer.from(salt), { type: "bytes" }), // salt
+    StellarSDK.nativeToScVal(tokenContract, { type: "address" }), // token
+    StellarSDK.nativeToScVal(funderPublicKey, { type: "address" }), // from
+    StellarSDK.nativeToScVal(Buffer.from(commitmentKeyBytes), { type: "bytes" }), // commitment_key
+    StellarSDK.nativeToScVal(recipientPublicKey, { type: "address" }), // to
+    StellarSDK.nativeToScVal(depositAmountStroops, { type: "i128" }), // amount
+    StellarSDK.nativeToScVal(refundWaitingPeriodLedgers, { type: "u32" }) // refund_waiting_period
+  );
+
+  const tx = new StellarSDK.TransactionBuilder(
+    new StellarSDK.Account(signerKeypair.publicKey(), account.sequenceNumber()),
+    { fee: StellarSDK.BASE_FEE, networkPassphrase: passphrase }
+  )
+    .addOperation(openOp)
+    .setTimeout(180)
+    .build();
+
+  const simResult = await rpcServer.simulateTransaction(tx);
+  if (!StellarSDK.rpc.Api.isSimulationSuccess(simResult)) {
+    throw new AppError(
+      `Channel deploy simulation failed: ${JSON.stringify((simResult as StellarSDK.rpc.Api.SimulateTransactionErrorResponse).error)}`
+    );
+  }
+
+  const prepared = StellarSDK.rpc.assembleTransaction(tx, simResult).build();
+  prepared.sign(signerKeypair);
+
+  const sendResult = await rpcServer.sendTransaction(prepared);
+  if (sendResult.status === "ERROR") throw new AppError("Channel deploy broadcast failed");
+
+  // Poll for ledger confirmation
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const txResult = await rpcServer.getTransaction(sendResult.hash);
+    if (txResult.status === "SUCCESS") {
+      const channelAddress = txResult.returnValue?.address().toString();
+      if (!channelAddress) throw new AppError("Factory returned no channel address");
+      return channelAddress;
+    }
+    if (txResult.status === "FAILED") throw new AppError("Channel deploy transaction failed");
+  }
+
+  throw new AppError("Channel deploy timed out waiting for confirmation");
 }

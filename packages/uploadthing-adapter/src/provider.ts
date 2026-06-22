@@ -71,6 +71,7 @@ export class MeteredUploadthing {
           };
         });
       },
+      //todo: @odii figure out where to call charge because we no longer have refund API, so maybe listen for the lifecycle for upload complete
 
       onUploadError: (fn?: (opts: any) => Promise<void> | void) => {
         return builder.onUploadError(async (opts) => {

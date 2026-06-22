@@ -27,6 +27,10 @@
             "pages": ["index"]
           },
           {
+            "group": "Concepts",
+            "pages": ["products"]
+          },
+          {
             "group": "Integrations",
             "pages": [
               {

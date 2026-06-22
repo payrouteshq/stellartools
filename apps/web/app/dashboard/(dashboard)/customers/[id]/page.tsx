@@ -215,11 +215,7 @@ export default function CustomerDetailPage() {
           <RefundModalContent
             payment={paymentToRefund}
             initialPaymentId={paymentToRefund?.id}
-            onClose={AppModal.close}
-            onSuccess={() => {
-              invalidate(["payments", customerId]);
-              AppModal.close();
-            }}
+            onSuccess={() => AppModal.close()}
             setSubmitRef={refundModalSubmitRef}
             onFooterChange={(props) => setRefundModalFooterProps((prev) => ({ ...prev, ...props }))}
           />
@@ -601,7 +597,6 @@ function CheckoutModalContent({
   onFooterChange?: (props: { isPending: boolean; createdUrl: string | null }) => void;
 }) {
   const { data: orgContext } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
   const [createdUrl, setCreatedUrl] = React.useState<string | null>(null);
   const { copied, handleCopy } = useCopy();
 

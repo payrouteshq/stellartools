@@ -412,13 +412,13 @@ export async function getCustomerPortalData(token: string) {
 
       db
         .select({
-          balance: creditBalancesSchema.balance,
-          consumed: creditBalancesSchema.consumed,
-          granted: creditBalancesSchema.granted,
+          latestCumulativeAmount: creditBalancesSchema.latestCumulativeAmount,
+          channelAddress: creditBalancesSchema.channelAddress,
           productId: creditBalancesSchema.productId,
           productName: productsSchema.name,
           productUnit: productsSchema.unit,
           totalCredits: productsSchema.totalCredits,
+          priceCents: productsSchema.priceCents,
         })
         .from(creditBalancesSchema)
         .leftJoin(productsSchema, eq(creditBalancesSchema.productId, productsSchema.id))

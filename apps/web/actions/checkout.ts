@@ -151,6 +151,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
         currencyCode: products.currencyCode,
         name: products.name,
         recurringPeriod: products.recurringPeriod,
+        customDurationMs: products.customDurationMs,
         images: products.images,
         totalCredits: products.totalCredits,
         unitsPerCredit: products.unitsPerCredit,
@@ -210,6 +211,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     productTotalCredits: product?.totalCredits,
     payoutAssetCode: payoutAssetCode ?? "USDC",
     payoutAssetIssuer: payoutAssetIssuer ?? null,
+    customDurationMs: product?.customDurationMs,
   };
 };
 
