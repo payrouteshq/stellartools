@@ -115,7 +115,6 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
         failureReason: reason,
         metadata: null,
         subscriptionId: null,
-        creditBalanceId: null,
       },
       checkout?.organizationId,
       checkout?.environment,

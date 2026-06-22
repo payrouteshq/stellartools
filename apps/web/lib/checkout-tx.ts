@@ -138,7 +138,14 @@ export async function prepareSubscriptionApproval(
       }
     }
 
-    const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+    let durationDays: number = 0;
+
+    if (checkout.recurringPeriod == "custom") {
+      durationDays = checkout.customDurationMs ? Math.round(checkout.customDurationMs / 864e5) : 0;
+    } else {
+      durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+    }
+
     const periodStart = new Date();
     const periodEnd = new Date(Date.now() + durationDays * 864e5);
 
@@ -197,7 +204,14 @@ export async function finalizeSubscriptionCheckout(
   }
 
   const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
-  const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+
+  let durationDays: number = 0;
+
+  if (checkout.recurringPeriod == "custom") {
+    durationDays = checkout.customDurationMs ? Math.round(checkout.customDurationMs / 864e5) : 0;
+  } else {
+    durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+  }
 
   const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);
   if (approvalResult.isErr()) {
@@ -257,7 +271,6 @@ export async function finalizeSubscriptionCheckout(
         status: "confirmed",
         metadata: null,
         subscriptionId,
-        creditBalanceId: null,
         failureReason: null,
       },
       organizationId,

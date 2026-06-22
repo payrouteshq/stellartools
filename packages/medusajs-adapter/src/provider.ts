@@ -20,12 +20,12 @@ import {
 } from "@medusajs/framework/types";
 import { AbstractPaymentProvider, MedusaError, PaymentActions, PaymentSessionStatus } from "@medusajs/framework/utils";
 import {
-  CurrencyCode,
   Payment,
   Result,
   z as Schema,
   StellarTools,
   WebhookEventType,
+  currencyCodeSchema,
   stringifyObjectFields,
   validateSchema,
 } from "@stellartools/core";
@@ -83,14 +83,20 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
     return this.unwrap(
       (
         await Result.andThenAsync(
-          validateSchema(Schema.object({ amount: Schema.number(), currency_code: Schema.string() }), {
-            amount,
-            currency_code,
-          }),
+          validateSchema(
+            Schema.object({
+              amount: Schema.number(),
+              currency_code: currencyCodeSchema,
+            }),
+            {
+              amount,
+              currency_code,
+            }
+          ),
           async (valid) => {
             const checkout = await this.stellar.checkouts.createDirect({
               amount_cents: Number(valid.amount),
-              currency_code: valid.currency_code as CurrencyCode,
+              currency_code: valid.currency_code,
               customer_id: context?.customer?.id as string,
               redirect_url: data?.redirectUrl as string,
               metadata: data?.metadata as any,

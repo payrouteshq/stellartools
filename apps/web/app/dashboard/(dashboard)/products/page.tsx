@@ -273,6 +273,7 @@ function ProductsPageContent() {
             unit: product.unit ?? null,
             unitsPerCredit: product.unitsPerCredit ?? null,
             totalCredits: product.totalCredits ?? null,
+            creditsExpiryDays: product.creditsExpiryDays ?? null,
             recurringPeriod: product.recurringPeriod ?? null,
             customDurationMs: product.customDurationMs ?? null,
           };

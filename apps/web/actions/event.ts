@@ -7,7 +7,7 @@ import { Event, Network, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
-import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk/schema";
+import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-embed-bridge";
 import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { SQL, and, desc, eq, inArray } from "drizzle-orm";
@@ -46,13 +46,11 @@ export async function withEvent<T>(
       // 2. DISCOVER INSTALLED APPS (Plugins)
       // Logic: If an action emits "customer::created", find apps with "read:customers" scope.
       const primaryEvent = Array.isArray(eventConfigs) ? eventConfigs[0] : eventConfigs;
-
       const resource = primaryEvent
         ? (Object.keys(APP_CONFIG) as AppResource[]).find((key) =>
             (APP_CONFIG[key].events as readonly string[]).includes(primaryEvent.type)
           )
         : undefined;
-
       const requiredScope = resource ? (`read:${resource}` as const) : null;
 
       const installedApps = requiredScope
@@ -83,12 +81,13 @@ export async function withEvent<T>(
           const targets = subscribers.filter((s) => s.events.includes(trigger.event));
           if (targets.length === 0) return;
 
-          const envelope: WebhookEventBase<any, any> = {
+          // todo: make many envelopes for each target
+          const envelope: WebhookEventBase<string, any> = {
             id: webhookLogId!,
             type: trigger.event,
             created: new Date().toISOString(),
             livemode: env === "mainnet",
-            data: trigger.map(result),
+            data: { object: trigger.map(result) },
           };
 
           deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], webhookLogId!));
@@ -105,21 +104,22 @@ export async function withEvent<T>(
       // B. Plugin/App Webhooks (Partner servers)
       if (installedApps.length > 0) {
         installedApps.forEach(({ app, app_installation }) => {
-          triggers.forEach((trigger) => {
-            const logId = generateResourceId("wh_evt", orgId, 52);
+          const envelope: WebhookEventBase<any, any> = {
+            id: webhookLogId!,
+            type: primaryEvent!.type,
+            created: new Date().toISOString(),
+            livemode: env === "mainnet",
+            data: { object: primaryEvent!.map(result) },
+          };
 
-            const event: WebhookEventBase<any, any> = {
-              id: logId,
-              type: trigger.event,
-              created: new Date().toISOString(),
-              livemode: env === "mainnet",
-              data: trigger.map(result),
-            };
-
-            deliveries.push(
-              deliverToApp(app, app_installation.id, event, logId, app_installation.settings, orgId, env)
-            );
-          });
+          deliveries.push(
+            deliverToApp(
+              app,
+              app_installation.id,
+              { ...envelope, organizationId: orgId, environment: env },
+              webhookLogId!
+            )
+          );
         });
       }
 

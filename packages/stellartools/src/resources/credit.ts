@@ -2,77 +2,45 @@ import { Result } from "better-result";
 import { z } from "zod";
 
 import { ApiClient } from "../api-client";
-import {
-  CheckCreditsParams,
-  ConsumeCreditParams,
-  CreditBalance,
-  CreditTransaction,
-  CreditTransactionHistoryParams,
-  CreditTransactionParams,
-  checkCreditSchema,
-  consumeCreditSchema,
-  creditTransactionHistorySchema,
-  creditTransactionSchema,
-} from "../schema/credits";
+import { ConsumeCreditParams, consumeCreditSchema } from "../schema/credits";
 import { unwrap, validateSchema } from "../utils";
 
 export class CreditApi {
   constructor(private apiClient: ApiClient) {}
 
-  async refund(customerId: string, params: CreditTransactionParams) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(creditTransactionSchema, params), async (data) => {
-        return await this.apiClient.post<CreditBalance>(
-          `/customers/${customerId}/credits/${data.product_id}/transaction`,
-          data
-        );
-      })
-    );
+  /**
+   * THE CRACKED SYNC
+   * Tells the ApiClient to fetch the Managed Secret and initialize the
+   * off-chain signature engine.
+   */
+  async sync(customerId: string, productId: string) {
+    return await this.apiClient.setupMeteredSession(customerId, productId);
   }
 
-  async getTransactions(customerId: string, options?: CreditTransactionHistoryParams) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(creditTransactionHistorySchema, options), async (data) => {
-        return await this.apiClient.get<Array<CreditTransaction>>(
-          `/customers/${customerId}/credits/transactions`,
-          data
-        );
-      })
-    );
-  }
-
-  async getTransaction(transactionId: string, customerId: string) {
-    return unwrap(
-      await Result.andThenAsync(
-        validateSchema(z.object({ transactionId: z.string(), customerId: z.string() }), { transactionId, customerId }),
-        async (data) => {
-          return await this.apiClient.get<CreditTransaction>(
-            `/customers/${data.customerId}/credits/transactions/${data.transactionId}`
-          );
-        }
-      )
-    );
-  }
-
-  async check(customerId: string, params: CheckCreditsParams) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(checkCreditSchema, params), async (data) => {
-        return await this.apiClient.post<{ isSufficient: boolean }>(
-          `/customers/${customerId}/credits/${data.product_id}/transaction`,
-          { amount: data.raw_amount, dryRun: true, type: "refund" }
-        );
-      })
-    );
-  }
-
+  /**
+   * THE CRACKED CONSUME
+   * Hits the API. If a channel exists, the API returns 402.
+   * The ApiClient (Ky hook) catches the 402, signs the voucher, and retries.
+   */
   async consume(customerId: string, params: ConsumeCreditParams) {
     return unwrap(
       await Result.andThenAsync(validateSchema(consumeCreditSchema, params), async (data) => {
-        return await this.apiClient.post<CreditBalance>(
-          `/customers/${customerId}/credits/${data.product_id}/transaction`,
-          { ...data, type: "deduct", dryRun: false }
-        );
+        // This endpoint is the "Bartender". It issues the 402 challenge.
+        return await this.apiClient.post<{
+          success: boolean;
+          remaining_balance: number;
+        }>(`/customers/${customerId}/credits/${data.product_id}/consume`, {
+          amount: data.raw_amount,
+        });
       })
     );
+  }
+
+  /**
+   * PREFLIGHT CHECK
+   * Derives the hard truth from the chain vs the unsettled vouchers.
+   */
+  async getLeanBalance(customerId: string, productId: string) {
+    return unwrap(await this.apiClient.get<any>(`/customers/${customerId}/credits/${productId}/lean-balance`));
   }
 }

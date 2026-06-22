@@ -11,7 +11,6 @@ import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
-import { all } from "better-all";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -21,26 +20,23 @@ export const POST = apiHandler({
   mcp: { name: "create_refund", description: "Create a refund" },
   handler: async ({ body: rawBody, auth: { organizationId, environment } }) => {
     const { paymentId: payment_id, reason, metadata, walletAddress: wallet_address } = toCamelCase<any>(rawBody);
-    const { payment, secret } = await all({
-      payment: async () => {
-        const {
-          data: [p],
-        } = await retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true });
 
-        if (!p) throw new AppError("Payment not found");
-
-        if (!p.wallets?.address && !wallet_address) {
-          throw new AppError("Customer wallet address not found, please provide a wallet address in the request body");
-        }
-
-        return p;
+    const [
+      {
+        data: [payment],
       },
-      secret: async () => {
-        const { secret: s } = await retrieveOrganizationIdAndSecret(organizationId, environment);
-        if (!s) throw new AppError("Merchant keys not configured, please contact support");
-        return s;
-      },
-    });
+      { secret },
+    ] = await Promise.all([
+      retrievePayments(
+        organizationId,
+        environment,
+        { paymentId: payment_id },
+        { withWallets: true, withCreditBalance: true }
+      ),
+      retrieveOrganizationIdAndSecret(organizationId, environment),
+    ]);
+
+    if (!secret) throw new AppError("Merchant keys not configured, please contact support");
 
     const refundId = generateResourceId("rf", payment_id, 15);
     const secretKey = decrypt(secret.encrypted);
@@ -81,8 +77,8 @@ export const POST = apiHandler({
     );
 
     const runSidedEffects = async () => {
-      if (payment.creditBalanceId) {
-        await putCreditBalance(payment.creditBalanceId, { isRevoked: true });
+      if (payment.creditBalance?.id) {
+        await putCreditBalance(payment.creditBalance.id, { settledAt: new Date() }, organizationId, environment);
       }
 
       if (payment.subscriptionId && payment.customerId) {

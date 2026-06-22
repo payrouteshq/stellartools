@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
   Button,
+  type FileRejection,
   FileUpload,
   type FileWithPreview,
   type PhoneNumber,
@@ -27,7 +28,6 @@ import { getCurrency as getCurrencyFromLocale$AcceptHeaders } from "locale-curre
 import { Building2, ChevronRight, Plus } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { FileRejection } from "react-dropzone";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
 

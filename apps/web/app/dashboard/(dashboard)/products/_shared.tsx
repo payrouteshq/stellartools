@@ -50,6 +50,7 @@ export interface ProductEsque extends Pick<
   | "unit"
   | "unitsPerCredit"
   | "totalCredits"
+  | "creditsExpiryDays"
 > {}
 
 const productSchema = z.object({
@@ -69,6 +70,7 @@ const productSchema = z.object({
   unit: z.string().optional(),
   totalCredits: z.number().min(0).optional(),
   unitsPerCredit: z.number().min(1).optional(),
+  creditsExpiryDays: z.number().int().min(1).optional(),
   metadata: z
     .array(
       z.object({
@@ -137,6 +139,7 @@ export function ProductsModalContent({
       pricing: initialDraft?.pricing ?? { amount: editDisplayAmount, option: editCurrency },
       totalCredits: initialDraft?.totalCredits ?? 0,
       unitsPerCredit: initialDraft?.unitsPerCredit ?? 1,
+      creditsExpiryDays: initialDraft?.creditsExpiryDays ?? undefined,
       metadata: editingProduct?.metadata
         ? Object.entries(editingProduct.metadata).map(([key, value]) => ({ key, value: String(value) }))
         : (initialDraft?.metadata ?? []),
@@ -176,6 +179,7 @@ export function ProductsModalContent({
         unit: editingProduct.unit ?? "",
         totalCredits: Number(editingProduct.totalCredits ?? 0),
         unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
+        creditsExpiryDays: editingProduct.creditsExpiryDays ?? undefined,
         metadata: metadataArray,
       });
       if (editingProduct.customDurationMs) {
@@ -191,6 +195,7 @@ export function ProductsModalContent({
         type: "one_time",
         recurringPeriod: "month",
         customDurationMs: undefined,
+        creditsExpiryDays: undefined,
         pricing: { amount: "", option: orgCurrency },
         metadata: [],
       });
@@ -248,6 +253,7 @@ export function ProductsModalContent({
           unit: data.unit,
           total_credits: data.totalCredits,
           units_per_credit: data.unitsPerCredit,
+          credits_expiry_days: data.creditsExpiryDays ?? null,
         });
 
         if (response.isErr()) throw new AppError(response.error.message);
@@ -267,6 +273,7 @@ export function ProductsModalContent({
         unit: data.unit,
         total_credits: data.totalCredits,
         units_per_credit: data.unitsPerCredit,
+        credits_expiry_days: data.creditsExpiryDays ?? null,
         metadata: metadataRecord,
         status: "active",
       });
@@ -490,6 +497,14 @@ export function ProductsModalContent({
                 />
               )}
             />
+            <a
+              href={`${process.env.NEXT_PUBLIC_DOCS_URL}/products`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+            >
+              Learn more about products
+            </a>
 
             {watched.type === "metered" && (
               <div className="animate-in fade-in slide-in-from-top-1 space-y-4 rounded-lg border p-4">
@@ -652,6 +667,28 @@ export function ProductsModalContent({
                     triggerClassName="h-9 w-28"
                     disabled={isEditMode}
                   />
+                </div>
+              )}
+
+              {watched.type === "metered" && (
+                <div className="animate-in fade-in slide-in-from-top-1 relative ml-3 flex items-center gap-2 pl-5">
+                  <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
+                  <span className="text-muted-foreground shrink-0 text-sm font-medium">Expires after</span>
+                  <RHF.Controller
+                    control={form.control}
+                    name="creditsExpiryDays"
+                    render={({ field, fieldState: { error } }) => (
+                      <NumberField
+                        id="credits-expiry-days"
+                        value={field.value?.toString() ?? ""}
+                        onChange={(v) => field.onChange(v ? Number(v) : undefined)}
+                        placeholder="e.g. 30"
+                        className="w-24"
+                        error={error?.message}
+                      />
+                    )}
+                  />
+                  <span className="text-muted-foreground shrink-0 text-sm font-medium">days</span>
                 </div>
               )}
             </div>

@@ -4,8 +4,8 @@ import { resolveAuthContext } from "@/actions/apikey";
 import { getCorsHeaders } from "@/constant";
 import { processResource } from "@/lib/api-registry";
 import { AuthContext } from "@/types";
-import { AppScope } from "@stellartools/app-sdk/schema";
-import { Result, z as Schema, validateSchema } from "@stellartools/core";
+import { AppScope } from "@stellartools/app-embed-bridge";
+import { MaybePromise, Result, z as Schema, validateSchema } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -46,7 +46,7 @@ export type HandlerConfig<TBody, TParams, TQuery> = {
     auth: AuthContext;
     req: NextRequest;
     sessionToken?: string | null;
-  }) => Promise<Result<any, Error>>;
+  }) => MaybePromise<Result<any, Error> | Response>;
   headers?: Record<string, string>;
   convertToSnakeCase?: boolean;
 };
@@ -127,12 +127,13 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         query = v.value;
       }
 
-      let result: Result<any, Error>;
-
       if (authResult) {
         const sessionToken = req.headers.get("x-session-token");
+        const result = await config.handler({ body, params, query, auth: authResult, req, sessionToken });
 
-        result = await config.handler({ body, params, query, auth: authResult, req, sessionToken });
+        if (result instanceof Response) {
+          return result;
+        }
 
         if (result.isErr()) {
           return NextResponse.json({ error: result.error.message }, { status: 400, headers: corsHeaders });

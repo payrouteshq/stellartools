@@ -204,13 +204,7 @@ export default function TransactionDetailPage() {
         <RefundModalContent
           payment={payment}
           initialPaymentId={paymentId}
-          onClose={() => {
-            isRefundModalOpenRef.current = false;
-            AppModal.close();
-          }}
           onSuccess={() => {
-            invalidateOrgQuery(["payment", paymentId]);
-            invalidateOrgQuery(["payments"]);
             isRefundModalOpenRef.current = false;
             AppModal.close();
           }}
@@ -222,7 +216,7 @@ export default function TransactionDetailPage() {
       size: "small",
       showCloseButton: true,
     });
-  }, [paymentId, invalidateOrgQuery]);
+  }, [paymentId]);
 
   const { data, isLoading, refetch } = useOrgQuery(
     ["payment", paymentId],

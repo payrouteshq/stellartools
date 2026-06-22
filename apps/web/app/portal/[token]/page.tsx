@@ -415,8 +415,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function CreditMeter({ credit }: { credit: Credit }) {
-  const total = credit.totalCredits ?? BigInt(0);
-  const pct = total > 0 ? Math.min((Number(credit.consumed) / Number(total)) * 100, 100) : 0;
+  const total = credit.totalCredits ?? 0;
+  const priceCents = credit.priceCents ?? 0;
+  // Convert on-chain stroops back to approximate credits consumed.
+  const pricePerCreditInStroops = total > 0 && priceCents > 0 ? (priceCents * 100_000) / total : 0;
+  const consumed = pricePerCreditInStroops > 0
+    ? Math.round((credit.latestCumulativeAmount ?? 0) / pricePerCreditInStroops)
+    : 0;
+  const remaining = Math.max(total - consumed, 0);
+  const pct = total > 0 ? Math.min((consumed / total) * 100, 100) : 0;
   const unit = credit.productUnit ?? "credits";
 
   return (
@@ -424,7 +431,7 @@ function CreditMeter({ credit }: { credit: Credit }) {
       <div className="flex items-center justify-between">
         <p className="text-foreground text-sm font-medium">{credit.productName ?? "Usage"}</p>
         <p className="text-muted-foreground text-xs">
-          {credit.consumed.toLocaleString()} / {total.toLocaleString()} {unit}
+          {consumed.toLocaleString()} / {total.toLocaleString()} {unit}
         </p>
       </div>
       <Slider
@@ -436,7 +443,7 @@ function CreditMeter({ credit }: { credit: Credit }) {
         showKnobs={false}
       />
       <p className="text-muted-foreground text-xs">
-        {credit.balance.toLocaleString()} {unit} remaining
+        {remaining.toLocaleString()} {unit} remaining
       </p>
     </div>
   );
