@@ -692,12 +692,12 @@ export type OrganizationSecret = InferSelectModel<typeof organizationSecrets>;
 export type Payout = InferSelectModel<typeof payouts>;
 export type Event = InferSelectModel<typeof events>;
 export type CustomerPortalSession = InferSelectModel<typeof customerPortalSessions>;
-export type { ProductStatus, ProductType };
 export type App = InferSelectModel<typeof apps>;
 export type AppInstallation = InferSelectModel<typeof appInstallations>;
 export type AppLog = InferSelectModel<typeof appLogs>;
 
 export type ResolvedCustomer = Customer & { wallets?: Array<CustomerWallet> };
+
 export type ResolvedPayment = Payment & {
   refunded: boolean;
   wallets?: CustomerWallet | null;
@@ -705,3 +705,11 @@ export type ResolvedPayment = Payment & {
   customer?: Customer | null;
   org?: Organization | null;
 };
+
+export type ResolvedSubscription = Subscription & {
+  customer?: Customer | null;
+  product?: Product | null;
+  customerWallet?: CustomerWallet | null;
+};
+
+export type { ProductStatus, ProductType };

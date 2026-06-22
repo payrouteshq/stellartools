@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  Payment infrastructure built on the Stellar blockchain.
+  An OSS payment infrastructure built on the Stellar blockchain, by <a href="https://payroutes.sh">Payroutes</a>.
 </p>
 
 <p align="center">
@@ -13,11 +13,15 @@
   <a href="DEVELOPMENT.md">Development</a>
 </p>
 
+<p align="center">
+  <a href="https://vercel.com/open-source-program"><img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge-2026.svg"/></a>
+</p>
+
 ---
 
 ## What is Stellar Tools?
 
-Stellar Tools is an open-source payment platform that lets developers accept and manage payments using the Stellar network. It handles subscriptions, checkouts, webhooks, customer management, and payouts, with smart contract support via Soroban.
+Stellar Tools is an OSS payment platform that lets developers accept and manage payments using the Stellar network. It gives merchants and developers Stripe like primitives such as customer managements, subscriptions via Soroban contracts, checkouts, webhooks, and payouts in both fiat and crypto
 
 - Accept payments in Stellar-native assets
 - Manage subscriptions with metered billing via Soroban smart contracts
@@ -93,7 +97,7 @@ All reports will be promptly addressed, and you'll be credited accordingly.
 
 ## Maintained by
 
-[Emmanuel Odii](https://github.com/devodii)
+[Payroutes](https://payroutes.sh)
 
 ## License
 

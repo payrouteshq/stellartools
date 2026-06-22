@@ -1,8 +1,7 @@
-import { retrieveCustomerWallets } from "@/actions/customers";
 import { runAtomic } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
 import { retrieveProducts } from "@/actions/product";
-import { putSubscription, retrieveSubscription } from "@/actions/subscription";
+import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import { Subscription } from "@/db";
 import {
   cancelSubscription as cancelSorobanSubscription,
@@ -12,7 +11,6 @@ import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { computeDiff, toCamelCase, toSnakeCase } from "@/lib/utils";
 import { Result, z as Schema, updateSubscriptionSchema } from "@stellartools/core";
-import { all } from "better-all";
 import _ from "lodash";
 
 export const OPTIONS = createOptionsHandler();
@@ -22,18 +20,16 @@ export const GET = apiHandler({
   requiredAppScope: "read:subscriptions",
   schema: { params: Schema.object({ id: Schema.string() }) },
   handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
-    const { subscription, customerWallet } = await all({
-      subscription: async () => retrieveSubscription(id, organizationId, environment).then((res) => res.data[0]),
-      async customerWallet() {
-        const subscription = await this.$.subscription;
-        return await retrieveCustomerWallets(
-          subscription.customerId,
-          { id: subscription.customerWalletId },
-          organizationId,
-          environment
-        ).then(([w]) => w ?? null);
-      },
-    });
+    const {
+      data: [subscription],
+    } = await retrieveSubscriptions(
+      organizationId,
+      environment,
+      { subscriptionId: id },
+      { withCustomer: true, withProduct: true, withCustomerWallets: true }
+    );
+
+    const customerWallet = subscription?.customerWallet;
 
     if (!customerWallet?.address) {
       return Result.err(new AppError("Customer wallet not found"));
@@ -99,19 +95,16 @@ export const PUT = apiHandler({
   schema: { body: updateSubscriptionSchema, params: Schema.object({ id: Schema.string() }) },
   handler: async ({ body, params: { id }, auth: { organizationId, environment } }) => {
     const { metadata, cancelAtPeriodEnd, productId } = toCamelCase<any>(body);
+    const {
+      data: [subscription],
+    } = await retrieveSubscriptions(
+      organizationId,
+      environment,
+      { subscriptionId: id },
+      { withCustomer: true, withProduct: true, withCustomerWallets: true }
+    );
 
-    const { subscription, customerWallet } = await all({
-      subscription: async () => retrieveSubscription(id, organizationId, environment).then((res) => res.data[0]),
-      async customerWallet() {
-        const subscription = await this.$.subscription;
-        return await retrieveCustomerWallets(
-          subscription.customerId,
-          { id: subscription.customerWalletId },
-          organizationId,
-          environment
-        ).then(([w]) => w ?? null);
-      },
-    });
+    const customerWallet = subscription?.customerWallet;
 
     if (!customerWallet?.address) return Result.err(new AppError("Customer wallet not found"));
 

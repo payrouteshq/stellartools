@@ -71,12 +71,12 @@ export default function SubscriptionDetailPage() {
   const { data: allSubs, isLoading } = useOrgQuery(["subscriptions"], async () =>
     retrieveSubscriptions(undefined, undefined, undefined).then((res) => res.data)
   );
-  const sub = React.useMemo(() => allSubs?.find((s) => s.subscription.id === id), [allSubs, id]);
+  const sub = React.useMemo(() => allSubs?.find((s) => s.id === id), [allSubs, id]);
 
   const { data: subEvents, isLoading: loadingEvents } = useOrgQuery(
-    ["subscription-events", sub?.subscription.customerId],
+    ["subscription-events", sub?.customerId],
     () =>
-      retrieveEvents({ customerId: sub!.subscription.customerId }, [
+      retrieveEvents({ customerId: sub!.customerId }, [
         "subscription::created",
         "subscription::updated",
         "subscription::canceled",
@@ -87,13 +87,13 @@ export default function SubscriptionDetailPage() {
 
   const { data: payments = [], isLoading: loadingPayments } = useOrgQuery(
     ["subscription-payments", id],
-    () => retrievePayments(undefined, undefined, { customerId: sub!.subscription.customerId }).then((res) => res.data),
+    () => retrievePayments(undefined, undefined, { customerId: sub!.customerId }).then((res) => res.data),
     { enabled: !!sub }
   );
 
   const subscriptionPayments = React.useMemo(() => payments.filter((p) => p.subscriptionId === id), [payments, id]);
 
-  const isEditMode = !!sub?.subscription.id;
+  const isEditMode = !!sub?.id;
 
   const { mutate: updateSubscription } = useAction(
     async ({ path, method = "POST" }: { path: string; method?: "POST" | "PUT" }) => {
@@ -124,11 +124,11 @@ export default function SubscriptionDetailPage() {
       content: (
         <SubscriptionModalContent
           editingSubscription={{
-            ...sub.subscription,
-            customerName: sub.customer.name,
-            customerEmail: sub.customer.email,
-            productName: sub.product.name,
-            productPrice: sub.product.priceCents,
+            ...sub,
+            customerName: sub.customer?.name,
+            customerEmail: sub.customer?.email,
+            productName: sub.product?.name,
+            productPrice: sub.product?.priceCents,
           }}
           onSuccess={() => AppModal.close()}
           setSubmitRef={submitRef}
@@ -150,7 +150,9 @@ export default function SubscriptionDetailPage() {
 
   if (!sub) return <NotFound router={router} />;
 
-  const { subscription: s, customer: c, product: p } = sub;
+  const s = sub;
+  const c = sub.customer;
+  const p = sub.product;
 
   return (
     <DashboardSidebar>
@@ -173,16 +175,16 @@ export default function SubscriptionDetailPage() {
           <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{c.name ?? c.email}</h1>
+                <h1 className="text-2xl font-bold">{c?.name ?? c?.email}</h1>
                 <span className="text-muted-foreground text-sm">on</span>
-                <span className="text-lg font-semibold">{p.name}</span>
+                <span className="text-lg font-semibold">{p?.name}</span>
                 <StatusBadge status={s.status} />
               </div>
               <div className="text-muted-foreground mt-1 flex items-center gap-4 text-sm">
                 <span>Started {formatDate(s.currentPeriodStart)}</span>
                 <span>&middot;</span>
                 <span>
-                  Next billing {Money.formatFiat(p.priceCents)} on {formatDate(s.currentPeriodEnd)}
+                  Next billing {Money.formatFiat(p?.priceCents ?? 0)} on {formatDate(s.currentPeriodEnd)}
                 </span>
                 {s.cancelAtPeriodEnd && (
                   <>
@@ -239,12 +241,12 @@ export default function SubscriptionDetailPage() {
                   </div>
                   <div className="grid grid-cols-4 gap-4 px-4 py-3">
                     <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-muted-foreground text-xs">{Money.formatFiat(p.priceCents)} / mo</div>
+                      <div className="font-medium">{p?.name}</div>
+                      <div className="text-muted-foreground text-xs">{Money.formatFiat(p?.priceCents ?? 0)} / mo</div>
                     </div>
-                    <div className="text-sm">{Money.formatFiat(p.priceCents)}</div>
+                    <div className="text-sm">{Money.formatFiat(p?.priceCents ?? 0)}</div>
                     <div className="text-right text-sm">1</div>
-                    <div className="text-right font-medium">{Money.formatFiat(p.priceCents)} / mo</div>
+                    <div className="text-right font-medium">{Money.formatFiat(p?.priceCents ?? 0)} / mo</div>
                   </div>
                 </div>
               </section>
@@ -283,7 +285,7 @@ export default function SubscriptionDetailPage() {
                               {p.status === "confirmed" ? "Paid" : p.status}
                             </Badge>
                           </div>
-                          <div className="text-muted-foreground truncate text-xs">{c.email}</div>
+                          <div className="text-muted-foreground truncate text-xs">{c?.email}</div>
                           <div className="text-muted-foreground text-xs">
                             {moment(p.createdAt).format("D MMM, HH:mm")}
                           </div>
@@ -335,7 +337,7 @@ export default function SubscriptionDetailPage() {
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Details</h3>
                 <div className="bg-card space-y-4 rounded-lg border p-5">
-                  <DetailRow label="Customer" value={c.name ?? c.email} href={`/customers/${s.customerId}`} />
+                  <DetailRow label="Customer" value={c?.name ?? c?.email ?? "—"} href={`/customers/${s.customerId}`} />
                   <Separator />
                   <DetailRow label="Created" value={formatDateTime(s.createdAt)} />
                   <Separator />
