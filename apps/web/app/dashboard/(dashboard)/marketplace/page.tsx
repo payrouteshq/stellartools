@@ -1,13 +1,14 @@
+import { retrieveApps } from "@/actions/app";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { Badge, Card, CardContent } from "@stellartools/shared-ui";
-import { ArrowUpRight, ChevronRight, Construction } from "lucide-react";
+import { ArrowUpRight, Building2, ChevronRight, Construction } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { MARKETPLACE_APPS } from "./marketplace-apps";
+export default async function MarketplacePage() {
+  const apps = await retrieveApps();
 
-export default function MarketplacePage() {
   return (
     <DashboardSidebar>
       <DashboardSidebarInset>
@@ -40,21 +41,27 @@ export default function MarketplacePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {MARKETPLACE_APPS.map((app) => (
+            {apps.map((app) => (
               <Link key={app.id} href={`/marketplace/${app.id}`} className="group block">
                 <Card className="border-border/80 hover:border-primary/30 h-full shadow-none transition-colors">
                   <CardContent className="flex flex-col gap-4 p-5">
                     <div className="flex items-start gap-3">
-                      <div className="bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border">
-                        <Image
-                          src={app.iconUrl}
-                          alt=""
-                          width={56}
-                          height={56}
-                          className="h-full w-full object-cover"
-                          unoptimized
-                        />
-                      </div>
+                      {app?.iconUrl ? (
+                        <div className="bg-muted relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border">
+                          <Image
+                            src={app.iconUrl}
+                            alt={app.name}
+                            width={56}
+                            height={56}
+                            className="h-full w-full object-cover"
+                            unoptimized
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-foreground/5 border-border flex size-14 items-center justify-center rounded-lg border">
+                          <Building2 className="size-6" />
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-start justify-between gap-2">
                           <h2 className="group-hover:text-primary leading-snug font-semibold tracking-tight">
@@ -67,9 +74,9 @@ export default function MarketplacePage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="w-fit font-normal">
-                        {app.category}
+                        {app.publisher}
                       </Badge>
-                      {app.status === "coming-soon" && (
+                      {app.status === "coming_soon" && (
                         <Badge variant="outline" className="text-muted-foreground w-fit font-normal">
                           Coming soon
                         </Badge>

@@ -1,6 +1,6 @@
 import { Network } from "@/constant/schema.client";
 import { computeDiff } from "@/lib/utils";
-import { EventType } from "@stellartools/app-embed-bridge";
+import { AppScope, EventType } from "@stellartools/app-sdk";
 import { MaybeArray, WebhookEventType, WebhookObject } from "@stellartools/core";
 
 export type EventDataDiff = { $changes?: ReturnType<typeof computeDiff> };
@@ -44,8 +44,8 @@ export type AuthContext = {
   environment: Network;
   type: "session" | "apikey" | "portal" | "app";
   appId?: string; // Only present if type === "app"
-  installationId?: string;
-  scopes?: string[];
+  installationId?: string; // Only present if type === "app"
+  scopes?: AppScope[];
   apiKeyId?: string; // Only present if type === "apikey"
 };
 

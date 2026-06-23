@@ -1,24 +1,28 @@
 "use client";
 
-import { ConnectStep } from "@/app/components/connect-step";
-import { OverviewStep } from "@/app/components/overview-step";
-import { ResendAppProvider, useResendApp } from "@/app/context/resend-app-context";
+import { Suspense, useEffect } from "react";
 
-function ResendApp() {
-  const { step, error } = useResendApp();
+import { useStellarToolsContext } from "@stellartools/app-sdk";
+import { useRouter, useSearchParams } from "next/navigation";
 
-  return (
-    <div className="bg-background min-h-screen px-5 pb-8">
-      {error && <p className="text-destructive border-destructive/20 mt-4 border px-3 py-2 text-sm">{error}</p>}
-      {step === "connect" ? <ConnectStep /> : <OverviewStep />}
-    </div>
-  );
-}
+const AppRouter = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { settings } = useStellarToolsContext();
+
+  useEffect(() => {
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    router.replace(settings?.resendApiKey ? `/dashboard${qs}` : `/authentication${qs}`);
+  }, [settings, router, searchParams]);
+
+  return null;
+};
 
 export default function Page() {
   return (
-    <ResendAppProvider>
-      <ResendApp />
-    </ResendAppProvider>
+    <Suspense>
+      <AppRouter />
+    </Suspense>
   );
 }
+

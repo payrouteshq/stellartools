@@ -3,25 +3,17 @@ import "server-only";
 import { postWebhookLog } from "@/actions/webhook";
 import { Webhook as WebhookSchema } from "@/db/schema";
 import { AppError } from "@/lib/action-handler";
-import { ApiClient, WebhookEvent, WebhookEventType, WebhookSigner } from "@stellartools/core";
+import { ApiClient, WebhookEventBase, WebhookEventType, WebhookSigner } from "@stellartools/core";
 
-export const deliverWebhook = async (
+export const deliverWebhook = async <TName extends string, TObject>(
   webhook: WebhookSchema,
   eventType: WebhookEventType,
-  payload: WebhookEvent,
+  payload: WebhookEventBase<TName, TObject>,
   logId: string
 ) => {
   const startTime = Date.now();
 
-  const webhookPayload = {
-    id: logId,
-    object: "event",
-    type: eventType,
-    created: Math.floor(Date.now() / 1000),
-    data: payload,
-  };
-
-  const signature = new WebhookSigner().generateSignature(JSON.stringify(webhookPayload), webhook.secret);
+  const signature = new WebhookSigner().generateSignature(JSON.stringify(payload), webhook.secret);
 
   const url = new URL(webhook.url);
 
@@ -37,7 +29,7 @@ export const deliverWebhook = async (
 
   const result = await client.postDetailed<Record<string, unknown>>(
     url.pathname.slice(1) || "",
-    JSON.stringify(webhookPayload)
+    JSON.stringify(payload)
   );
 
   const duration = Date.now() - startTime;
@@ -62,7 +54,7 @@ export const deliverWebhook = async (
     {
       id: logId,
       eventType,
-      request: webhookPayload,
+      request: payload,
       statusCode,
       errorMessage,
       responseTime: duration,

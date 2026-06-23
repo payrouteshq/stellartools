@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import * as React from "react";
 
 import { createPortal } from "react-dom";
 
-import { generateAppToken } from "@/actions/app";
-import { PluginFrame } from "@/components/plugin-frame";
-import { usePlugins } from "@/hooks/use-plugin";
-import { Button, Separator } from "@stellartools/shared-ui";
+import { generateAppToken, retrieveInstalledApps } from "@/actions/app";
+import { useCookieState } from "@/hooks/use-cookie-state";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { Button, Separator, Spinner } from "@stellartools/shared-ui";
 import { cn, useMounted } from "@stellartools/shared-ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, XIcon } from "lucide-react";
 import Image from "next/image";
@@ -17,14 +18,69 @@ import { useRouter } from "next/navigation";
 export function PluginLauncher() {
   const router = useRouter();
   const isMounted = useMounted();
-  const { activePlugin, isOpen, selectApp, setIsOpen, installations } = usePlugins();
-  const [appToken, setAppToken] = useState<string | undefined>(undefined);
+  const { data: org } = useOrgContext();
+  const { data: installations, isLoading: isLoadingInstalledApps } = useOrgQuery(["installed-apps"], async () => {
+    const installations = await retrieveInstalledApps({ status: "active" }, org?.id, org?.environment);
+    return installations.map((p) => ({
+      installation: p.app_installation,
+      app: p.app,
+    }));
+  });
 
-  useEffect(() => {
+  const queryClient = useQueryClient();
+
+  const [period] = useCookieState("dashboard_period", "30");
+  const [activeAppId, setActiveAppId] = useCookieState<string | null>("active_plugin_id", null);
+  const [isOpen, setIsOpen] = useCookieState<boolean>("plugin_sidebar_open", false);
+
+  const activePlugin = React.useMemo(() => {
+    if (!activeAppId) return installations?.[0] || null;
+    return installations?.find((i) => i.app.id === activeAppId) || installations?.[0] || null;
+  }, [installations, activeAppId]);
+
+  const [appToken, setAppToken] = React.useState<string | null>(null);
+
+  const handleSelectApp = React.useCallback(
+    (id: string) => {
+      setActiveAppId(id);
+      setIsOpen(true);
+    },
+    [setActiveAppId, setIsOpen]
+  );
+
+  React.useEffect(() => {
     if (!activePlugin?.installation.id) return;
-    setAppToken(undefined);
-    generateAppToken(activePlugin.installation.id).then((token) => setAppToken(token ?? undefined));
-  }, [activePlugin?.installation.id]);
+    setAppToken(null);
+    generateAppToken(activePlugin.installation.id, {
+      periodDays: Number(period),
+      currency: org?.selectedCurrency ?? "USD",
+      theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+    }).then((token) => setAppToken(token));
+  }, [activePlugin?.installation.id, org?.selectedCurrency, period]);
+
+  const src = React.useMemo(() => {
+    if (!activePlugin?.app.baseUrl) throw new Error("App base URL not found");
+    const url = new URL(activePlugin.app.baseUrl);
+    if (appToken) url.searchParams.set("st_token", appToken);
+    return url.toString();
+  }, [activePlugin?.app.baseUrl, appToken]);
+
+  React.useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (!activePlugin?.app.baseUrl) return;
+
+      if (new URL(activePlugin.app.baseUrl).origin !== event.origin) return;
+
+      if (event.data.type === "stellar:data-changed") {
+        // Refresh EVERYTHING in the dashboard.
+        // Tables, stats, and headers will update to reflect the App's changes.
+        queryClient.invalidateQueries();
+      }
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [activePlugin?.app.baseUrl, queryClient]);
 
   if (process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER === "false") return null;
 
@@ -32,18 +88,19 @@ export function PluginLauncher() {
     <>
       <Separator
         orientation="vertical"
-        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-[110] h-full"
+        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-110 h-full"
       />
 
-      <div className="fixed top-1/2 -right-3 z-[120] flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
+      <div className="fixed top-1/2 -right-3 z-120 flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
+        {isLoadingInstalledApps && <Spinner size={24} />}
         <div className="flex flex-col items-end gap-2.5">
-          {installations.map((installation) => {
+          {installations?.map((installation) => {
             const isActive = activePlugin?.app.id === installation.app.id && isOpen;
 
             return (
               <Button
                 key={installation.app.id}
-                onClick={() => (isActive ? setIsOpen(false) : selectApp(installation.app.id))}
+                onClick={() => (isActive ? setIsOpen(false) : handleSelectApp(installation.app.id))}
                 title={installation.app.name}
                 className={cn(
                   "border-border bg-background relative size-8 cursor-pointer overflow-hidden rounded-none border p-0 shadow-sm transition-shadow hover:shadow-md",
@@ -81,7 +138,7 @@ export function PluginLauncher() {
             animate={{ x: 0 }}
             exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="bg-background border-border/80 fixed inset-y-0 right-12 z-[100] flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
+            className="bg-background border-border/80 fixed inset-y-0 right-12 z-100 flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
             role="complementary"
             aria-label={activePlugin?.app.name ?? "Installed app"}
           >
@@ -122,13 +179,11 @@ export function PluginLauncher() {
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {activePlugin?.app?.baseUrl ? (
-                <PluginFrame
-                  appBaseUrl={activePlugin.app.baseUrl}
-                  installationId={activePlugin.installation.id}
-                  appToken={appToken}
-                  scopes={activePlugin.installation.scopes}
-                  title={activePlugin.app.name}
-                  className="bg-background w-full border-none"
+                <iframe
+                  src={src}
+                  className="w-full border-none transition-all duration-200"
+                  style={{ height: `100%` }}
+                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin bg-background w-full border-none"
                 />
               ) : (
                 <div className="bg-muted/60 m-4 h-48 animate-pulse rounded-md border border-dashed" />

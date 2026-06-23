@@ -1,23 +1,23 @@
 import jwt from "jsonwebtoken";
 
-const ISSUER = "STELLARTOOLS";
-
-/**
- * Sign a JWT with your app secret. Use this in your BFF routes to authenticate
- * server-to-server requests to the StellarTools API.
- *
- * Required env vars: STELLARTOOLS_APP_SECRET
- */
-export const signJwt = (payload: object, expiresIn: Parameters<typeof jwt.sign>[2]["expiresIn"]) => {
-  return jwt.sign(payload, process.env.STELLARTOOLS_APP_SECRET!, { expiresIn, issuer: ISSUER });
+export const signJwt = (
+  payload: string | object | Buffer<ArrayBufferLike>,
+  expiresIn: Parameters<typeof jwt.sign>[2]["expiresIn"],
+  secretKey: string,
+  issuer: string,
+  audience?: string
+) => {
+  return jwt.sign(payload, secretKey, {
+    expiresIn,
+    issuer,
+    ...(audience ? { audience } : {}),
+  });
 };
 
-/**
- * Verify and decode an appToken signed by the StellarTools platform.
- * Use this in BFF routes to extract the verified installation context.
- *
- * Required env vars: STELLARTOOLS_APP_SECRET
- */
-export const verifyJwt = <T>(token: string): T => {
-  return jwt.verify(token, process.env.STELLARTOOLS_APP_SECRET!, { issuer: ISSUER }) as T;
+export const verifyJwt = <T>(token: string, secretKey: string, issuer: string, audience?: string): T => {
+  return jwt.verify(token, secretKey, { issuer, ...(audience ? { audience } : {}) }) as T;
+};
+
+export const decodeJwt = <T>(token: string): T | null => {
+  return jwt.decode(token) as T | null;
 };

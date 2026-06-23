@@ -3,10 +3,12 @@
 import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
 import { ApiKey, Network, apiKeys, apps, db, organizations } from "@/db";
-import { decodeJwt, verifyJwt } from "@/integrations/jwt";
+import { decrypt } from "@/integrations/encryption";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, patchJSON } from "@/lib/utils";
 import { AuthContext } from "@/types";
+import { AppContext } from "@stellartools/app-sdk";
+import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stellartools/core";
 import { and, eq } from "drizzle-orm";
 
 export const postApiKey = safeAction(
@@ -98,7 +100,12 @@ export const resolveAuthContext = async (params: {
 
   // 2. Session Degree (Merchant Dashboard)
   if (sessionToken) {
-    const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(sessionToken);
+    const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(
+      sessionToken,
+      process.env.JWT_SECRET!,
+      process.env.JWT_ISSUER!,
+      process.env.JWT_AUDIENCE!
+    );
     const [row] = await db
       .select({ id: organizations.id })
       .from(organizations)
@@ -112,25 +119,25 @@ export const resolveAuthContext = async (params: {
 
   // 3. App Degree (Third-party Plugin/Embedded App)
   if (appToken) {
+    const rawToken = appToken.replace(APP_TOKEN_PREFIX, "");
+
     // Decode first (without verifying) to extract appId, then look up the app's secret and verify.
-    const decoded = decodeJwt<{ appId?: string }>(appToken);
+    const decoded = decodeJwt<AppContext>(rawToken);
+
     if (!decoded?.appId) throw new AppError("Invalid app token");
 
     const [app] = await db.select().from(apps).where(eq(apps.id, decoded.appId)).limit(1);
+
     if (!app) throw new AppError("Invalid app token");
 
-    const payload = verifyJwt<{ appId: string; orgId: string; instId: string; scopes: string[]; env: Network }>(
-      appToken,
-      app.appSecret,
-      "STELLARTOOLS"
-    );
+    const payload = verifyJwt<AppContext>(rawToken, decrypt(app.appSecret), STELLARTOOLS_ID);
 
     return {
       organizationId: payload.orgId,
       environment: payload.env,
-      appId: payload.appId,
+      appId: app.id,
       installationId: payload.instId,
-      scopes: payload.scopes,
+      scopes: app.manifest.scopes,
       type: "app",
     };
   }

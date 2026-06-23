@@ -9,13 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@stellartools/app-embed-bridge": "workspace:*",
+    "@hookform/resolvers": "^5.4.0",
+    "@stellartools/app-sdk": "workspace:*",
     "@stellartools/core": "workspace:*",
     "@stellartools/shared-ui": "workspace:*",
     "next": "16.2.9",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "resend": "^6.9.2"
+    "react-hook-form": "^7.77.0",
+    "resend": "^6.9.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

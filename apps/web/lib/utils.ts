@@ -25,11 +25,6 @@ export const truncate = (
   return `${prefix}${separator}${suffix}`;
 };
 
-export const parseJSON = <T>(str: string, schema: z.ZodSchema<T>): T => {
-  const parsed = JSON.parse(str);
-  return schema.parse(parsed);
-};
-
 const safeStringify = (v: unknown) => JSON.stringify(v, (_, val) => (typeof val === "bigint" ? val.toString() : val));
 
 export function computeDiff<T extends Record<string, any>>(

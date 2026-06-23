@@ -7,8 +7,9 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { type AppManifest, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-embed-bridge";
+import { type AppManifest, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk";
 import {
+  AppInstallationSettingValue,
   ProductStatus,
   ProductType,
   SubscriptionData,
@@ -610,22 +611,34 @@ export const customerPortalSessions = pgTable(
   })
 );
 
-export const apps = pgTable("app", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug").unique().notNull(), // "first-promoter", "resend"
-  baseUrl: text("base_url").notNull(), // https://app.firstpromoter.com/st-bridge
-  appSecret: text("app_secret").notNull(), // Used to sign App Tokens and Webhooks
-  webhookUrl: text("webhook_url"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  publisher: text("publisher").notNull(),
-  featuresMarkdown: text("features_markdown").notNull(),
-  price: text("price"),
-  tagline: text("tagline").notNull(),
-  websiteUrl: text("website_url"),
-  supportEmail: text("support_email"),
-  manifest: jsonb("manifest").$type<AppManifest>(),
-});
+export const appStatusEnum = pgEnum("app_status", ["available", "coming_soon"]);
+
+export type AppStatus = (typeof appStatusEnum.enumValues)[number];
+
+export const apps = pgTable(
+  "app",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").unique().notNull(), // "first-promoter", "resend"
+    baseUrl: text("base_url").notNull(), // https://app.firstpromoter.com/st-bridge
+    appSecret: text("app_secret").notNull(), // Used to sign App Tokens and Webhooks
+    webhookUrl: text("webhook_url"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    publisher: text("publisher").notNull(),
+    featuresMarkdown: text("features_markdown").notNull(),
+    price: text("price"),
+    tagline: text("tagline").notNull(),
+    websiteUrl: text("website_url"),
+    supportEmail: text("support_email"),
+    manifest: jsonb("manifest").$type<AppManifest>().notNull(),
+    status: appStatusEnum("status").default("coming_soon"),
+    iconUrl: text("icon_url"),
+  },
+  (table) => ({
+    slugIdx: index("app_slug_idx").on(table.slug),
+  })
+);
 
 export const appInstallationStatusEnum = pgEnum("app_installation_status", ["active", "suspended"]);
 
@@ -644,8 +657,8 @@ export const appInstallations = pgTable(
     environment: networkEnum("network").notNull(),
 
     // Settings specific to this integration (e.g. { "apiKey": "fp_123" })
-    settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
-    scopes: text("scopes").array().$type<string[]>().notNull(),
+    settings: jsonb("settings").$type<Record<string, AppInstallationSettingValue>>().default({}),
+    scopes: text("scopes").array().$type<AppScope[]>().notNull(),
     status: appInstallationStatusEnum("status").notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

@@ -1,51 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 
-import { installMarketplaceApp } from "@/actions/app";
-import { useInvalidateOrgQuery } from "@/hooks/use-org-query";
-import { usePlugins } from "@/hooks/use-plugin";
+import { installMarketplaceApp, retrieveInstalledApps } from "@/actions/app";
+import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { capture } from "@/lib/posthog";
 import { Button, toast } from "@stellartools/shared-ui";
 import { useRouter } from "next/navigation";
 
 export function InstallAppButton({
   appName,
-  appId,
+  appSlug,
   appCategory,
 }: {
   appName: string;
-  appId: string;
-  appCategory: string;
+  appSlug: string;
+  appCategory?: string;
 }) {
   const router = useRouter();
   const invalidate = useInvalidateOrgQuery();
-  const { installations, selectApp } = usePlugins();
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = React.useState(false);
 
-  const installedApp = installations.find((installation) => installation.app.slug === appId);
+  const { data: org } = useOrgContext();
+  const { data: installations } = useOrgQuery(["installed-apps"], async () => {
+    const installations = await retrieveInstalledApps({ status: "active" }, org?.id, org?.environment);
+    return installations.map((p) => ({
+      installation: p.app_installation,
+      app: p.app,
+    }));
+  });
+
+  const installedApp = installations?.find((installation) => installation.app.slug === appSlug);
 
   const handleClick = async () => {
     if (installedApp) {
-      selectApp(installedApp.app.id);
-      router.push("/");
+      router.push(`/?app_path=${installedApp.app.slug}`);
       return;
     }
 
     setPending(true);
 
     try {
-      const result = await installMarketplaceApp(appId);
+      const result = await installMarketplaceApp(appSlug);
 
       capture("marketplace_app_installed", {
-        app_id: appId,
+        app_slug: appSlug,
         app_name: appName,
         app_category: appCategory,
         already_installed: result.alreadyInstalled,
       });
 
       await invalidate(["installed-apps"]);
-      selectApp(result.app.id);
+
       router.push("/");
 
       toast.success(result.alreadyInstalled ? `${appName} is already installed` : `${appName} installed successfully`);

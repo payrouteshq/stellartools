@@ -1,4 +1,4 @@
-import { verifyJwt } from "@stellartools/core";
+import { STELLARTOOLS_ID, verifyJwt } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
@@ -21,9 +21,10 @@ export async function GET(req: NextRequest) {
   const appToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
   if (!appToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const appSecret = "SECRET";
   let payload: AppTokenPayload;
   try {
-    payload = verifyJwt<AppTokenPayload>(appToken);
+    payload = verifyJwt<AppTokenPayload>(appToken, appSecret, STELLARTOOLS_ID);
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
   //TODO add a feature to the list to filter by tag
   const { data: list } = await resend.emails.list({
     limit: 100,
-  } );
+  });
 
   const now = Date.now();
   const terminal = list?.data.filter((e) => TERMINAL.has(e.last_event));

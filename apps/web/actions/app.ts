@@ -1,53 +1,90 @@
 "use server";
 
-import { getMarketplaceApp } from "@/app/dashboard/(dashboard)/marketplace/marketplace-apps";
-import { App, AppInstallation, AppInstallationStatus, Network, appInstallations, apps, db } from "@/db";
-import { signJwt } from "@/integrations/jwt";
+import { resolveOrgContext } from "@/actions/organization";
+import { App, AppInstallation, AppInstallationStatus, AppStatus, Network, appInstallations, apps, db } from "@/db";
+import { decrypt, encrypt } from "@/integrations/encryption";
+import { patchJSON } from "@/lib/utils";
+import { AppContext, AppScope } from "@stellartools/app-sdk";
+import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, signJwt } from "@stellartools/core";
 import { SQL, and, arrayContains, eq, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import { resolveOrgContext } from "./organization";
+export const generateAppToken = async (
+  installationId: string,
+  uiContext: { periodDays: number; currency: string; theme: "light" | "dark" }
+): Promise<string | null> => {
+  const { organizationId, environment } = await resolveOrgContext();
 
-export const generateAppToken = async (installationId: string): Promise<string | null> => {
+  if (!organizationId || !environment) return null;
+
   const [row] = await db
     .select({
       id: appInstallations.id,
       appId: appInstallations.appId,
-      organizationId: appInstallations.organizationId,
-      environment: appInstallations.environment,
+      orgId: appInstallations.organizationId,
+      env: appInstallations.environment,
       scopes: appInstallations.scopes,
       settings: appInstallations.settings,
       appSecret: apps.appSecret,
     })
     .from(appInstallations)
     .innerJoin(apps, eq(appInstallations.appId, apps.id))
-    .where(eq(appInstallations.id, installationId))
+    .where(
+      and(
+        eq(appInstallations.id, installationId),
+        eq(appInstallations.organizationId, organizationId),
+        eq(appInstallations.environment, environment)
+      )
+    )
     .limit(1);
 
   if (!row) return null;
 
-  return signJwt(
-    {
-      appId: row.appId,
-      orgId: row.organizationId,
-      instId: row.id,
-      scopes: row.scopes,
-      env: row.environment,
-      settings: row.settings ?? {},
+  const context: AppContext = {
+    orgId: row.orgId,
+    env: row.env,
+    instId: row.id,
+    appId: row.appId,
+    scopes: row.scopes,
+    settings: (row.settings as Record<string, any>) ?? {},
+    ui: {
+      periodDays: uiContext.periodDays,
+      currency: uiContext.currency,
+      theme: uiContext.theme,
     },
-    "1h",
-    row.appSecret,
-    "STELLARTOOLS"
-  );
+  };
+
+  const token = signJwt(context, "1h", decrypt(row.appSecret), STELLARTOOLS_ID);
+
+  return `${APP_TOKEN_PREFIX}${token}`;
 };
 
-export const postApp = async (params: Partial<App>) => {
-  const [app] = await db
-    .insert(apps)
-    .values(params as App)
-    .returning();
+export const postApp = async (params: Omit<App, "id" | "createdAt">) => {
+  const encryptedSecret = encrypt(params.appSecret);
 
-  return app;
+  return await db
+    .insert(apps)
+    .values({ ...params, appSecret: encryptedSecret } as App)
+    .returning()
+    .then(([app]) => app);
+};
+
+export const retrieveApps = async (filters?: { id?: string; slug?: string; status?: AppStatus }) => {
+  let whereClause: SQL[] = [];
+
+  if (filters?.id) {
+    whereClause.push(eq(apps.id, filters.id));
+  } else if (filters?.slug) {
+    whereClause.push(eq(apps.slug, filters.slug));
+  } else if (filters?.status) {
+    whereClause.push(eq(apps.status, filters.status));
+  }
+
+  return await db
+    .select()
+    .from(apps)
+    .where(and(...whereClause))
+    .limit(1);
 };
 
 export const postAppInstallation = async (params: Partial<AppInstallation>) => {
@@ -65,7 +102,7 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
 };
 
 export const retrieveInstalledApps = async (
-  params?: { scopes?: string[]; status?: AppInstallationStatus },
+  params?: { scopes?: AppScope[]; status?: AppInstallationStatus },
   orgId?: string,
   env?: Network
 ) => {
@@ -94,7 +131,7 @@ export const retrieveInstalledApps = async (
 
 export const updateAppInstallation = async (
   id: string,
-  patch: Record<string, unknown>,
+  patch: Partial<AppInstallation>,
   orgId?: string,
   env?: Network
 ) => {
@@ -108,27 +145,38 @@ export const updateAppInstallation = async (
 
   if (!row) throw new Error("Installation not found");
 
+  const { settings: settingsPatch, ...baseUpdate } = patch;
+
   const [updated] = await db
     .update(appInstallations)
-    .set({ settings: { ...((row.settings as Record<string, unknown>) ?? {}), ...patch } })
+    .set({
+      ...baseUpdate,
+      ...(settingsPatch !== undefined
+        ? { settings: patchJSON(row.settings as Record<string, any>, settingsPatch) }
+        : {}),
+      updatedAt: new Date(),
+    })
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
     .returning();
 
-  return updated.settings as Record<string, unknown>;
+  return updated;
 };
 
-export const installMarketplaceApp = async (marketplaceId: string) => {
-  const marketplaceApp = getMarketplaceApp(marketplaceId);
-  if (!marketplaceApp || marketplaceApp.status !== "available") {
-    throw new Error("This app is not available to install yet.");
-  }
+export const deleteAppInstallation = async (id: string, orgId?: string, env?: Network) => {
+  const { organizationId } = await resolveOrgContext(orgId, env);
+  await db
+    .delete(appInstallations)
+    .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)));
+};
+
+export const installMarketplaceApp = async (appSlug: string) => {
+  const [app] = await retrieveApps({ slug: appSlug });
 
   const { organizationId, environment } = await resolveOrgContext();
 
-  const [app] = await db.select().from(apps).where(eq(apps.slug, marketplaceId)).limit(1);
   if (!app) throw new Error("App not found");
 
-  const scopes = (app.manifest?.scopes ?? []) as string[];
+  const scopes = app.manifest.scopes;
 
   const { installation, alreadyInstalled } = await postAppInstallation({
     appId: app.id,

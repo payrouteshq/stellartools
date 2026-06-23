@@ -3,12 +3,11 @@
 import { retrieveInstalledApps } from "@/actions/app";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrieveWebhooks, triggerWebhooks } from "@/actions/webhook";
-import { Event, Network, customers, db, events, rawDb, txContext } from "@/db";
+import { Event, Network, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
-import { getResourceForEvent } from "@/lib/app-utils";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
-import { EventType } from "@stellartools/app-embed-bridge";
+import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk";
 import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { SQL, and, desc, eq, inArray } from "drizzle-orm";
@@ -47,13 +46,18 @@ export async function withEvent<T>(
       // 2. DISCOVER INSTALLED APPS (Plugins)
       // Logic: If an action emits "customer::created", find apps with "read:customers" scope.
       const primaryEvent = Array.isArray(eventConfigs) ? eventConfigs[0] : eventConfigs;
-      const resource = primaryEvent ? getResourceForEvent(primaryEvent.type) : undefined;
+
+      const resource = primaryEvent
+        ? (Object.keys(APP_CONFIG) as AppResource[]).find((key) =>
+            (APP_CONFIG[key].events as readonly string[]).includes(primaryEvent.type)
+          )
+        : undefined;
+
       const requiredScope = resource ? (`read:${resource}` as const) : null;
 
       const installedApps = requiredScope
         ? await retrieveInstalledApps({ status: "active", scopes: [requiredScope] }, orgId, env)
         : [];
-
 
       const webhookLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
 
@@ -86,7 +90,8 @@ export async function withEvent<T>(
             livemode: env === "mainnet",
             data: trigger.map(result),
           };
-          deliveries.push(triggerWebhooks(targets, trigger.event, envelope, webhookLogId!));
+
+          deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], webhookLogId!));
         });
       }
 
@@ -99,35 +104,19 @@ export async function withEvent<T>(
 
       // B. Plugin/App Webhooks (Partner servers)
       if (installedApps.length > 0) {
-        const customerIds = triggers
-          .map((t) => (t.map(result).object as any)?.customer_id)
-          .filter((id): id is string => typeof id === "string");
-
-        const customerRows = customerIds.length
-          ? await db.select({ id: customers.id, email: customers.email }).from(customers).where(inArray(customers.id, customerIds))
-          : [];
-
-        const customerEmailById = new Map(customerRows.map((c) => [c.id, c.email]));
-
         installedApps.forEach(({ app, app_installation }) => {
           triggers.forEach((trigger) => {
-            const mapped = trigger.map(result);
-            const customerId = (mapped.object as any)?.customer_id;
-            const object = customerId
-              ? { ...mapped.object, customer_email: customerEmailById.get(customerId) }
-              : mapped.object;
-
-            const event = {
+            const event: WebhookEventBase<any, any> = {
               id: webhookLogId!,
               type: trigger.event,
               created: new Date().toISOString(),
               livemode: env === "mainnet",
-              installationId: app_installation.id,
-              data: { ...mapped, object },
+              data: trigger.map(result),
             };
 
-            const payload = { event, settings: app_installation.settings ?? {} };
-            deliveries.push(deliverToApp(app, app_installation.id, payload, webhookLogId!));
+            deliveries.push(
+              deliverToApp(app, app_installation.id, event, webhookLogId!, app_installation.settings, orgId, env)
+            );
           });
         });
       }

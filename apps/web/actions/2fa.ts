@@ -8,8 +8,8 @@ import { TwoFaDisableVerificationEmail } from "@/emails/2fa-disable-verification
 import { deleteCookies, getCookie } from "@/integrations/cookie-manager";
 import { sendEmail } from "@/integrations/email";
 import { decrypt, encrypt } from "@/integrations/encryption";
-import { signJwt, verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
+import { signJwt, verifyJwt } from "@stellartools/core";
 import { randomInt } from "crypto";
 import { eq } from "drizzle-orm";
 import { generateSecret, generateURI, verifySync } from "otplib";
@@ -28,7 +28,13 @@ export const initiate2faReset = safeAction(async (accountId: string) => {
   if (!account.$2faSecret) throw new AppError("2FA is not enabled on this account");
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const resetToken = signJwt({ accountId, code }, "10m");
+  const resetToken = signJwt(
+    { accountId, code },
+    "10m",
+    process.env.JWT_SECRET!,
+    process.env.JWT_ISSUER!,
+    process.env.JWT_AUDIENCE!
+  );
 
   await sendEmail(account.email, "Your 2FA disable verification code", TwoFaDisableVerificationEmail({ code }));
 
@@ -69,7 +75,12 @@ export const toggle2fa = safeAction(
     const isEnabling = !!setupSecret;
 
     if (resetToken) {
-      const payload = verifyJwt<{ accountId: string; code: string }>(resetToken);
+      const payload = verifyJwt<{ accountId: string; code: string }>(
+        resetToken,
+        process.env.JWT_SECRET!,
+        process.env.JWT_ISSUER!,
+        process.env.JWT_AUDIENCE!
+      );
       if (payload.accountId !== accountId) throw new AppError("Invalid verification token");
       if (payload.code !== code) throw new AppError("Invalid email verification code");
     } else {
@@ -102,7 +113,12 @@ export const complete2fa = safeAction(async (code: string) => {
 
   if (!pendingToken) throw new AppError("Session expired. Please sign in again.");
 
-  const payload = verifyJwt<Pending2faPayload>(pendingToken);
+  const payload = verifyJwt<Pending2faPayload>(
+    pendingToken,
+    process.env.JWT_SECRET!,
+    process.env.JWT_ISSUER!,
+    process.env.JWT_AUDIENCE!
+  );
 
   const account = await retrieveAccount({ id: payload.accountId });
   if (!account) throw new AppError("Account not found");

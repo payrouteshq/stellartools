@@ -1,138 +1,246 @@
-import { type WebhookEvent, WebhookSigner } from "@stellartools/core";
+import {
+  AppInstallationSettingValue,
+  Network,
+  STELLARTOOLS_ID,
+  z as Schema,
+  StellarTools,
+  WebhookEvent,
+  WebhookEventBase,
+  WebhookEventType,
+  WebhookObjectMap,
+  WebhookSigner,
+  parseJSON,
+} from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-type TemplateIds = Partial<
-  Record<
-    | "paymentReceivedTemplateId"
-    | "paymentFailedTemplateId"
-    | "refundSucceededTemplateId"
-    | "subscriptionCreatedTemplateId"
-    | "subscriptionCanceledTemplateId"
-    | "customerWelcomeTemplateId",
-    string | null
-  >
->;
+type WebhookHandlers = {
+  [K in WebhookEventType]?: (
+    st: StellarTools,
+    resend: Resend,
+    event: WebhookEventBase<K, WebhookObjectMap[K]>,
+    settings: Record<string, AppInstallationSettingValue>
+  ) => Promise<void>;
+};
 
-type Settings = {
-  resendApiKey: string;
-  fromEmail: string;
-  segmentId?: string;
-  customerSyncEnabled?: boolean;
-} & TemplateIds;
+const SEGMENTS: Record<Network, string> = {
+  mainnet: `${STELLARTOOLS_ID} (Live)`,
+  testnet: `${STELLARTOOLS_ID} (Test)`,
+};
 
-const wh = new WebhookSigner();
+const HANDLERS: WebhookHandlers = {
+  "payment.confirmed": async (st, resend, event, settings) => {
+    const templateId = settings["payment.confirmed.templateId"] as string;
 
-function toVariables(obj: object): Record<string, string | number> {
-  return Object.fromEntries(
-    Object.entries(obj)
-      .filter(([, v]) => v != null && typeof v !== "object")
-      .map(([k, v]) => [k, typeof v === "number" ? v : String(v)])
-  );
-}
+    if (!templateId) return;
+
+    const customer = await st.customers.retrieve(event.data.object.customer_id);
+
+    await resend.emails.send({
+      to: customer.email,
+      subject: `Invoice ${event.data.object.id} paid`,
+      template: {
+        id: templateId,
+        variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
+      },
+      tags: [{ name: "source", value: SEGMENTS[event.livemode ? "mainnet" : "testnet"] }],
+    });
+  },
+  "payment.failed": async (st, resend, event, settings) => {
+    const templateId = settings["payment.failed.templateId"] as string;
+
+    if (!templateId) return;
+
+    const customer = await st.customers.retrieve(event.data.object.customer_id);
+
+    await resend.emails.send({
+      to: customer.email,
+      subject: `Invoice ${event.data.object.id} failed`,
+      template: {
+        id: templateId,
+        variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
+      },
+    });
+  },
+  "refund.succeeded": async (st, resend, event, settings) => {
+    const templateId = settings["refund.succeeded.templateId"] as string;
+
+    if (!templateId) return;
+
+    const customerId = event.data.object.customer_id;
+
+    if (!customerId) return;
+
+    const customer = await st.customers.retrieve(customerId);
+
+    await resend.emails.send({
+      to: customer.email,
+      subject: `Refund ${event.data.object.id} succeeded`,
+      template: {
+        id: templateId,
+        variables: { email: customer.email, refund_id: event.data.object.id, amount: event.data.object.amount },
+      },
+    });
+  },
+  "subscription.created": async (st, resend, event, settings) => {
+    const templateId = settings["subscription.created.templateId"] as string;
+
+    if (!templateId) return;
+
+    const customer = await st.customers.retrieve(event.data.object.customer_id);
+
+    await resend.emails.send({
+      to: customer.email,
+      subject: `Subscription ${event.data.object.id} created`,
+      template: {
+        id: templateId,
+        variables: { email: customer.email, subscription_id: event.data.object.id },
+      },
+    });
+  },
+  "subscription.canceled": async (st, resend, event, settings) => {
+    const templateId = settings["subscription.canceled.templateId"] as string;
+
+    if (!templateId) return;
+
+    const customer = await st.customers.retrieve(event.data.object.customer_id);
+
+    await resend.emails.send({
+      to: customer.email,
+      subject: `Subscription ${event.data.object.id} canceled`,
+      template: {
+        id: templateId,
+        variables: { email: customer.email, subscription_id: event.data.object.id },
+      },
+    });
+  },
+  "customer.created": async (st, resend, event, settings) => {
+    const templateId = settings["customer.created.templateId"] as string;
+    const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
+    const network = event.livemode ? "mainnet" : "testnet";
+
+    if (customerSyncEnabled) {
+      const { data: segments } = await resend.segments.list();
+      let segmentId = segments?.data?.find((s) => s.name === SEGMENTS[network])?.id;
+
+      if (!segmentId) {
+        const { data: created } = await resend.segments.create({ name: SEGMENTS[network] });
+        segmentId = created?.id;
+      }
+
+      await resend.contacts.create({
+        ...(segmentId ? { segments: [{ id: segmentId }] } : {}),
+        email: event.data.object.email,
+        firstName: event.data.object.name,
+        unsubscribed: false,
+        properties: event.data.object.metadata ? { ...event.data.object.metadata } : undefined,
+      });
+    }
+
+    if (templateId) {
+      await resend.emails.send({
+        tags: [{ name: "source", value: SEGMENTS[network] }],
+        to: event.data.object.email,
+        subject: `Customer ${event.data.object.id} created`,
+        template: {
+          id: templateId,
+          variables: { email: event.data.object.email, name: event.data.object.name },
+        },
+      });
+    }
+  },
+  "customer.updated": async (st, resend, event, settings) => {
+    const templateId = settings["customer.updated.templateId"] as string;
+    const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
+    const network = event.livemode ? "mainnet" : "testnet";
+
+    if (!templateId) return;
+
+    if (customerSyncEnabled) {
+      const { data: segments } = await resend.segments.list();
+      let segmentId = segments?.data?.find((s) => s.name === SEGMENTS[network])?.id;
+
+      if (!segmentId) {
+        const { data: created } = await resend.segments.create({ name: SEGMENTS[network] });
+        segmentId = created?.id;
+      }
+
+      await resend.contacts.update({
+        ...(segmentId ? { segments: [{ id: segmentId }] } : {}),
+        email: event.data.object.email,
+        firstName: event.data.object.name,
+        unsubscribed: false,
+        properties: event.data.object.metadata ? { ...event.data.object.metadata } : undefined,
+      });
+    }
+  },
+  "customer.deleted": async (st, resend, event, settings) => {
+    const templateId = settings["customer.deleted.templateId"] as string;
+    const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
+
+    if (customerSyncEnabled) {
+      await resend.contacts.remove({
+        email: event.data.object.email,
+      });
+    }
+
+    if (templateId) {
+      await resend.emails.send({
+        to: event.data.object.email,
+        subject: `Customer ${event.data.object.id} deleted`,
+        template: {
+          id: templateId,
+          variables: { email: event.data.object.email },
+        },
+      });
+    }
+  },
+};
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-stellartools-signature") ?? "";
+  const appToken = req.headers.get("x-stellartools-app-token") ?? "";
+
+  const signer = new WebhookSigner();
 
   try {
-    wh.constructEvent(rawBody, signature, process.env.WEBHOOK_SECRET!);
+    signer.constructEvent(rawBody, signature, process.env.RESEND_APP_SECRET!);
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const { event, settings }: { event: WebhookEvent; settings: Settings } = JSON.parse(rawBody);
+  const { event, settings } = parseJSON<{ event: WebhookEvent; settings: Record<string, AppInstallationSettingValue> }>(
+    rawBody,
+    Schema.object({ event: Schema.any(), settings: Schema.any() })
+  );
 
-  const resend = new Resend(settings.resendApiKey);
-  const { data: domainData } = await resend.domains.list();
-  console.log("domainData", domainData);
-  const verifiedDomain = domainData?.data?.find((d) => d.status === "verified");
-  const from = verifiedDomain ? `odii@${verifiedDomain.name}` : "onboarding@resend.dev";
-  const customerEmail = (event.data.object as unknown as Record<string, unknown>).customer_email as string | undefined;
-  const environment = event.livemode ? "mainnet" : "testnet";
+  try {
+    const st = new StellarTools({ api_key: appToken });
 
-  switch (event.type) {
-    case "payment.confirmed": {
-      if (!settings.paymentReceivedTemplateId || !customerEmail) break;
-      await resend.emails.send({
-        tags: [{ name: "source", value: `stellartools_${environment}` }],
-        from,
-        to: customerEmail,
-        template: { id: settings.paymentReceivedTemplateId, variables: toVariables(event.data.object) },
-      });
-      break;
+    if (!settings["resendApiKey"]) {
+      return NextResponse.json({ error: "No API key configured" }, { status: 404 });
     }
 
-    case "payment.failed": {
-      if (!settings.paymentFailedTemplateId || !customerEmail) break;
-      await resend.emails.send({
-        tags: [{ name: "source", value: `stellartools_${environment}` }],
-        from,
-        to: customerEmail,
-        template: { id: settings.paymentFailedTemplateId, variables: toVariables(event.data.object) },
-      });
-      break;
+    const resend = new Resend(settings["resendApiKey"] as string);
+
+    const handler = HANDLERS[event.type] as
+      | ((
+          st: StellarTools,
+          resend: Resend,
+          event: WebhookEvent,
+          settings: Record<string, AppInstallationSettingValue>
+        ) => Promise<void>)
+      | undefined;
+
+    if (!handler) {
+      return NextResponse.json({ error: "No handler found for event type" }, { status: 404 });
     }
 
-    case "refund.succeeded": {
-      if (!settings.refundSucceededTemplateId || !customerEmail) break;
-      await resend.emails.send({
-        tags: [{ name: "source", value: `stellartools_${environment}` }],
-        from,
-        to: customerEmail,
-        template: { id: settings.refundSucceededTemplateId, variables: toVariables(event.data.object) },
-      });
-      break;
-    }
-
-    case "subscription.created": {
-      if (!settings.subscriptionCreatedTemplateId || !customerEmail) break;
-      await resend.emails.send({
-        tags: [{ name: "source", value: `stellartools_${environment}` }],
-        from,
-        to: customerEmail,
-        template: { id: settings.subscriptionCreatedTemplateId, variables: toVariables(event.data.object) },
-      });
-      break;
-    }
-
-    case "subscription.canceled": {
-      if (!settings.subscriptionCanceledTemplateId || !customerEmail) break;
-      await resend.emails.send({
-        tags: [{ name: "source", value: `stellartools_${environment}` }],
-        from,
-        to: customerEmail,
-        template: { id: settings.subscriptionCanceledTemplateId, variables: toVariables(event.data.object) },
-      });
-      break;
-    }
-
-    case "customer.created": {
-      const { email, name } = event.data.object;
-      console.log("email", email);
-      console.log("name", name);
-      console.log("from", from);
-      await Promise.allSettled([
-        settings.customerSyncEnabled && settings.segmentId
-          ? resend.contacts.create({
-              email,
-              firstName: name,
-              unsubscribed: false,
-              segments: [{ id: settings.segmentId }],
-            })
-          : null,
-        settings.customerWelcomeTemplateId
-          ? resend.emails.send({
-              tags: [{ name: "source", value: `stellartools_${environment}` }],
-              from,
-              to: email,
-              template: { id: settings.customerWelcomeTemplateId, variables: toVariables(event.data.object) },
-            })
-          : null,
-      ]);
-      break;
-    }
+    await handler(st, resend, event, settings);
+    return NextResponse.json({ ok: true });
+  } catch (err: unknown) {
+    console.error(`[Webhook Error]: ${err instanceof Error ? err.message : "Unknown error"}`);
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true });
 }
