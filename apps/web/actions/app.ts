@@ -151,7 +151,7 @@ export const updateAppInstallation = async (
 
   const { settings: settingsPatch, ...baseUpdate } = patch;
 
-  const sensitiveKeys = (row.manifest as any)?.sensitiveKeys ?? [];
+  const sensitiveKeys = row.manifest?.sensitiveKeys ?? [];
 
   const maskedPatch = settingsPatch
     ? maskData(settingsPatch as Record<string, any>, sensitiveKeys, APP_SENSITIVE_KEY_PREFIX, encrypt)

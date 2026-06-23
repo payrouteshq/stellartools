@@ -69,7 +69,6 @@ export function PluginLauncher() {
 
   React.useEffect(() => {
     if (!activePlugin?.installation.id) return;
-    setAppToken(null);
     generateAppToken(activePlugin.installation.id, {
       periodDays: Number(period),
       currency: org?.selectedCurrency ?? "USD",
@@ -197,7 +196,7 @@ export function PluginLauncher() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {activePlugin?.app?.baseUrl ? (
+              {appToken && src ? (
                 <iframe
                   src={src}
                   className="w-full border-none transition-all duration-200"
