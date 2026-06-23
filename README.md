@@ -50,7 +50,6 @@ stellar-tools/
     ├── stellartools/ # Core SDK (@stellartools/core)
     ├── plugin-sdk/   # Plugin SDK (@stellartools/plugin-sdk)
     ├── aisdk-adapter/
-    ├── app-embed-bridge/
     ├── betterauth-adapter/
     ├── langchain-adapter/
     ├── medusajs-adapter/
@@ -80,7 +79,6 @@ pnpm type-check       # run tsc across the workspace
 | `@stellartools/aisdk-adapter`       | Vercel AI SDK integration                           |
 | `@stellartools/medusajs-adapter`    | MedusaJS integration                                |
 | `@stellartools/uploadthing-adapter` | UploadThing integration                             |
-| `@stellartools/app-embed-bridge`    | Bridge for embedded app iframes                     |
 | `langchain-adapter`                 | LangChain integration                               |
 
 ## Contributing

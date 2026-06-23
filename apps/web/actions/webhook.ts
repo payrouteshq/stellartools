@@ -6,7 +6,7 @@ import { deliverWebhook } from "@/integrations/webhook-delivery";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { generateResourceId } from "@/lib/utils";
-import { WebhookEvent, WebhookEventType } from "@stellartools/core";
+import { WebhookEventBase, WebhookEventType } from "@stellartools/core";
 import { SQL, and, eq, isNull, sql } from "drizzle-orm";
 
 export const postWebhook = async (
@@ -242,18 +242,20 @@ export const deleteWebhookLog = async (id: string, orgId?: string, env?: Network
 
 // -- WEBHOOK INTERNALS --
 
-export const triggerWebhooks = async (
+export const triggerWebhooks = async <TName extends string, TObject>(
   subscribers: Array<Webhook>,
   eventType: WebhookEventType,
-  payload: WebhookEvent,
+  payloads: Array<WebhookEventBase<TName, TObject>>,
   logId: string
 ) => {
-  const snakePayload = toSnakeCase(payload);
+  const snakePayloads = payloads.map((payload) => toSnakeCase(payload) as WebhookEventBase<TName, TObject>);
 
   if (subscribers.length === 0) return { success: true, delivered: 0 };
 
   const results = await Promise.allSettled(
-    subscribers.map((webhook) => deliverWebhook(webhook, eventType, snakePayload as WebhookEvent, logId))
+    subscribers.map((webhook) =>
+      Promise.all(snakePayloads.map((payload) => deliverWebhook(webhook, eventType, payload, logId)))
+    )
   );
 
   return {
@@ -263,9 +265,15 @@ export const triggerWebhooks = async (
 };
 
 export const resendWebhookLog = safeAction(
-  async (webhookId: string, eventType: WebhookEventType, payload: WebhookEvent, orgId?: string, env?: Network) => {
+  async (
+    webhookId: string,
+    eventType: WebhookEventType,
+    payload: WebhookEventBase<any, any>,
+    orgId?: string,
+    env?: Network
+  ) => {
     const [webhook] = await retrieveWebhooks(orgId, env, { id: webhookId });
-    const normalizedPayload = toSnakeCase(payload) as WebhookEvent;
+    const normalizedPayload = toSnakeCase(payload) as WebhookEventBase<any, any>;
 
     const logId = generateResourceId("wh_evt", webhookId, 52);
 

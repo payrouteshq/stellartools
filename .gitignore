@@ -10,7 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 packages/*/node_modules
-apps/*/node_modules
+apps/**/node_modules
 
 # testing
 /coverage
@@ -65,4 +65,6 @@ MEMORY.md
 /stellartools
 
 # apps
-apps/*/.next
+apps/**/.next
+apps/**/out
+apps/**/coverage

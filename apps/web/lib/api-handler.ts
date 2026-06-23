@@ -4,9 +4,15 @@ import { resolveAuthContext } from "@/actions/apikey";
 import { getCorsHeaders } from "@/constant";
 import { processResource } from "@/lib/api-registry";
 import { AuthContext } from "@/types";
-import { AppScope } from "@stellartools/app-embed-bridge";
+import { AppScope } from "@stellartools/app-sdk/schema";
 import { Result, z as Schema, validateSchema } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
+
+/**
+ * Marked as dangerous because it allows appTokens to write to the db,
+ * But it's only used for app installations and we trust the app to not abuse it.
+ */
+export type DangerouslyAllowedAppScopes = "write:app-installation";
 
 export const mcpToolsRegistry = new Map<string, HandlerConfig<any, any, any>>();
 
@@ -32,7 +38,7 @@ export type HandlerConfig<TBody, TParams, TQuery> = {
   };
   mcp?: { name: string; description: string };
   auth?: Array<AuthScope> | null;
-  requiredAppScope?: AppScope;
+  requiredAppScope?: AppScope | DangerouslyAllowedAppScopes;
   handler: (args: {
     body: TBody;
     params: TParams;
@@ -85,8 +91,10 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         }
 
         if (authResult.type === "app" && config.requiredAppScope) {
-          const hasPermission =
-            authResult.scopes?.includes(config.requiredAppScope) || authResult.scopes?.includes("*");
+          const hasPermission = [...(authResult?.scopes ?? []), "write:app-installation"]?.includes(
+            config.requiredAppScope
+          );
+
           if (!hasPermission) {
             return NextResponse.json(
               { error: `Forbidden: App missing scope [${config.requiredAppScope}]` },

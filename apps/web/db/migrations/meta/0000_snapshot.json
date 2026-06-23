@@ -1,5 +1,5 @@
 {
-  "id": "bfc83fc3-479b-4cb0-8e2d-12cc6097c179",
+  "id": "16ff7d89-c4d8-46d2-b11f-d14f5b6d518d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -446,10 +446,40 @@
           "name": "manifest",
           "type": "jsonb",
           "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "app_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'coming_soon'"
+        },
+        "icon_url": {
+          "name": "icon_url",
+          "type": "text",
+          "primaryKey": false,
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "app_slug_idx": {
+          "name": "app_slug_idx",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
@@ -2343,6 +2373,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "custom_duration_ms": {
+          "name": "custom_duration_ms",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "product_status",
@@ -3143,6 +3179,11 @@
       "schema": "public",
       "values": ["active", "suspended"]
     },
+    "public.app_status": {
+      "name": "app_status",
+      "schema": "public",
+      "values": ["available", "coming_soon"]
+    },
     "public.auth_provider": {
       "name": "auth_provider",
       "schema": "public",
@@ -3219,7 +3260,7 @@
     "public.recurring_period": {
       "name": "recurring_period",
       "schema": "public",
-      "values": ["day", "week", "month", "year"]
+      "values": ["day", "week", "month", "year", "custom"]
     },
     "public.refund_status": {
       "name": "refund_status",

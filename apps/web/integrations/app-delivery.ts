@@ -1,18 +1,42 @@
 import "server-only";
 
+import { generateAppToken } from "@/actions/app";
 import { postWebhookLog } from "@/actions/webhook";
+import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
-import { WebhookSigner } from "@stellartools/core";
+import { AppError } from "@/lib/action-handler";
+import { unmaskData } from "@/lib/utils";
+import { Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
 
-export const deliverToApp = async (app: App, appInstallationId: string, envelope: any, webhookLogId: string) => {
+export const deliverToApp = async (
+  app: App,
+  appInstallationId: string,
+  event: WebhookEventBase<any, any>,
+  webhookLogId: string,
+  settings: Record<string, any> | null,
+  organizationId: string,
+  environment: Network
+) => {
+  const webhookUrl = app.webhookUrl;
+
+  if (!webhookUrl) throw new AppError("App webhook URL not found");
+
   const startTime = Date.now();
 
-  const decryptedSecret = decrypt(app.appSecret);
+  const body = JSON.stringify({ event, settings: unmaskData(settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt) });
 
-  const body = JSON.stringify(envelope);
+  const signer = new WebhookSigner();
+  const signature = signer.generateSignature(body, decrypt(app.appSecret));
 
-  const signature = new WebhookSigner().generateSignature(body, decryptedSecret);
+  const appToken = await generateAppToken(
+    appInstallationId,
+    { periodDays: 30, currency: "USD", theme: "light" },
+    organizationId,
+    environment
+  );
+
+  if (!appToken) throw new AppError("Failed to generate app token");
 
   try {
     const response = await fetch(app.webhookUrl!, {
@@ -21,6 +45,7 @@ export const deliverToApp = async (app: App, appInstallationId: string, envelope
         "Content-Type": "application/json",
         "X-StellarTools-Signature": signature,
         "X-StellarTools-App-Id": app.id,
+        "X-StellarTools-App-Token": appToken,
       },
       body,
       signal: AbortSignal.timeout(10000),
@@ -32,8 +57,8 @@ export const deliverToApp = async (app: App, appInstallationId: string, envelope
       app.id,
       {
         id: webhookLogId,
-        eventType: envelope.type,
-        request: envelope,
+        eventType: event.type,
+        request: event,
         statusCode: response.status,
         responseTime: duration,
         description: `Plugin delivery to ${app.name}`,
@@ -45,8 +70,8 @@ export const deliverToApp = async (app: App, appInstallationId: string, envelope
         nextRetry: null,
         appInstallationId,
       },
-      envelope.organizationId,
-      envelope.environment
+      organizationId,
+      environment
     );
 
     return { success: response.ok };
@@ -57,8 +82,8 @@ export const deliverToApp = async (app: App, appInstallationId: string, envelope
       app.id,
       {
         id: webhookLogId,
-        eventType: envelope.type,
-        request: envelope,
+        eventType: event.type,
+        request: event,
         statusCode: 500,
         errorMessage: error.message,
         responseTime: duration,
@@ -70,8 +95,8 @@ export const deliverToApp = async (app: App, appInstallationId: string, envelope
         updatedAt: new Date(),
         appInstallationId,
       },
-      envelope.organizationId,
-      envelope.environment
+      organizationId,
+      environment
     );
 
     return { success: false, error: error.message };

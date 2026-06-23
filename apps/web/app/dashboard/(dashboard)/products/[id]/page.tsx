@@ -383,7 +383,7 @@ export default function ProductDetailPage() {
                         · Billed every{" "}
                         {(product.recurringPeriod as string) === "custom" && product.customDurationMs
                           ? `${Math.round(product.customDurationMs / 86400000)} days`
-                          : recurringPeriodLabels[product.recurringPeriod]?.toLowerCase() ?? product.recurringPeriod}
+                          : (recurringPeriodLabels[product.recurringPeriod]?.toLowerCase() ?? product.recurringPeriod)}
                       </>
                     )}
                   </p>

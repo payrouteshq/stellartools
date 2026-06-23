@@ -5,8 +5,8 @@ import { AuthProvider } from "@/constant/schema.client";
 import { Account, Auth, PasswordReset, auth, db, passwordReset } from "@/db";
 import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
 import { sendEmail } from "@/integrations/email";
-import { signJwt, verifyJwt } from "@/integrations/jwt";
 import { AppError, safeAction } from "@/lib/action-handler";
+import { signJwt, verifyJwt } from "@stellartools/core";
 import bcrypt from "bcryptjs";
 import { desc, eq } from "drizzle-orm";
 import moment from "moment";
@@ -114,8 +114,20 @@ export const deletePasswordReset = async (id: string) => {
 
 export const createSession = async (account: Account, provider: string) => {
   const payload = { accountId: account.id, email: account.email };
-  const accessToken = signJwt(payload, "6h");
-  const refreshToken = signJwt(payload, "30d");
+  const accessToken = signJwt(
+    payload,
+    "6h",
+    process.env.JWT_SECRET!,
+    process.env.JWT_ISSUER!,
+    process.env.JWT_AUDIENCE!
+  );
+  const refreshToken = signJwt(
+    payload,
+    "30d",
+    process.env.JWT_SECRET!,
+    process.env.JWT_ISSUER!,
+    process.env.JWT_AUDIENCE!
+  );
 
   // 1. Set Cookies
   await setCookies([
@@ -144,7 +156,10 @@ export const generateAndSetSession = async (
 ) => {
   const payload = { accountId: account.id, email: account.email };
 
-  const [accessToken, refreshToken] = [signJwt(payload, "6h"), signJwt(payload, "30d")];
+  const [accessToken, refreshToken] = [
+    signJwt(payload, "6h", process.env.JWT_SECRET!, process.env.JWT_ISSUER!, process.env.JWT_AUDIENCE!),
+    signJwt(payload, "30d", process.env.JWT_SECRET!, process.env.JWT_ISSUER!, process.env.JWT_AUDIENCE!),
+  ];
 
   await Promise.all([
     setCookies([
@@ -218,7 +233,13 @@ export const accountValidator = safeAction(
     }
 
     if (account.$2faSecret) {
-      const pendingToken = signJwt({ accountId: account.id, provider }, "5m");
+      const pendingToken = signJwt(
+        { accountId: account.id, provider },
+        "5m",
+        process.env.JWT_SECRET!,
+        process.env.JWT_ISSUER!,
+        process.env.JWT_AUDIENCE!
+      );
       await setCookies([{ key: "2fa_pending", value: pendingToken, maxAge: 5 * 60 }]);
       return { requires2fa: true as const };
     }
@@ -282,7 +303,12 @@ export const getCurrentUser = async () => {
 
   if (!accessToken) return null;
 
-  const payload = verifyJwt<CurrentUserPayload>(accessToken);
+  const payload = verifyJwt<CurrentUserPayload>(
+    accessToken,
+    process.env.JWT_SECRET!,
+    process.env.JWT_ISSUER!,
+    process.env.JWT_AUDIENCE!
+  );
 
   const authRecord = await retrieveAuth({ accountId: payload.accountId }, { lastActive: true });
 
@@ -317,7 +343,12 @@ export const signOut = async () => {
 
   if (accessToken) {
     try {
-      const payload = verifyJwt<CurrentUserPayload>(accessToken);
+      const payload = verifyJwt<CurrentUserPayload>(
+        accessToken,
+        process.env.JWT_SECRET!,
+        process.env.JWT_ISSUER!,
+        process.env.JWT_AUDIENCE!
+      );
 
       const authRecord = await retrieveAuth({ accountId: payload.accountId }, { lastActive: true });
 

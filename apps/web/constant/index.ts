@@ -28,3 +28,5 @@ export const TIMELINE_ROUTE_MAP: Record<string, (id: string) => string> = {
   externalUrl: (url) => url,
   webhookLogId: (id) => `/webhooks/~?eventId=${id}`,
 };
+
+export const APP_SENSITIVE_KEY_PREFIX = "__ST_ENC__:";
