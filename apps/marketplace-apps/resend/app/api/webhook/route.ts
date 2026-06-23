@@ -1,17 +1,18 @@
 import { indexEmail } from "@/app/actions/db";
-import { AppContext, parseAppContext } from "@stellartools/app-sdk";
 import {
+  APP_TOKEN_PREFIX,
   AppInstallationSettingValue,
   Network,
   STELLARTOOLS_ID,
-  z as Schema,
   StellarTools,
   WebhookEvent,
   WebhookEventBase,
   WebhookEventType,
   WebhookObjectMap,
   WebhookSigner,
+  decodeJwt,
   parseJSON,
+  z as Schema,
 } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
@@ -22,7 +23,7 @@ type WebhookHandlers = {
     resend: Resend,
     event: WebhookEventBase<K, WebhookObjectMap[K]>,
     settings: Record<string, AppInstallationSettingValue>,
-    appContext: AppContext | null
+    orgId: string | null
   ) => Promise<void>;
 };
 
@@ -41,7 +42,7 @@ async function sendAndIndex(
 }
 
 const HANDLERS: WebhookHandlers = {
-  "payment.confirmed": async (st, resend, event, settings, appContext) => {
+  "payment.confirmed": async (st, resend, event, settings, orgId) => {
     const templateId = settings["payment.confirmed.templateId"] as string;
 
     if (!templateId) return;
@@ -59,10 +60,10 @@ const HANDLERS: WebhookHandlers = {
         },
         tags: [{ name: "source", value: SEGMENTS[event.livemode ? "mainnet" : "testnet"] }],
       },
-      appContext?.orgId ?? null
+      orgId
     );
   },
-  "payment.failed": async (st, resend, event, settings, appContext) => {
+  "payment.failed": async (st, resend, event, settings, orgId) => {
     const templateId = settings["payment.failed.templateId"] as string;
 
     if (!templateId) return;
@@ -79,10 +80,10 @@ const HANDLERS: WebhookHandlers = {
           variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
         },
       },
-      appContext?.orgId ?? null
+      orgId
     );
   },
-  "refund.succeeded": async (st, resend, event, settings, appContext) => {
+  "refund.succeeded": async (st, resend, event, settings, orgId) => {
     const templateId = settings["refund.succeeded.templateId"] as string;
 
     if (!templateId) return;
@@ -103,10 +104,10 @@ const HANDLERS: WebhookHandlers = {
           variables: { email: customer.email, refund_id: event.data.object.id, amount: event.data.object.amount },
         },
       },
-      appContext?.orgId ?? null
+      orgId
     );
   },
-  "subscription.created": async (st, resend, event, settings, appContext) => {
+  "subscription.created": async (st, resend, event, settings, orgId) => {
     const templateId = settings["subscription.created.templateId"] as string;
 
     if (!templateId) return;
@@ -123,10 +124,10 @@ const HANDLERS: WebhookHandlers = {
           variables: { email: customer.email, subscription_id: event.data.object.id },
         },
       },
-      appContext?.orgId ?? null
+      orgId
     );
   },
-  "subscription.canceled": async (st, resend, event, settings, appContext) => {
+  "subscription.canceled": async (st, resend, event, settings, orgId) => {
     const templateId = settings["subscription.canceled.templateId"] as string;
 
     if (!templateId) return;
@@ -143,10 +144,10 @@ const HANDLERS: WebhookHandlers = {
           variables: { email: customer.email, subscription_id: event.data.object.id },
         },
       },
-      appContext?.orgId ?? null
+      orgId
     );
   },
-  "customer.created": async (st, resend, event, settings, appContext) => {
+  "customer.created": async (st, resend, event, settings, orgId) => {
     const templateId = settings["customer.created.templateId"] as string;
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
     const network = event.livemode ? "mainnet" : "testnet";
@@ -181,7 +182,7 @@ const HANDLERS: WebhookHandlers = {
             variables: { email: event.data.object.email, name: event.data.object.name },
           },
         },
-        appContext?.orgId ?? null
+        orgId
       );
     }
   },
@@ -207,7 +208,7 @@ const HANDLERS: WebhookHandlers = {
       properties: event.data.object.metadata ? { ...event.data.object.metadata } : undefined,
     });
   },
-  "customer.deleted": async (st, resend, event, settings, appContext) => {
+  "customer.deleted": async (st, resend, event, settings, orgId) => {
     const templateId = settings["customer.deleted.templateId"] as string;
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
 
@@ -226,11 +227,20 @@ const HANDLERS: WebhookHandlers = {
             variables: { email: event.data.object.email },
           },
         },
-        appContext?.orgId ?? null
+        orgId
       );
     }
   },
 };
+
+function extractOrgId(appToken: string): string | null {
+  try {
+    const jwt = appToken.replace(APP_TOKEN_PREFIX, "");
+    return decodeJwt<{ orgId: string }>(jwt)?.orgId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
@@ -258,7 +268,7 @@ export async function POST(req: NextRequest) {
     }
 
     const resend = new Resend(settings["resendApiKey"] as string);
-    const context = parseAppContext(appToken, process.env.RESEND_APP_SECRET!);
+    const orgId = extractOrgId(appToken);
 
     const handler = HANDLERS[event.type] as
       | ((
@@ -266,7 +276,7 @@ export async function POST(req: NextRequest) {
           resend: Resend,
           event: WebhookEvent,
           settings: Record<string, AppInstallationSettingValue>,
-          appContext: AppContext | null
+          orgId: string | null
         ) => Promise<void>)
       | undefined;
 
@@ -274,7 +284,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No handler found for event type" }, { status: 404 });
     }
 
-    await handler(st, resend, event, settings, context);
+    await handler(st, resend, event, settings, orgId);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     console.error(`[Webhook Error]: ${err instanceof Error ? err.message : "Unknown error"}`);

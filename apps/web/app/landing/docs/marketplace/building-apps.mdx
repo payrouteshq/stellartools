@@ -13,27 +13,6 @@ npm install @stellartools/app-sdk @stellartools/core
 
 ## Bootstrap your app
 
-### Layout
-
-Add `StellarToolsAppBootstrap` to your root layout. It injects a script that automatically attaches `st_token` as a `Bearer` header on every outgoing `fetch` call — you never thread the token through components manually.
-
-```tsx
-// app/layout.tsx
-import { StellarToolsAppBootstrap } from "@stellartools/app-sdk";
-import { Providers } from "./providers";
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <StellarToolsAppBootstrap baseUrl={process.env.NEXT_PUBLIC_APP_URL ?? "/"} />
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
-```
-
 ### Providers
 
 Parse `st_token` from the URL once, verify it with your app secret, and pass the decoded context to `StellarToolsAppProvider`. This also sets up the internal TanStack Query client used by the hooks.
@@ -147,10 +126,6 @@ export default function DashboardPage() {
   return <div>{/* render stats */}</div>;
 }
 ```
-
-<Note>
-  The fetcher can be a server action (as above) or a plain `fetch` to one of your API routes. `StellarToolsAppBootstrap` attaches the auth header on every fetch automatically.
-</Note>
 
 ## Mutations and saving settings
 
