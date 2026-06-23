@@ -34,13 +34,26 @@ export function StellarToolsAppProvider({ context, children }: { context: AppCon
    * If the token was generated before the app completed first-time setup, settings
    * will be empty. Signal the host to regenerate the token so the app gets
    * fresh settings without the user having to re-open the drawer.
+   *
+   * sessionStorage guards against an infinite loop: when settings are empty the
+   * host re-generates the token (still empty) and reloads the iframe, which would
+   * remount this provider and fire the signal again. The flag survives iframe
+   * reloads (same tab, same origin) but is cleared once settings arrive, so a
+   * genuine re-connect in the same session still works.
    */
+  const STALE_REFRESH_KEY = "st:stale-refresh-sent";
+
   React.useEffect(() => {
-    if (Object.keys(context.settings).length > 0) return;
+    if (Object.keys(context.settings).length > 0) {
+      sessionStorage.removeItem(STALE_REFRESH_KEY);
+      return;
+    }
     if (hasRequested.current) return;
     if (window.parent === window) return;
+    if (sessionStorage.getItem(STALE_REFRESH_KEY)) return;
 
     hasRequested.current = true;
+    sessionStorage.setItem(STALE_REFRESH_KEY, "1");
     window.parent.postMessage({ type: "stellar:data-changed" }, "*");
   }, [context.settings]);
 
