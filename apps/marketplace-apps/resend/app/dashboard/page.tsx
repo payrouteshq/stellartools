@@ -1,15 +1,18 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import * as React from "react";
 
-import { retrieveEmailTemplates, updateSettings } from "@/app/actions/resend";
+import { retrieveEmailStats, retrieveEmailTemplates, updateSettings } from "@/app/actions/resend";
+import { EmailStats } from "@/app/types";
 import { useStellarToolsContext, useStellarToolsMutation, useStellarToolsQuery } from "@stellartools/app-sdk";
+import { AppInstallationSettingValue, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
 import {
   Badge,
   DataTable,
   Input,
   LineChart,
   SelectField,
+  Spinner,
   Switch,
   Table,
   TableBody,
@@ -20,27 +23,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useSearchParams } from "next/navigation";
 
-type StatsEmail = { id: string; to: string; subject: string; status: string; sentAt: string };
-type EmailRow = { original: StatsEmail };
-
-type Stats = {
-  totalSent: number;
-  deliveredRate: string;
-  bounceRate: string;
-  daily: { day: number; sent: number }[];
-  emails: StatsEmail[];
-};
-
-type TemplateIds = {
-  paymentReceivedTemplateId?: string;
-  paymentFailedTemplateId?: string;
-  refundSucceededTemplateId?: string;
-  subscriptionCreatedTemplateId?: string;
-  subscriptionCanceledTemplateId?: string;
-  customerWelcomeTemplateId?: string;
-};
-
-type NotificationRule = { id: string; event: string; templateKey: keyof TemplateIds };
+type EmailRow = { original: EmailStats["emails"][number] };
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   delivered: "default",
@@ -49,23 +32,12 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   bounced: "destructive",
 };
 
-const SEND_ACTIVITY_CONFIG = { sent: { label: "Emails sent", color: "var(--chart-1)" } };
-
 const EMAIL_STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "delivered", label: "Delivered" },
   { value: "bounced", label: "Bounced" },
   { value: "opened", label: "Opened" },
   { value: "sent", label: "Sent" },
-];
-
-const NOTIFICATION_RULES: NotificationRule[] = [
-  { id: "rule_01", event: "payment.confirmed", templateKey: "paymentReceivedTemplateId" },
-  { id: "rule_02", event: "payment.failed", templateKey: "paymentFailedTemplateId" },
-  { id: "rule_03", event: "refund.succeeded", templateKey: "refundSucceededTemplateId" },
-  { id: "rule_04", event: "subscription.created", templateKey: "subscriptionCreatedTemplateId" },
-  { id: "rule_05", event: "subscription.canceled", templateKey: "subscriptionCanceledTemplateId" },
-  { id: "rule_06", event: "customer.created", templateKey: "customerWelcomeTemplateId" },
 ];
 
 const EMAIL_COLUMNS = [
@@ -84,62 +56,57 @@ const EMAIL_COLUMNS = [
   { accessorKey: "sentAt", header: "Sent at", enableSorting: true },
 ];
 
-function Dashboard() {
-  const { settings } = useStellarToolsContext();
+const SEND_ACTIVITY_CONFIG = { sent: { label: "Emails sent", color: "var(--chart-1)" } };
+
+const Dashboard = () => {
   const searchParams = useSearchParams();
   const appToken = searchParams.get("st_token") ?? "";
 
-  const [templateIds, setTemplateIds] = useState<TemplateIds>(() => ({
-    paymentReceivedTemplateId: settings.paymentReceivedTemplateId as string | undefined,
-    paymentFailedTemplateId: settings.paymentFailedTemplateId as string | undefined,
-    refundSucceededTemplateId: settings.refundSucceededTemplateId as string | undefined,
-    subscriptionCreatedTemplateId: settings.subscriptionCreatedTemplateId as string | undefined,
-    subscriptionCanceledTemplateId: settings.subscriptionCanceledTemplateId as string | undefined,
-    customerWelcomeTemplateId: settings.customerWelcomeTemplateId as string | undefined,
-  }));
-  const [customerSyncEnabled, setCustomerSyncEnabled] = useState(Boolean(settings.customerSyncEnabled));
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { settings, orgId, ui } = useStellarToolsContext();
 
-  const { data: stats } = useStellarToolsQuery<Stats>(["stats"], async () => {
-    const res = await fetch("/api/stats", {});
-    if (!res.ok) throw new Error("Failed to fetch stats");
-    return res.json();
-  });
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("all");
 
-  const { data: templates = [], isLoading: templatesLoading } = useStellarToolsQuery<Array<{ id: string; name: string }>>(
-    ["templates"],
-    async () => retrieveEmailTemplates(settings.resendApiKey as string),
+  const { data: stats } = useStellarToolsQuery<EmailStats>(
+    ["stats"],
+    () => retrieveEmailStats(settings.resendApiKey as string, orgId, ui.periodDays),
     { enabled: !!settings.resendApiKey }
   );
 
-  const { mutate: saveSettings } = useStellarToolsMutation(
-    async (patch: Partial<TemplateIds>) => updateSettings(appToken, patch as Record<string, string>)
+  const { data: templates = [], isLoading: templatesLoading } = useStellarToolsQuery<
+    Array<{ id: string; name: string }>
+  >(["templates"], () => retrieveEmailTemplates(settings.resendApiKey as string), {
+    enabled: !!settings.resendApiKey,
+  });
+
+  const { mutate: patchSettings, isPending: isSaving } = useStellarToolsMutation(
+    async (patch: Record<string, AppInstallationSettingValue>) => {
+      return await updateSettings(appToken, patch);
+    }
   );
 
-  const { mutate: toggleSync, isPending: syncPending } = useStellarToolsMutation(
-    async (enabled: boolean) => updateSettings(appToken, { customerSyncEnabled: enabled }),
-    { onMutate: (enabled) => setCustomerSyncEnabled(enabled) }
-  );
+  const customerSyncEnabled = Boolean(settings.customerSyncEnabled);
 
-  const templateOptions = useMemo(
+  const templateOptions = React.useMemo(
     () => [{ value: "__none__", label: "None" }, ...templates.map((t) => ({ value: t.id, label: t.name }))],
     [templates]
   );
 
-  const filteredEmails = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const filteredEmails = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
     return (stats?.emails ?? []).filter(
       (item) =>
-        (!query || item.to.toLowerCase().includes(query) || item.subject.toLowerCase().includes(query)) &&
+        (!q || item.to.toLowerCase().includes(q) || item.subject.toLowerCase().includes(q)) &&
         (statusFilter === "all" || item.status === statusFilter)
     );
   }, [stats, search, statusFilter]);
 
-  const handleTemplateChange = (rule: NotificationRule, v: string) => {
-    const value = v === "__none__" ? undefined : v;
-    setTemplateIds((prev) => ({ ...prev, [rule.templateKey]: value }));
-    saveSettings({ [rule.templateKey]: value });
+  const handleTemplateChange = (event: WebhookEventType, value: string) => {
+    patchSettings({ [`${event}.templateId`]: value === "__none__" ? null : value });
+  };
+
+  const handleToggleSync = (enabled: boolean) => {
+    patchSettings({ customerSyncEnabled: enabled });
   };
 
   return (
@@ -148,7 +115,7 @@ function Dashboard() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-medium">Overview</h2>
-            <p className="text-muted-foreground text-sm">Email delivery for the last 30 days</p>
+            <p className="text-muted-foreground text-sm">Email delivery for the last {ui.periodDays} days</p>
           </div>
           <a
             href="https://resend.com/emails"
@@ -163,7 +130,7 @@ function Dashboard() {
         <div className="border-border/60 flex flex-col gap-5 border-t pt-6">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">Insights</h3>
-            <span className="text-muted-foreground text-xs">Last 30 days</span>
+            <span className="text-muted-foreground text-xs">Last {ui.periodDays} days</span>
           </div>
           <LineChart
             data={stats?.daily ?? []}
@@ -172,8 +139,7 @@ function Dashboard() {
             activeKey="sent"
             color="var(--chart-1)"
             className="h-[200px]"
-            aria-label="Emails sent over the last 30 days"
-            xAxisFormatter={(value: string | number) => (Number(value) % 5 === 0 ? String(value) : "")}
+            xAxisFormatter={(value) => (Number(value) % 5 === 0 ? String(value) : "")}
           />
           <dl className="grid grid-cols-3 gap-4">
             {[
@@ -198,7 +164,7 @@ function Dashboard() {
             <Input
               placeholder="Search by email or subject..."
               value={search}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               className="shadow-none sm:flex-1"
             />
             <SelectField
@@ -223,13 +189,12 @@ function Dashboard() {
             <div className="space-y-1">
               <h3 className="text-sm font-medium">Contact sync</h3>
               <p className="text-muted-foreground max-w-md text-sm">
-                Auto-sync new customers to your Resend audience on customer.created. Keeps your contacts up to date
-                automatically.
+                Auto-sync new customers to your Resend audience on customer.created.
               </p>
             </div>
             <div className="flex items-center gap-2 pt-0.5">
               <span className="text-muted-foreground text-xs">{customerSyncEnabled ? "On" : "Off"}</span>
-              <Switch checked={customerSyncEnabled} onCheckedChange={toggleSync} disabled={syncPending} />
+              <Switch checked={customerSyncEnabled} onCheckedChange={handleToggleSync} disabled={isSaving} />
             </div>
           </div>
         </div>
@@ -248,16 +213,17 @@ function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {NOTIFICATION_RULES.map((rule) => (
-                  <TableRow key={rule.id}>
-                    <TableCell className="font-mono text-xs">{rule.event}</TableCell>
+                {WEBHOOK_EVENT_TYPES.map((event) => (
+                  <TableRow key={event}>
+                    <TableCell className="font-mono text-xs">{event}</TableCell>
                     <TableCell>
                       <SelectField
-                        id={rule.id}
-                        value={templateIds[rule.templateKey] ?? "__none__"}
-                        onChange={(v: string) => handleTemplateChange(rule, v)}
+                        id={event}
+                        value={(settings[`${event}.templateId`] as string) ?? "__none__"}
+                        onChange={(v) => handleTemplateChange(event, v)}
                         items={templateOptions}
                         isLoading={templatesLoading}
+                        disabled={isSaving}
                         triggerClassName="shadow-none h-8 text-xs w-48"
                       />
                     </TableCell>
@@ -270,12 +236,18 @@ function Dashboard() {
       </section>
     </div>
   );
-}
+};
 
 export default function DashboardPage() {
   return (
-    <Suspense>
+    <React.Suspense
+      fallback={
+        <div className="flex w-screen items-center justify-center">
+          <Spinner />
+        </div>
+      }
+    >
       <Dashboard />
-    </Suspense>
+    </React.Suspense>
   );
 }

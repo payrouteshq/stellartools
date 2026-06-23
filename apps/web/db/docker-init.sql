@@ -17,13 +17,24 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
 
+CREATE DATABASE resend_app;
+
+\c resend_app;
+GRANT ALL ON SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
+
+\c postgres;
+
 INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publisher, features_markdown, price, tagline, website_url, support_email, manifest, status, icon_url) VALUES
   (
     'app_resend',
     'Resend',
     'resend',
     'http://localhost:3001',
-    'b8b42ecdd41becc7c234bfff43eef7840fa2724d62142f047066a909700bb53fa66ea1555da0527c7c646098ae73aa8eef1ee6acef37ca807a3fcd5c4d0e305a441f1c6f',
+    'b8b42ecdd41becc7c234bfff43eef7840fa2724d62142f047066a909700bb53fa66ea1555da0527c7c646098ae73aa8eef1ee6acef37ca807a3fcd5c4d0e305a441f1c6f' // decrypted: sec_8Jx4rcuqeRf-UUjTqBMgZBcjnafOM_K7,
     'http://localhost:3001/api/webhook',
     'Resend',
     E'## Payment receipts and invoices, automatically\n\nEvery successful payment triggers a branded email receipt via Resend. Configure your template once — StellarTools handles delivery, retries, and logging so nothing slips through.\n\n## Full delivery visibility inside your dashboard\n\nTrack opens, bounces, and click-throughs without leaving StellarTools so your support team always knows exactly what a customer received and when.',
@@ -40,7 +51,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Loops',
     'loops',
     'https://loops.so',
-    'b22e6024921f9b8e5f52e0dc3ed44c71a5e99266bc96f93e1933e0293d574c71301754020070a2d3c0e574b21e1b42ca4d19945d2cc0db010b67f3b93e1f54280b5a5af8',
+    'b22e6024921f9b8e5f52e0dc3ed44c71a5e99266bc96f93e1933e0293d574c71301754020070a2d3c0e574b21e1b42ca4d19945d2cc0db010b67f3b93e1f54280b5a5af8' // decrypted: sec_Lp9k2mQvXr4TtZbN7yWdHsEfGcAj5oPu,
     NULL,
     'Loops',
     E'## Sync customers the moment they pay\n\nWhen a customer completes their first payment in StellarTools, Loops automatically adds them to your audience and fires your onboarding sequence. No webhooks to wire up, no CSVs to export.\n\n## Automate every subscription milestone\n\nCancellations, upgrades, failed payments, trial expirations — map any StellarTools event to a Loop and keep users engaged at every stage of the lifecycle.',
@@ -57,7 +68,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'FirstPromoter',
     'firstpromoter',
     'https://firstpromoter.com',
-    'bda4a7d6ea24ff65b5944b02941593198415def944ec06ca9dc68423c56ff16f9dd56c9ee23172ab324baf61daadf04d1c835a94c2316248d96f151a4e17261f1fafb5',
+    'bda4a7d6ea24ff65b5944b02941593198415def944ec06ca9dc68423c56ff16f9dd56c9ee23172ab324baf61daadf04d1c835a94c2316248d96f151a4e17261f1fafb5' // sec_Fp3nR8wKjLqZxCvB2mYtHdSeUa6oNi7,
     NULL,
     'FirstPromoter',
     E'## Commissions tied to real revenue\n\nFirstPromoter reads your StellarTools payments to calculate affiliate commissions automatically. Every successful charge is attributed to the right promoter — no manual tracking, no disputes.\n\n## Manage your affiliate program without switching tabs\n\nApprove applications, set commission tiers, view leaderboards, and trigger payouts directly from your StellarTools dashboard.',
@@ -74,7 +85,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'PostHog',
     'posthog',
     'https://posthog.com',
-    '9872e6800de8b03bef2d092afb1f747c34661c0662aa83a9c8027a9c606f1e3028002c878c36dcae6dc5cf15482af76b982d09ab27236ee63ac41e66900cbcdfc1e53f63',
+    '9872e6800de8b03bef2d092afb1f747c34661c0662aa83a9c8027a9c606f1e3028002c878c36dcae6dc5cf15482af76b982d09ab27236ee63ac41e66900cbcdfc1e53f63' // sec_Ph5tWqYzMnKjVbXcRd8La2EfGsHu9oPi,
     NULL,
     'PostHog',
     E'## Revenue events in your product funnels\n\nPipe payment, subscription, and churn events from StellarTools into PostHog as custom events. Build funnels that show the full journey from first visit to paid customer.\n\n## Segment product analytics by revenue tier\n\nStellarTools enriches PostHog person profiles with plan, MRR, and payment status so you can filter session recordings, feature flags, and experiments by what customers actually pay.',

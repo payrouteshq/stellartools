@@ -1,3 +1,5 @@
+import { indexEmail } from "@/app/actions/db";
+import { AppContext, parseAppContext } from "@stellartools/app-sdk";
 import {
   AppInstallationSettingValue,
   Network,
@@ -19,7 +21,8 @@ type WebhookHandlers = {
     st: StellarTools,
     resend: Resend,
     event: WebhookEventBase<K, WebhookObjectMap[K]>,
-    settings: Record<string, AppInstallationSettingValue>
+    settings: Record<string, AppInstallationSettingValue>,
+    appContext: AppContext | null
   ) => Promise<void>;
 };
 
@@ -28,41 +31,58 @@ const SEGMENTS: Record<Network, string> = {
   testnet: `${STELLARTOOLS_ID} (Test)`,
 };
 
+async function sendAndIndex(
+  resend: Resend,
+  payload: Parameters<Resend["emails"]["send"]>[0],
+  orgId: string | null
+): Promise<void> {
+  const { data } = await resend.emails.send(payload);
+  if (data?.id && orgId) await indexEmail(data.id, orgId);
+}
+
 const HANDLERS: WebhookHandlers = {
-  "payment.confirmed": async (st, resend, event, settings) => {
+  "payment.confirmed": async (st, resend, event, settings, appContext) => {
     const templateId = settings["payment.confirmed.templateId"] as string;
 
     if (!templateId) return;
 
     const customer = await st.customers.retrieve(event.data.object.customer_id);
 
-    await resend.emails.send({
-      to: customer.email,
-      subject: `Invoice ${event.data.object.id} paid`,
-      template: {
-        id: templateId,
-        variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
+    await sendAndIndex(
+      resend,
+      {
+        to: customer.email,
+        subject: `Invoice ${event.data.object.id} paid`,
+        template: {
+          id: templateId,
+          variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
+        },
+        tags: [{ name: "source", value: SEGMENTS[event.livemode ? "mainnet" : "testnet"] }],
       },
-      tags: [{ name: "source", value: SEGMENTS[event.livemode ? "mainnet" : "testnet"] }],
-    });
+      appContext?.orgId ?? null
+    );
   },
-  "payment.failed": async (st, resend, event, settings) => {
+  "payment.failed": async (st, resend, event, settings, appContext) => {
     const templateId = settings["payment.failed.templateId"] as string;
 
     if (!templateId) return;
 
     const customer = await st.customers.retrieve(event.data.object.customer_id);
 
-    await resend.emails.send({
-      to: customer.email,
-      subject: `Invoice ${event.data.object.id} failed`,
-      template: {
-        id: templateId,
-        variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
+    await sendAndIndex(
+      resend,
+      {
+        to: customer.email,
+        subject: `Invoice ${event.data.object.id} failed`,
+        template: {
+          id: templateId,
+          variables: { email: customer.email, invoice_id: event.data.object.id, amount: event.data.object.amount },
+        },
       },
-    });
+      appContext?.orgId ?? null
+    );
   },
-  "refund.succeeded": async (st, resend, event, settings) => {
+  "refund.succeeded": async (st, resend, event, settings, appContext) => {
     const templateId = settings["refund.succeeded.templateId"] as string;
 
     if (!templateId) return;
@@ -73,48 +93,60 @@ const HANDLERS: WebhookHandlers = {
 
     const customer = await st.customers.retrieve(customerId);
 
-    await resend.emails.send({
-      to: customer.email,
-      subject: `Refund ${event.data.object.id} succeeded`,
-      template: {
-        id: templateId,
-        variables: { email: customer.email, refund_id: event.data.object.id, amount: event.data.object.amount },
+    await sendAndIndex(
+      resend,
+      {
+        to: customer.email,
+        subject: `Refund ${event.data.object.id} succeeded`,
+        template: {
+          id: templateId,
+          variables: { email: customer.email, refund_id: event.data.object.id, amount: event.data.object.amount },
+        },
       },
-    });
+      appContext?.orgId ?? null
+    );
   },
-  "subscription.created": async (st, resend, event, settings) => {
+  "subscription.created": async (st, resend, event, settings, appContext) => {
     const templateId = settings["subscription.created.templateId"] as string;
 
     if (!templateId) return;
 
     const customer = await st.customers.retrieve(event.data.object.customer_id);
 
-    await resend.emails.send({
-      to: customer.email,
-      subject: `Subscription ${event.data.object.id} created`,
-      template: {
-        id: templateId,
-        variables: { email: customer.email, subscription_id: event.data.object.id },
+    await sendAndIndex(
+      resend,
+      {
+        to: customer.email,
+        subject: `Subscription ${event.data.object.id} created`,
+        template: {
+          id: templateId,
+          variables: { email: customer.email, subscription_id: event.data.object.id },
+        },
       },
-    });
+      appContext?.orgId ?? null
+    );
   },
-  "subscription.canceled": async (st, resend, event, settings) => {
+  "subscription.canceled": async (st, resend, event, settings, appContext) => {
     const templateId = settings["subscription.canceled.templateId"] as string;
 
     if (!templateId) return;
 
     const customer = await st.customers.retrieve(event.data.object.customer_id);
 
-    await resend.emails.send({
-      to: customer.email,
-      subject: `Subscription ${event.data.object.id} canceled`,
-      template: {
-        id: templateId,
-        variables: { email: customer.email, subscription_id: event.data.object.id },
+    await sendAndIndex(
+      resend,
+      {
+        to: customer.email,
+        subject: `Subscription ${event.data.object.id} canceled`,
+        template: {
+          id: templateId,
+          variables: { email: customer.email, subscription_id: event.data.object.id },
+        },
       },
-    });
+      appContext?.orgId ?? null
+    );
   },
-  "customer.created": async (st, resend, event, settings) => {
+  "customer.created": async (st, resend, event, settings, appContext) => {
     const templateId = settings["customer.created.templateId"] as string;
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
     const network = event.livemode ? "mainnet" : "testnet";
@@ -138,61 +170,64 @@ const HANDLERS: WebhookHandlers = {
     }
 
     if (templateId) {
-      await resend.emails.send({
-        tags: [{ name: "source", value: SEGMENTS[network] }],
-        to: event.data.object.email,
-        subject: `Customer ${event.data.object.id} created`,
-        template: {
-          id: templateId,
-          variables: { email: event.data.object.email, name: event.data.object.name },
+      await sendAndIndex(
+        resend,
+        {
+          tags: [{ name: "source", value: SEGMENTS[network] }],
+          to: event.data.object.email,
+          subject: `Customer ${event.data.object.id} created`,
+          template: {
+            id: templateId,
+            variables: { email: event.data.object.email, name: event.data.object.name },
+          },
         },
-      });
+        appContext?.orgId ?? null
+      );
     }
   },
   "customer.updated": async (st, resend, event, settings) => {
-    const templateId = settings["customer.updated.templateId"] as string;
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
     const network = event.livemode ? "mainnet" : "testnet";
 
-    if (!templateId) return;
+    if (!customerSyncEnabled) return;
 
-    if (customerSyncEnabled) {
-      const { data: segments } = await resend.segments.list();
-      let segmentId = segments?.data?.find((s) => s.name === SEGMENTS[network])?.id;
+    const { data: segments } = await resend.segments.list();
+    let segmentId = segments?.data?.find((s) => s.name === SEGMENTS[network])?.id;
 
-      if (!segmentId) {
-        const { data: created } = await resend.segments.create({ name: SEGMENTS[network] });
-        segmentId = created?.id;
-      }
-
-      await resend.contacts.update({
-        ...(segmentId ? { segments: [{ id: segmentId }] } : {}),
-        email: event.data.object.email,
-        firstName: event.data.object.name,
-        unsubscribed: false,
-        properties: event.data.object.metadata ? { ...event.data.object.metadata } : undefined,
-      });
+    if (!segmentId) {
+      const { data: created } = await resend.segments.create({ name: SEGMENTS[network] });
+      segmentId = created?.id;
     }
+
+    await resend.contacts.update({
+      ...(segmentId ? { segments: [{ id: segmentId }] } : {}),
+      email: event.data.object.email,
+      firstName: event.data.object.name,
+      unsubscribed: false,
+      properties: event.data.object.metadata ? { ...event.data.object.metadata } : undefined,
+    });
   },
-  "customer.deleted": async (st, resend, event, settings) => {
+  "customer.deleted": async (st, resend, event, settings, appContext) => {
     const templateId = settings["customer.deleted.templateId"] as string;
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
 
     if (customerSyncEnabled) {
-      await resend.contacts.remove({
-        email: event.data.object.email,
-      });
+      await resend.contacts.remove({ email: event.data.object.email });
     }
 
     if (templateId) {
-      await resend.emails.send({
-        to: event.data.object.email,
-        subject: `Customer ${event.data.object.id} deleted`,
-        template: {
-          id: templateId,
-          variables: { email: event.data.object.email },
+      await sendAndIndex(
+        resend,
+        {
+          to: event.data.object.email,
+          subject: `Customer ${event.data.object.id} deleted`,
+          template: {
+            id: templateId,
+            variables: { email: event.data.object.email },
+          },
         },
-      });
+        appContext?.orgId ?? null
+      );
     }
   },
 };
@@ -223,13 +258,15 @@ export async function POST(req: NextRequest) {
     }
 
     const resend = new Resend(settings["resendApiKey"] as string);
+    const context = parseAppContext(appToken, process.env.RESEND_APP_SECRET!);
 
     const handler = HANDLERS[event.type] as
       | ((
           st: StellarTools,
           resend: Resend,
           event: WebhookEvent,
-          settings: Record<string, AppInstallationSettingValue>
+          settings: Record<string, AppInstallationSettingValue>,
+          appContext: AppContext | null
         ) => Promise<void>)
       | undefined;
 
@@ -237,7 +274,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No handler found for event type" }, { status: 404 });
     }
 
-    await handler(st, resend, event, settings);
+    await handler(st, resend, event, settings, context);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     console.error(`[Webhook Error]: ${err instanceof Error ? err.message : "Unknown error"}`);

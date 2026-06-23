@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import * as React from "react";
 
 import { useStellarToolsContext } from "@stellartools/app-sdk";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,7 +10,7 @@ const AppRouter = () => {
   const searchParams = useSearchParams();
   const { settings } = useStellarToolsContext();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const qs = searchParams.toString() ? `?${searchParams.toString()}` : "";
     router.replace(settings?.resendApiKey ? `/dashboard${qs}` : `/authentication${qs}`);
   }, [settings, router, searchParams]);
@@ -20,9 +20,8 @@ const AppRouter = () => {
 
 export default function Page() {
   return (
-    <Suspense>
+    <React.Suspense>
       <AppRouter />
-    </Suspense>
+    </React.Suspense>
   );
 }
-
