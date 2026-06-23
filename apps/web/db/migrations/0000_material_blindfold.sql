@@ -1,4 +1,5 @@
 CREATE TYPE "public"."app_installation_status" AS ENUM('active', 'suspended');--> statement-breakpoint
+CREATE TYPE "public"."app_status" AS ENUM('available', 'coming_soon');--> statement-breakpoint
 CREATE TYPE "public"."auth_provider" AS ENUM('google', 'local');--> statement-breakpoint
 CREATE TYPE "public"."charge_status" AS ENUM('pending', 'succeeded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."charge_type" AS ENUM('platform_fee', 'payout_fee');--> statement-breakpoint
@@ -10,7 +11,7 @@ CREATE TYPE "public"."payment_status" AS ENUM('pending', 'confirmed', 'failed');
 CREATE TYPE "public"."payout_status" AS ENUM('pending', 'succeeded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."product_status" AS ENUM('active', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."product_type" AS ENUM('one_time', 'subscription', 'metered');--> statement-breakpoint
-CREATE TYPE "public"."recurring_period" AS ENUM('day', 'week', 'month', 'year');--> statement-breakpoint
+CREATE TYPE "public"."recurring_period" AS ENUM('day', 'week', 'month', 'year', 'custom');--> statement-breakpoint
 CREATE TYPE "public"."refund_status" AS ENUM('pending', 'succeeded', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."secret_access_log_action" AS ENUM('decrypt', 'rotate', 'backup');--> statement-breakpoint
 CREATE TYPE "public"."subscription_status" AS ENUM('trialing', 'active', 'past_due', 'canceled', 'paused');--> statement-breakpoint
@@ -77,7 +78,9 @@ CREATE TABLE "app" (
 	"tagline" text NOT NULL,
 	"website_url" text,
 	"support_email" text,
-	"manifest" jsonb,
+	"manifest" jsonb NOT NULL,
+	"status" "app_status" DEFAULT 'coming_soon',
+	"icon_url" text,
 	CONSTRAINT "app_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
@@ -475,6 +478,7 @@ ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_organization_id_organizati
 ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_app_installation_id_app_installation_id_fk" FOREIGN KEY ("app_installation_id") REFERENCES "public"."app_installation"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "webhook" ADD CONSTRAINT "webhook_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_app_inst_org_env" ON "app_installation" USING btree ("organization_id","network");--> statement-breakpoint
+CREATE INDEX "app_slug_idx" ON "app" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "credit_balance_customer_idx" ON "credit_balance" USING btree ("customer_id","organization_id");--> statement-breakpoint
 CREATE INDEX "credit_tx_customer_idx" ON "credit_transaction" USING btree ("customer_id","product_id");--> statement-breakpoint
 CREATE INDEX "credit_tx_balance_idx" ON "credit_transaction" USING btree ("balance_id");--> statement-breakpoint
