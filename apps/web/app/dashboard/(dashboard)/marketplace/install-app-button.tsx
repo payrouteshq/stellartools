@@ -6,7 +6,6 @@ import { installMarketplaceApp, retrieveInstalledApps } from "@/actions/app";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { capture } from "@/lib/posthog";
 import { Button, toast } from "@stellartools/shared-ui";
-import { useRouter } from "next/navigation";
 
 export function InstallAppButton({
   appName,
@@ -17,7 +16,6 @@ export function InstallAppButton({
   appSlug: string;
   appCategory?: string;
 }) {
-  const router = useRouter();
   const invalidate = useInvalidateOrgQuery();
   const [pending, setPending] = React.useState(false);
 
@@ -32,9 +30,13 @@ export function InstallAppButton({
 
   const installedApp = installations?.find((installation) => installation.app.slug === appSlug);
 
+  const openApp = React.useCallback((appId: string) => {
+    window.dispatchEvent(new CustomEvent("stellartools:open-app", { detail: { appId } }));
+  }, []);
+
   const handleClick = async () => {
     if (installedApp) {
-      router.push(`/?app_path=${installedApp.app.slug}`);
+      openApp(installedApp.app.id);
       return;
     }
 
@@ -52,7 +54,7 @@ export function InstallAppButton({
 
       await invalidate(["installed-apps"]);
 
-      router.push("/");
+      openApp(result.app.id);
 
       toast.success(result.alreadyInstalled ? `${appName} is already installed` : `${appName} installed successfully`);
     } catch (error) {

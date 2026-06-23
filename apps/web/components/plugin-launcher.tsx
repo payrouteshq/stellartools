@@ -7,11 +7,11 @@ import { createPortal } from "react-dom";
 import { generateAppToken, retrieveInstalledApps } from "@/actions/app";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { Button, Separator, Spinner } from "@stellartools/shared-ui";
-import { cn, useMounted } from "@stellartools/shared-ui";
+import { Button, Separator, Spinner, cn, useMounted } from "@stellartools/shared-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, XIcon } from "lucide-react";
+import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +29,8 @@ export function PluginLauncher() {
 
   const queryClient = useQueryClient();
 
-  const [period] = useCookieState("dashboard_period", "30");
+  const [period, setPeriod] = useCookieState("dashboard_period", "30");
+  const { resolvedTheme } = useTheme();
   const [activeAppId, setActiveAppId] = useCookieState<string | null>("active_plugin_id", null);
   const [isOpen, setIsOpen] = useCookieState<boolean>("plugin_sidebar_open", false);
 
@@ -39,6 +40,7 @@ export function PluginLauncher() {
   }, [installations, activeAppId]);
 
   const [appToken, setAppToken] = React.useState<string | null>(null);
+  const [tokenRefreshKey, setTokenRefreshKey] = React.useState(0);
 
   const handleSelectApp = React.useCallback(
     (id: string) => {
@@ -49,17 +51,34 @@ export function PluginLauncher() {
   );
 
   React.useEffect(() => {
+    const handler = (e: Event) => {
+      const { appId } = (e as CustomEvent<{ appId: string }>).detail;
+      handleSelectApp(appId);
+    };
+    window.addEventListener("stellartools:open-app", handler);
+    return () => window.removeEventListener("stellartools:open-app", handler);
+  }, [handleSelectApp]);
+
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      setPeriod((e as CustomEvent<{ period: string }>).detail.period);
+    };
+    window.addEventListener("stellar:period-changed", handler);
+    return () => window.removeEventListener("stellar:period-changed", handler);
+  }, [setPeriod]);
+
+  React.useEffect(() => {
     if (!activePlugin?.installation.id) return;
     setAppToken(null);
     generateAppToken(activePlugin.installation.id, {
       periodDays: Number(period),
       currency: org?.selectedCurrency ?? "USD",
-      theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+      theme: resolvedTheme === "dark" ? "dark" : "light",
     }).then((token) => setAppToken(token));
-  }, [activePlugin?.installation.id, org?.selectedCurrency, period]);
+  }, [activePlugin?.installation.id, org?.selectedCurrency, period, resolvedTheme, tokenRefreshKey]);
 
   const src = React.useMemo(() => {
-    if (!activePlugin?.app.baseUrl) throw new Error("App base URL not found");
+    if (!activePlugin?.app.baseUrl) return "";
     const url = new URL(activePlugin.app.baseUrl);
     if (appToken) url.searchParams.set("st_token", appToken);
     return url.toString();
@@ -75,6 +94,8 @@ export function PluginLauncher() {
         // Refresh EVERYTHING in the dashboard.
         // Tables, stats, and headers will update to reflect the App's changes.
         queryClient.invalidateQueries();
+        // Regenerate the app token so the iframe reloads with up-to-date settings.
+        setTokenRefreshKey((k) => k + 1);
       }
     };
 
@@ -92,8 +113,8 @@ export function PluginLauncher() {
       />
 
       <div className="fixed top-1/2 -right-3 z-120 flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
-        {isLoadingInstalledApps && <Spinner size={24} />}
         <div className="flex flex-col items-end gap-2.5">
+          {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
           {installations?.map((installation) => {
             const isActive = activePlugin?.app.id === installation.app.id && isOpen;
 

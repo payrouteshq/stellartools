@@ -4,7 +4,7 @@ import { retrieveApps } from "@/actions/app";
 import { InstallAppButton } from "@/app/dashboard/(dashboard)/marketplace/install-app-button";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { APP_CONFIG } from "@stellartools/app-sdk";
+import { APP_CONFIG } from "@stellartools/app-sdk/schema";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,7 +14,7 @@ import {
   BreadcrumbSeparator,
   Separator,
 } from "@stellartools/shared-ui";
-import { Building2, Construction, ExternalLink, Mail } from "lucide-react";
+import { Building2, ExternalLink, Mail } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -59,19 +59,6 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
             </BreadcrumbList>
           </Breadcrumb>
 
-          {app.status === "coming_soon" && (
-            <div className="mb-8 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <Construction className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Integration in development</p>
-                <p className="text-sm text-amber-800/80 dark:text-amber-300/70">
-                  This integration is actively being built and is not yet available to install. Click &ldquo;Install
-                  app&rdquo; below to join the waitlist and get notified when it launches.
-                </p>
-              </div>
-            </div>
-          )}
-
           <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-1 gap-4">
               {app.iconUrl ? (
@@ -96,9 +83,11 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
                 <p className="text-muted-foreground max-w-xl text-base leading-relaxed">{app.tagline}</p>
               </div>
             </div>
-            <div className="shrink-0 sm:pt-1">
-              <InstallAppButton appName={app.name} appSlug={app.slug} />
-            </div>
+            {app.status === "available" && (
+              <div className="shrink-0 sm:pt-1">
+                <InstallAppButton appName={app.name} appSlug={app.slug} />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-10 lg:flex-row lg:gap-12">

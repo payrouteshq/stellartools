@@ -27,7 +27,12 @@ export const deliverToApp = async (
   const signer = new WebhookSigner();
   const signature = signer.generateSignature(body, decrypt(app.appSecret));
 
-  const appToken = await generateAppToken(appInstallationId, { periodDays: 30, currency: "USD", theme: "light" });
+  const appToken = await generateAppToken(
+    appInstallationId,
+    { periodDays: 30, currency: "USD", theme: "light" },
+    organizationId,
+    environment
+  );
 
   if (!appToken) throw new AppError("Failed to generate app token");
 

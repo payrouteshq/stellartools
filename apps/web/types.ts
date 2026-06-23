@@ -1,6 +1,6 @@
 import { Network } from "@/constant/schema.client";
 import { computeDiff } from "@/lib/utils";
-import { AppScope, EventType } from "@stellartools/app-sdk";
+import { AppScope, EventType } from "@stellartools/app-sdk/schema";
 import { MaybeArray, WebhookEventType, WebhookObject } from "@stellartools/core";
 
 export type EventDataDiff = { $changes?: ReturnType<typeof computeDiff> };

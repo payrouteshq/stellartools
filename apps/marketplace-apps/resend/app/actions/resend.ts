@@ -51,6 +51,13 @@ export const updateSettings = async (
   await st.appInstallations.updateSettings(patch as Record<string, AppInstallationSettingValue>);
 };
 
+export const listResendDomains = async (apiKey: string): Promise<string[]> => {
+  const resend = new Resend(apiKey);
+  const { data, error } = await resend.domains.list();
+  if (error) throw new Error(error.message);
+  return (data?.data ?? []).filter((d) => d.status === "verified").map((d) => d.name);
+};
+
 export const retrieveEmailTemplates = async (apiKey: string): Promise<Array<{ id: string; name: string }>> => {
   const resend = new Resend(apiKey);
 

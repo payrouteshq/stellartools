@@ -7,7 +7,7 @@ import { Event, Network, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
-import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk";
+import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk/schema";
 import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { SQL, and, desc, eq, inArray } from "drizzle-orm";
@@ -106,8 +106,10 @@ export async function withEvent<T>(
       if (installedApps.length > 0) {
         installedApps.forEach(({ app, app_installation }) => {
           triggers.forEach((trigger) => {
+            const logId = generateResourceId("wh_evt", orgId, 52);
+
             const event: WebhookEventBase<any, any> = {
-              id: webhookLogId!,
+              id: logId,
               type: trigger.event,
               created: new Date().toISOString(),
               livemode: env === "mainnet",
@@ -115,7 +117,7 @@ export async function withEvent<T>(
             };
 
             deliveries.push(
-              deliverToApp(app, app_installation.id, event, webhookLogId!, app_installation.settings, orgId, env)
+              deliverToApp(app, app_installation.id, event, logId, app_installation.settings, orgId, env)
             );
           });
         });

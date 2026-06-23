@@ -85,7 +85,13 @@ const Dashboard = () => {
     }
   );
 
-  const customerSyncEnabled = Boolean(settings.customerSyncEnabled);
+  const [customerSyncEnabled, setCustomerSyncEnabled] = React.useState(() => Boolean(settings.customerSyncEnabled));
+
+  const [templateIds, setTemplateIds] = React.useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      WEBHOOK_EVENT_TYPES.map((event) => [event, (settings[`${event}.templateId`] as string) ?? "__none__"])
+    )
+  );
 
   const templateOptions = React.useMemo(
     () => [{ value: "__none__", label: "None" }, ...templates.map((t) => ({ value: t.id, label: t.name }))],
@@ -102,10 +108,12 @@ const Dashboard = () => {
   }, [stats, search, statusFilter]);
 
   const handleTemplateChange = (event: WebhookEventType, value: string) => {
+    setTemplateIds((prev) => ({ ...prev, [event]: value }));
     patchSettings({ [`${event}.templateId`]: value === "__none__" ? null : value });
   };
 
   const handleToggleSync = (enabled: boolean) => {
+    setCustomerSyncEnabled(enabled);
     patchSettings({ customerSyncEnabled: enabled });
   };
 
@@ -165,7 +173,7 @@ const Dashboard = () => {
               placeholder="Search by email or subject..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="shadow-none sm:flex-1"
+              className="text-xs shadow-none sm:flex-1"
             />
             <SelectField
               id="email-status-filter"
@@ -219,7 +227,7 @@ const Dashboard = () => {
                     <TableCell>
                       <SelectField
                         id={event}
-                        value={(settings[`${event}.templateId`] as string) ?? "__none__"}
+                        value={templateIds[event] ?? "__none__"}
                         onChange={(v) => handleTemplateChange(event, v)}
                         items={templateOptions}
                         isLoading={templatesLoading}

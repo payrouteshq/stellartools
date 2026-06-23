@@ -7,7 +7,7 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { type AppManifest, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk";
+import { type AppManifest, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
   AppInstallationSettingValue,
   ProductStatus,

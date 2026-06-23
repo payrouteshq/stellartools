@@ -3,17 +3,19 @@
 import { resolveOrgContext } from "@/actions/organization";
 import { App, AppInstallation, AppInstallationStatus, AppStatus, Network, appInstallations, apps, db } from "@/db";
 import { decrypt, encrypt } from "@/integrations/encryption";
-import { patchJSON } from "@/lib/utils";
-import { AppContext, AppScope } from "@stellartools/app-sdk";
+import { AppContext } from "@stellartools/app-sdk";
+import { AppScope } from "@stellartools/app-sdk/schema";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, signJwt } from "@stellartools/core";
 import { SQL, and, arrayContains, eq, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export const generateAppToken = async (
   installationId: string,
-  uiContext: { periodDays: number; currency: string; theme: "light" | "dark" }
+  uiContext: { periodDays: number; currency: string; theme: "light" | "dark" },
+  orgId?: string,
+  env?: Network
 ): Promise<string | null> => {
-  const { organizationId, environment } = await resolveOrgContext();
+  const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   if (!organizationId || !environment) return null;
 
@@ -46,7 +48,7 @@ export const generateAppToken = async (
     instId: row.id,
     appId: row.appId,
     scopes: row.scopes,
-    settings: (row.settings as Record<string, any>) ?? {},
+    settings: row.settings ?? {},
     ui: {
       periodDays: uiContext.periodDays,
       currency: uiContext.currency,
@@ -83,8 +85,7 @@ export const retrieveApps = async (filters?: { id?: string; slug?: string; statu
   return await db
     .select()
     .from(apps)
-    .where(and(...whereClause))
-    .limit(1);
+    .where(and(...whereClause));
 };
 
 export const postAppInstallation = async (params: Partial<AppInstallation>) => {
@@ -149,13 +150,7 @@ export const updateAppInstallation = async (
 
   const [updated] = await db
     .update(appInstallations)
-    .set({
-      ...baseUpdate,
-      ...(settingsPatch !== undefined
-        ? { settings: patchJSON(row.settings as Record<string, any>, settingsPatch) }
-        : {}),
-      updatedAt: new Date(),
-    })
+    .set({ ...baseUpdate, updatedAt: new Date(), settings: { ...row.settings, ...settingsPatch } })
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
     .returning();
 

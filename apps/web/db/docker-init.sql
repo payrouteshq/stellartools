@@ -26,6 +26,13 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
 
+CREATE TABLE IF NOT EXISTS email_index (
+  email_id TEXT PRIMARY KEY,
+  org_id   TEXT NOT NULL,
+  sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_index_org_sent ON email_index (org_id, sent_at);
+
 \c postgres;
 
 INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publisher, features_markdown, price, tagline, website_url, support_email, manifest, status, icon_url) VALUES

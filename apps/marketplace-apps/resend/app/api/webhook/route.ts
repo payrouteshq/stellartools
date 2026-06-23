@@ -1,18 +1,17 @@
+import { resolveAppContext } from "@/app/actions/context";
 import { indexEmail } from "@/app/actions/db";
 import {
-  APP_TOKEN_PREFIX,
   AppInstallationSettingValue,
   Network,
   STELLARTOOLS_ID,
+  z as Schema,
   StellarTools,
   WebhookEvent,
   WebhookEventBase,
   WebhookEventType,
   WebhookObjectMap,
   WebhookSigner,
-  decodeJwt,
   parseJSON,
-  z as Schema,
 } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
@@ -28,8 +27,8 @@ type WebhookHandlers = {
 };
 
 const SEGMENTS: Record<Network, string> = {
-  mainnet: `${STELLARTOOLS_ID} (Live)`,
-  testnet: `${STELLARTOOLS_ID} (Test)`,
+  mainnet: `${STELLARTOOLS_ID}_Live`,
+  testnet: `${STELLARTOOLS_ID}_Test`,
 };
 
 async function sendAndIndex(
@@ -37,8 +36,11 @@ async function sendAndIndex(
   payload: Parameters<Resend["emails"]["send"]>[0],
   orgId: string | null
 ): Promise<void> {
-  const { data } = await resend.emails.send(payload);
-  if (data?.id && orgId) await indexEmail(data.id, orgId);
+  const { data, error } = await resend.emails.send(payload);
+  if (error) console.error("[sendAndIndex] Resend error:", error);
+  if (data?.id && orgId) {
+    indexEmail(data.id, orgId).catch((e) => console.error("[indexEmail]", e));
+  }
 }
 
 const HANDLERS: WebhookHandlers = {
@@ -152,6 +154,8 @@ const HANDLERS: WebhookHandlers = {
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
     const network = event.livemode ? "mainnet" : "testnet";
 
+    console.log({ templateId });
+
     if (customerSyncEnabled) {
       const { data: segments } = await resend.segments.list();
       let segmentId = segments?.data?.find((s) => s.name === SEGMENTS[network])?.id;
@@ -186,7 +190,7 @@ const HANDLERS: WebhookHandlers = {
       );
     }
   },
-  "customer.updated": async (st, resend, event, settings) => {
+  "customer.updated": async (st, resend, event, settings, orgId) => {
     const customerSyncEnabled = settings["customerSyncEnabled"] as boolean;
     const network = event.livemode ? "mainnet" : "testnet";
 
@@ -198,6 +202,17 @@ const HANDLERS: WebhookHandlers = {
     if (!segmentId) {
       const { data: created } = await resend.segments.create({ name: SEGMENTS[network] });
       segmentId = created?.id;
+    }
+
+    const contact = await resend.contacts.get({ email: event.data.object.email });
+
+    if (!contact) {
+      await resend.contacts.create({
+        email: event.data.object.email,
+        firstName: event.data.object.name,
+        unsubscribed: false,
+        properties: event.data.object.metadata ? { ...event.data.object.metadata } : undefined,
+      });
     }
 
     await resend.contacts.update({
@@ -233,16 +248,8 @@ const HANDLERS: WebhookHandlers = {
   },
 };
 
-function extractOrgId(appToken: string): string | null {
-  try {
-    const jwt = appToken.replace(APP_TOKEN_PREFIX, "");
-    return decodeJwt<{ orgId: string }>(jwt)?.orgId ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: NextRequest) {
+  console.log("req", req);
   const rawBody = await req.text();
   const signature = req.headers.get("x-stellartools-signature") ?? "";
   const appToken = req.headers.get("x-stellartools-app-token") ?? "";
@@ -255,10 +262,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
+  console.log("appToken", appToken);
+  console.log("signature", signature);
+
   const { event, settings } = parseJSON<{ event: WebhookEvent; settings: Record<string, AppInstallationSettingValue> }>(
     rawBody,
     Schema.object({ event: Schema.any(), settings: Schema.any() })
   );
+
+  console.log("event", event);
+  console.log("settings", settings);
 
   try {
     const st = new StellarTools({ api_key: appToken });
@@ -268,7 +281,10 @@ export async function POST(req: NextRequest) {
     }
 
     const resend = new Resend(settings["resendApiKey"] as string);
-    const orgId = extractOrgId(appToken);
+    const appContext = await resolveAppContext(appToken);
+    const orgId = appContext?.orgId ?? null;
+
+    console.log({ orgId });
 
     const handler = HANDLERS[event.type] as
       | ((
@@ -287,7 +303,7 @@ export async function POST(req: NextRequest) {
     await handler(st, resend, event, settings, orgId);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
-    console.error(`[Webhook Error]: ${err instanceof Error ? err.message : "Unknown error"}`);
+    console.error("[Webhook Error]:", err);
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

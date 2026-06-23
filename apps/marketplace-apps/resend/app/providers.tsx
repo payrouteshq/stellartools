@@ -2,7 +2,8 @@
 
 import * as React from "react";
 
-import { type AppContext, StellarToolsAppProvider, parseAppContext } from "@stellartools/app-sdk";
+import { resolveAppContext } from "@/app/actions/context";
+import { type AppContext, StellarToolsAppProvider } from "@stellartools/app-sdk";
 import { Skeleton } from "@stellartools/shared-ui";
 import { useSearchParams } from "next/navigation";
 
@@ -10,9 +11,11 @@ const AppContextBridge = ({ children }: { children: React.ReactNode }) => {
   const searchParams = useSearchParams();
   const token = searchParams.get("st_token");
 
-  const context = React.useMemo((): AppContext | null => {
-    if (!token) return null;
-    return parseAppContext(token, process.env.RESEND_APP_SECRET!);
+  const [context, setContext] = React.useState<AppContext | null>(null);
+
+  React.useEffect(() => {
+    if (!token) return;
+    resolveAppContext(token).then(setContext);
   }, [token]);
 
   React.useEffect(() => {

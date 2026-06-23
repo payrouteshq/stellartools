@@ -15,7 +15,7 @@ export const PUT = apiHandler({
 
     if (!installationId) return Result.err(new Error("Installation not found"));
 
-    const response = await updateAppInstallation(installationId, body.settings, auth.organizationId, auth.environment);
+    const response = await updateAppInstallation(installationId, body, auth.organizationId, auth.environment);
 
     return Result.ok(response.settings);
   },

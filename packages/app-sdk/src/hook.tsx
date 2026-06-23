@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import * as React from "react";
 
 import {
   QueryClient,
@@ -13,7 +13,7 @@ import {
 
 import { AppContext } from "./types";
 
-const StellarToolsContext = createContext<AppContext | null>(null);
+const StellarToolsContext = React.createContext<AppContext | null>(null);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +24,41 @@ const queryClient = new QueryClient({
   },
 });
 
+const FONT_STYLESHEET =
+  "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap";
+
 export function StellarToolsAppProvider({ context, children }: { context: AppContext; children: React.ReactNode }) {
+  const hasRequested = React.useRef(false);
+
+  /**
+   * If the token was generated before the app completed first-time setup, settings
+   * will be empty. Signal the host to regenerate the token so the app gets
+   * fresh settings without the user having to re-open the drawer.
+   */
+  React.useEffect(() => {
+    if (Object.keys(context.settings).length > 0) return;
+    if (hasRequested.current) return;
+    if (window.parent === window) return;
+
+    hasRequested.current = true;
+    window.parent.postMessage({ type: "stellar:data-changed" }, "*");
+  }, [context.settings]);
+
+  React.useEffect(() => {
+    if (document.querySelector("[data-stellar-font]")) return;
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = FONT_STYLESHEET;
+    link.dataset.stellarFont = "true";
+    document.head.appendChild(link);
+
+    const style = document.createElement("style");
+    style.dataset.stellarFont = "true";
+    style.textContent = "html,body{font-family:'DM Sans',sans-serif}";
+    document.head.appendChild(style);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <StellarToolsContext.Provider value={context}>{children}</StellarToolsContext.Provider>
@@ -33,7 +67,7 @@ export function StellarToolsAppProvider({ context, children }: { context: AppCon
 }
 
 export function useStellarToolsContext() {
-  const ctx = useContext(StellarToolsContext);
+  const ctx = React.useContext(StellarToolsContext);
 
   if (!ctx) throw new Error("useStellarToolsContext must be used within StellarToolsAppProvider");
 
@@ -49,7 +83,7 @@ export function useStellarToolsQuery<T>(
 
   // We automatically add orgId and env to the key so that
   // switching organizations in the dashboard clears the app cache.
-  const queryKey = useMemo(() => [...key, context.orgId, context.env, context.ui.periodDays], [key, context]);
+  const queryKey = React.useMemo(() => [...key, context.orgId, context.env, context.ui.periodDays], [key, context]);
 
   return useQuery({
     queryKey,

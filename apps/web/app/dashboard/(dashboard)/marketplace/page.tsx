@@ -42,7 +42,7 @@ export default async function MarketplacePage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {apps.map((app) => (
-              <Link key={app.id} href={`/marketplace/${app.id}`} className="group block">
+              <Link key={app.id} href={`/marketplace/${app.slug}`} className="group block">
                 <Card className="border-border/80 hover:border-primary/30 h-full shadow-none transition-colors">
                   <CardContent className="flex flex-col gap-4 p-5">
                     <div className="flex items-start gap-3">

@@ -15,7 +15,28 @@ npm install @stellartools/app-sdk @stellartools/core
 
 ### Providers
 
-Parse `st_token` from the URL once, verify it with your app secret, and pass the decoded context to `StellarToolsAppProvider`. This also sets up the internal TanStack Query client used by the hooks.
+`st_token` is a signed JWT containing the org context. Because your app secret must stay server-side, verification happens in a server action or API route.
+
+```ts
+// app/actions/context.ts
+"use server";
+
+import { type AppContext } from "@stellartools/app-sdk";
+import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stellartools/core";
+
+export async function resolveAppContext(token: string): Promise<AppContext | null> {
+  if (!token.startsWith(APP_TOKEN_PREFIX)) return null;
+
+  const rawJwt = token.replace(APP_TOKEN_PREFIX, "");
+  const verified = verifyJwt<AppContext>(rawJwt, process.env.YOUR_APP_SECRET!, STELLARTOOLS_ID);
+
+  if (!verified) return null;
+
+  return decodeJwt<AppContext>(rawJwt);
+}
+```
+
+**Client provider** — reads the token from the URL, calls the server action, and mounts the context:
 
 ```tsx
 // app/providers.tsx
@@ -23,15 +44,18 @@ Parse `st_token` from the URL once, verify it with your app secret, and pass the
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { type AppContext, StellarToolsAppProvider, parseAppContext } from "@stellartools/app-sdk";
+import { type AppContext, StellarToolsAppProvider } from "@stellartools/app-sdk";
+import { resolveAppContext } from "@/app/actions/context";
 
 function AppContextBridge({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const token = searchParams.get("st_token");
 
-  const context = React.useMemo((): AppContext | null => {
-    if (!token) return null;
-    return parseAppContext(token, process.env.YOUR_APP_SECRET!);
+  const [context, setContext] = React.useState<AppContext | null>(null);
+
+  React.useEffect(() => {
+    if (!token) return;
+    resolveAppContext(token).then(setContext);
   }, [token]);
 
   React.useEffect(() => {
@@ -334,7 +358,7 @@ export default function AuthenticationPage() {
 ## Environment variables
 
 ```env
-YOUR_APP_SECRET=sec_...         # Your app's signing secret — used by parseAppContext
+YOUR_APP_SECRET=sec_...         # Your app's signing secret — used by resolveAppContext
 NEXT_PUBLIC_APP_URL=https://your-app.com
 WEBHOOK_SECRET=whsec_...        # Secret for verifying incoming webhook payloads
 ```
