@@ -41,3 +41,5 @@ export const SAC_TOKEN_ADDRESSES: Record<"xlm" | "usdc", Record<Network, string>
     mainnet: "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI",
   },
 };
+
+export const APP_SENSITIVE_KEY_PREFIX = "__ST_ENC__:";

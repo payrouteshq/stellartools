@@ -1,0 +1,45 @@
+{
+  "name": "@stellartools/app-sdk",
+  "version": "0.0.1",
+  "description": "StellarTools App SDK",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup && for f in dist/index.mjs dist/index.js; do { printf '\"use client\";\\n'; cat \"$f\"; } > \"${f}.tmp\" && mv \"${f}.tmp\" \"$f\"; done",
+    "build:watch": "tsup --watch"
+  },
+  "keywords": [
+    "stellar",
+    "tools",
+    "app",
+    "sdk"
+  ],
+  "author": "Emmanuel Odii",
+  "license": "ISC",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.mjs",
+      "require": "./dist/schema.js"
+    }
+  },
+  "dependencies": {
+    "@stellartools/core": "workspace:*",
+    "@tanstack/react-query": "^5.90.12"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

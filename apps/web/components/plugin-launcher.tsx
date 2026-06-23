@@ -1,94 +1,228 @@
 "use client";
 
+import * as React from "react";
+
 import { createPortal } from "react-dom";
 
-import { PluginFrame } from "@/components/plugin-frame";
-import { usePlugins } from "@/hooks/use-plugin";
-import { Button, Separator } from "@stellartools/shared-ui";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  cn,
-  useMounted,
-} from "@stellartools/shared-ui";
-import { PlusIcon } from "lucide-react";
+import { generateAppToken, retrieveInstalledApps } from "@/actions/app";
+import { useCookieState } from "@/hooks/use-cookie-state";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { Button, Separator, Spinner, cn, useMounted } from "@stellartools/shared-ui";
+import { useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
+import { PlusIcon, XIcon } from "lucide-react";
+import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export function PluginLauncher() {
   const router = useRouter();
   const isMounted = useMounted();
-  const { activePlugin, isOpen, selectApp, setIsOpen, installations } = usePlugins();
+  const { data: org } = useOrgContext();
+  const { data: installations, isLoading: isLoadingInstalledApps } = useOrgQuery(["installed-apps"], async () => {
+    const installations = await retrieveInstalledApps({ status: "active" }, org?.id, org?.environment);
+    return installations.map((p) => ({
+      installation: p.app_installation,
+      app: p.app,
+    }));
+  });
 
-  if (process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER === "false") return null;
+  const queryClient = useQueryClient();
 
-  const launcher = (
+  const [period, setPeriod] = useCookieState("dashboard_period", "30");
+  const { resolvedTheme } = useTheme();
+  const [activeAppId, setActiveAppId] = useCookieState<string | null>("active_plugin_id", null);
+  const [isOpen, setIsOpen] = useCookieState<boolean>("plugin_sidebar_open", false);
+
+  const activePlugin = React.useMemo(() => {
+    if (!activeAppId) return installations?.[0] || null;
+    return installations?.find((i) => i.app.id === activeAppId) || installations?.[0] || null;
+  }, [installations, activeAppId]);
+
+  const [appToken, setAppToken] = React.useState<string | null>(null);
+  const [tokenRefreshKey, setTokenRefreshKey] = React.useState(0);
+
+  const handleSelectApp = React.useCallback(
+    (id: string) => {
+      setActiveAppId(id);
+      setIsOpen(true);
+    },
+    [setActiveAppId, setIsOpen]
+  );
+
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const { appId } = (e as CustomEvent<{ appId: string }>).detail;
+      handleSelectApp(appId);
+    };
+    window.addEventListener("stellartools:open-app", handler);
+    return () => window.removeEventListener("stellartools:open-app", handler);
+  }, [handleSelectApp]);
+
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      setPeriod((e as CustomEvent<{ period: string }>).detail.period);
+    };
+    window.addEventListener("stellar:period-changed", handler);
+    return () => window.removeEventListener("stellar:period-changed", handler);
+  }, [setPeriod]);
+
+  React.useEffect(() => {
+    if (!activePlugin?.installation.id) return;
+    generateAppToken(
+      activePlugin.installation.id,
+      {
+        periodDays: Number(period),
+        currency: org?.selectedCurrency ?? "USD",
+        theme: resolvedTheme === "dark" ? "dark" : "light",
+      },
+      org?.id,
+      org?.environment
+    ).then((token) => setAppToken(token));
+  }, [activePlugin?.installation.id, org?.selectedCurrency, period, resolvedTheme, tokenRefreshKey]);
+
+  const src = React.useMemo(() => {
+    if (!activePlugin?.app.baseUrl) return "";
+    const url = new URL(activePlugin.app.baseUrl);
+    console.log({ url });
+    if (appToken) {
+      url.searchParams.set("st_token", appToken);
+      console.log({ url: url.toString() });
+    }
+    return url.toString();
+  }, [activePlugin?.app.baseUrl, appToken]);
+
+  console.log({ activePlugin, src });
+
+  React.useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (!activePlugin?.app.baseUrl) return;
+
+      if (new URL(activePlugin.app.baseUrl).origin !== event.origin) return;
+
+      if (event.data.type === "stellar:data-changed") {
+        // Refresh EVERYTHING in the dashboard.
+        // Tables, stats, and headers will update to reflect the App's changes.
+        queryClient.invalidateQueries();
+        // Regenerate the app token so the iframe reloads with up-to-date settings.
+        setTokenRefreshKey((k) => k + 1);
+      }
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [activePlugin?.app.baseUrl, queryClient]);
+
+  const portal = (
     <>
       <Separator
         orientation="vertical"
-        className="bg-foreground/20 pointer-events-none fixed inset-y-0 right-8 z-110 h-full"
+        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-110 h-full"
       />
 
-      <div className="fixed top-1/2 -right-3 z-120 flex -translate-y-1/2 items-center gap-3 pr-3">
-        <div className="flex flex-col items-end gap-3">
-          {installations.map((installation) => (
-            <Button
-              key={installation.app.id}
-              onClick={() => selectApp(installation.app.id)}
-              className={cn(
-                "size-7 rounded-full border shadow-lg",
-                activePlugin.app.id === installation.app.id ? "bg-white shadow-sm" : "opacity-50"
-              )}
-            >
-              <Image
-                src={installation.app.manifest?.iconUrl as string}
-                alt={`${installation.app.name} on StellarTools`}
-                fill
-                className="object-cover"
-              />
-            </Button>
-          ))}
+      <div className="fixed top-1/2 -right-3 z-120 flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
+        <div className="flex flex-col items-end gap-2.5">
+          {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
+          {installations?.map((installation) => {
+            const isActive = activePlugin?.app.id === installation.app.id && isOpen;
+
+            return (
+              <Button
+                key={installation.app.id}
+                onClick={() => (isActive ? setIsOpen(false) : handleSelectApp(installation.app.id))}
+                title={installation.app.name}
+                className={cn(
+                  "border-border bg-background relative size-8 cursor-pointer overflow-hidden rounded-none border p-0 shadow-sm transition-shadow hover:shadow-md",
+                  isActive && "ring-primary shadow-md ring-2"
+                )}
+              >
+                <Image
+                  src={installation.app.iconUrl as string}
+                  alt={`${installation.app.name} on StellarTools`}
+                  fill
+                  className="rounded-sm object-cover"
+                  unoptimized
+                />
+              </Button>
+            );
+          })}
 
           <Button
             type="button"
             size="icon"
-            className="bg-primary text-primary-foreground size-7 rounded-full border shadow-lg"
+            title="Browse marketplace"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 size-8 rounded-full border shadow-sm transition-shadow hover:shadow-md"
             onClick={() => router.push(`/marketplace`)}
           >
-            <PlusIcon className="size-5 transition-transform" />
+            <PlusIcon className="size-4" />
           </Button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="plugin-drawer"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
+            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+            className="bg-background border-border/80 fixed inset-y-0 right-12 z-100 flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
+            role="complementary"
+            aria-label={activePlugin?.app.name ?? "Installed app"}
+          >
+            <div className="bg-muted/30 shrink-0 border-b">
+              <div className="bg-primary h-0.5 w-full" />
+              <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  {activePlugin?.app.iconUrl ? (
+                    <div className="border-border bg-background relative h-9 w-9 shrink-0 overflow-hidden rounded-none border shadow-sm">
+                      <Image
+                        src={activePlugin.app.iconUrl}
+                        alt=""
+                        fill
+                        className="rounded-sm object-cover"
+                        draggable={false}
+                        unoptimized
+                      />
+                    </div>
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
+                      {activePlugin?.app.name ?? "Installed app"}
+                    </p>
+                    <p className="text-foreground truncate text-sm font-semibold tracking-tight">Integration</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground size-10 shrink-0"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <XIcon className="size-5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {appToken && src ? (
+                <iframe
+                  src={src}
+                  className="w-full border-none transition-all duration-200"
+                  style={{ height: `100%` }}
+                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin bg-background w-full border-none"
+                />
+              ) : (
+                <div className="bg-muted/60 m-4 h-48 animate-pulse rounded-md border border-dashed" />
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 
-  return (
-    <>
-      {isMounted ? createPortal(launcher, document.body) : null}
-
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent className="gap-0 p-0 sm:max-w-lg">
-          <SheetHeader className="border-b">
-            <SheetTitle>Integration Preview</SheetTitle>
-            <SheetDescription>Dummy plugin frame for flow testing.</SheetDescription>
-          </SheetHeader>
-          <div className="p-4">
-            {activePlugin?.app?.baseUrl ? (
-              <PluginFrame
-                appBaseUrl={activePlugin.app.baseUrl}
-                installationId={activePlugin?.installation.id}
-                title="Integration Preview"
-                className="bg-background rounded-md border"
-              />
-            ) : (
-              <div className="bg-muted h-32 animate-pulse rounded-md border" />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
-  );
+  return isMounted ? createPortal(portal, document.body) : null;
 }

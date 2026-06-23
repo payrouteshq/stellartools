@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1781212343527,
-      "tag": "0000_mysterious_impossible_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1781471381944,
-      "tag": "0001_rapid_lockheed",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1781474288923,
-      "tag": "0002_uneven_ultron",
+      "when": 1782225689376,
+      "tag": "0000_material_blindfold",
       "breakpoints": true
     }
   ]

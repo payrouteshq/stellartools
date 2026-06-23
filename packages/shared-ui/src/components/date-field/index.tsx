@@ -64,9 +64,7 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
     } = splitProps(mixProps, "label", "error", "helpText", "input", "calendar");
 
     const [open, setOpen] = React.useState(false);
-    const [inputValue, setInputValue] = React.useState(
-      value ? format(value, "MMMM dd, yyyy") : ""
-    );
+    const [inputValue, setInputValue] = React.useState(value ? format(value, "MMMM dd, yyyy") : "");
 
     React.useEffect(() => {
       setInputValue(value ? format(value, "MMMM dd, yyyy") : "");
@@ -115,12 +113,7 @@ export const DateField = React.forwardRef<HTMLInputElement, DateFieldProps>(
           <InputGroupAddon align="inline-end">
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
-                <InputGroupButton
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label="Open calendar"
-                  disabled={disabled}
-                >
+                <InputGroupButton size="icon-xs" variant="ghost" aria-label="Open calendar" disabled={disabled}>
                   <CalendarIcon />
                   <span className="sr-only">Open calendar</span>
                 </InputGroupButton>
@@ -232,11 +225,7 @@ export const DateTimeField = React.forwardRef<HTMLDivElement, DateTimeFieldProps
                 variant="outline"
                 disabled={disabled}
                 aria-invalid={!!error}
-                className={cn(
-                  "w-36 justify-between font-normal",
-                  !value.date && "text-muted-foreground",
-                  dp.className
-                )}
+                className={cn("w-36 justify-between font-normal", !value.date && "text-muted-foreground", dp.className)}
               >
                 {value.date ? format(value.date, "PP") : datePlaceholder}
                 <ChevronDownIcon className="size-4 opacity-50" />
@@ -269,7 +258,7 @@ export const DateTimeField = React.forwardRef<HTMLDivElement, DateTimeFieldProps
             disabled={disabled}
             aria-invalid={!!error}
             className={cn(
-              "w-28 appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none",
+              "bg-background w-28 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none",
               tp.className
             )}
           />

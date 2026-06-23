@@ -37,10 +37,12 @@
   "dependencies": {
     "@stellar/mpp": "^0.6.0",
     "better-result": "^2.5.1",
+    "jsonwebtoken": "^9.0.3",
     "ky": "^1.14.2",
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9",
     "@types/node": "^20",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"

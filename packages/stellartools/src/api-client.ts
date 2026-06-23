@@ -81,9 +81,22 @@ export class ApiClient {
     return url.startsWith("/") ? url.slice(1) : url;
   }
 
-  private request = async <T>(call: () => Promise<T>): Promise<Result<T, Error>> => {
+  private request = async <T>(
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
+    call: () => Promise<T>
+  ): Promise<Result<T, Error>> => {
     try {
       const data = await call();
+
+      // If we are in an iframe and this was a mutation, notify the parent
+      if (
+        typeof window !== "undefined" &&
+        window.self !== window.top &&
+        ["POST", "PUT", "DELETE", "PATCH"].includes(method.toUpperCase())
+      ) {
+        window.parent.postMessage({ type: "stellar:data-changed" }, "*");
+      }
+
       return Result.ok(data);
     } catch (e) {
       if (e instanceof HTTPError) {
@@ -112,14 +125,14 @@ export class ApiClient {
   };
 
   get = <T>(url: string, searchParams?: any, headers?: HeadersInit) =>
-    this.request(() =>
+    this.request("GET", () =>
       this.api
         .get(this.formatPath(url), { searchParams, headers: { "Content-Type": "application/json", ...headers } })
         .json<T>()
     );
 
   post = <T>(url: string, body?: any, headers?: HeadersInit) =>
-    this.request(() =>
+    this.request("POST", () =>
       this.api
         .post(this.formatPath(url), { json: body, headers: { "Content-Type": "application/json", ...headers } })
         .json<T>()
@@ -127,17 +140,17 @@ export class ApiClient {
 
   // POST with FormData (e.g. file uploads). No Content-Type is set so the browser sends multipart/form-data with boundary.
   postFormData = <T>(url: string, formData: FormData) =>
-    this.request(() => this.api.post(this.formatPath(url), { body: formData }).json<T>());
+    this.request("POST", () => this.api.post(this.formatPath(url), { body: formData }).json<T>());
 
   put = <T>(url: string, body?: any, headers?: HeadersInit) =>
-    this.request(() =>
+    this.request("PUT", () =>
       this.api
         .put(this.formatPath(url), { json: body, headers: { "Content-Type": "application/json", ...headers } })
         .json<T>()
     );
 
   delete = <T>(url: string, headers?: HeadersInit) =>
-    this.request(() =>
+    this.request("DELETE", () =>
       this.api.delete(this.formatPath(url), { headers: { "Content-Type": "application/json", ...headers } }).json<T>()
     );
 

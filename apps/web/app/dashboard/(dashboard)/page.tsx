@@ -117,7 +117,10 @@ export default function DashboardPage() {
                 <SelectField
                   id="period-select"
                   value={period}
-                  onChange={setPeriod}
+                  onChange={(v) => {
+                    setPeriod(v);
+                    window.dispatchEvent(new CustomEvent("stellar:period-changed", { detail: { period: v } }));
+                  }}
                   triggerClassName="h-9 w-[140px]"
                   items={[
                     { value: "7", label: "Last 7 days" },

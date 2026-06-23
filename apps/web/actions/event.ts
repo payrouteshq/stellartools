@@ -7,7 +7,7 @@ import { Event, Network, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
-import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-embed-bridge";
+import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk/schema";
 import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { SQL, and, desc, eq, inArray } from "drizzle-orm";
@@ -89,7 +89,8 @@ export async function withEvent<T>(
             livemode: env === "mainnet",
             data: { object: trigger.map(result) },
           };
-          deliveries.push(triggerWebhooks(targets, trigger.event, envelope, webhookLogId!));
+
+          deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], webhookLogId!));
         });
       }
 
@@ -103,22 +104,21 @@ export async function withEvent<T>(
       // B. Plugin/App Webhooks (Partner servers)
       if (installedApps.length > 0) {
         installedApps.forEach(({ app, app_installation }) => {
-          const envelope: WebhookEventBase<any, any> = {
-            id: webhookLogId!,
-            type: primaryEvent!.type,
-            created: new Date().toISOString(),
-            livemode: env === "mainnet",
-            data: { object: primaryEvent!.map(result) },
-          };
+          triggers.forEach((trigger) => {
+            const logId = generateResourceId("wh_evt", orgId, 52);
 
-          deliveries.push(
-            deliverToApp(
-              app,
-              app_installation.id,
-              { ...envelope, organizationId: orgId, environment: env },
-              webhookLogId!
-            )
-          );
+            const event: WebhookEventBase<any, any> = {
+              id: logId,
+              type: trigger.event,
+              created: new Date().toISOString(),
+              livemode: env === "mainnet",
+              data: trigger.map(result),
+            };
+
+            deliveries.push(
+              deliverToApp(app, app_installation.id, event, logId, app_installation.settings, orgId, env)
+            );
+          });
         });
       }
 

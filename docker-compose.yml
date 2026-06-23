@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: local
     volumes:
       - stellartools-soroban-database-data:/var/lib/postgresql/data
-      - ./db/docker-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./seed.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - stellartools-soroban-network
     restart: unless-stopped

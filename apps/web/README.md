@@ -7,7 +7,7 @@ The main Next.js application — dashboard, customer portal, checkout pages, and
 ```bash
 # From repo root (recommended)
 pnpm dev              # Next.js on :3000 + Mintlify docs on :3333 (concurrently)
-pnpm build            # production build (also builds @stellartools/core + app-embed-bridge first)
+pnpm build            # production build (also builds @stellartools/core)
 pnpm start            # serve the production build
 pnpm lint             # ESLint
 pnpm type-check       # tsc --noEmit
