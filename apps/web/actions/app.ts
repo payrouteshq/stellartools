@@ -8,7 +8,7 @@ import { maskData, unmaskData } from "@/lib/utils";
 import { AppContext } from "@stellartools/app-sdk";
 import { AppScope } from "@stellartools/app-sdk/schema";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, signJwt } from "@stellartools/core";
-import { SQL, and, arrayContains, eq, or } from "drizzle-orm";
+import { SQL, and, arrayContains, eq, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export const generateAppToken = async (
@@ -18,6 +18,8 @@ export const generateAppToken = async (
   env?: Network
 ): Promise<string | null> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
+
+  console.log({ organizationId, environment });
 
   if (!organizationId || !environment) return null;
 
@@ -58,6 +60,8 @@ export const generateAppToken = async (
     },
   };
 
+  console.log({ context });
+
   const token = signJwt(context, "1h", decrypt(row.appSecret), STELLARTOOLS_ID);
 
   return `${APP_TOKEN_PREFIX}${token}`;
@@ -87,7 +91,8 @@ export const retrieveApps = async (filters?: { id?: string; slug?: string; statu
   return await db
     .select()
     .from(apps)
-    .where(and(...whereClause));
+    .where(and(...whereClause))
+    .orderBy(sql`${apps.status} = 'available' desc`);
 };
 
 export const postAppInstallation = async (params: Partial<AppInstallation>) => {

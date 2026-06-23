@@ -69,19 +69,30 @@ export function PluginLauncher() {
 
   React.useEffect(() => {
     if (!activePlugin?.installation.id) return;
-    generateAppToken(activePlugin.installation.id, {
-      periodDays: Number(period),
-      currency: org?.selectedCurrency ?? "USD",
-      theme: resolvedTheme === "dark" ? "dark" : "light",
-    }).then((token) => setAppToken(token));
+    generateAppToken(
+      activePlugin.installation.id,
+      {
+        periodDays: Number(period),
+        currency: org?.selectedCurrency ?? "USD",
+        theme: resolvedTheme === "dark" ? "dark" : "light",
+      },
+      org?.id,
+      org?.environment
+    ).then((token) => setAppToken(token));
   }, [activePlugin?.installation.id, org?.selectedCurrency, period, resolvedTheme, tokenRefreshKey]);
 
   const src = React.useMemo(() => {
     if (!activePlugin?.app.baseUrl) return "";
     const url = new URL(activePlugin.app.baseUrl);
-    if (appToken) url.searchParams.set("st_token", appToken);
+    console.log({ url });
+    if (appToken) {
+      url.searchParams.set("st_token", appToken);
+      console.log({ url: url.toString() });
+    }
     return url.toString();
   }, [activePlugin?.app.baseUrl, appToken]);
+
+  console.log({ activePlugin, src });
 
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -126,7 +137,7 @@ export function PluginLauncher() {
                 )}
               >
                 <Image
-                  src={installation.app.manifest?.iconUrl as string}
+                  src={installation.app.iconUrl as string}
                   alt={`${installation.app.name} on StellarTools`}
                   fill
                   className="rounded-sm object-cover"
@@ -164,10 +175,10 @@ export function PluginLauncher() {
               <div className="bg-primary h-0.5 w-full" />
               <div className="flex items-center justify-between gap-3 px-4 py-3.5">
                 <div className="flex min-w-0 items-center gap-3">
-                  {activePlugin?.app.manifest?.iconUrl ? (
+                  {activePlugin?.app.iconUrl ? (
                     <div className="border-border bg-background relative h-9 w-9 shrink-0 overflow-hidden rounded-none border shadow-sm">
                       <Image
-                        src={activePlugin.app.manifest.iconUrl}
+                        src={activePlugin.app.iconUrl}
                         alt=""
                         fill
                         className="rounded-sm object-cover"
