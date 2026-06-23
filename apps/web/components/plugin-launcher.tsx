@@ -103,8 +103,6 @@ export function PluginLauncher() {
     return () => window.removeEventListener("message", handler);
   }, [activePlugin?.app.baseUrl, queryClient]);
 
-  if (process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER === "false") return null;
-
   const portal = (
     <>
       <Separator

@@ -3,7 +3,6 @@ import { getCurrentOrganization } from "@/actions/organization";
 import { MainnetReadinessModal } from "@/components/mainnet-readiness-modal";
 import { PluginLauncher } from "@/components/plugin-launcher";
 import { deleteCookies } from "@/integrations/cookie-manager";
-import { cn } from "@stellartools/shared-ui";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -23,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!currentOrg) redirect(`/select-organization?next=${url}`);
 
   return (
-    <div className={cn(process.env.NEXT_PUBLIC_SHOW_MARKETPLACE_LAUNCHER !== "false" ? "mr-12" : "")}>
+    <div className="mr-12">
       {children}
       <MainnetReadinessModal />
       <PluginLauncher />
