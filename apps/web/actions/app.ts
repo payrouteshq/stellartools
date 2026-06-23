@@ -62,9 +62,12 @@ export const generateAppToken = async (
 
   console.log({ context });
 
-  const token = signJwt(context, "1h", decrypt(row.appSecret), STELLARTOOLS_ID);
+  const rawToken = signJwt(context, "1h", decrypt(row.appSecret), STELLARTOOLS_ID);
+  const token = `${APP_TOKEN_PREFIX}${rawToken}`;
 
-  return `${APP_TOKEN_PREFIX}${token}`;
+  console.log({ rawToken, token });
+
+  return token;
 };
 
 export const postApp = async (params: Omit<App, "id" | "createdAt">) => {
