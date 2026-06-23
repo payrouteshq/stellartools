@@ -1,8 +1,10 @@
 "use server";
 
 import { resolveOrgContext } from "@/actions/organization";
+import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App, AppInstallation, AppInstallationStatus, AppStatus, Network, appInstallations, apps, db } from "@/db";
 import { decrypt, encrypt } from "@/integrations/encryption";
+import { maskData, unmaskData } from "@/lib/utils";
 import { AppContext } from "@stellartools/app-sdk";
 import { AppScope } from "@stellartools/app-sdk/schema";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, signJwt } from "@stellartools/core";
@@ -48,7 +50,7 @@ export const generateAppToken = async (
     instId: row.id,
     appId: row.appId,
     scopes: row.scopes,
-    settings: row.settings ?? {},
+    settings: unmaskData(row.settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt),
     ui: {
       periodDays: uiContext.periodDays,
       currency: uiContext.currency,
@@ -139,8 +141,9 @@ export const updateAppInstallation = async (
   const { organizationId } = await resolveOrgContext(orgId, env);
 
   const [row] = await db
-    .select()
+    .select({ installation: appInstallations, manifest: apps.manifest })
     .from(appInstallations)
+    .innerJoin(apps, eq(appInstallations.appId, apps.id))
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
     .limit(1);
 
@@ -148,9 +151,19 @@ export const updateAppInstallation = async (
 
   const { settings: settingsPatch, ...baseUpdate } = patch;
 
+  const sensitiveKeys = (row.manifest as any)?.sensitiveKeys ?? [];
+
+  const maskedPatch = settingsPatch
+    ? maskData(settingsPatch as Record<string, any>, sensitiveKeys, APP_SENSITIVE_KEY_PREFIX, encrypt)
+    : undefined;
+
   const [updated] = await db
     .update(appInstallations)
-    .set({ ...baseUpdate, updatedAt: new Date(), settings: { ...row.settings, ...settingsPatch } })
+    .set({
+      ...baseUpdate,
+      updatedAt: new Date(),
+      settings: { ...row.installation.settings, ...maskedPatch },
+    })
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
     .returning();
 

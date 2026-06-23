@@ -73,6 +73,7 @@ function AuthenticationForm() {
         return;
       }
 
+      window.parent.postMessage({ type: "stellar:data-changed" }, "*");
       router.push(`/dashboard?st_token=${appToken}`);
     } finally {
       setPending(false);
@@ -119,8 +120,11 @@ function AuthenticationForm() {
                   <InputGroupInput value="onboarding@resend.dev" readOnly className="text-sm" />
                 </InputGroup>
                 <p className="text-muted-foreground text-xs">
-                  This address can only send to addresses registered in your Resend account. Verify a sending domain to
-                  email anyone.
+                  This address can only send to addresses registered in your Resend account.{" "}
+                  <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="underline">
+                    Verify a sending domain
+                  </a>{" "}
+                  on Resend to email anyone.
                 </p>
               </>
             )}

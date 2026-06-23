@@ -7,17 +7,17 @@ async function query<T extends object>(sql: string, params?: unknown[]): Promise
   return rows as T[];
 }
 
-export async function indexEmail(emailId: string, orgId: string): Promise<void> {
-  await query(`INSERT INTO email_index (email_id, org_id) VALUES ($1, $2) ON CONFLICT (email_id) DO NOTHING`, [
-    emailId,
-    orgId,
-  ]);
+export async function indexEmail(emailId: string, orgId: string, environment: string): Promise<void> {
+  await query(
+    `INSERT INTO email_index (email_id, org_id, environment) VALUES ($1, $2, $3) ON CONFLICT (email_id) DO NOTHING`,
+    [emailId, orgId, environment]
+  );
 }
 
-export async function getIndexedEmailIds(orgId: string, since: Date): Promise<Set<string>> {
+export async function getIndexedEmailIds(orgId: string, environment: string, since: Date): Promise<Set<string>> {
   const rows = await query<{ email_id: string }>(
-    `SELECT email_id FROM email_index WHERE org_id = $1 AND sent_at >= $2`,
-    [orgId, since]
+    `SELECT email_id FROM email_index WHERE org_id = $1 AND environment = $2 AND sent_at >= $3`,
+    [orgId, environment, since]
   );
   return new Set(rows.map((r) => r.email_id));
 }

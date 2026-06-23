@@ -51,6 +51,11 @@ export const updateSettings = async (
   await st.appInstallations.updateSettings(patch as Record<string, AppInstallationSettingValue>);
 };
 
+export const logout = async (appToken: string): Promise<void> => {
+  const st = new StellarTools({ api_key: appToken });
+  await st.appInstallations.updateSettings({ resendApiKey: null, fromEmail: null });
+};
+
 export const listResendDomains = async (apiKey: string): Promise<string[]> => {
   const resend = new Resend(apiKey);
   const { data, error } = await resend.domains.list();
@@ -68,12 +73,17 @@ export const retrieveEmailTemplates = async (apiKey: string): Promise<Array<{ id
   return data?.data?.map((t) => ({ id: t.id, name: t.name })) ?? [];
 };
 
-export const retrieveEmailStats = async (apiKey: string, orgId: string, periodDays: number): Promise<EmailStats> => {
+export const retrieveEmailStats = async (
+  apiKey: string,
+  orgId: string,
+  periodDays: number,
+  environment: string
+): Promise<EmailStats> => {
   const since = new Date(Date.now() - periodDays * 864e5);
   const resend = new Resend(apiKey);
 
   const [indexedIds, emailList] = await Promise.all([
-    getIndexedEmailIds(orgId, since),
+    getIndexedEmailIds(orgId, environment, since),
     resend.emails.list({ limit: 100 }),
   ]);
 

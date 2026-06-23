@@ -23,7 +23,15 @@ const AppContextBridge = ({ children }: { children: React.ReactNode }) => {
     document.documentElement.classList.toggle("dark", context.ui.theme === "dark");
   }, [context]);
 
-  if (!context) return null;
+  if (!context) {
+    return (
+      <div className="flex flex-col gap-4 p-6">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
 
   return <StellarToolsAppProvider context={context}>{children}</StellarToolsAppProvider>;
 };

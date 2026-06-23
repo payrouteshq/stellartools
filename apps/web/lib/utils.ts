@@ -5,7 +5,6 @@ import crypto from "crypto";
 import { saveAs } from "file-saver";
 import _ from "lodash";
 import moment from "moment";
-import { z } from "zod";
 
 type HashAlgorithm = "shake128" | "sha256";
 
@@ -207,4 +206,43 @@ export const downloadReceipt = async (Component: React.ReactElement, filename: s
     console.error("PDF Export Failed:", error);
     throw new AppError("Could not generate receipt");
   }
+};
+
+export const maskData = (
+  data: Record<string, any>,
+  sensitiveKeys: string[],
+  sensitivePrefix: string,
+  encryptFn: (value: string) => string
+): Record<string, any> => {
+  const out: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    const val = data[key];
+    if (sensitiveKeys.includes(key) && typeof val === "string" && !val.startsWith(sensitivePrefix)) {
+      out[key] = `${sensitivePrefix}${encryptFn(val)}`;
+    } else if (val !== null && typeof val === "object") {
+      out[key] = maskData(val, sensitiveKeys, sensitivePrefix, encryptFn);
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+};
+
+export const unmaskData = (
+  data: Record<string, any>,
+  sensitivePrefix: string,
+  decryptFn: (value: string) => string
+): Record<string, any> => {
+  const out: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    const val = data[key];
+    if (typeof val === "string" && val.startsWith(sensitivePrefix)) {
+      out[key] = decryptFn(val.slice(sensitivePrefix.length));
+    } else if (val !== null && typeof val === "object") {
+      out[key] = unmaskData(val, sensitivePrefix, decryptFn);
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
 };

@@ -80,9 +80,11 @@ export const appManifestSchema = Schema.object({
     )
   ).min(1, "At least one scope is required"),
 
+  sensitiveKeys: Schema.array(Schema.string()).default([]),
+
   version: Schema.string()
     .regex(/^\d+\.\d+\.\d+$/)
-    .default("1.0.0"), // Semantic versioning
+    .default("1.0.0"),
 });
 
 export type AppManifest = Schema.infer<typeof appManifestSchema>;

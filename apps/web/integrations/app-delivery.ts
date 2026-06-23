@@ -2,9 +2,11 @@ import "server-only";
 
 import { generateAppToken } from "@/actions/app";
 import { postWebhookLog } from "@/actions/webhook";
+import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
 import { AppError } from "@/lib/action-handler";
+import { unmaskData } from "@/lib/utils";
 import { Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
 
 export const deliverToApp = async (
@@ -22,7 +24,7 @@ export const deliverToApp = async (
 
   const startTime = Date.now();
 
-  const body = JSON.stringify({ event, settings: settings ?? {} });
+  const body = JSON.stringify({ event, settings: unmaskData(settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt) });
 
   const signer = new WebhookSigner();
   const signature = signer.generateSignature(body, decrypt(app.appSecret));

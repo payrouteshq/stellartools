@@ -2,9 +2,14 @@
 
 import * as React from "react";
 
-import { retrieveEmailStats, retrieveEmailTemplates, updateSettings } from "@/app/actions/resend";
+import { logout, retrieveEmailStats, retrieveEmailTemplates, updateSettings } from "@/app/actions/resend";
 import { EmailStats } from "@/app/types";
-import { useStellarToolsContext, useStellarToolsMutation, useStellarToolsQuery } from "@stellartools/app-sdk";
+import {
+  type AppContext,
+  useStellarToolsContext,
+  useStellarToolsMutation,
+  useStellarToolsQuery,
+} from "@stellartools/app-sdk";
 import { AppInstallationSettingValue, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
 import {
   Badge,
@@ -21,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@stellartools/shared-ui";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type EmailRow = { original: EmailStats["emails"][number] };
 
@@ -47,7 +52,7 @@ const EMAIL_COLUMNS = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }: { row: EmailRow }) => (
-      <Badge variant={STATUS_VARIANT[row.original.status] ?? "outline"} className="capitalize shadow-none">
+      <Badge variant={STATUS_VARIANT[row.original.status] ?? "outline"} className="text-xs capitalize shadow-none">
         {row.original.status}
       </Badge>
     ),
@@ -61,15 +66,21 @@ const SEND_ACTIVITY_CONFIG = { sent: { label: "Emails sent", color: "var(--chart
 const Dashboard = () => {
   const searchParams = useSearchParams();
   const appToken = searchParams.get("st_token") ?? "";
+  const router = useRouter();
 
-  const { settings, orgId, ui } = useStellarToolsContext();
+  const handleLogout = async () => {
+    await logout(appToken);
+    router.push(`/authentication?st_token=${appToken}`);
+  };
+
+  const { settings, ui } = useStellarToolsContext();
 
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
 
   const { data: stats } = useStellarToolsQuery<EmailStats>(
     ["stats"],
-    () => retrieveEmailStats(settings.resendApiKey as string, orgId, ui.periodDays),
+    (ctx: AppContext) => retrieveEmailStats(ctx.settings.resendApiKey as string, ctx.orgId, ctx.ui.periodDays, ctx.env),
     { enabled: !!settings.resendApiKey }
   );
 
@@ -125,14 +136,22 @@ const Dashboard = () => {
             <h2 className="text-base font-medium">Overview</h2>
             <p className="text-muted-foreground text-sm">Email delivery for the last {ui.periodDays} days</p>
           </div>
-          <a
-            href="https://resend.com/emails"
-            target="_blank"
-            rel="noreferrer"
-            className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
-          >
-            Go to Resend dashboard ↗
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href="https://resend.com/emails"
+              target="_blank"
+              rel="noreferrer"
+              className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
+            >
+              Go to Resend dashboard ↗
+            </a>
+            <button
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-destructive text-xs underline-offset-4 hover:underline"
+            >
+              Disconnect
+            </button>
+          </div>
         </div>
 
         <div className="border-border/60 flex flex-col gap-5 border-t pt-6">
