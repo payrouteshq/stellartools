@@ -13,7 +13,8 @@ const AppRouter = () => {
   React.useEffect(() => {
     const qs = searchParams.toString() ? `?${searchParams.toString()}` : "";
     router.replace(settings?.resendApiKey ? `/dashboard${qs}` : `/authentication${qs}`);
-  }, [settings, router, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return null;
 };
