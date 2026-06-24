@@ -26,7 +26,6 @@ export const deliverToApp = async (
 
   const body = JSON.stringify({ event, settings: unmaskData(settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt) });
   try {
-
     const signer = new WebhookSigner();
     const signature = signer.generateSignature(body, decrypt(app.appSecret));
 

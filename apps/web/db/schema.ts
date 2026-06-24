@@ -463,12 +463,7 @@ export const webhookLogs = pgTable(
     nextRetry: timestamp("next_retry"),
     description: text("description").notNull(),
   },
-  (t) => [
-    check(
-      "webhook_log_source_check",
-      sql`${t.webhookId} IS NOT NULL OR ${t.appInstallationId} IS NOT NULL`
-    ),
-  ]
+  (t) => [check("webhook_log_source_check", sql`${t.webhookId} IS NOT NULL OR ${t.appInstallationId} IS NOT NULL`)]
 );
 
 export const refundStatusEnum = pgEnum("refund_status", refundStatusEnum$1.enum);
