@@ -7,7 +7,7 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { type AppManifest, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
+import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
   AppInstallationSettingValue,
   ProductStatus,
@@ -631,7 +631,9 @@ export const apps = pgTable(
     tagline: text("tagline").notNull(),
     websiteUrl: text("website_url"),
     supportEmail: text("support_email"),
-    manifest: jsonb("manifest").$type<AppManifest>().notNull(),
+    scopes: text("scopes").array().$type<AppScope[]>().notNull(),
+    sensitiveKeys: text("sensitiveKeys").array(),
+    version: text("version").notNull(),
     status: appStatusEnum("status").default("coming_soon"),
     iconUrl: text("icon_url"),
   },

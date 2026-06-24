@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_email_index_org_sent ON email_index (org_id, envi
 -- ============================================================
 \c postgres;
 
-INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publisher, features_markdown, price, tagline, website_url, support_email, manifest, status, icon_url) VALUES
+INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publisher, features_markdown, price, tagline, website_url, support_email, scopes, "sensitiveKeys", version, status, icon_url) VALUES
   (
     'app_resend',
     'Resend',
@@ -57,7 +57,9 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Send transactional emails to your customers without leaving StellarTools.',
     'https://resend.com',
     'support@resend.com',
-    '{"name":"Resend","description":"Send transactional emails to your customers without leaving StellarTools.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF","homepageUrl":"https://resend.com","baseUrl":"http://localhost:3001","webhookUrl":"http://localhost:3001/api/webhook","scopes":["read:customers","read:payments","read:refunds","read:subscriptions"], "sensitiveKeys":["resendApiKey"]}'::jsonb,
+    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['resendApiKey'],
+    '1.0',
     'available',
     'https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IDnuauWFYzKwRMe0dbSGsfZNQBvlmITOtLkjF'
   ),
@@ -75,7 +77,9 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Trigger lifecycle email sequences from real-time payment and subscription events.',
     'https://loops.so',
     'help@loops.so',
-    '{"name":"Loops","description":"Trigger lifecycle email sequences from real-time payment and subscription events.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IAZDxDCKLFrwdU65KkJi9NqmajuMtEnDOx1cT","homepageUrl":"https://loops.so","baseUrl":"https://loops.so","scopes":["read:customers","read:subscriptions","read:payments"]}'::jsonb,
+    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['loopsApiKey'],
+    '1.0',
     'coming_soon',
     'https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IAZDxDCKLFrwdU65KkJi9NqmajuMtEnDOx1cT'
   ),
@@ -93,7 +97,9 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Launch a referral or affiliate program that tracks commissions directly from your StellarTools revenue.',
     'https://firstpromoter.com',
     'support@firstpromoter.com',
-    '{"name":"FirstPromoter","description":"Launch a referral or affiliate program that tracks commissions directly from your StellarTools revenue.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IJBKCsNfEzD8FRHNolx7X5VhkTgrbjfAZPpSa","homepageUrl":"https://firstpromoter.com","baseUrl":"https://firstpromoter.com","scopes":["read:payments","read:customers","read:subscriptions","read:payouts"]}'::jsonb,
+    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['FirstPromoterApiKey'],
+    '1.0',
     'coming_soon',
     'https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IJBKCsNfEzD8FRHNolx7X5VhkTgrbjfAZPpSa'
   ),
@@ -111,7 +117,9 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Connect your revenue data to PostHog''s product analytics — see which features drive conversions and retention.',
     'https://posthog.com',
     'hey@posthog.com',
-    '{"name":"PostHog","description":"Connect your revenue data to PostHog''s product analytics — see which features drive conversions and retention.","iconUrl":"https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8InYN939nBaHU7t1CPbms8dX3phBTJclYyExAK","homepageUrl":"https://posthog.com","baseUrl":"https://posthog.com","scopes":["read:subscriptions","read:customers","read:products"]}'::jsonb,
+    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['posthugApiKey'],
+    '1.0',
     'coming_soon',
     'https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8InYN939nBaHU7t1CPbms8dX3phBTJclYyExAK'
   )
