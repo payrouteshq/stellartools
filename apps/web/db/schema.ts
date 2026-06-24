@@ -443,26 +443,28 @@ export const webhooks = pgTable("webhook", {
   environment: networkEnum("network").notNull(),
 });
 
-export const webhookLogs = pgTable("webhook_log", {
-  id: text("id").primaryKey(),
-  webhookId: text("webhook_id")
-    .notNull()
-    .references(() => webhooks.id),
-  organizationId: text("organization_id").references(() => organizations.id),
-  appInstallationId: text("app_installation_id").references(() => appInstallations.id),
-  eventType: text("event_type").notNull(),
-  request: jsonb("request").$type<unknown>().notNull(),
-  statusCode: integer("status_code"),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  responseTime: integer("response_time"), // in milliseconds
-  response: jsonb("response").$type<Record<string, unknown> | null>(),
-  apiVersion: text("api_version").notNull(),
-  environment: networkEnum("network").notNull(),
-  nextRetry: timestamp("next_retry"),
-  description: text("description").notNull(),
-});
+export const webhookLogs = pgTable(
+  "webhook_log",
+  {
+    id: text("id").primaryKey(),
+    webhookId: text("webhook_id").references(() => webhooks.id),
+    organizationId: text("organization_id").references(() => organizations.id),
+    appInstallationId: text("app_installation_id").references(() => appInstallations.id),
+    eventType: text("event_type").notNull(),
+    request: jsonb("request").$type<unknown>().notNull(),
+    statusCode: integer("status_code"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    responseTime: integer("response_time"),
+    response: jsonb("response").$type<Record<string, unknown> | null>(),
+    apiVersion: text("api_version").notNull(),
+    environment: networkEnum("network").notNull(),
+    nextRetry: timestamp("next_retry"),
+    description: text("description").notNull(),
+  },
+  (t) => [check("webhook_log_source_check", sql`${t.webhookId} IS NOT NULL OR ${t.appInstallationId} IS NOT NULL`)]
+);
 
 export const refundStatusEnum = pgEnum("refund_status", refundStatusEnum$1.enum);
 
