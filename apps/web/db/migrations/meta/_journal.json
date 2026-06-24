@@ -15,6 +15,13 @@
       "when": 1782301735412,
       "tag": "0001_elite_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782304643686,
+      "tag": "0002_blue_vargas",
+      "breakpoints": true
     }
   ]
 }
