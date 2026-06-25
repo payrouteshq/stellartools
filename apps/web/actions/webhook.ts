@@ -132,7 +132,7 @@ export const deleteWebhook = async (id: string, orgId?: string, env?: Network) =
 };
 
 export const postWebhookLog = async (
-  webhookId: string,
+  filter: { webhookId?: string } | { appInstallationId?: string },
   params: Omit<WebhookLog, "organizationId" | "environment" | "webhookId">,
   orgId?: string,
   env?: Network
@@ -141,7 +141,13 @@ export const postWebhookLog = async (
 
   const [webhookLog] = await db
     .insert(webhookLogs)
-    .values({ ...params, webhookId, organizationId, environment } as WebhookLog)
+    .values({
+      ...params,
+      ...("webhookId" in filter && { webhookId: filter.webhookId }),
+      ...("appInstallationId" in filter && { appInstallationId: filter.appInstallationId }),
+      organizationId,
+      environment,
+    } as WebhookLog)
     .returning();
 
   if (!webhookLog) throw new AppError("Failed to create webhook log");

@@ -50,7 +50,7 @@ export const deliverWebhook = async <TName extends string, TObject>(
   }
 
   await postWebhookLog(
-    webhook.id,
+    { webhookId: webhook.id },
     {
       id: logId,
       eventType,

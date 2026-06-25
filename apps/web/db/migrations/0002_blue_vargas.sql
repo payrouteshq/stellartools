@@ -1,0 +1,2 @@
+ALTER TABLE "webhook_log" ALTER COLUMN "webhook_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "webhook_log" ADD CONSTRAINT "webhook_log_source_check" CHECK ("webhook_log"."webhook_id" IS NOT NULL OR "webhook_log"."app_installation_id" IS NOT NULL);

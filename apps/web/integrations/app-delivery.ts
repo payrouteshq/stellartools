@@ -18,28 +18,27 @@ export const deliverToApp = async (
   organizationId: string,
   environment: Network
 ) => {
+  const startTime = Date.now();
+
   const webhookUrl = app.webhookUrl;
 
   if (!webhookUrl) throw new AppError("App webhook URL not found");
 
-  const startTime = Date.now();
-
   const body = JSON.stringify({ event, settings: unmaskData(settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt) });
-
-  const signer = new WebhookSigner();
-  const signature = signer.generateSignature(body, decrypt(app.appSecret));
-
-  const appToken = await generateAppToken(
-    appInstallationId,
-    { periodDays: 30, currency: "USD", theme: "light" },
-    organizationId,
-    environment
-  );
-
-  if (!appToken) throw new AppError("Failed to generate app token");
-
   try {
-    const response = await fetch(app.webhookUrl!, {
+    const signer = new WebhookSigner();
+    const signature = signer.generateSignature(body, decrypt(app.appSecret));
+
+    const appToken = await generateAppToken(
+      appInstallationId,
+      { periodDays: 30, currency: "USD", theme: "light" },
+      organizationId,
+      environment
+    );
+
+    if (!appToken) throw new AppError("Failed to generate app token");
+
+    const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -54,16 +53,16 @@ export const deliverToApp = async (
     const duration = Date.now() - startTime;
 
     await postWebhookLog(
-      app.id,
+      { appInstallationId },
       {
         id: webhookLogId,
         eventType: event.type,
-        request: event,
+        request: JSON.parse(body),
         statusCode: response.status,
         responseTime: duration,
         description: `Plugin delivery to ${app.name}`,
-        apiVersion: app.manifest?.version ?? "unknown",
-        response: await response.json().catch(() => ({})),
+        apiVersion: app.version ?? "unknown",
+        response: await response.json().catch(() => ({ message: response.statusText || `HTTP ${response.status}` })),
         createdAt: new Date(),
         updatedAt: new Date(),
         errorMessage: null,
@@ -79,16 +78,16 @@ export const deliverToApp = async (
     const duration = Date.now() - startTime;
 
     await postWebhookLog(
-      app.id,
+      { appInstallationId },
       {
         id: webhookLogId,
         eventType: event.type,
-        request: event,
+        request: JSON.parse(body),
         statusCode: 500,
         errorMessage: error.message,
         responseTime: duration,
         description: `Failed plugin delivery to ${app.name}`,
-        apiVersion: app.manifest?.version ?? "unknown",
+        apiVersion: app.version ?? "unknown",
         response: null,
         nextRetry: null,
         createdAt: new Date(),

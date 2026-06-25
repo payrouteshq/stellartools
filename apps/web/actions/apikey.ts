@@ -137,7 +137,7 @@ export const resolveAuthContext = async (params: {
       environment: payload.env,
       appId: app.id,
       installationId: payload.instId,
-      scopes: app.manifest.scopes,
+      scopes: app.scopes,
       type: "app",
     };
   }

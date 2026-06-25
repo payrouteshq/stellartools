@@ -149,7 +149,7 @@ export const updateAppInstallation = async (
   const { organizationId } = await resolveOrgContext(orgId, env);
 
   const [row] = await db
-    .select({ installation: appInstallations, manifest: apps.manifest })
+    .select({ installation: appInstallations, sensitiveKeys: apps.sensitiveKeys })
     .from(appInstallations)
     .innerJoin(apps, eq(appInstallations.appId, apps.id))
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
@@ -159,7 +159,7 @@ export const updateAppInstallation = async (
 
   const { settings: settingsPatch, ...baseUpdate } = patch;
 
-  const sensitiveKeys = row.manifest?.sensitiveKeys ?? [];
+  const sensitiveKeys = row.sensitiveKeys ?? [];
 
   const maskedPatch = settingsPatch
     ? maskData(settingsPatch as Record<string, any>, sensitiveKeys, APP_SENSITIVE_KEY_PREFIX, encrypt)
@@ -192,7 +192,7 @@ export const installMarketplaceApp = async (appSlug: string) => {
 
   if (!app) throw new Error("App not found");
 
-  const scopes = app.manifest.scopes;
+  const scopes = app.scopes;
 
   const { installation, alreadyInstalled } = await postAppInstallation({
     appId: app.id,

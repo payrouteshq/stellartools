@@ -35,7 +35,7 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
 
   if (!app) notFound();
 
-  const worksWith = app.manifest.scopes.map((scope) => {
+  const worksWith = app.scopes.map((scope) => {
     if (scope === "*") return "All resources";
     const resource = scope.split(":")[1] as keyof typeof APP_CONFIG;
     return APP_CONFIG[resource]?.label ?? resource;
