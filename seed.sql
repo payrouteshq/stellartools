@@ -38,6 +38,30 @@ CREATE TABLE IF NOT EXISTS email_index (
 CREATE INDEX IF NOT EXISTS idx_email_index_org_sent ON email_index (org_id, environment, sent_at);
 
 -- ============================================================
+-- loops_app database (for event_log tracking)
+-- ============================================================
+SELECT 'CREATE DATABASE loops_app' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'loops_app')\gexec
+
+\c loops_app;
+GRANT ALL ON SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
+
+CREATE TABLE IF NOT EXISTS event_log (
+  id           TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  org_id       TEXT NOT NULL,
+  environment  TEXT NOT NULL DEFAULT 'testnet',
+  event_type   TEXT NOT NULL,
+  email        TEXT NOT NULL,
+  send_type    TEXT NOT NULL,
+  email_config TEXT NOT NULL, -- A:loop_template_id
+  sent_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_event_log_org ON event_log (org_id, environment, sent_at DESC);
+
+-- ============================================================
 -- Seed data for postgres DB (run AFTER drizzle migrations)
 -- ============================================================
 \c postgres;
@@ -80,7 +104,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
     ARRAY['loopsApiKey'],
     '1.0',
-    'coming_soon',
+    'available',
     'https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8IAZDxDCKLFrwdU65KkJi9NqmajuMtEnDOx1cT'
   ),
   (
