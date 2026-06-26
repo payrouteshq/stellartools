@@ -178,11 +178,19 @@ export default function ProductDetailPage() {
   const createdAtLabel = formatDate(product?.createdAt);
   const updatedAtLabel = formatDate(product?.updatedAt);
 
-  const mainPriceDisplay = product
-    ? isMetered
-      ? "Usage-based"
-      : Money.formatFiat(product.priceCents, product.currencyCode)
-    : "";
+  const mainPriceDisplay = Money.formatFiat(product?.priceCents ?? 0, product?.currencyCode ?? "USD");
+
+  const meteredSubtitle =
+    isMetered && product
+      ? [
+          product.unit && `Unit: ${product.unit}`,
+          product.unitsPerCredit != null && `${product.unitsPerCredit} units / credit`,
+          product.totalCredits != null && `${product.totalCredits} credits total`,
+          product.creditsExpiryDays != null && `Expires in ${product.creditsExpiryDays}d`,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
 
   const openEditModal = React.useCallback(() => {
     if (!product) return;
@@ -388,6 +396,7 @@ export default function ProductDetailPage() {
                     )}
                   </p>
                   <p className="mt-2 text-2xl font-semibold tracking-tight">{mainPriceDisplay}</p>
+                  {meteredSubtitle && <p className="text-muted-foreground mt-1 text-sm">{meteredSubtitle}</p>}
                 </div>
               </div>
               <div className="flex gap-2">

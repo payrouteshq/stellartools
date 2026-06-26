@@ -62,6 +62,40 @@ export const retrieveAccount = (publicKey: string, network: Network) => {
   return Result.tryPromise(() => server.loadAccount(publicKey));
 };
 
+/**
+ * Ensures the account controlled by `accountSecret` has a trustline for
+ * `assetCode/assetIssuer`. No-ops if the trustline already exists.
+ * Used to set up the merchant's org wallet before a customer's path payment lands there.
+ */
+export const ensureTrustline = async (
+  accountSecret: string,
+  assetCode: string,
+  assetIssuer: string,
+  network: Network
+): Promise<void> => {
+  const { server, passphrase } = getStellarConfig(network);
+  const keypair = StellarSDK.Keypair.fromSecret(accountSecret);
+  const account = await server.loadAccount(keypair.publicKey());
+
+  const hasTrustline = account.balances.some(
+    (b): b is StellarSDK.Horizon.HorizonApi.BalanceLineAsset =>
+      "asset_code" in b && b.asset_code === assetCode && b.asset_issuer === assetIssuer
+  );
+
+  if (hasTrustline) return;
+
+  const tx = new StellarSDK.TransactionBuilder(account, {
+    fee: StellarSDK.BASE_FEE,
+    networkPassphrase: passphrase,
+  })
+    .addOperation(StellarSDK.Operation.changeTrust({ asset: new StellarSDK.Asset(assetCode, assetIssuer) }))
+    .setTimeout(30)
+    .build();
+
+  tx.sign(keypair);
+  await server.submitTransaction(tx);
+};
+
 export const sendAssetPayment = async (
   sourceSecret: string,
   destination: string,
@@ -230,46 +264,57 @@ export const retrieveTransaction = async (transactionHash: string, network: Netw
 
 // -- RESPONSE PARSING --
 
-export class ContractError extends Error {
-  /**
-   * The type of the error
-   */
-  public type: ContractErrorType;
-
-  constructor(type: ContractErrorType) {
-    super();
-    this.type = type;
-  }
+export interface ParsedTxError {
+  code: string;
+  message: string;
 }
 
-export enum ContractErrorType {
-  UnknownError = -1000,
+const ERROR_MESSAGES: Record<string, string> = {
+  // Transaction-level codes
+  txBadSeq: "Invalid sequence number — refresh and try again",
+  txBadAuth: "Transaction authentication failed — wrong signer",
+  txInsufficientBalance: "Insufficient XLM balance to cover fees",
+  txInsufficientFee: "Fee too low",
+  txTooLate: "Transaction expired — it was submitted too late",
+  txTooEarly: "Transaction submitted too early",
+  txMalformed: "Transaction is malformed",
+  txNoAccount: "Source account not found on the network",
+  txNoSourceAccount: "Source account not found on the network",
+  txSorobanInvalid: "Invalid Soroban transaction",
+  txMissingOperation: "Transaction has no operations",
+  // Soroban host function codes
+  invokeHostFunctionTrapped: "Smart contract execution failed",
+  invokeHostFunctionInsufficientRefundableFee: "Insufficient refundable fee for contract execution",
+  invokeHostFunctionEntryArchived: "Required contract state entry is archived",
+  invokeHostFunctionResourceLimitExceeded: "Contract resource limit exceeded",
+  invokeHostFunctionMalformed: "Contract invocation is malformed",
+  // Path payment (strict receive) — these occur during XLM→asset checkout swaps
+  pathPaymentStrictReceiveNoTrust: "Destination account has no trustline for the destination asset",
+  pathPaymentStrictReceiveSrcNoTrust: "Source account has no trustline for the source asset",
+  pathPaymentStrictReceiveNotAuthorized: "Destination account is not authorized to hold the asset",
+  pathPaymentStrictReceiveSrcNotAuthorized: "Source account is not authorized to hold the asset",
+  pathPaymentStrictReceiveLineFull: "Destination trustline is at its limit",
+  pathPaymentStrictReceiveUnderfunded: "Insufficient source asset balance",
+  pathPaymentStrictReceiveTooFewOffers: "No viable conversion path found — try a different asset",
+  pathPaymentStrictReceiveOfferCrossSelf: "Path payment would cross your own offer",
+  pathPaymentStrictReceiveNoIssuer: "Asset issuer not found on the network",
+  pathPaymentStrictReceiveMalformed: "Path payment operation is malformed",
+  // Path payment (strict send)
+  pathPaymentStrictSendNoTrust: "Destination account has no trustline for the destination asset",
+  pathPaymentStrictSendLineFull: "Destination trustline is at its limit",
+  pathPaymentStrictSendUnderfunded: "Insufficient source asset balance",
+  pathPaymentStrictSendTooFewOffers: "No viable conversion path found — try a different asset",
+  // Regular payment errors
+  paymentNoTrust: "Destination account has no trustline for this asset",
+  paymentLineFull: "Destination trustline is at its limit",
+  paymentUnderfunded: "Insufficient balance",
+  paymentSrcNoTrust: "Source account has no trustline for this asset",
+  paymentNoIssuer: "Asset issuer not found",
+  paymentNotAuthorized: "Destination account is not authorized for this asset",
+};
 
-  // Transaction result errors
-  txSorobanInvalid = -24,
-  txMalformed = -23,
-  txBadAuth = -13,
-  txBadSeq = -12,
-  txInsufficientFee = -16,
-  txInsufficientBalance = -14,
-  txTooLate = -10,
-  txTooEarly = -9,
-
-  // Host function errors
-  InvokeHostFunctionInsufficientRefundableFee = -5,
-  InvokeHostFunctionEntryArchived = -4,
-  InvokeHostFunctionResourceLimitExceeded = -3,
-  InvokeHostFunctionTrapped = -2,
-  InvokeHostFunctionMalformed = -1,
-
-  // Common contract errors
-  InternalError = 1,
-  UnauthorizedError = 4,
-  AccountMissingError = 6,
-  NegativeAmountError = 8,
-  BalanceError = 10,
-  OverflowError = 12,
-  TrustlineMissingError = 13,
+function humanize(code: string): string {
+  return ERROR_MESSAGES[code] ?? code.replace(/([A-Z])/g, " $1").trim();
 }
 
 export function parseError(
@@ -277,44 +322,71 @@ export function parseError(
     | StellarSDK.rpc.Api.GetFailedTransactionResponse
     | StellarSDK.rpc.Api.SendTransactionResponse
     | StellarSDK.rpc.Api.SimulateTransactionErrorResponse
-): ContractError {
+): ParsedTxError {
   try {
-    // Simulation error
+    // sendTransaction (errorResult) or getTransaction (resultXdr) — same shape
+    const xdrResult =
+      "errorResult" in errorResponse && errorResponse.errorResult
+        ? errorResponse.errorResult.result()
+        : "resultXdr" in errorResponse && errorResponse.resultXdr
+          ? errorResponse.resultXdr.result()
+          : null;
+
+    if (xdrResult) {
+      const topCode = xdrResult.switch().name as string;
+
+      if (topCode === "txFailed") {
+        try {
+          const results = xdrResult.results();
+          if (results.length > 0) {
+            const opResult = results[0];
+            const opSwitchName = opResult.switch().name as string;
+
+            if (opSwitchName === "opInner") {
+              const tr = opResult.tr();
+              const trTypeName = tr.switch().name as string; // e.g. "invokeHostFunction", "pathPaymentStrictReceive"
+
+              if (trTypeName === "invokeHostFunction") {
+                const hostCode = tr.invokeHostFunctionResult().switch().name as string;
+                console.log("[parseError] soroban code:", hostCode);
+                return { code: hostCode, message: humanize(hostCode) };
+              }
+
+              // For all other op types (payments, path payments, etc.) — Stellar XDR
+              // always names the result accessor "{opType}Result", e.g.
+              // "pathPaymentStrictReceive" → tr.pathPaymentStrictReceiveResult()
+              const armName = `${trTypeName}Result`;
+              const opSpecificResult = (tr as any)[armName]();
+              const opResultCode = opSpecificResult.switch().name as string;
+              console.log("[parseError] op result code:", trTypeName, "→", opResultCode);
+              return { code: opResultCode, message: humanize(opResultCode) };
+            }
+
+            console.log("[parseError] op-level code:", opSwitchName);
+            return { code: opSwitchName, message: humanize(opSwitchName) };
+          }
+        } catch (inner) {
+          console.warn("[parseError] Could not dig into op results:", inner);
+        }
+        // txFailed but couldn't dig deeper
+        return { code: "txFailed", message: "Transaction failed" };
+      }
+
+      console.log("[parseError] top-level tx code:", topCode);
+      return { code: topCode, message: humanize(topCode) };
+    }
+
+    // Simulation error — has an "id" field and a string .error
     if ("id" in errorResponse) {
-      const match = errorResponse.error?.match(/Error\(Contract, #(\d+)\)/);
-      if (match) {
-        const errorValue = parseInt(match[1], 10);
-        if (errorValue in ContractErrorType) return new ContractError(errorValue as ContractErrorType);
-      }
-      return new ContractError(ContractErrorType.UnknownError);
+      const raw = errorResponse.error ?? "Simulation failed";
+      console.log("[parseError] simulation error:", raw);
+      return { code: "simulationError", message: raw };
     }
-
-    // sendTransaction error
-    if ("errorResult" in errorResponse && errorResponse.errorResult) {
-      const txResult = errorResponse.errorResult.result();
-      if (txResult.switch().name === "txFailed" && txResult.results().length === 1) {
-        const hostFunctionError = txResult.results()[0].tr().invokeHostFunctionResult().switch().value;
-        if (hostFunctionError in ContractErrorType) return new ContractError(hostFunctionError as ContractErrorType);
-      }
-      const txErrorValue = txResult.switch().value - 7;
-      if (txErrorValue in ContractErrorType) return new ContractError(txErrorValue as ContractErrorType);
-    }
-
-    // getTransaction error
-    if ("resultXdr" in errorResponse && errorResponse.resultXdr) {
-      const txResult = errorResponse.resultXdr.result();
-      if (txResult.switch().name === "txFailed" && txResult.results().length === 1) {
-        const hostFunctionError = txResult.results()[0].tr().invokeHostFunctionResult().switch().value;
-        if (hostFunctionError in ContractErrorType) return new ContractError(hostFunctionError as ContractErrorType);
-      }
-      const txErrorValue = txResult.switch().value - 7;
-      if (txErrorValue in ContractErrorType) return new ContractError(txErrorValue as ContractErrorType);
-    }
-  } catch {
-    // parsing failed, fall through to unknown
+  } catch (e) {
+    console.error("[parseError] Failed to parse error response:", e, errorResponse);
   }
 
-  return new ContractError(ContractErrorType.UnknownError);
+  return { code: "unknown", message: "Transaction failed" };
 }
 
 export type DeployChannelParams = {
@@ -409,17 +481,19 @@ export async function deployChannelInstance(params: DeployChannelParams): Promis
   const sendResult = await rpcServer.sendTransaction(prepared);
   if (sendResult.status === "ERROR") throw new AppError("Channel deploy broadcast failed");
 
-  // Poll for ledger confirmation
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const txResult = await rpcServer.getTransaction(sendResult.hash);
-    if (txResult.status === "SUCCESS") {
-      const channelAddress = txResult.returnValue?.address().toString();
-      if (!channelAddress) throw new AppError("Factory returned no channel address");
-      return channelAddress;
-    }
-    if (txResult.status === "FAILED") throw new AppError("Channel deploy transaction failed");
-  }
+  const result = await rpcServer.pollTransaction(sendResult.hash, { attempts: 30 });
 
-  throw new AppError("Channel deploy timed out waiting for confirmation");
+  if (result.status === "FAILED") throw new AppError("Channel deploy transaction failed");
+
+  if (result.status == "NOT_FOUND") throw new AppError("Invalid State");
+
+  const channelAddress = result.returnValue
+    ? StellarSDK.Address.fromScVal(result.returnValue).toString()
+    : undefined;
+
+  if (!channelAddress) throw new AppError("Factory returned no channel address");
+
+  console.log({ channelAddress });
+
+  return channelAddress;
 }

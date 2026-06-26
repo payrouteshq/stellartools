@@ -23,7 +23,7 @@ import type { Column, ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, CloudUpload, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { CustomerModalContent, ImportCsvModalContent } from "./_shared";
+import { CustomerModalContent, DeleteCustomerModalContent, ImportCsvModalContent } from "./_shared";
 
 function SortableHeader({
   column,
@@ -145,7 +145,7 @@ export default function CustomersPage() {
     AppModal.open({
       title: "Create customer",
       description: "Add a new customer to your organization",
-      content: <CustomerModalContent onClose={AppModal.close} onSuccess={() => AppModal.close()} />,
+      content: <CustomerModalContent onClose={AppModal.close} />,
       footer: null,
       size: "full",
       showCloseButton: true,
@@ -171,6 +171,16 @@ export default function CustomersPage() {
     router.push(`/customers/${customer.id}`);
   };
 
+  const openDeleteModal = React.useCallback((customer: Customer) => {
+    AppModal.open({
+      title: "Delete customer",
+      description: `Are you sure you want to delete ${customer.name ?? "this customer"}?`,
+      content: <DeleteCustomerModalContent customer={customer} onClose={AppModal.close} />,
+      footer: null,
+      showCloseButton: true,
+    });
+  }, []);
+
   const tableActions: TableAction<Customer>[] = [
     {
       label: "Create invoice",
@@ -183,6 +193,10 @@ export default function CustomersPage() {
       onClick: (customer) => {
         console.log("Create subscription for:", customer);
       },
+    },
+    {
+      label: "Delete customer",
+      onClick: openDeleteModal,
     },
   ];
 

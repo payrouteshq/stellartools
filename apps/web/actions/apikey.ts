@@ -1,8 +1,9 @@
 "use server";
 
+import { retrieveApps } from "@/actions/app";
 import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
-import { ApiKey, Network, apiKeys, apps, db, organizations } from "@/db";
+import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, patchJSON } from "@/lib/utils";
@@ -124,11 +125,11 @@ export const resolveAuthContext = async (params: {
     // Decode first (without verifying) to extract appId, then look up the app's secret and verify.
     const decoded = decodeJwt<AppContext>(rawToken);
 
-    if (!decoded?.appId) throw new AppError("Invalid app token");
+    if (!decoded?.appId) throw new AppError("Invalid App Token");
 
-    const [app] = await db.select().from(apps).where(eq(apps.id, decoded.appId)).limit(1);
+    const [app] = await retrieveApps({ id: decoded.appId });
 
-    if (!app) throw new AppError("Invalid app token");
+    if (!app) throw new AppError("Invalid App Token");
 
     const payload = verifyJwt<AppContext>(rawToken, decrypt(app.appSecret), STELLARTOOLS_ID);
 

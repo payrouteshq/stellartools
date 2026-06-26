@@ -248,7 +248,7 @@ export const retrieveCheckoutPublicData = async (checkoutId: string) => {
 export const putCheckout = async (id: string, params: Partial<Checkout>, orgId?: string, env?: Network) => {
   const [{ organizationId, environment }, oldCheckout] = await Promise.all([
     resolveOrgContext(orgId, env),
-    retrieveCheckout(id),
+    retrieveCheckout(id, orgId, env),
   ]);
 
   if (!oldCheckout) throw new AppError("Checkout not found");

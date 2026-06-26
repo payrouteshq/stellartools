@@ -25,30 +25,17 @@ export const validateSchema = <T>(schema: z.ZodType<T>, data: unknown): Result<T
   return Result.ok(result.data);
 };
 
-export const executeWithRetryWithHandler = async <T>(
-  apiCall: () => Promise<T>,
-  errorHandler: (error: unknown, attempt: number) => { retry: boolean; data: unknown },
-  maxRetries: number = 3,
-  baseDelay: number = 1000,
-  currentAttempt: number = 1
-): Promise<T> => {
-  try {
-    return await apiCall();
-  } catch (error) {
-    const handledError = errorHandler(error, currentAttempt);
-
-    if (!handledError.retry) return handledError.data as T;
-
-    if (handledError.retry && currentAttempt <= maxRetries) {
-      const delay = baseDelay * Math.pow(2, currentAttempt - 1) * (0.5 + Math.random() * 0.5);
-
-      await new Promise((resolve) => setTimeout(resolve, delay));
-
-      return executeWithRetryWithHandler(apiCall, errorHandler, maxRetries, baseDelay, currentAttempt + 1);
+export const withRetry = async <T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 5_000): Promise<T> => {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** i));
     }
-
-    return handledError.data as T;
   }
+  throw lastError;
 };
 
 export const schemaFor = <TInterface>() => {

@@ -37,7 +37,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useFilePreview } from "@stellartools/shared-ui";
 import _ from "lodash";
-import { ArrowRight, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Papa from "papaparse";
 import * as RHF from "react-hook-form";
@@ -57,12 +57,10 @@ const customerSchema = z.object({
 type CustomerFormData = z.infer<typeof customerSchema>;
 
 export function CustomerModalContent({
-  onClose,
   customer,
-  onSuccess,
+  onClose,
 }: {
   onClose: () => void;
-  onSuccess: () => void;
   customer?: Partial<Customer> | null;
 }) {
   const isEditMode = !!customer;
@@ -163,8 +161,12 @@ export function CustomerModalContent({
       return response.value;
     },
     {
-      onSuccess,
-      invalidate: ["customers"],
+      onSuccess: onClose,
+      invalidate: [
+        ["customers"],
+        ...(customer ? [["customer", customer.id]] : []),
+        ...(customer ? [["customer-events", customer.id]] : []),
+      ],
       successMsg: isEditMode ? "Customer updated successfully" : "Customer created successfully",
       errorMsg: isEditMode ? "Failed to update customer" : "Failed to create customer",
     }
@@ -366,6 +368,60 @@ export function CustomerModalContent({
   );
 }
 
+export function DeleteCustomerModalContent({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+  const { data: org } = useOrgContext();
+
+  const { mutate: deleteCustomerAction, isPending } = useAction(
+    async (customerId: string) => {
+      if (!org?.token) throw new AppError("No session token");
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": org.token, "x-source": "Dashboard" },
+      });
+      const response = await api.delete<null>(`/customers/${customerId}`);
+      if (response.isErr()) throw new AppError(response.error.message);
+      return response.value;
+    },
+    {
+      onSuccess: onClose,
+      invalidate: [[["customers"], ["customer", customer.id]]],
+      successMsg: "Customer deleted successfully",
+      errorMsg: "Failed to delete customer",
+    }
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="bg-destructive/10 border-destructive/20 flex items-start gap-3 rounded-lg border p-4">
+        <AlertTriangle className="text-destructive mt-0.5 size-5 shrink-0" />
+        <div className="space-y-1">
+          <p className="text-destructive text-sm font-medium">This action is irreversible</p>
+          <p className="text-muted-foreground text-sm">
+            Deleting <span className="text-foreground font-medium">{customer.name}</span> will permanently remove their
+            account. Any active subscriptions will be cancelled and metered billing credits will be closed on-chain.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 border-t pt-4">
+        <Button type="button" variant="outline" onClick={onClose} disabled={isPending} className="shadow-none">
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          isLoading={isPending}
+          disabled={isPending}
+          onClick={() => deleteCustomerAction(customer.id)}
+          className="gap-2 shadow-none"
+        >
+          Delete customer
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 type MappingTarget = "name" | "email" | "phone" | "image" | "metadata" | "none";
 
 interface ColumnMapping {
@@ -389,44 +445,6 @@ const transformRow = (row: Record<string, string>, mappings: ColumnMapping[]) =>
     { metadata: {} } as Record<MappingTarget, any>
   );
 };
-
-function formatImportErrorMessage(rawMessage: string) {
-  const issues = rawMessage
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((issue) => {
-      const match = issue.match(/^(\d+)\.(\w+):\s*(.*)$/);
-      if (!match) return null;
-
-      const index = Number(match[1]); // zero-based row index in parsed payload
-      const field = match[2];
-      const detail = match[3];
-
-      const rowNumber = index + 1; // data row number (without header)
-      const csvLineNumber = index + 2; // csv line number (header is line 1)
-
-      const missingRequired = /expected string, received undefined/i.test(detail) || /required/i.test(detail);
-
-      return {
-        rowNumber,
-        csvLineNumber,
-        field,
-        message: missingRequired ? `missing required "${field}"` : detail,
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => Boolean(x));
-
-  if (!issues.length) return rawMessage;
-
-  const preview = issues
-    .slice(0, 4)
-    .map((i) => `Row ${i.rowNumber} (${i.field}): ${i.message}`)
-    .join("\n");
-
-  const remaining = issues.length - 4;
-  return remaining > 0 ? `${preview}\n+${remaining} more issue(s)` : preview;
-}
 
 export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { data: orgContext } = useOrgContext();

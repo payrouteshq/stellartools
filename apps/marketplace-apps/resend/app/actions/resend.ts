@@ -53,7 +53,12 @@ export const updateSettings = async (
 
 export const logout = async (appToken: string): Promise<void> => {
   const st = new StellarTools({ api_key: appToken });
-  await st.appInstallations.updateSettings({ resendApiKey: null, fromEmail: null });
+
+  const settings = await st.appInstallations.retrieveSettings();
+
+  if (!settings?.error) {
+    await st.appInstallations.updateSettings(Object.fromEntries(Object.keys(settings).map((key) => [key, null])));
+  }
 };
 
 export const listResendDomains = async (apiKey: string): Promise<string[]> => {
