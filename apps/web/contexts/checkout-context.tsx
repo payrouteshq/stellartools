@@ -209,8 +209,10 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
             selectedAsset.canonicalIssuer!
           );
           toast.success("Subscription Active!");
-        } else if (res?.txHash) {
-          await reportFailure(res.txHash, res.message ?? "Subscription failed");
+        } else {
+          const reason = res?.message ?? "Subscription failed";
+          toast.error(reason);
+          if (res?.txHash) await reportFailure(res.txHash, reason);
         }
       } else {
         const xdr = await buildOneTimePaymentXdr({
@@ -226,8 +228,10 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
         if (res?.status === "SUCCESS") {
           sweepAndProcessPayment(checkoutId).catch(console.error);
           toast.success("Paid!");
-        } else if (res?.txHash) {
-          await reportFailure(res.txHash, res.message ?? "Payment failed");
+        } else {
+          const reason = res?.message ?? "Payment failed";
+          toast.error(reason);
+          if (res?.txHash) await reportFailure(res.txHash, reason);
         }
       }
       queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });

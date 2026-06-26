@@ -1,6 +1,21 @@
-import { updateAppInstallation } from "@/actions/app";
+import { retrieveInstalledApps, updateAppInstallation } from "@/actions/app";
 import { apiHandler } from "@/lib/api-handler";
 import { Result, z as Schema, appInstallationSettingsSchema } from "@stellartools/core";
+
+export const GET = apiHandler({
+  auth: ["app"],
+  requiredAppScope: "read:app-installation",
+  handler: async ({ auth }) => {
+    /**
+     * Retrieves the settings for the app installation without decrypting the sensitive keys
+     */
+    const [response] = await retrieveInstalledApps(undefined, auth.organizationId, auth.environment, {
+      installationId: auth.installationId,
+    });
+
+    return Result.ok(response?.app_installation?.settings);
+  },
+});
 
 export const PUT = apiHandler({
   auth: ["app"],

@@ -685,6 +685,7 @@ export function ProductsModalContent({
                         placeholder="e.g. 30"
                         className="w-24"
                         error={error?.message}
+                        disabled={isEditMode}
                       />
                     )}
                   />

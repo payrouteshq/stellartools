@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
  * Marked as dangerous because it allows appTokens to write to the db,
  * But it's only used for app installations and we trust the app to not abuse it.
  */
-export type DangerouslyAllowedAppScopes = "write:app-installation";
+export type DangerouslyAllowedAppScopes = "write:app-installation" | "read:app-installation";
 
 export const mcpToolsRegistry = new Map<string, HandlerConfig<any, any, any>>();
 
@@ -91,9 +91,11 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         }
 
         if (authResult.type === "app" && config.requiredAppScope) {
-          const hasPermission = [...(authResult?.scopes ?? []), "write:app-installation"]?.includes(
-            config.requiredAppScope
-          );
+          const hasPermission = [
+            ...(authResult?.scopes ?? []),
+            "write:app-installation",
+            "read:app-installation",
+          ]?.includes(config.requiredAppScope);
 
           if (!hasPermission) {
             return NextResponse.json(

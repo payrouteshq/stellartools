@@ -11,6 +11,9 @@
 !.yarn/versions
 packages/*/node_modules
 apps/**/node_modules
+examples/**/node_modules
+examples/**/dist
+
 
 # testing
 /coverage
