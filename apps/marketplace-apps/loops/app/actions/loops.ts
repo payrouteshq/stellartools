@@ -77,6 +77,7 @@ export const getContactStats = async (apiKey: string): Promise<ContactStats> => 
   const headers = { Authorization: `Bearer ${apiKey}` };
   const loopsGet = (path: string) => fetch(`${LOOPS_API}${path}`, { headers }).then((r) => r.json());
 
+  // limit=1 — we only need pagination.totalResults for the count, not the actual contacts.
   const [totalResult, subscribedResult, listsResult] = await Promise.allSettled([
     loopsGet("/contacts?limit=1"),
     loopsGet("/contacts?subscribed=true&limit=1"),

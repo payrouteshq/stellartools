@@ -14,11 +14,11 @@ export async function logEvent(
   eventType: string,
   email: string,
   sendType: SendType,
-  emailConfig: string
+  templateId: string
 ): Promise<void> {
   await query(
-    `INSERT INTO event_log (org_id, environment, event_type, email, send_type, email_config) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [orgId, environment, eventType, email, sendType, emailConfig]
+    `INSERT INTO event_log (org_id, environment, event_type, email, send_type, template_id) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [orgId, environment, eventType, email, sendType, templateId]
   );
 }
 
@@ -30,10 +30,10 @@ export async function getActivityStats(orgId: string, environment: string, perio
     event_type: string;
     email: string;
     send_type: SendType;
-    email_config: string;
+    template_id: string;
     sent_at: string;
   }>(
-    `SELECT id, event_type, email, send_type, email_config, sent_at FROM event_log WHERE org_id = $1 AND environment = $2 AND sent_at >= $3 ORDER BY sent_at DESC`,
+    `SELECT id, event_type, email, send_type, template_id, sent_at FROM event_log WHERE org_id = $1 AND environment = $2 AND sent_at >= $3 ORDER BY sent_at DESC`,
     [orgId, environment, since]
   );
 
@@ -46,7 +46,7 @@ export async function getActivityStats(orgId: string, environment: string, perio
       email: r.email,
       eventType: r.event_type,
       sendType: r.send_type,
-      emailConfig: r.email_config,
+      templateId: r.template_id,
       sentAt: new Date(r.sent_at).toLocaleString(),
     })),
   };

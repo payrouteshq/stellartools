@@ -16,22 +16,7 @@ import {
 import { LoopsClient } from "loops";
 import { NextRequest, NextResponse } from "next/server";
 
-const LOOPS_EVENT_NAMES: Record<WebhookEventType, string> = {
-  "customer.created": "customer_created",
-  "customer.updated": "customer_updated",
-  "customer.deleted": "customer_deleted",
-  "payment_method.created": "payment_method_created",
-  "payment_method.deleted": "payment_method_deleted",
-  "checkout.created": "checkout_created",
-  "payment.pending": "payment_pending",
-  "payment.confirmed": "payment_confirmed",
-  "payment.failed": "payment_failed",
-  "refund.succeeded": "refund_succeeded",
-  "refund.failed": "refund_failed",
-  "subscription.created": "subscription_created",
-  "subscription.updated": "subscription_updated",
-  "subscription.canceled": "subscription_canceled",
-};
+const toEventName = (eventType: WebhookEventType) => eventType.replaceAll(".", "_");
 
 type WebhookHandlers = {
   [K in WebhookEventType]?: (
@@ -44,7 +29,7 @@ type WebhookHandlers = {
   ) => Promise<void>;
 };
 
-async function sendConfigured(
+async function dispatch(
   loops: LoopsClient,
   eventType: WebhookEventType,
   email: string,
@@ -54,7 +39,7 @@ async function sendConfigured(
   dataVariables?: Record<string, string | number>,
   contactProperties?: Record<string, string | null>
 ): Promise<void> {
-  const raw = settings[`${eventType}.emailConfig`] as string | null | undefined;
+  const raw = settings[`${eventType}.templateId`] as string | null | undefined;
   if (!raw) return;
 
   const colonIdx = raw.indexOf(":");
@@ -67,7 +52,7 @@ async function sendConfigured(
     await loops.sendTransactionalEmail({ transactionalId: id, email, addToAudience: true, dataVariables });
     if (orgId) logEvent(orgId, environment, eventType, email, "transactional", raw).catch(console.error);
   } else if (prefix === EMAIL_TYPE_PREFIX.WORKFLOW) {
-    const eventName = LOOPS_EVENT_NAMES[eventType];
+    const eventName = toEventName(eventType);
     const mailingLists = mailingListId ? { [mailingListId]: true } : undefined;
     await loops.sendEvent({ email, eventName, contactProperties, mailingLists });
     // Save the event name (e.g. "payment_confirmed") instead of the raw "B:wfl_abc123" settings value.
@@ -80,7 +65,7 @@ async function sendConfigured(
 const HANDLERS: WebhookHandlers = {
   "payment.confirmed": async (st, loops, event, settings, orgId, environment) => {
     const customer = await st.customers.retrieve(event.data.object.customer_id);
-    await sendConfigured(
+    await dispatch(
       loops,
       "payment.confirmed",
       customer.email,
@@ -93,7 +78,7 @@ const HANDLERS: WebhookHandlers = {
   },
   "payment.failed": async (st, loops, event, settings, orgId, environment) => {
     const customer = await st.customers.retrieve(event.data.object.customer_id);
-    await sendConfigured(
+    await dispatch(
       loops,
       "payment.failed",
       customer.email,
@@ -106,7 +91,7 @@ const HANDLERS: WebhookHandlers = {
   },
   "payment.pending": async (st, loops, event, settings, orgId, environment) => {
     const customer = await st.customers.retrieve(event.data.object.customer_id);
-    await sendConfigured(
+    await dispatch(
       loops,
       "payment.pending",
       customer.email,
@@ -121,7 +106,7 @@ const HANDLERS: WebhookHandlers = {
     const customerId = event.data.object.customer_id;
     if (!customerId) return;
     const customer = await st.customers.retrieve(customerId);
-    await sendConfigured(
+    await dispatch(
       loops,
       "refund.succeeded",
       customer.email,
@@ -136,7 +121,7 @@ const HANDLERS: WebhookHandlers = {
     const customerId = event.data.object.customer_id;
     if (!customerId) return;
     const customer = await st.customers.retrieve(customerId);
-    await sendConfigured(
+    await dispatch(
       loops,
       "refund.failed",
       customer.email,
@@ -149,7 +134,7 @@ const HANDLERS: WebhookHandlers = {
   },
   "subscription.created": async (st, loops, event, settings, orgId, environment) => {
     const customer = await st.customers.retrieve(event.data.object.customer_id);
-    await sendConfigured(
+    await dispatch(
       loops,
       "subscription.created",
       customer.email,
@@ -162,7 +147,7 @@ const HANDLERS: WebhookHandlers = {
   },
   "subscription.updated": async (st, loops, event, settings, orgId, environment) => {
     const customer = await st.customers.retrieve(event.data.object.customer_id);
-    await sendConfigured(
+    await dispatch(
       loops,
       "subscription.updated",
       customer.email,
@@ -175,7 +160,7 @@ const HANDLERS: WebhookHandlers = {
   },
   "subscription.canceled": async (st, loops, event, settings, orgId, environment) => {
     const customer = await st.customers.retrieve(event.data.object.customer_id);
-    await sendConfigured(
+    await dispatch(
       loops,
       "subscription.canceled",
       customer.email,
@@ -190,7 +175,7 @@ const HANDLERS: WebhookHandlers = {
     const customerId = event.data.object.customer_id;
     if (!customerId) return;
     const customer = await st.customers.retrieve(customerId);
-    await sendConfigured(
+    await dispatch(
       loops,
       "checkout.created",
       customer.email,
@@ -216,7 +201,7 @@ const HANDLERS: WebhookHandlers = {
         .catch(console.error);
     }
 
-    await sendConfigured(loops, "customer.created", event.data.object.email, settings, orgId, environment, undefined, {
+    await dispatch(loops, "customer.created", event.data.object.email, settings, orgId, environment, undefined, {
       firstName: event.data.object.name ?? "",
       userId: event.data.object.id,
     });
@@ -239,7 +224,7 @@ const HANDLERS: WebhookHandlers = {
       await loops.deleteContact({ email: event.data.object.email }).catch(console.error);
     }
 
-    await sendConfigured(loops, "customer.deleted", event.data.object.email, settings, orgId, environment, undefined, {
+    await dispatch(loops, "customer.deleted", event.data.object.email, settings, orgId, environment, undefined, {
       firstName: event.data.object.name ?? "",
       userId: event.data.object.id,
     });

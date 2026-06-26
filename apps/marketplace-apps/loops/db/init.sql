@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS event_log (
   event_type   TEXT NOT NULL,
   email        TEXT NOT NULL,
   send_type    TEXT NOT NULL,
-  email_config TEXT NOT NULL,
+  template_id  TEXT NOT NULL,
   sent_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

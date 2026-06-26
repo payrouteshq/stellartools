@@ -97,9 +97,9 @@ const Dashboard = () => {
     () => (settings.contactSyncMailingListId as string) ?? "__none__"
   );
 
-  const [emailConfigs, setEmailConfigs] = React.useState<Record<string, string>>(() =>
+  const [templateIds, setEmailConfigs] = React.useState<Record<string, string>>(() =>
     Object.fromEntries(
-      WEBHOOK_EVENT_TYPES.map((event) => [event, (settings[`${event}.emailConfig`] as string) ?? "__none__"])
+      WEBHOOK_EVENT_TYPES.map((event) => [event, (settings[`${event}.templateId`] as string) ?? "__none__"])
     )
   );
 
@@ -113,11 +113,11 @@ const Dashboard = () => {
       { accessorKey: "email", header: "Email", enableSorting: true },
       { accessorKey: "eventType", header: "Event", enableSorting: true },
       {
-        accessorKey: "emailConfig",
+        accessorKey: "templateId",
         header: "Template / Workflow",
         cell: ({ row }: { row: LogRow }) => {
           const label =
-            emailOptions.find((o) => o.value === row.original.emailConfig)?.label ?? row.original.emailConfig;
+            emailOptions.find((o) => o.value === row.original.templateId)?.label ?? row.original.templateId;
           return (
             <Badge variant={TYPE_VARIANT[row.original.sendType]} className="text-xs shadow-none">
               {label}
@@ -147,7 +147,7 @@ const Dashboard = () => {
 
   const handleEmailConfigChange = (event: WebhookEventType, value: string) => {
     setEmailConfigs((prev) => ({ ...prev, [event]: value }));
-    patchSettings({ [`${event}.emailConfig`]: value === "__none__" ? null : value });
+    patchSettings({ [`${event}.templateId`]: value === "__none__" ? null : value });
   };
 
   const handleToggleSync = (enabled: boolean) => {
@@ -160,7 +160,7 @@ const Dashboard = () => {
     patchSettings({ contactSyncMailingListId: value === "__none__" ? null : value });
   };
 
-  const hasWorkflowSelected = Object.values(emailConfigs).some((v) => v.startsWith("B:"));
+  const hasWorkflowSelected = Object.values(templateIds).some((v) => v.startsWith("B:"));
 
   return (
     <div className="bg-background min-h-screen px-5 pb-8">
@@ -288,7 +288,7 @@ const Dashboard = () => {
                     <TableCell>
                       <SelectField
                         id={event}
-                        value={emailConfigs[event] ?? "__none__"}
+                        value={templateIds[event] ?? "__none__"}
                         onChange={(v: string) => handleEmailConfigChange(event, v)}
                         items={emailSelectOptions}
                         isLoading={emailsLoading}
@@ -310,7 +310,7 @@ const Dashboard = () => {
                 automatically on first trigger if they don&apos;t yet exist in Loops.
               </p>
               <div className="mt-2 flex flex-wrap gap-1">
-                {WEBHOOK_EVENT_TYPES.filter((e) => emailConfigs[e]?.startsWith("B:")).map((e) => (
+                {WEBHOOK_EVENT_TYPES.filter((e) => templateIds[e]?.startsWith("B:")).map((e) => (
                   <span key={e} className="bg-background rounded border px-1.5 py-0.5 font-mono text-xs">
                     {e.replace(/\./g, "_")}
                   </span>
