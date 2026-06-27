@@ -105,9 +105,7 @@ export const organizations = pgTable(
     payoutFiatOptions: jsonb("payout_fiat_options").$type<Record<string, unknown> | null>(),
     selectedCurrency: text("selected_currency").notNull(),
   },
-  (table) => ({
-    idxOrgCreatedAt: index("idx_org_created_at").on(table.accountId, table.createdAt),
-  })
+  (table) => [index("idx_org_created_at").on(table.accountId, table.createdAt)]
 );
 
 export const organizationSecrets = pgTable("organization_secret", {
@@ -181,9 +179,7 @@ export const supportedAssets = pgTable(
     metadata: jsonb("metadata").$type<AssetMetadata | null>(),
     images: text("images").array(),
   },
-  (table) => ({
-    uniqueCodeIssuerEnvironment: unique().on(table.code, table.canonicalIssuer, table.environment),
-  })
+  (table) => [unique().on(table.code, table.canonicalIssuer, table.environment)]
 );
 
 export type CustomerMetadata = Record<string, string>;
@@ -307,12 +303,12 @@ export const checkouts = pgTable(
     subscriptionData: jsonb("subscription_data").$type<SubscriptionData | null>(),
     initialPagingToken: text("initial_paging_token"),
   },
-  (table) => ({
-    amountOrProductCheck: check(
+  (table) => [
+    check(
       "amount_or_product_check",
       sql`(${table.productId} IS NOT NULL OR (${table.amountCents} IS NOT NULL AND ${table.currencyCode} IS NOT NULL))`
     ),
-  })
+  ]
 );
 
 export const subscriptionStatusEnum = pgEnum("subscription_status", subscriptionStatusEnum$1.enum);
@@ -416,12 +412,12 @@ export const payouts = pgTable(
     transactionHash: text("transaction_hash").unique(),
     bankAccount: jsonb("bank_account").$type<Record<string, unknown> | null>(), // withdawal receipts, account number etc.
   },
-  (table) => ({
-    cryptoOrFiatConstraint: check(
+  (table) => [
+    check(
       "crypto_or_fiat_constraint",
       sql`(${table.selectedAssetCode} IS NOT NULL AND ${table.transactionHash} IS NOT NULL) OR (${table.bankAccount} IS NOT NULL)`
     ),
-  })
+  ]
 );
 
 export const webhooks = pgTable("webhook", {
@@ -490,11 +486,11 @@ export const refunds = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   },
-  (table) => ({
-    uniqueSucceededRefund: uniqueIndex("unique_succeeded_refund")
+  (table) => [
+    uniqueIndex("unique_succeeded_refund")
       .on(table.paymentId, table.customerId)
       .where(sql`status = 'succeeded'`),
-  })
+  ]
 );
 
 export const passwordReset = pgTable(
@@ -510,9 +506,7 @@ export const passwordReset = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    tokenIndex: index("password_reset_token_idx").on(table.token),
-  })
+  (table) => [index("password_reset_token_idx").on(table.token)]
 );
 
 export const eventTypeEnum = pgEnum("event_type", eventTypeEnum$1 as unknown as readonly [string, ...string[]]);
@@ -549,9 +543,7 @@ export const customerPortalSessions = pgTable(
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => ({
-    tokenIdx: index("customer_portal_session_token_idx").on(table.token),
-  })
+  (table) => [index("customer_portal_session_token_idx").on(table.token)]
 );
 
 export const appStatusEnum = pgEnum("app_status", ["available", "coming_soon"]);
@@ -580,9 +572,7 @@ export const apps = pgTable(
     status: appStatusEnum("status").default("coming_soon"),
     iconUrl: text("icon_url"),
   },
-  (table) => ({
-    slugIdx: index("app_slug_idx").on(table.slug),
-  })
+  (table) => [index("app_slug_idx").on(table.slug)]
 );
 
 export const appInstallationStatusEnum = pgEnum("app_installation_status", ["active", "suspended"]);
@@ -607,10 +597,10 @@ export const appInstallations = pgTable(
     status: appInstallationStatusEnum("status").notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    uniqueInstallation: unique().on(table.appId, table.organizationId, table.environment),
-    idxOrgEnv: index("idx_app_inst_org_env").on(table.organizationId, table.environment),
-  })
+  (table) => [
+    unique().on(table.appId, table.organizationId, table.environment),
+    index("idx_app_inst_org_env").on(table.organizationId, table.environment),
+  ]
 );
 
 export const appLogs = pgTable("app_log", {
