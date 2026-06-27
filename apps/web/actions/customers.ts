@@ -2,6 +2,8 @@
 
 import { deleteEvents, paginate, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
+import { getCookie, setCookies, deleteCookies } from "@/integrations/cookie-manager";
+import { sendEmail } from "@/integrations/email";
 import {
   Customer,
   CustomerMetadata,
@@ -429,6 +431,63 @@ export async function getCustomerPortalData(token: string) {
     wallets: customerWalletList,
     environment,
   };
+}
+
+export async function sendPortalOtp(token: string): Promise<{ maskedEmail: string } | { error: string }> {
+  const session = await retrieveCustomerPortalSession(token);
+  if (!session) return { error: "Invalid or expired portal session." };
+
+  const customer = await db
+    .select({ email: customersSchema.email })
+    .from(customersSchema)
+    .where(eq(customersSchema.id, session.customerId))
+    .limit(1)
+    .then((r) => r[0] ?? null);
+
+  if (!customer?.email) return { error: "No email address on file. Contact the merchant." };
+
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  const hash = crypto.createHash("sha256").update(otp + token).digest("hex");
+  const expiresAt = Date.now() + 10 * 60 * 1000;
+
+  await setCookies([{ key: `portal_otp_${token.slice(0, 20)}`, value: `${hash}:${expiresAt}`, maxAge: 600 }]);
+
+  await sendEmail(
+    customer.email,
+    "Your portal verification code",
+    `Your verification code is: ${otp}\n\nThis code expires in 10 minutes. If you didn't request this, you can ignore this email.`
+  );
+
+  const [local, domain] = customer.email.split("@");
+  const maskedEmail = `${local.slice(0, 2)}${"*".repeat(Math.max(0, local.length - 2))}@${domain}`;
+
+  return { maskedEmail };
+}
+
+export async function verifyPortalOtp(token: string, code: string): Promise<{ success: true } | { error: string }> {
+  const cookieKey = `portal_otp_${token.slice(0, 20)}`;
+  
+  const cookieValue = await getCookie(cookieKey);
+
+  if (!cookieValue) return { error: "No pending verification. Please request a new code." };
+
+  const [storedHash, expiresAtStr] = cookieValue.split(":");
+  if (!storedHash || !expiresAtStr) return { error: "Invalid verification state." };
+
+  if (Date.now() > parseInt(expiresAtStr)) {
+    await deleteCookies([cookieKey]);
+    return { error: "Code expired. Please request a new one." };
+  }
+
+  const submittedHash = crypto.createHash("sha256").update(code + token).digest("hex");
+  if (submittedHash !== storedHash) return { error: "Invalid code. Please try again." };
+
+  const authValue = crypto.createHmac("sha256", process.env.JWT_SECRET!).update(token).digest("hex");
+
+  await deleteCookies([cookieKey]);
+  await setCookies([{ key: `portal_auth_${token.slice(0, 20)}`, value: authValue, maxAge: 24 * 60 * 60 }]);
+
+  return { success: true };
 }
 
 // -- Customer Wallet --
