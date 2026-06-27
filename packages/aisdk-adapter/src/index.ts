@@ -1,5 +1,5 @@
 import { z as Schema, StellarTools } from "@stellartools/core";
-import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
+import { type LanguageModel, type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 
 export class ShieldError extends Error {
   constructor(
@@ -62,7 +62,7 @@ const createShieldMiddleware = (config: ShieldConfig): LanguageModelMiddleware =
  * It intercepts the request and verifies the customer's subscription
  * status on the Stellar network before allowing the LLM to process.
  */
-export const shield = (model: Parameters<typeof wrapLanguageModel>[0]["model"], config: ShieldConfig) =>
+export const shield = (model: Parameters<typeof wrapLanguageModel>[0]["model"], config: ShieldConfig): LanguageModel =>
   wrapLanguageModel({
     model,
     middleware: createShieldMiddleware(config),

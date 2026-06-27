@@ -103,7 +103,7 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
     })
     .returning();
 
-  return { installation, alreadyInstalled: installation.id !== installationId };
+  return { installation };
 };
 
 export const retrieveInstalledApps = async (
@@ -193,7 +193,7 @@ export const installMarketplaceApp = async (appSlug: string) => {
 
   const scopes = app.scopes;
 
-  const { installation, alreadyInstalled } = await postAppInstallation({
+  const { installation } = await postAppInstallation({
     appId: app.id,
     organizationId,
     environment,
@@ -202,5 +202,5 @@ export const installMarketplaceApp = async (appSlug: string) => {
     settings: {},
   });
 
-  return { app, installation, alreadyInstalled };
+  return { app, installation };
 };
