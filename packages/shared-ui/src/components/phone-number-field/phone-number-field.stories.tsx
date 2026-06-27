@@ -31,7 +31,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const PhoneNumberWithState = (args: any) => {
-  const [value, setValue] = useState<PhoneNumber>({ countryCode: "US", number: "" });
+  const [value, setValue] = useState<PhoneNumber>({
+    countryCode: args.value?.countryCode || "US",
+    number: args.value?.number || "",
+  });
 
   return (
     <PhoneNumberField

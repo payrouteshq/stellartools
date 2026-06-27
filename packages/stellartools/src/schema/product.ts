@@ -4,7 +4,7 @@ import { schemaFor } from "../utils";
 import { currencyCodeSchema } from "./checkout";
 import { Environment, environmentSchema } from "./shared";
 
-export const productTypeEnum = z.enum(["one_time", "subscription", "metered"]);
+export const productTypeEnum = z.enum(["one_time", "subscription"]);
 
 export type ProductType = z.infer<typeof productTypeEnum>;
 
@@ -132,6 +132,7 @@ export const createProductSchema = z.object({
   unit: z.string().optional(),
   units_per_credit: z.number().optional(),
   total_credits: z.number().optional(),
+  credits_expiry_days: z.number().int().min(1).nullable().optional(),
   currency_code: currencyCodeSchema,
 });
 
@@ -142,12 +143,6 @@ export const updateProductSchema = z.object({
   description: z.string().nullable().optional(),
   images: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.any()).optional(),
-  unit: z.string().nullable().optional(),
-  units_per_credit: z.number().optional(),
-  price_amount: z.number().optional(),
-  recurring_period: recurringPeriodEnum.optional(),
-  custom_duration_ms: z.number().int().min(3600000).nullable().optional(),
-  total_credits: z.number().nullable().optional(),
 });
 
 export type UpdateProduct = z.infer<typeof updateProductSchema>;

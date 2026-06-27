@@ -57,7 +57,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Send transactional emails to your customers without leaving StellarTools.',
     'https://resend.com',
     'support@resend.com',
-    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['read:customers','read:payments','read:refunds','read:subscriptions'],
     ARRAY['resendApiKey'],
     '1.0',
     'available',
@@ -77,7 +77,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Trigger lifecycle email sequences from real-time payment and subscription events.',
     'https://loops.so',
     'help@loops.so',
-    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['read:customers','read:payments','read:refunds','read:subscriptions'],
     ARRAY['loopsApiKey'],
     '1.0',
     'coming_soon',
@@ -97,7 +97,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Launch a referral or affiliate program that tracks commissions directly from your StellarTools revenue.',
     'https://firstpromoter.com',
     'support@firstpromoter.com',
-    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['read:customers','read:payments','read:refunds','read:subscriptions'],
     ARRAY['FirstPromoterApiKey'],
     '1.0',
     'coming_soon',
@@ -117,7 +117,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'Connect your revenue data to PostHog''s product analytics — see which features drive conversions and retention.',
     'https://posthog.com',
     'hey@posthog.com',
-    '["read:customers","read:payments","read:refunds","read:subscriptions"]'::jsonb,
+    ARRAY['read:customers','read:payments','read:refunds','read:subscriptions'],
     ARRAY['posthugApiKey'],
     '1.0',
     'coming_soon',
@@ -129,6 +129,6 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.supported_asset (id, code, canonical_issuer, network, metadata, description, images) VALUES
   ('supported_asset_1', 'XLM', NULL, 'testnet',  '{"coingeckoId":"stellar","decimals":7}'::jsonb, 'Native XLM', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ipo19sUHkH8hj3xwcIloqJz6mdZeuWfEAVi4L']),
   ('supported_asset_2', 'XLM', NULL, 'mainnet',  '{"coingeckoId":"stellar","decimals":7}'::jsonb, 'Native XLM', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ipo19sUHkH8hj3xwcIloqJz6mdZeuWfEAVi4L']),
-  ('supported_asset_3', 'USDC', 'GAHPYWLK6YRN7CVYZOO4H3VDRZ7PVF5UJGLZCSPAEIKJE2XSWF5LAGER', 'testnet', '{"decimals":7,"usdPeg":true}'::jsonb, 'USDC by Circle on Testnet', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ib0McDTYRSWChAKdv1tXG0YfyxQLZMce3UTFa']),
+  ('supported_asset_3', 'USDC', 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5', 'testnet', '{"decimals":7,"usdPeg":true}'::jsonb, 'USDC by Circle on Testnet', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ib0McDTYRSWChAKdv1tXG0YfyxQLZMce3UTFa']),
   ('supported_asset_4', 'USDC', 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN', 'mainnet', '{"decimals":7,"usdPeg":true}'::jsonb, 'USDC by Circle on Mainnet', ARRAY['https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8Ib0MacDTYRSWChAKdv1tXG0YfyxQLZMce3UTFa'])
 ON CONFLICT (id) DO NOTHING;

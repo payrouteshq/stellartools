@@ -1,4 +1,9 @@
-import { z as Schema, stringifyObjectFields } from "@stellartools/core";
+import {
+  z as Schema,
+  createRefundSchema,
+  createSubscriptionSchema,
+  updateCustomerSchema,
+} from "@stellartools/core";
 import { GenericEndpointContext } from "better-auth";
 import { createAuthEndpoint, sessionMiddleware } from "better-auth/api";
 
@@ -58,12 +63,7 @@ export const updateCustomer = (options: BillingConfig) =>
     "/stellar/customer/update",
     {
       method: "POST",
-      body: Schema.object({
-        email: Schema.email().optional(),
-        name: Schema.string().optional(),
-        phone: Schema.string().optional(),
-        metadata: Schema.record(Schema.string(), Schema.string()).nullable().optional(),
-      }),
+      body: updateCustomerSchema,
       use: [sessionMiddleware],
     },
     async (ctx) => {
@@ -79,18 +79,13 @@ export const createSubscription = (options: BillingConfig) =>
     "/stellar/subscription/create",
     {
       method: "POST",
-      body: Schema.object({
-        product_id: Schema.string(),
-        metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
-        cancel_at_period_end: Schema.boolean(),
-        period: Schema.object({ from: Schema.coerce.date(), to: Schema.coerce.date() }),
-      }),
+      body: createSubscriptionSchema.omit({ customer_id: true }),
       use: [sessionMiddleware],
     },
     async (ctx) => {
       const customerId = await retrieveOrCreateCustomer(ctx);
       const { stellar } = getContext(ctx, options);
-      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_ids: [customerId] });
+      const sub = await stellar.subscriptions.create({ ...ctx.body, customer_id: customerId });
 
       options?.on_subscription_created?.(sub);
 
@@ -106,74 +101,12 @@ export const listSubscriptions = (options: BillingConfig) =>
 
 // -- REFUNDS --
 
-const DEFAULT_CREDITS_LOW_THRESHOLD = 10;
-
-export const consumeCredits = (options: BillingConfig) =>
-  createAuthEndpoint(
-    "/stellar/credits/consume",
-    {
-      method: "POST",
-      body: Schema.object({
-        product_id: Schema.string(),
-        raw_amount: Schema.number(),
-        metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
-      }),
-      use: [sessionMiddleware],
-    },
-    async (ctx) => {
-      const customerId = await retrieveOrCreateCustomer(ctx);
-      const { stellar } = getContext(ctx, options);
-
-      // Use "BAD_REQUEST" for consumption failures (e.g., insufficient balance)
-      const result = await stellar.credits.consume(customerId, {
-        ...ctx.body,
-        reason: "deduct",
-        metadata: { ...stringifyObjectFields(ctx.body.metadata ?? {}), source: "betterauth-adapter" },
-      });
-
-      if (options.on_credits_low && result.balance <= (options.credit_low_threshold ?? DEFAULT_CREDITS_LOW_THRESHOLD)) {
-        await options.on_credits_low({ ...result, customer_id: customerId });
-      }
-
-      return ctx.json(result);
-    }
-  );
-
-export const getTransactions = (options: BillingConfig) =>
-  createAuthEndpoint(
-    "/stellar/credits/transactions",
-    {
-      method: "GET",
-      query: Schema.object({
-        product_id: Schema.string(),
-        limit: Schema.coerce.number().optional(),
-        offset: Schema.coerce.number().optional(),
-      }),
-      use: [sessionMiddleware],
-    },
-    async (ctx) => {
-      const customerId = await retrieveOrCreateCustomer(ctx);
-      const { stellar } = getContext(ctx, options);
-
-      // ctx.query already contains productId, limit, and offset
-      const result = await stellar.credits.getTransactions(customerId, ctx.query);
-
-      return ctx.json(result);
-    }
-  );
-
-// -- REFUNDS --
-
 export const createRefund = (options: BillingConfig) =>
   createAuthEndpoint(
     "/stellar/refund/create",
     {
       method: "POST",
-      body: Schema.object({
-        payment_id: Schema.string(),
-        reason: Schema.string(),
-        metadata: Schema.record(Schema.string(), Schema.unknown()).optional(),
-      }),
+      body: createRefundSchema,
       use: [sessionMiddleware],
     },
     async (ctx) => {
@@ -182,7 +115,7 @@ export const createRefund = (options: BillingConfig) =>
         await stellar.refunds.create({
           payment_id: ctx.body.payment_id,
           reason: ctx.body.reason,
-          metadata: { ...stringifyObjectFields(ctx.body?.metadata ?? {}), source: "betterauth-adapter" },
+          metadata: { ...(ctx.body?.metadata ?? {}), source: "betterauth-adapter" },
         })
       );
     }

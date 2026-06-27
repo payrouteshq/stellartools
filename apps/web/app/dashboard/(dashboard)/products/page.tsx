@@ -271,8 +271,6 @@ function ProductsPageContent() {
             images: product.images,
             metadata: product.metadata ?? {},
             unit: product.unit ?? null,
-            unitsPerCredit: product.unitsPerCredit ?? null,
-            totalCredits: product.totalCredits ?? null,
             recurringPeriod: product.recurringPeriod ?? null,
             customDurationMs: product.customDurationMs ?? null,
           };

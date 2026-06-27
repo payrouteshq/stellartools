@@ -1,6 +1,6 @@
 import { AppError } from "@/lib/action-handler";
-import { Camelize, Snakize } from "@/types";
 import { DocumentProps, pdf } from "@react-pdf/renderer";
+import { Camelize, Snakize } from "@stellartools/core";
 import crypto from "crypto";
 import { saveAs } from "file-saver";
 import _ from "lodash";

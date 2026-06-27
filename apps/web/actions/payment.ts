@@ -4,7 +4,6 @@ import { retrieveAccount } from "@/actions/account";
 import { processPaymentBilling } from "@/actions/billing";
 import { retrieveCheckout, retrieveCheckoutAndCustomer } from "@/actions/checkout";
 import { putCheckout } from "@/actions/checkout";
-import { postCreditBalance } from "@/actions/credit";
 import { retrieveCustomers, upsertCustomerWallet } from "@/actions/customers";
 import { paginate, runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganization } from "@/actions/organization";
@@ -13,7 +12,6 @@ import { PaymentStatus } from "@/constant/schema.client";
 import {
   Account,
   Checkout,
-  CreditBalance,
   Customer,
   Network,
   Organization,
@@ -29,7 +27,6 @@ import {
 } from "@/db";
 import { CustomerPaymentReceiptEmail } from "@/emails/customer-payment-receipt-email";
 import { MerchantFirstPaymentConfirmedEmail } from "@/emails/merchant-first-payment-confirmed";
-import { MerchantMeteredFirstPurchaseEmail } from "@/emails/merchant-metered-first-purchase";
 import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription-started";
 import { sendEmail } from "@/integrations/email";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
@@ -96,16 +93,6 @@ const MERCHANT_EMAIL_TEMPLATES = {
       amount: `${p.amountCents} ${p.selectedAssetCode}`,
       assetCode: p.selectedAssetCode,
       transactionHash: p.transactionHash,
-    }),
-  }),
-  metered: (ctx: Required<PaymentContext>, _: Payment) => ({
-    subject: "Whops! You just got a new metered sale 💸",
-    component: MerchantMeteredFirstPurchaseEmail({
-      organizationName: ctx.org.name,
-      organizationLogo: ctx.org.logoUrl,
-      productName: ctx.product.name || ctx.checkout.description || "Payment",
-      totalCredits: ctx.product.totalCredits ?? 0,
-      customerEmail: ctx.customer.email ?? ctx.checkout.customerEmail ?? undefined,
     }),
   }),
   subscription: (ctx: Required<PaymentContext>, p: Payment) => ({
@@ -208,14 +195,15 @@ const paymentActionHandler = async (
           const paymentCount = await retrievePaymentCount(organizationId, undefined, { status: "confirmed" });
           console.log("paymentCount", paymentCount);
 
+          const emailTemplate = MERCHANT_EMAIL_TEMPLATES[ctx.product?.type as keyof typeof MERCHANT_EMAIL_TEMPLATES];
           if (
             paymentCount === 1 &&
             ctx.org.supportEmail &&
             ctx.product &&
             ctx.checkout &&
-            MERCHANT_EMAIL_TEMPLATES[ctx.product.type]
+            emailTemplate
           ) {
-            const { subject, component } = MERCHANT_EMAIL_TEMPLATES[ctx.product.type](
+            const { subject, component } = emailTemplate(
               ctx as Required<PaymentContext>,
               payment
             );
@@ -300,8 +288,18 @@ export const retrieveLifetimeVolumeCents = async (orgId: string, environment: Ne
 export const retrievePayments = async (
   orgId?: string,
   env?: Network,
-  params?: { customerId?: string; paymentId?: string; subscriptionId?: string; publicAccess?: boolean } & ApiListParams,
-  options?: { withCustomer?: boolean; withWallets?: boolean; withRefunds?: boolean; withOrg?: boolean }
+  params?: {
+    customerId?: string;
+    paymentId?: string;
+    subscriptionId?: string;
+    publicAccess?: boolean;
+  } & ApiListParams,
+  options?: {
+    withCustomer?: boolean;
+    withWallets?: boolean;
+    withRefunds?: boolean;
+    withOrg?: boolean;
+  }
 ): Promise<PaginatedResult<ResolvedPayment>> => {
   const publicAccess = params?.publicAccess ?? false;
 
@@ -453,7 +451,6 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
           metadata: null,
           selectedAssetCode: assetCode!,
           selectedAssetIssuer: assetIssuer ?? null,
-          creditBalanceId: null,
           failureReason: "Failed to retrieve payment from horizon paging token",
         },
         organizationId,
@@ -473,27 +470,6 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
       }
     );
 
-    const isMeteredProduct = checkout.productType == "metered" && checkout.productTotalCredits;
-
-    let creditBalance: CreditBalance | null = null;
-
-    if (isMeteredProduct) {
-      console.log("posting credit balance");
-
-      creditBalance = await postCreditBalance(
-        {
-          customerId,
-          productId: checkout.productId,
-          balance: checkout.productTotalCredits!,
-          consumed: 0,
-          granted: checkout.productTotalCredits!,
-          metadata: null,
-        },
-        organizationId,
-        environment
-      );
-    }
-
     await postPayment(
       {
         subscriptionId: null,
@@ -508,7 +484,6 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
         metadata: null,
         selectedAssetCode: assetCode!,
         selectedAssetIssuer: assetIssuer ?? null,
-        creditBalanceId: creditBalance?.id ?? null,
         failureReason: null,
       },
       organizationId,

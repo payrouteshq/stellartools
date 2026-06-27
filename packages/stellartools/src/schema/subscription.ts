@@ -98,14 +98,10 @@ export const subscriptionSchema = schemaFor<Subscription>()(
 );
 
 export const createSubscriptionSchema = z.object({
-  customer_ids: z.array(z.string()),
+  customer_id: z.string(),
   product_id: z.string(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
   cancel_at_period_end: z.boolean().optional().default(false),
-  period: z.object({
-    from: z.coerce.date(),
-    to: z.coerce.date(),
-  }),
   trial_days: z.number().default(0).optional().nullable(),
 });
 

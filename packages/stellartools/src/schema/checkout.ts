@@ -146,7 +146,7 @@ export const createCheckoutSchema = baseCreateSchema.extend({
 export const currencyCodeSchema = z
   .string()
   .transform((v) => v.toUpperCase())
-  .pipe(z.enum(CURRENCY_CODES, { message: "Invalid currency code" }));
+  .pipe(z.enum(CURRENCY_CODES, { message: "Invalid currency code, must be one of " + CURRENCY_CODES.join(", ") }));
 
 export const createDirectCheckoutSchema = baseCreateSchema.extend({
   amount_cents: z.number().positive("Amount must be greater than 0"),

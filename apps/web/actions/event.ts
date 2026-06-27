@@ -46,13 +46,11 @@ export async function withEvent<T>(
       // 2. DISCOVER INSTALLED APPS (Plugins)
       // Logic: If an action emits "customer::created", find apps with "read:customers" scope.
       const primaryEvent = Array.isArray(eventConfigs) ? eventConfigs[0] : eventConfigs;
-
       const resource = primaryEvent
         ? (Object.keys(APP_CONFIG) as AppResource[]).find((key) =>
             (APP_CONFIG[key].events as readonly string[]).includes(primaryEvent.type)
           )
         : undefined;
-
       const requiredScope = resource ? (`read:${resource}` as const) : null;
 
       const installedApps = requiredScope
@@ -83,12 +81,13 @@ export async function withEvent<T>(
           const targets = subscribers.filter((s) => s.events.includes(trigger.event));
           if (targets.length === 0) return;
 
-          const envelope: WebhookEventBase<any, any> = {
+          // todo: make many envelopes for each target
+          const envelope: WebhookEventBase<string, any> = {
             id: webhookLogId!,
             type: trigger.event,
             created: new Date().toISOString(),
             livemode: env === "mainnet",
-            data: trigger.map(result),
+            data: { object: trigger.map(result) },
           };
 
           deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], webhookLogId!));

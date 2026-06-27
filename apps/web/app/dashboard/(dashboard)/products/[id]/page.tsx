@@ -49,7 +49,6 @@ import { type ProductEsque, ProductsModalContent, ProductsModalFooter } from "..
 const productTypeLabels: Record<string, string> = {
   one_time: "One-off",
   subscription: "Recurring",
-  metered: "Metered (Credits)",
 };
 
 const recurringPeriodLabels: Record<string, string> = {
@@ -170,7 +169,6 @@ export default function ProductDetailPage() {
     { select: (data) => data[0] ?? null }
   );
 
-  const isMetered = product?.type === "metered";
   const isSubscription = product?.type === "subscription";
 
   const formatDate = (date: any) => (date ? moment(date).format("MMM D, YYYY, h:mm A") : "—");
@@ -178,11 +176,7 @@ export default function ProductDetailPage() {
   const createdAtLabel = formatDate(product?.createdAt);
   const updatedAtLabel = formatDate(product?.updatedAt);
 
-  const mainPriceDisplay = product
-    ? isMetered
-      ? "Usage-based"
-      : Money.formatFiat(product.priceCents, product.currencyCode)
-    : "";
+  const mainPriceDisplay = Money.formatFiat(product?.priceCents ?? 0, product?.currencyCode ?? "USD");
 
   const openEditModal = React.useCallback(() => {
     if (!product) return;
@@ -195,8 +189,6 @@ export default function ProductDetailPage() {
       priceCents: product.priceCents,
       recurringPeriod: product.recurringPeriod ?? null,
       unit: product.unit ?? null,
-      unitsPerCredit: product.unitsPerCredit ?? null,
-      totalCredits: product.totalCredits ?? null,
     };
 
     isProductModalOpenRef.current = true;

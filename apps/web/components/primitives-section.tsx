@@ -20,11 +20,6 @@ const primitives = [
     description: "Self-service billing portal. Customers manage their own subscriptions and payment methods.",
   },
   {
-    label: "Usage Billing",
-    id: "usage",
-    description: "Metered billing with credit pools. Charge for exactly what's consumed, nothing more.",
-  },
-  {
     label: "Webhooks",
     id: "webhooks",
     description: "Real-time events for every state change — payment.completed, subscription.renewed, and more.",

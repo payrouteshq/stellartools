@@ -24,11 +24,10 @@
   },
   "dependencies": {
     "@langchain/core": "^1.1.17",
+    "@stellartools/core": "workspace:*",
     "langchain": "^1.2.13"
   },
   "devDependencies": {
-    "@stellartools/core": "workspace:*",
-    "@stellartools/plugin-sdk": "workspace:*",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   }

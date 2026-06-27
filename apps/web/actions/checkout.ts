@@ -151,9 +151,8 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
         currencyCode: products.currencyCode,
         name: products.name,
         recurringPeriod: products.recurringPeriod,
+        customDurationMs: products.customDurationMs,
         images: products.images,
-        totalCredits: products.totalCredits,
-        unitsPerCredit: products.unitsPerCredit,
       },
       finalAmount: sql<number>`COALESCE(${checkouts.amountCents}, ${products.priceCents})`.as("final_amount"),
       merchantPublicKey: sql<string>`
@@ -207,9 +206,9 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationName,
     organizationLogo,
     merchantEmail,
-    productTotalCredits: product?.totalCredits,
     payoutAssetCode: payoutAssetCode ?? "USDC",
     payoutAssetIssuer: payoutAssetIssuer ?? null,
+    customDurationMs: product?.customDurationMs,
   };
 };
 
@@ -246,7 +245,7 @@ export const retrieveCheckoutPublicData = async (checkoutId: string) => {
 export const putCheckout = async (id: string, params: Partial<Checkout>, orgId?: string, env?: Network) => {
   const [{ organizationId, environment }, oldCheckout] = await Promise.all([
     resolveOrgContext(orgId, env),
-    retrieveCheckout(id),
+    retrieveCheckout(id, orgId, env),
   ]);
 
   if (!oldCheckout) throw new AppError("Checkout not found");

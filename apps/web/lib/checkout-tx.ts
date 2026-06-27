@@ -2,13 +2,16 @@
 
 import { putCheckout, retrieveCheckoutAndCustomer, retrieveCheckoutPublicData } from "@/actions/checkout";
 import { runAtomic } from "@/actions/event";
+import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayment } from "@/actions/payment";
 import { postSubscriptionsBulk } from "@/actions/subscription";
 import { STELLAR_PRECISION, subscriptionIntervals } from "@/constant";
+import { decrypt } from "@/integrations/encryption";
 import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import {
   buildPreSwapXdr,
+  ensureTrustline,
   getCustomerAssetIssuers,
   getStellarConfig,
   retrieveAssetContractId,
@@ -52,20 +55,15 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const asset = sendAssetCode === "XLM" ? Asset.native() : new Asset(sendAssetCode, sendAssetIssuer!);
   const builder = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase });
 
-  if (checkout.payoutAssetIssuer) {
-    builder.addOperation(
-      Operation.pathPaymentStrictReceive({
-        sendAsset: asset,
-        sendMax: new Big(amount).times(1.02).toFixed(STELLAR_PRECISION), // 2% slippage
-        destination: checkout.merchantPublicKey,
-        destAsset: new Asset(checkout.payoutAssetCode, checkout.payoutAssetIssuer),
-        destAmount: Money.centsToStellarString(usdCents),
-        path: [],
-      })
-    );
-  } else {
-    builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
+  // For non-native payments, ensure the merchant's wallet has a trustline for
+  // the exact asset the customer is sending before the payment can land there.
+  if (sendAssetIssuer) {
+    const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
+    if (!orgSecret) throw new AppError("Merchant wallet not configured");
+    await ensureTrustline(decrypt(orgSecret.encrypted), sendAssetCode, sendAssetIssuer, checkout.environment);
   }
+
+  builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
 
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(30).build().toXDR();
 };
@@ -138,7 +136,14 @@ export async function prepareSubscriptionApproval(
       }
     }
 
-    const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+    let durationDays: number = 0;
+
+    if (checkout.recurringPeriod == "custom") {
+      durationDays = checkout.customDurationMs ? Math.round(checkout.customDurationMs / 864e5) : 0;
+    } else {
+      durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+    }
+
     const periodStart = new Date();
     const periodEnd = new Date(Date.now() + durationDays * 864e5);
 
@@ -197,7 +202,14 @@ export async function finalizeSubscriptionCheckout(
   }
 
   const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
-  const durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+
+  let durationDays: number = 0;
+
+  if (checkout.recurringPeriod == "custom") {
+    durationDays = checkout.customDurationMs ? Math.round(checkout.customDurationMs / 864e5) : 0;
+  } else {
+    durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
+  }
 
   const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);
   if (approvalResult.isErr()) {
@@ -257,7 +269,6 @@ export async function finalizeSubscriptionCheckout(
         status: "confirmed",
         metadata: null,
         subscriptionId,
-        creditBalanceId: null,
         failureReason: null,
       },
       organizationId,

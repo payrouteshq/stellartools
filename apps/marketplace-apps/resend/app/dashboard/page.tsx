@@ -10,7 +10,7 @@ import {
   useStellarToolsMutation,
   useStellarToolsQuery,
 } from "@stellartools/app-sdk";
-import { AppInstallationSettingValue, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
+import { Primitive, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
 import {
   Badge,
   DataTable,
@@ -78,7 +78,7 @@ const Dashboard = () => {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
 
-  const { data: stats } = useStellarToolsQuery<EmailStats>(
+  const { data: stats, isLoading: statsLoading } = useStellarToolsQuery<EmailStats>(
     ["stats"],
     (ctx: AppContext) => retrieveEmailStats(ctx.settings.resendApiKey as string, ctx.orgId, ctx.ui.periodDays, ctx.env),
     { enabled: !!settings.resendApiKey }
@@ -91,7 +91,7 @@ const Dashboard = () => {
   });
 
   const { mutate: patchSettings, isPending: isSaving } = useStellarToolsMutation(
-    async (patch: Record<string, AppInstallationSettingValue>) => {
+    async (patch: Record<string, Primitive>) => {
       return await updateSettings(appToken, patch);
     }
   );
@@ -203,11 +203,12 @@ const Dashboard = () => {
             />
           </div>
           <DataTable
+            isLoading={statsLoading}
             data={filteredEmails}
             columns={EMAIL_COLUMNS}
             withFilterPill={false}
             emptyMessage="No emails match your search."
-            containerClassName="[&_.bg-card]:shadow-none"
+            containerClassName="[&_.bg-card]:shadow-none [&_[data-slot=table-cell]]:text-xs [&_[data-slot=table-head]]:text-xs [&_[data-slot=table-container]::-webkit-scrollbar]:h-1 [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:rounded-full [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:bg-border [&_[data-slot=table-container]::-webkit-scrollbar-track]:bg-transparent"
           />
         </div>
 

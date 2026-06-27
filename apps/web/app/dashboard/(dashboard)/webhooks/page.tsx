@@ -770,7 +770,7 @@ function WebhooksModalContent({
   return (
     <div className="flex flex-col gap-6">
       {footer}
-      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+      <div className="flex flex-col gap-6 lg:flex-row! lg:gap-8">
         <form
           ref={formRef}
           id="webhook-form"

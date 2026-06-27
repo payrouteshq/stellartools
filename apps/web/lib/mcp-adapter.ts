@@ -39,6 +39,7 @@ export async function executeHandlerAsTool(config: HandlerConfig<any, any, any>,
     req: mockReq,
   });
 
+  if (result instanceof Response) throw new Error("Unexpected Response from MCP handler");
   if (result.isErr()) throw result.error;
   return result.value;
 }

@@ -2,7 +2,7 @@
 
 import { getIndexedEmailIds } from "@/app/actions/db";
 import { EmailStats } from "@/app/types";
-import { AppInstallationSettingValue, StellarTools } from "@stellartools/core";
+import { Primitive, StellarTools } from "@stellartools/core";
 import { Resend } from "resend";
 
 const TERMINAL = new Set([
@@ -42,18 +42,23 @@ export const validateApiKeyAndConnect = async (
   return true;
 };
 
-export const updateSettings = async (
-  appToken: string,
-  patch: Record<string, AppInstallationSettingValue>
-): Promise<void> => {
+export const updateSettings = async (appToken: string, patch: Record<string, Primitive>): Promise<void> => {
   const st = new StellarTools({ api_key: appToken });
 
-  await st.appInstallations.updateSettings(patch as Record<string, AppInstallationSettingValue>);
+  await st.appInstallations.updateSettings(patch as Record<string, Primitive>);
 };
 
 export const logout = async (appToken: string): Promise<void> => {
   const st = new StellarTools({ api_key: appToken });
-  await st.appInstallations.updateSettings({ resendApiKey: null, fromEmail: null });
+
+  const settings = await st.appInstallations.retrieveSettings();
+
+  if (!settings?.error) {
+    await st.appInstallations.updateSettings(
+      Object.fromEntries(Object.keys(settings).map((key) => [key, null])),
+      "suspended"
+    );
+  }
 };
 
 export const listResendDomains = async (apiKey: string): Promise<string[]> => {

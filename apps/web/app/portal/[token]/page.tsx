@@ -10,14 +10,13 @@ import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { truncate } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
-import { AppModal, Badge, Button, Skeleton, Slider } from "@stellartools/shared-ui";
+import { AppModal, Badge, Button, Skeleton } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Building2, Edit2, Plus, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 
 type PortalData = Awaited<ReturnType<typeof getCustomerPortalData>>;
-type Credit = NonNullable<PortalData>["credits"][number];
 type Payment = NonNullable<PortalData>["payments"][number];
 type WalletEntry = NonNullable<PortalData>["wallets"][number];
 type Organization = NonNullable<PortalData>["organization"];
@@ -133,7 +132,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
   if (!data?.customer) return null;
 
-  const { customer, organization, subscriptions, payments, credits, wallets } = data;
+  const { customer, organization, subscriptions, payments, wallets } = data;
   const activeSubscriptions = subscriptions.filter(
     (s) => s.status === "active" || s.status === "trialing" || s.status === "paused"
   );
@@ -293,17 +292,6 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             </div>
           </section>
 
-          {credits.length > 0 && (
-            <section>
-              <SectionLabel>Usage</SectionLabel>
-              <div className="border-border divide-border divide-y rounded-xl border">
-                {credits.map((c, i) => (
-                  <CreditMeter key={i} credit={c} />
-                ))}
-              </div>
-            </section>
-          )}
-
           {payments.length > 0 && (
             <section>
               <SectionLabel>Invoice history</SectionLabel>
@@ -317,8 +305,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
 
           {activeSubscriptions.length === 0 &&
             wallets.length === 0 &&
-            payments.length === 0 &&
-            credits.length === 0 && (
+            payments.length === 0 && (
               <div className="border-border rounded-xl border py-16 text-center">
                 <p className="text-foreground font-medium">No activity yet</p>
                 <p className="text-muted-foreground mt-1 text-sm">Subscriptions and payments will appear here.</p>
@@ -410,34 +397,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center gap-4 py-3">
       <span className="text-muted-foreground w-20 shrink-0 text-sm">{label}</span>
       <span className="text-foreground min-w-0 truncate text-sm">{value}</span>
-    </div>
-  );
-}
-
-function CreditMeter({ credit }: { credit: Credit }) {
-  const total = credit.totalCredits ?? BigInt(0);
-  const pct = total > 0 ? Math.min((Number(credit.consumed) / Number(total)) * 100, 100) : 0;
-  const unit = credit.productUnit ?? "credits";
-
-  return (
-    <div className="space-y-3 px-5 py-4">
-      <div className="flex items-center justify-between">
-        <p className="text-foreground text-sm font-medium">{credit.productName ?? "Usage"}</p>
-        <p className="text-muted-foreground text-xs">
-          {credit.consumed.toLocaleString()} / {total.toLocaleString()} {unit}
-        </p>
-      </div>
-      <Slider
-        value={[pct]}
-        min={0}
-        max={100}
-        disabled
-        className="**:data-[slot=slider-thumb]:size-3"
-        showKnobs={false}
-      />
-      <p className="text-muted-foreground text-xs">
-        {credit.balance.toLocaleString()} {unit} remaining
-      </p>
     </div>
   );
 }

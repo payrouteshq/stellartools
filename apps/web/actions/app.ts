@@ -19,8 +19,6 @@ export const generateAppToken = async (
 ): Promise<string | null> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  console.log({ organizationId, environment });
-
   if (!organizationId || !environment) return null;
 
   const [row] = await db
@@ -60,12 +58,8 @@ export const generateAppToken = async (
     },
   };
 
-  console.log({ context });
-
   const rawToken = signJwt(context, "1h", decrypt(row.appSecret), STELLARTOOLS_ID);
   const token = `${APP_TOKEN_PREFIX}${rawToken}`;
-
-  console.log({ rawToken, token });
 
   return token;
 };
@@ -105,7 +99,7 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
     .values({ ...params, id: installationId } as AppInstallation)
     .onConflictDoUpdate({
       target: [appInstallations.appId, appInstallations.organizationId, appInstallations.environment],
-      set: { updatedAt: new Date() },
+      set: { updatedAt: new Date(), status: "active" },
     })
     .returning();
 
@@ -115,7 +109,8 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
 export const retrieveInstalledApps = async (
   params?: { scopes?: AppScope[]; status?: AppInstallationStatus },
   orgId?: string,
-  env?: Network
+  env?: Network,
+  filters?: { installationId?: string }
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
@@ -124,13 +119,16 @@ export const retrieveInstalledApps = async (
     eq(appInstallations.environment, environment),
   ];
 
-  if (params?.status) {
-    whereClause.push(eq(appInstallations.status, params.status));
-  }
+  whereClause.push(eq(appInstallations.status, params?.status ?? "active"));
+
   if (params?.scopes && params.scopes.length > 0) {
     whereClause.push(
       or(arrayContains(appInstallations.scopes, params.scopes), arrayContains(appInstallations.scopes, ["*"]))!
     );
+  }
+
+  if (filters?.installationId) {
+    whereClause.push(eq(appInstallations.id, filters.installationId));
   }
 
   return await db
@@ -171,6 +169,7 @@ export const updateAppInstallation = async (
       ...baseUpdate,
       updatedAt: new Date(),
       settings: { ...row.installation.settings, ...maskedPatch },
+      ...(baseUpdate.status ? { status: baseUpdate.status } : {}),
     })
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
     .returning();

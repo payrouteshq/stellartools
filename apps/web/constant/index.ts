@@ -1,3 +1,5 @@
+import { Network } from "./schema.client";
+
 export const subscriptionIntervals = { day: 1, week: 7, month: 30, year: 365 };
 
 export const STELLAR_PRECISION = 7;
@@ -27,6 +29,17 @@ export const TIMELINE_ROUTE_MAP: Record<string, (id: string) => string> = {
   paymentId: (id) => `/transactions/${id}`,
   externalUrl: (url) => url,
   webhookLogId: (id) => `/webhooks/~?eventId=${id}`,
+};
+
+export const SAC_TOKEN_ADDRESSES: Record<"xlm" | "usdc", Record<Network, string>> = {
+  xlm: {
+    testnet: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+    mainnet: "CAS3J7GYLGVE45MR3HPSFG352DAANEV5GGMFTO3IZIE4JMCDALQO57Y",
+  },
+  usdc: {
+    testnet: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    mainnet: "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI",
+  },
 };
 
 export const APP_SENSITIVE_KEY_PREFIX = "__ST_ENC__:";

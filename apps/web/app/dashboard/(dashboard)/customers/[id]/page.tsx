@@ -6,7 +6,7 @@ import { retrieveCustomers } from "@/actions/customers";
 import { retrieveEvents } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
 import { retrieveProducts } from "@/actions/product";
-import { CustomerModalContent } from "@/app/dashboard/(dashboard)/customers/_shared";
+import { CustomerModalContent, DeleteCustomerModalContent } from "@/app/dashboard/(dashboard)/customers/_shared";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2, Stellar } from "@/components/icon";
@@ -38,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   SelectField,
   Separator,
@@ -64,6 +65,7 @@ import {
   EyeOff,
   Link2,
   MoreHorizontal,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import moment from "moment";
@@ -190,7 +192,6 @@ export default function CustomerDetailPage() {
   const [refundModalFooterProps, setRefundModalFooterProps] = React.useState({ isPending: false });
   const isRefundModalOpenRef = React.useRef(false);
   const invalidate = useInvalidateOrgQuery();
-  const { data: orgContext } = useOrgContext();
   const { data: payments, isLoading: isLoadingPayments } = useOrgQuery(["payments", customerId], () =>
     retrievePayments(undefined, undefined, { customerId: customerId }, { withRefunds: true, withWallets: true }).then(
       (res) => res.data
@@ -215,11 +216,7 @@ export default function CustomerDetailPage() {
           <RefundModalContent
             payment={paymentToRefund}
             initialPaymentId={paymentToRefund?.id}
-            onClose={AppModal.close}
-            onSuccess={() => {
-              invalidate(["payments", customerId]);
-              AppModal.close();
-            }}
+            onSuccess={() => AppModal.close()}
             setSubmitRef={refundModalSubmitRef}
             onFooterChange={(props) => setRefundModalFooterProps((prev) => ({ ...prev, ...props }))}
           />
@@ -299,17 +296,7 @@ export default function CustomerDetailPage() {
     AppModal.open({
       title: "Edit customer",
       description: "Update customer information",
-      content: (
-        <CustomerModalContent
-          customer={customer}
-          onClose={AppModal.close}
-          onSuccess={() => {
-            invalidate(["customer", customerId]);
-            invalidate(["customer-events", customerId]);
-            AppModal.close();
-          }}
-        />
-      ),
+      content: <CustomerModalContent customer={customer} onClose={AppModal.close} />,
       footer: null,
       size: "full",
       showCloseButton: true,
@@ -326,6 +313,25 @@ export default function CustomerDetailPage() {
       showCloseButton: true,
     });
   }, [customerId]);
+
+  const openDeleteModal = React.useCallback(() => {
+    if (!customer) return;
+    AppModal.open({
+      title: "Delete customer",
+      description: `Are you sure you want to delete ${customer.name ?? "this customer"}?`,
+      content: (
+        <DeleteCustomerModalContent
+          customer={customer}
+          onClose={() => {
+            AppModal.close();
+            router.push("/customers");
+          }}
+        />
+      ),
+      footer: null,
+      showCloseButton: true,
+    });
+  }, [customer, router]);
 
   const confirmedPayments = React.useMemo(
     () => payments?.filter((p) => p.status === "confirmed" && !p.refunded) ?? [],
@@ -395,9 +401,6 @@ export default function CustomerDetailPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="gap-2 shadow-none" onClick={openCheckoutModal}>
-                <CreditCard className="h-4 w-4" /> <span>Checkout</span>
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="shadow-none">
@@ -405,12 +408,23 @@ export default function CustomerDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={openCheckoutModal}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Checkout
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={openPortalLinkModal}>
                     <Link2 className="mr-2 h-4 w-4" />
                     Generate portal link
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={openEditModal}>Edit customer</DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                  <DropdownMenuItem onClick={openEditModal}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit customer
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={openDeleteModal}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete customer
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -601,7 +615,6 @@ function CheckoutModalContent({
   onFooterChange?: (props: { isPending: boolean; createdUrl: string | null }) => void;
 }) {
   const { data: orgContext } = useOrgContext();
-  const invalidate = useInvalidateOrgQuery();
   const [createdUrl, setCreatedUrl] = React.useState<string | null>(null);
   const { copied, handleCopy } = useCopy();
 

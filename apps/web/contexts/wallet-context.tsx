@@ -170,30 +170,43 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       address: walletAddress,
       networkPassphrase: network,
     });
-
-    console.log("signedTxXdr", signedTxXdr);
+    console.log("[wallet] step 1 — signedTxXdr:", signedTxXdr);
 
     setTxStatus(TxStatus.SUBMITTING);
     const signedTx = new Transaction(signedTxXdr, network);
+    const txHash = signedTx.hash().toString("hex");
+    console.log("[wallet] step 2 — built tx, hash:", txHash, "ops:", signedTx.operations.length);
 
-    console.log("signedTx", signedTx);
     let send_tx_response = await stellarRpc.sendTransaction(signedTx);
     let curr_time = Date.now();
+    console.log("[wallet] step 3 — sendTransaction initial status:", send_tx_response.status, "hash:", send_tx_response.hash);
 
-    while (send_tx_response.status !== "PENDING" && Date.now() - curr_time < 5000) {
+    // Only retry on TRY_AGAIN_LATER (transient RPC congestion).
+    // ERROR = hard rejection by the network — retrying the same signed tx never helps.
+    // DUPLICATE = already queued from a prior attempt — proceed to poll.
+    while (send_tx_response.status === "TRY_AGAIN_LATER" && Date.now() - curr_time < 10_000) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       send_tx_response = await stellarRpc.sendTransaction(signedTx);
+      console.log("[wallet] step 3 — retry status:", send_tx_response.status);
     }
 
-    console.log("send_tx_response", send_tx_response);
+    console.log("[wallet] step 4 — final send status:", send_tx_response.status, send_tx_response);
 
-    if (send_tx_response.status !== "PENDING") {
+    if (send_tx_response.status === "ERROR") {
+      const parsed = parseError(send_tx_response);
+      console.error("[wallet] step 4 ERROR — code:", parsed.code, "message:", parsed.message, "raw:", send_tx_response);
+      setTxStatus(TxStatus.FAIL);
+      return { txHash: send_tx_response.hash ?? null, status: "FAIL", message: parsed.message };
+    }
+
+    if (send_tx_response.status !== "PENDING" && send_tx_response.status !== "DUPLICATE") {
+      console.error("[wallet] step 4 — unexpected status:", send_tx_response.status);
       setError("Failed to send transaction");
-      console.error("Failed to send transaction: ", send_tx_response.hash, error);
       setTxStatus(TxStatus.FAIL);
       return { txHash: null, status: "FAIL", message: "Failed to send transaction" };
     }
 
+    console.log("[wallet] step 5 — polling for confirmation, hash:", send_tx_response.hash);
     curr_time = Date.now();
     let get_tx_response = await stellarRpc.getTransaction(send_tx_response.hash);
     while (get_tx_response.status === "NOT_FOUND" && Date.now() - curr_time < 30000) {
@@ -201,32 +214,27 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       get_tx_response = await stellarRpc.getTransaction(send_tx_response.hash);
     }
 
-    console.log("get_tx_response", get_tx_response);
+    console.log("[wallet] step 6 — getTransaction result:", get_tx_response.status, get_tx_response);
 
     if (get_tx_response.status === "NOT_FOUND") {
+      console.error("[wallet] step 6 — tx not found after 30s, hash:", send_tx_response.hash);
       setError("Unable to validate transaction success");
-      console.error("Unable to validate transaction success: ", get_tx_response.txHash);
       setTxStatus(TxStatus.FAIL);
       return { txHash: get_tx_response.txHash, status: "FAIL", message: "Unable to validate transaction success" };
     }
 
-    let hash = signedTx.hash().toString("hex");
-
-    console.log("hash", hash);
-
-    setTxHash(hash);
+    setTxHash(txHash);
 
     if (get_tx_response.status === "SUCCESS") {
-      console.log("Successfully submitted transaction: ", hash);
+      console.log("[wallet] step 7 — SUCCESS, hash:", txHash);
       await new Promise((resolve) => setTimeout(resolve, 500));
       setTxStatus(TxStatus.SUCCESS);
-      return { txHash: hash, status: "SUCCESS" };
+      return { txHash, status: "SUCCESS" };
     } else {
-      const txHash = get_tx_response.txHash ?? hash;
-      let parsedError = parseError(get_tx_response);
-      console.error(`Transaction failed: `, txHash, parsedError);
+      const parsed = parseError(get_tx_response);
+      console.error("[wallet] step 7 — FAILED, code:", parsed.code, "message:", parsed.message, "raw:", get_tx_response);
       setTxStatus(TxStatus.FAIL);
-      return { txHash, status: "FAIL", message: parsedError.message };
+      return { txHash: get_tx_response.txHash ?? txHash, status: "FAIL", message: parsed.message };
     }
   };
 

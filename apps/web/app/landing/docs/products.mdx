@@ -1,0 +1,83 @@
+---
+title: "Products"
+description: "The two billing models available on StellarTools and when to use each one"
+---
+
+A product is the thing you are selling. It defines the billing model and price. You create products once and reuse them across checkouts.
+
+StellarTools has two product types: one-time and subscription.
+
+---
+
+## One-time
+
+The customer pays once. You get the money. Nothing recurs, nothing needs managing afterward. Good for software licenses, digital downloads, access passes, and any purchase that only needs to happen once.
+
+Create a checkout with a one-time product and the customer pays the fixed price you set.
+
+```typescript
+const checkout = await st.checkout.create({
+  type: "product",
+  product_id: "prod_abc123",
+  customer_email: "user@example.com",
+});
+```
+
+---
+
+## Subscription
+
+The customer is billed on a recurring schedule. You set the price and the billing period: daily, weekly, monthly, yearly, or a custom interval.
+
+StellarTools renews the subscription automatically at the end of each period. You can cancel, pause, or resume from the API or from the customer portal.
+
+| Period | What it means |
+|--------|--------------|
+| daily | Billed every day |
+| weekly | Billed every 7 days |
+| monthly | Billed every 30 days |
+| yearly | Billed every 365 days |
+| custom | Billed every N days, weeks, or months that you define |
+
+When a subscription renews, StellarTools fires a `subscription.renewed` webhook so you know to keep the customer's access active.
+
+```typescript
+// Cancel at end of current period
+await st.subscriptions.update(subscriptionId, {
+  cancel_at_period_end: true,
+});
+```
+
+---
+
+## Checking access
+
+Both product types grant the customer access to whatever they paid for. Once they have a confirmed payment or an active subscription, you can verify that access programmatically:
+
+```typescript
+const { has_access, grant } = await st.customers.access.verify("cus_xxx", "prod_xxx");
+
+if (!has_access) {
+  throw new Error("No active subscription or payment found");
+}
+// grant.type is "subscription" or "one_time"
+```
+
+The AI SDK, LangChain, and UploadThing adapters run this check automatically — you only call it directly if you're building your own gating logic.
+
+---
+
+## Choosing a type
+
+If you charge once, use one-time. If you charge on a fixed schedule, use subscription. You cannot change a product's type after it is created.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="API Reference: Products" icon="terminal" href="/api-reference/products">
+    Create, read, and update products via the REST API.
+  </Card>
+  <Card title="Checkouts" icon="cart-shopping" href="/api-reference/checkouts">
+    Turn a product into a payment link.
+  </Card>
+</CardGroup>

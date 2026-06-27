@@ -5,6 +5,7 @@ import * as React from "react";
 import { TCountryCode, getCountryData } from "countries-list";
 import { countries } from "country-flag-icons";
 import * as CountryFlags from "country-flag-icons/react/3x2";
+import { AsYouType, CountryCode, parsePhoneNumberWithError } from "libphonenumber-js";
 import { Check } from "lucide-react";
 import { z as Schema } from "zod";
 
@@ -24,33 +25,37 @@ class AppError extends Error {
 }
 
 export const phoneNumberSchema = Schema.object({
-  number: Schema.string().min(10, "Invalid phone"),
+  number: Schema.string().min(1, "Phone number is required"),
   countryCode: Schema.string().default("US"),
 });
 
 export type PhoneNumber = Schema.infer<typeof phoneNumberSchema>;
 
-export const phoneNumberToString = (phoneNumber: PhoneNumber) => {
+export const phoneNumberToString = (phoneNumber: PhoneNumber): string => {
+  try {
+    const parsed = parsePhoneNumberWithError(phoneNumber.number, phoneNumber.countryCode as CountryCode);
+    if (parsed?.isValid()) return parsed.formatInternational();
+  } catch {}
   const { phone } = getCountryData(phoneNumber.countryCode as TCountryCode);
   const prefix = phone?.[0] ? `+${phone[0]}` : "+1";
   const digits = phoneNumber.number.replace(/[^\d]/g, "");
-
-  if (digits.length === 10) {
-    return `${prefix} (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-
   return `${prefix} ${digits}`;
 };
 
-export const phoneNumberFromString = (phoneNumber: string): PhoneNumber => {
-  const countryCodeMatch = phoneNumber.match(/^(\+\d{1,4})/);
+export const phoneNumberFromString = (raw: string): PhoneNumber => {
+  try {
+    const parsed = parsePhoneNumberWithError(raw);
+    if (parsed?.country) {
+      return { number: parsed.formatNational(), countryCode: parsed.country };
+    }
+  } catch {}
 
-  if (!countryCodeMatch) return { number: phoneNumber, countryCode: "US" };
+  const countryCodeMatch = raw.match(/^(\+\d{1,4})/);
+  if (!countryCodeMatch) return { number: raw, countryCode: "US" };
 
   const prefix = countryCodeMatch[1];
-  const number = phoneNumber.slice(prefix.length).replace(/[^\d]/g, "");
+  const number = raw.slice(prefix.length).replace(/[^\d]/g, "");
 
-  // Explicitly prioritize US for +1 because of alphabetical sorting
   if (prefix === "+1") return { number, countryCode: "US" };
 
   const countryCode = countries.find((iso) => {
@@ -59,7 +64,6 @@ export const phoneNumberFromString = (phoneNumber: string): PhoneNumber => {
   });
 
   if (!countryCode) throw new AppError("Invalid country code");
-
   return { number, countryCode };
 };
 
@@ -89,7 +93,6 @@ const COUNTRIES_DATA = countries.flatMap((countryCode) => {
     name,
     prefix: `+${prefix}`,
     countryCode,
-    // Pre-calculate a search string for faster filtering
     searchKey: `${name} ${countryCode} +${prefix}`.toLowerCase(),
   }));
 });
@@ -105,6 +108,20 @@ const CountryFlag = React.memo(({ countryCode, className }: { countryCode: strin
 });
 
 CountryFlag.displayName = "CountryFlag";
+
+const formatAsYouType = (raw: string, countryCode: string): string => {
+  const formatted = new AsYouType(countryCode as CountryCode).input(raw);
+  const digits = raw.replace(/\D/g, "");
+
+  // AsYouType echoes back raw digits when it can't match a pattern — fall back to simple grouping
+  if (formatted === digits && digits.length >= 6) {
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+  }
+
+  return formatted;
+};
 
 export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFieldProps>(
   ({ id, value, onChange, disabled, label, error, ...mixProps }: PhoneNumberFieldProps, ref) => {
@@ -140,39 +157,39 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
       });
     }, [value.countryCode]);
 
+    const displayNumber = React.useMemo(
+      () => (value.number ? formatAsYouType(value.number, value.countryCode) : ""),
+      [value.number, value.countryCode]
+    );
+
     const handleCountrySelect = React.useCallback(
       (countryCode: string) => {
-        onChange({ ...value, countryCode });
+        const digits = value.number.replace(/\D/g, "");
+        const number = digits ? formatAsYouType(digits, countryCode) : "";
+        onChange({ countryCode, number });
         setOpen(false);
         requestAnimationFrame(() => inputRef.current?.focus());
       },
-      [onChange, value]
+      [onChange, value.number]
     );
-
-    const formatPhoneNumber = (value: string): string => {
-      // Remove all non-digits
-      const digits = value.replace(/\D/g, "");
-
-      // Format: XXX XXX XXXX (3-3-4 pattern)
-      if (digits.length <= 3) {
-        return digits;
-      } else if (digits.length <= 6) {
-        return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-      } else {
-        return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
-      }
-    };
 
     const handleNumberChange = React.useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputValue = e.target.value;
-        const cleaned = inputValue.replace(/[^\d\s\-()]/g, "");
+        const raw = e.target.value;
+        const newDigits = raw.replace(/\D/g, "");
+        const prevDigits = displayNumber.replace(/\D/g, "");
 
-        const formatted = formatPhoneNumber(cleaned);
+        // When the user backspaces a formatting character (paren, space, dash) the digit
+        // count stays the same but the raw string shrinks — remove the preceding digit too
+        // so the field doesn't get stuck (e.g. perpetually showing "(708)").
+        const digits =
+          newDigits.length === prevDigits.length && raw.length < displayNumber.length
+            ? newDigits.slice(0, -1)
+            : newDigits;
 
-        onChange({ ...value, number: formatted });
+        onChange({ ...value, number: digits ? formatAsYouType(digits, value.countryCode) : "" });
       },
-      [onChange, value]
+      [onChange, value, displayNumber]
     );
 
     return (
@@ -240,8 +257,8 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
             {...input}
             type="tel"
             id={id}
-            placeholder="991 878 9123"
-            value={value.number}
+            placeholder="Phone number"
+            value={displayNumber}
             ref={mergedRef}
             onChange={handleNumberChange}
             disabled={disabled}

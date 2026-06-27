@@ -7,9 +7,9 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
+import { APP_INSTALLATION_STATUS, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
-  AppInstallationSettingValue,
+  Primitive,
   ProductStatus,
   ProductType,
   SubscriptionData,
@@ -105,9 +105,7 @@ export const organizations = pgTable(
     payoutFiatOptions: jsonb("payout_fiat_options").$type<Record<string, unknown> | null>(),
     selectedCurrency: text("selected_currency").notNull(),
   },
-  (table) => ({
-    idxOrgCreatedAt: index("idx_org_created_at").on(table.accountId, table.createdAt),
-  })
+  (table) => [index("idx_org_created_at").on(table.accountId, table.createdAt)]
 );
 
 export const organizationSecrets = pgTable("organization_secret", {
@@ -181,9 +179,7 @@ export const supportedAssets = pgTable(
     metadata: jsonb("metadata").$type<AssetMetadata | null>(),
     images: text("images").array(),
   },
-  (table) => ({
-    uniqueCodeIssuerEnvironment: unique().on(table.code, table.canonicalIssuer, table.environment),
-  })
+  (table) => [unique().on(table.code, table.canonicalIssuer, table.environment)]
 );
 
 export type CustomerMetadata = Record<string, string>;
@@ -272,8 +268,6 @@ export const products = pgTable("product", {
   images: text("images").array(),
   metadata: jsonb("metadata").$type<Record<string, string> | null>(),
   unit: text("unit"),
-  totalCredits: integer("total_credits"),
-  unitsPerCredit: integer("units_per_credit"),
   environment: networkEnum("environment").notNull().default("testnet"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -309,12 +303,12 @@ export const checkouts = pgTable(
     subscriptionData: jsonb("subscription_data").$type<SubscriptionData | null>(),
     initialPagingToken: text("initial_paging_token"),
   },
-  (table) => ({
-    amountOrProductCheck: check(
+  (table) => [
+    check(
       "amount_or_product_check",
       sql`(${table.productId} IS NOT NULL OR (${table.amountCents} IS NOT NULL AND ${table.currencyCode} IS NOT NULL))`
     ),
-  })
+  ]
 );
 
 export const subscriptionStatusEnum = pgEnum("subscription_status", subscriptionStatusEnum$1.enum);
@@ -355,7 +349,6 @@ export const payments = pgTable("payment", {
   customerId: text("customer_id").references(() => customers.id),
   subscriptionId: text("subscription_id").references(() => subscriptions.id),
   customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
-  creditBalanceId: text("credit_balance_id"),
   productId: text("product_id").references(() => products.id),
   amountCents: integer("amount_cents").notNull(),
   currencyCode: text("currency_code").notNull().default("USD"),
@@ -419,12 +412,12 @@ export const payouts = pgTable(
     transactionHash: text("transaction_hash").unique(),
     bankAccount: jsonb("bank_account").$type<Record<string, unknown> | null>(), // withdawal receipts, account number etc.
   },
-  (table) => ({
-    cryptoOrFiatConstraint: check(
+  (table) => [
+    check(
       "crypto_or_fiat_constraint",
       sql`(${table.selectedAssetCode} IS NOT NULL AND ${table.transactionHash} IS NOT NULL) OR (${table.bankAccount} IS NOT NULL)`
     ),
-  })
+  ]
 );
 
 export const webhooks = pgTable("webhook", {
@@ -493,67 +486,11 @@ export const refunds = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   },
-  (table) => ({
-    uniqueSucceededRefund: uniqueIndex("unique_succeeded_refund")
+  (table) => [
+    uniqueIndex("unique_succeeded_refund")
       .on(table.paymentId, table.customerId)
       .where(sql`status = 'succeeded'`),
-  })
-);
-
-export const creditBalances = pgTable(
-  "credit_balance",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
-    customerId: text("customer_id").references(() => customers.id),
-    productId: text("product_id").references(() => products.id),
-    environment: networkEnum("network").notNull(),
-    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    granted: integer("granted").notNull().default(0),
-    consumed: integer("consumed").notNull().default(0),
-    balance: integer("balance").notNull().default(0),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    isRevoked: boolean("is_revoked").default(false).notNull(),
-  },
-  (table) => ({
-    // One balance per customer per product
-    uniqueCustomerProduct: unique().on(table.customerId, table.productId, table.environment),
-    balanceIndex: index("credit_balance_customer_idx").on(table.customerId, table.organizationId),
-  })
-);
-
-export const creditTransactionTypeEnum = pgEnum("credit_transaction_type", ["deduct", "refund", "grant"]);
-
-export const creditTransactions = pgTable(
-  "credit_transaction",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
-    customerId: text("customer_id").references(() => customers.id),
-    productId: text("product_id").references(() => products.id),
-    balanceId: text("balance_id")
-      .notNull()
-      .references(() => creditBalances.id),
-    environment: networkEnum("network").notNull(),
-    amount: integer("amount").notNull(),
-    balanceBefore: integer("balance_before").notNull(),
-    balanceAfter: integer("balance_after").notNull(),
-    reason: text("reason"),
-    type: creditTransactionTypeEnum("type").notNull(),
-    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    customerIdx: index("credit_tx_customer_idx").on(table.customerId, table.productId),
-    balanceIdx: index("credit_tx_balance_idx").on(table.balanceId),
-    createdAtIdx: index("credit_tx_created_at_idx").on(table.createdAt),
-  })
+  ]
 );
 
 export const passwordReset = pgTable(
@@ -569,9 +506,7 @@ export const passwordReset = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    tokenIndex: index("password_reset_token_idx").on(table.token),
-  })
+  (table) => [index("password_reset_token_idx").on(table.token)]
 );
 
 export const eventTypeEnum = pgEnum("event_type", eventTypeEnum$1 as unknown as readonly [string, ...string[]]);
@@ -608,9 +543,7 @@ export const customerPortalSessions = pgTable(
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => ({
-    tokenIdx: index("customer_portal_session_token_idx").on(table.token),
-  })
+  (table) => [index("customer_portal_session_token_idx").on(table.token)]
 );
 
 export const appStatusEnum = pgEnum("app_status", ["available", "coming_soon"]);
@@ -639,12 +572,10 @@ export const apps = pgTable(
     status: appStatusEnum("status").default("coming_soon"),
     iconUrl: text("icon_url"),
   },
-  (table) => ({
-    slugIdx: index("app_slug_idx").on(table.slug),
-  })
+  (table) => [index("app_slug_idx").on(table.slug)]
 );
 
-export const appInstallationStatusEnum = pgEnum("app_installation_status", ["active", "suspended"]);
+export const appInstallationStatusEnum = pgEnum("app_installation_status", APP_INSTALLATION_STATUS);
 
 export type AppInstallationStatus = (typeof appInstallationStatusEnum.enumValues)[number];
 
@@ -661,15 +592,15 @@ export const appInstallations = pgTable(
     environment: networkEnum("network").notNull(),
 
     // Settings specific to this integration (e.g. { "apiKey": "fp_123" })
-    settings: jsonb("settings").$type<Record<string, AppInstallationSettingValue>>().default({}),
+    settings: jsonb("settings").$type<Record<string, Primitive>>().default({}),
     scopes: text("scopes").array().$type<AppScope[]>().notNull(),
     status: appInstallationStatusEnum("status").notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => ({
-    uniqueInstallation: unique().on(table.appId, table.organizationId, table.environment),
-    idxOrgEnv: index("idx_app_inst_org_env").on(table.organizationId, table.environment),
-  })
+  (table) => [
+    unique().on(table.appId, table.organizationId, table.environment),
+    index("idx_app_inst_org_env").on(table.organizationId, table.environment),
+  ]
 );
 
 export const appLogs = pgTable("app_log", {
@@ -699,8 +630,6 @@ export type Webhook = InferSelectModel<typeof webhooks>;
 export type WebhookLog = InferSelectModel<typeof webhookLogs>;
 export type Network = (typeof networkEnum.enumValues)[number];
 export type Refund = InferSelectModel<typeof refunds>;
-export type CreditBalance = InferSelectModel<typeof creditBalances>;
-export type CreditTransaction = InferSelectModel<typeof creditTransactions>;
 export type Subscription = InferSelectModel<typeof subscriptions>;
 export type Auth = InferSelectModel<typeof auth>;
 export type PasswordReset = InferSelectModel<typeof passwordReset>;
