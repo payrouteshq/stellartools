@@ -10,7 +10,7 @@ import {
   useStellarToolsMutation,
   useStellarToolsQuery,
 } from "@stellartools/app-sdk";
-import { AppInstallationSettingValue, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
+import { Primitive, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
 import {
   Badge,
   DataTable,
@@ -91,7 +91,7 @@ const Dashboard = () => {
   });
 
   const { mutate: patchSettings, isPending: isSaving } = useStellarToolsMutation(
-    async (patch: Record<string, AppInstallationSettingValue>) => {
+    async (patch: Record<string, Primitive>) => {
       return await updateSettings(appToken, patch);
     }
   );

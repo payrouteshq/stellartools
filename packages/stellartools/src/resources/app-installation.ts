@@ -4,6 +4,8 @@ import { ApiClient } from "../api-client";
 import { AppInstallationSettings, appInstallationSettingsSchema } from "../schema/app-installation";
 import { unwrap, validateSchema } from "../utils";
 
+export type AppInstallationStatus = "active" | "suspended";
+
 export class AppInstallationApi {
   constructor(private apiClient: ApiClient) {}
 
@@ -11,10 +13,13 @@ export class AppInstallationApi {
     return unwrap(await this.apiClient.get(`/app-installation`));
   }
 
-  async updateSettings(settings: AppInstallationSettings): Promise<Record<string, any> | { error: string }> {
+  async updateSettings(
+    settings: AppInstallationSettings,
+    status?: AppInstallationStatus
+  ): Promise<Record<string, any> | { error: string }> {
     return unwrap(
       await Result.andThenAsync(validateSchema(appInstallationSettingsSchema, settings), async (settings) => {
-        return await this.apiClient.put(`/app-installation`, { settings });
+        return await this.apiClient.put(`/app-installation`, { settings, ...(status ? { status } : {}) });
       })
     );
   }
