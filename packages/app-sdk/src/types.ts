@@ -1,4 +1,4 @@
-import { AppInstallationSettingValue, Network } from "@stellartools/core";
+import { Network, Primitive } from "@stellartools/core";
 
 import { AppScope } from "./schema";
 
@@ -12,7 +12,7 @@ export interface AppContext {
   scopes: Array<AppScope>;
 
   // Data State (Decrypted settings for the app to use immediately)
-  settings: Record<string, AppInstallationSettingValue>;
+  settings: Record<string, Primitive>;
 
   ui: {
     periodDays: number; // The "30 days" or "7 days" selected in the dashboard

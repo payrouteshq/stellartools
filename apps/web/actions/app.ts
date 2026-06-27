@@ -99,7 +99,7 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
     .values({ ...params, id: installationId } as AppInstallation)
     .onConflictDoUpdate({
       target: [appInstallations.appId, appInstallations.organizationId, appInstallations.environment],
-      set: { updatedAt: new Date() },
+      set: { updatedAt: new Date(), status: "active" },
     })
     .returning();
 
@@ -119,9 +119,7 @@ export const retrieveInstalledApps = async (
     eq(appInstallations.environment, environment),
   ];
 
-  if (params?.status) {
-    whereClause.push(eq(appInstallations.status, params.status));
-  }
+  whereClause.push(eq(appInstallations.status, params?.status ?? "active"));
 
   if (params?.scopes && params.scopes.length > 0) {
     whereClause.push(
@@ -171,6 +169,7 @@ export const updateAppInstallation = async (
       ...baseUpdate,
       updatedAt: new Date(),
       settings: { ...row.installation.settings, ...maskedPatch },
+      ...(baseUpdate.status ? { status: baseUpdate.status } : {}),
     })
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)))
     .returning();

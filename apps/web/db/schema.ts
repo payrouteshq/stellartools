@@ -7,9 +7,9 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
+import { APP_INSTALLATION_STATUS, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
-  AppInstallationSettingValue,
+  Primitive,
   ProductStatus,
   ProductType,
   SubscriptionData,
@@ -575,7 +575,7 @@ export const apps = pgTable(
   (table) => [index("app_slug_idx").on(table.slug)]
 );
 
-export const appInstallationStatusEnum = pgEnum("app_installation_status", ["active", "suspended"]);
+export const appInstallationStatusEnum = pgEnum("app_installation_status", APP_INSTALLATION_STATUS);
 
 export type AppInstallationStatus = (typeof appInstallationStatusEnum.enumValues)[number];
 
@@ -592,7 +592,7 @@ export const appInstallations = pgTable(
     environment: networkEnum("network").notNull(),
 
     // Settings specific to this integration (e.g. { "apiKey": "fp_123" })
-    settings: jsonb("settings").$type<Record<string, AppInstallationSettingValue>>().default({}),
+    settings: jsonb("settings").$type<Record<string, Primitive>>().default({}),
     scopes: text("scopes").array().$type<AppScope[]>().notNull(),
     status: appInstallationStatusEnum("status").notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
