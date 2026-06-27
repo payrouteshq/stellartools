@@ -4,24 +4,20 @@ import { retrieveAccount } from "@/actions/account";
 import { processPaymentBilling } from "@/actions/billing";
 import { retrieveCheckout, retrieveCheckoutAndCustomer } from "@/actions/checkout";
 import { putCheckout } from "@/actions/checkout";
-import { postCreditBalance } from "@/actions/credit";
 import { retrieveCustomers, upsertCustomerWallet } from "@/actions/customers";
 import { paginate, runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganization } from "@/actions/organization";
 import { retrieveProducts } from "@/actions/product";
-import { SAC_TOKEN_ADDRESSES } from "@/constant";
 import { PaymentStatus } from "@/constant/schema.client";
 import {
   Account,
   Checkout,
-  CreditBalance,
   Customer,
   Network,
   Organization,
   Payment,
   Product,
   ResolvedPayment,
-  creditBalances,
   customerWallets,
   customers,
   db,
@@ -31,16 +27,13 @@ import {
 } from "@/db";
 import { CustomerPaymentReceiptEmail } from "@/emails/customer-payment-receipt-email";
 import { MerchantFirstPaymentConfirmedEmail } from "@/emails/merchant-first-payment-confirmed";
-import { MerchantMeteredFirstPurchaseEmail } from "@/emails/merchant-metered-first-purchase";
 import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription-started";
 import { sendEmail } from "@/integrations/email";
-import { deployChannelInstance } from "@/integrations/stellar-core";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId, patchJSON, toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
-import { createHmac } from "crypto";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import moment from "moment";
 
@@ -100,16 +93,6 @@ const MERCHANT_EMAIL_TEMPLATES = {
       amount: `${p.amountCents} ${p.selectedAssetCode}`,
       assetCode: p.selectedAssetCode,
       transactionHash: p.transactionHash,
-    }),
-  }),
-  metered: (ctx: Required<PaymentContext>, _: Payment) => ({
-    subject: "Whops! You just got a new metered sale 💸",
-    component: MerchantMeteredFirstPurchaseEmail({
-      organizationName: ctx.org.name,
-      organizationLogo: ctx.org.logoUrl,
-      productName: ctx.product.name || ctx.checkout.description || "Payment",
-      totalCredits: ctx.product.totalCredits ?? 0,
-      customerEmail: ctx.customer.email ?? ctx.checkout.customerEmail ?? undefined,
     }),
   }),
   subscription: (ctx: Required<PaymentContext>, p: Payment) => ({
@@ -212,14 +195,15 @@ const paymentActionHandler = async (
           const paymentCount = await retrievePaymentCount(organizationId, undefined, { status: "confirmed" });
           console.log("paymentCount", paymentCount);
 
+          const emailTemplate = MERCHANT_EMAIL_TEMPLATES[ctx.product?.type as keyof typeof MERCHANT_EMAIL_TEMPLATES];
           if (
             paymentCount === 1 &&
             ctx.org.supportEmail &&
             ctx.product &&
             ctx.checkout &&
-            MERCHANT_EMAIL_TEMPLATES[ctx.product.type]
+            emailTemplate
           ) {
-            const { subject, component } = MERCHANT_EMAIL_TEMPLATES[ctx.product.type](
+            const { subject, component } = emailTemplate(
               ctx as Required<PaymentContext>,
               payment
             );
@@ -309,14 +293,12 @@ export const retrievePayments = async (
     paymentId?: string;
     subscriptionId?: string;
     publicAccess?: boolean;
-    creditBalanceId?: string;
   } & ApiListParams,
   options?: {
     withCustomer?: boolean;
     withWallets?: boolean;
     withRefunds?: boolean;
     withOrg?: boolean;
-    withCreditBalance?: boolean;
   }
 ): Promise<PaginatedResult<ResolvedPayment>> => {
   const publicAccess = params?.publicAccess ?? false;
@@ -343,22 +325,19 @@ export const retrievePayments = async (
       ...(options?.withRefunds && { refunds: refunds }),
       ...(options?.withCustomer && { customer: customers }),
       ...(options?.withOrg && { org: organizations }),
-      ...(options?.withCreditBalance && { creditBalance: creditBalances }),
     })
     .from(payments)
     .leftJoin(refunds, and(eq(payments.id, refunds.paymentId), eq(refunds.status, "succeeded")))
     .leftJoin(customerWallets, eq(payments.customerWalletId, customerWallets.id))
     .leftJoin(customers, eq(payments.customerId, customers.id))
     .leftJoin(organizations, eq(payments.organizationId, organizations.id))
-    .leftJoin(creditBalances, eq(payments.id, creditBalances.paymentId))
     .where(
       and(
         params?.paymentId ? eq(payments.id, params.paymentId) : undefined,
         !publicAccess && organizationId ? eq(payments.organizationId, organizationId) : undefined,
         !publicAccess && environment ? eq(payments.environment, environment) : undefined,
         params?.customerId ? eq(payments.customerId, params.customerId) : undefined,
-        params?.subscriptionId ? eq(payments.subscriptionId, params.subscriptionId) : undefined,
-        params?.creditBalanceId ? eq(creditBalances.id, params.creditBalanceId) : undefined
+        params?.subscriptionId ? eq(payments.subscriptionId, params.subscriptionId) : undefined
       )
     )
     .orderBy(desc(payments.createdAt))
@@ -437,47 +416,6 @@ export const deletePayment = async (id: string, organizationId: string) => {
   return null;
 };
 
-async function deployPlatformChannel(balanceId: string, amountCents: number, environment: Network) {
-  const keeperSecret = process.env.KEEPER_SECRET!;
-  const keeperPublicKey = process.env.KEEPER_PUBLIC_KEY!;
-
-  // Commitment keypair derived deterministically from the balance ID — private key never stored.
-  const seed = createHmac("sha256", process.env.MPP_SERVER_SECRET!).update(balanceId).digest();
-  const { Keypair, rpc: SorobanRpc } = await import("@stellar/stellar-sdk");
-  const commitmentKeypair = Keypair.fromRawEd25519Seed(seed);
-
-  // 1 fiat cent = 100_000 USDC stroops (1 USDC = 10^7 stroops, 1 cent = 10^5 stroops).
-  const depositAmountStroops = BigInt(amountCents) * BigInt(100_000);
-
-  const channelAddress = await deployChannelInstance({
-    signerSecret: keeperSecret,
-    commitmentPubkey: commitmentKeypair.publicKey(),
-    funderPublicKey: keeperPublicKey,
-    recipientPublicKey: keeperPublicKey,
-    tokenContract: SAC_TOKEN_ADDRESSES["usdc"][environment],
-    depositAmountStroops,
-    network: environment,
-  });
-
-  const rpcUrl =
-    environment === "testnet" ? process.env.NEXT_PUBLIC_RPC_URL_TESTNET! : process.env.NEXT_PUBLIC_RPC_URL_MAINNET!;
-  const rpcServer = new SorobanRpc.Server(rpcUrl);
-  const { sequence: startLedger } = await rpcServer.getLatestLedger();
-
-  await db
-    .update(creditBalances)
-    .set({
-      channelAddress,
-      funderPublicKey: keeperPublicKey,
-      commitmentPublicKey: commitmentKeypair.publicKey(),
-      startLedger,
-      updatedAt: new Date(),
-    })
-    .where(eq(creditBalances.id, balanceId));
-
-  console.log("[Channel Deployed]", { balanceId, channelAddress });
-}
-
 export const sweepAndProcessPayment = async (checkoutId: string, failureReason?: string) => {
   console.log("sweeping and processing payment", checkoutId);
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
@@ -524,8 +462,6 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
     return checkout;
   }
 
-  let capturedCreditBalance: CreditBalance | null = null;
-
   await runAtomic(async () => {
     console.log("putting checkout to completed");
     await putCheckout(checkoutId, { status: "completed" }, checkout.organizationId, checkout.environment).catch(
@@ -534,60 +470,27 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
       }
     );
 
-    const isMeteredProduct = checkout.productType == "metered" && checkout.productTotalCredits;
-
-    if (isMeteredProduct) {
-      console.log("posting credit balance");
-
-      const payment = await postPayment(
-        {
-          subscriptionId: null,
-          customerId,
-          checkoutId,
-          productId: checkout.productId ?? null,
-          amountCents: checkout.finalAmount,
-          currencyCode: checkout.currencyCode ?? "USD",
-          cryptoAmount: amount,
-          transactionHash: hash,
-          status: "confirmed",
-          metadata: null,
-          selectedAssetCode: assetCode!,
-          selectedAssetIssuer: assetIssuer ?? null,
-          failureReason: null,
-        },
-        organizationId,
-        environment,
-        { customerWalletAddress: payerAddress }
-      );
-
-      capturedCreditBalance = await postCreditBalance(
-        {
-          customerId: customerId!,
-          productId: checkout.productId!,
-          channelAddress: null,
-          funderPublicKey: null,
-          startLedger: null,
-          commitmentPublicKey: null,
-          encryptedMeteringSecret: null,
-          latestCumulativeAmount: 0,
-          latestSignature: null,
-          metadata: null,
-          paymentId: payment.id,
-        },
-        organizationId,
-        environment
-      );
-    }
-  });
-
-  // Deploy on-chain payment channel for metered products.
-  // Fire and forget — doesn't block payment confirmation.
-  const channelBalance = capturedCreditBalance as CreditBalance | null;
-  if (channelBalance) {
-    void deployPlatformChannel(channelBalance.id, checkout.finalAmount, environment).catch((e) =>
-      console.error("[Channel Deploy Failed]", e)
+    await postPayment(
+      {
+        subscriptionId: null,
+        customerId,
+        checkoutId,
+        productId: checkout.productId ?? null,
+        amountCents: checkout.finalAmount,
+        currencyCode: checkout.currencyCode ?? "USD",
+        cryptoAmount: amount,
+        transactionHash: hash,
+        status: "confirmed",
+        metadata: null,
+        selectedAssetCode: assetCode!,
+        selectedAssetIssuer: assetIssuer ?? null,
+        failureReason: null,
+      },
+      organizationId,
+      environment,
+      { customerWalletAddress: payerAddress }
     );
-  }
+  });
 
   return checkout;
 };

@@ -398,7 +398,7 @@ export function DeleteCustomerModalContent({ customer, onClose }: { customer: Cu
           <p className="text-destructive text-sm font-medium">This action is irreversible</p>
           <p className="text-muted-foreground text-sm">
             Deleting <span className="text-foreground font-medium">{customer.name}</span> will permanently remove their
-            account. Any active subscriptions will be cancelled and metered billing credits will be closed on-chain.
+            account. Any active subscriptions will be cancelled.
           </p>
         </div>
       </div>

@@ -7,7 +7,6 @@ import {
   CustomerMetadata,
   Network,
   ResolvedCustomer,
-  creditBalances as creditBalancesSchema,
   customerPortalSessions,
   customerWallets,
   customers as customersSchema,
@@ -352,7 +351,7 @@ export async function getCustomerPortalData(token: string) {
 
   const { customerId, organizationId, environment } = session;
 
-  const [customer, org, customerSubscriptions, customerPayments, customerCredits, customerWalletList] =
+  const [customer, org, customerSubscriptions, customerPayments, customerWalletList] =
     await Promise.all([
       db
         .select()
@@ -380,7 +379,6 @@ export async function getCustomerPortalData(token: string) {
           productName: productsSchema.name,
           productType: productsSchema.type,
           productUnit: productsSchema.unit,
-          totalCredits: productsSchema.totalCredits,
           customerWalletId: subscriptionsSchema.customerWalletId,
           walletAddress: customerWallets.address,
         })
@@ -411,26 +409,6 @@ export async function getCustomerPortalData(token: string) {
         .limit(20),
 
       db
-        .select({
-          latestCumulativeAmount: creditBalancesSchema.latestCumulativeAmount,
-          channelAddress: creditBalancesSchema.channelAddress,
-          productId: creditBalancesSchema.productId,
-          productName: productsSchema.name,
-          productUnit: productsSchema.unit,
-          totalCredits: productsSchema.totalCredits,
-          priceCents: productsSchema.priceCents,
-        })
-        .from(creditBalancesSchema)
-        .leftJoin(productsSchema, eq(creditBalancesSchema.productId, productsSchema.id))
-        .where(
-          and(
-            eq(creditBalancesSchema.customerId, customerId),
-            eq(creditBalancesSchema.organizationId, organizationId),
-            eq(creditBalancesSchema.environment, environment)
-          )
-        ),
-
-      db
         .select()
         .from(customerWallets)
         .where(
@@ -448,7 +426,6 @@ export async function getCustomerPortalData(token: string) {
     organization: org,
     subscriptions: customerSubscriptions,
     payments: customerPayments,
-    credits: customerCredits,
     wallets: customerWalletList,
     environment,
   };

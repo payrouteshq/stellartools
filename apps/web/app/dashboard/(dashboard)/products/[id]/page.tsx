@@ -49,7 +49,6 @@ import { type ProductEsque, ProductsModalContent, ProductsModalFooter } from "..
 const productTypeLabels: Record<string, string> = {
   one_time: "One-off",
   subscription: "Recurring",
-  metered: "Metered (Credits)",
 };
 
 const recurringPeriodLabels: Record<string, string> = {
@@ -170,7 +169,6 @@ export default function ProductDetailPage() {
     { select: (data) => data[0] ?? null }
   );
 
-  const isMetered = product?.type === "metered";
   const isSubscription = product?.type === "subscription";
 
   const formatDate = (date: any) => (date ? moment(date).format("MMM D, YYYY, h:mm A") : "—");
@@ -179,18 +177,6 @@ export default function ProductDetailPage() {
   const updatedAtLabel = formatDate(product?.updatedAt);
 
   const mainPriceDisplay = Money.formatFiat(product?.priceCents ?? 0, product?.currencyCode ?? "USD");
-
-  const meteredSubtitle =
-    isMetered && product
-      ? [
-          product.unit && `Unit: ${product.unit}`,
-          product.unitsPerCredit != null && `${product.unitsPerCredit} units / credit`,
-          product.totalCredits != null && `${product.totalCredits} credits total`,
-          product.creditsExpiryDays != null && `Expires in ${product.creditsExpiryDays}d`,
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : null;
 
   const openEditModal = React.useCallback(() => {
     if (!product) return;
@@ -203,8 +189,6 @@ export default function ProductDetailPage() {
       priceCents: product.priceCents,
       recurringPeriod: product.recurringPeriod ?? null,
       unit: product.unit ?? null,
-      unitsPerCredit: product.unitsPerCredit ?? null,
-      totalCredits: product.totalCredits ?? null,
     };
 
     isProductModalOpenRef.current = true;
@@ -396,7 +380,6 @@ export default function ProductDetailPage() {
                     )}
                   </p>
                   <p className="mt-2 text-2xl font-semibold tracking-tight">{mainPriceDisplay}</p>
-                  {meteredSubtitle && <p className="text-muted-foreground mt-1 text-sm">{meteredSubtitle}</p>}
                 </div>
               </div>
               <div className="flex gap-2">

@@ -26,6 +26,7 @@ const aiSdkCodeExample = /* ts */ `
 import { createStellarToolsAISDK } from "@stellartools/aisdk-adapter";
 import { openai } from "@ai-sdk/openai";
 
+// Wraps AI SDK — access is gated by the customer's active subscription or payment
 const ai = createStellarToolsAISDK({
   api_key: process.env.STELLAR_TOOLS_API_KEY!,
   customer_id: "cus_erkiopiokpikopo",
@@ -43,25 +44,21 @@ export default result;
 const betterAuthCodeSample = /* ts */ `
 import { betterAuth } from "better-auth"
 import { stellarTools } from "@stellartools/betterauth-adapter";
-import { Server } from "@stellar/stellar-sdk";
-
-const client = new Server("https://horizon-testnet.stellar.org");
 
 export const auth = betterAuth({
   plugins: [
-    stellarTools({ 
+    stellarTools({
      api_key: process.env.STELLAR_TOOLS_API_KEY!,
-     create_customer_on_sign_up: true, 
-     credit_low_threshold: 10,
+     create_customer_on_sign_up: true,
      on_customer_created: async (customer) => {
       console.log("Customer created", customer);
     },
     on_checkout_complete: async (checkout) => {
       console.log("Checkout completed", checkout);
     },
-    on_credits_low: async (creditBalance) => {
-      console.log("Credits low", creditBalance);
-    }
+    on_subscription_created: async (subscription) => {
+      console.log("Subscription started", subscription);
+    },
   }),
   ]
 });
@@ -71,19 +68,18 @@ export default auth;`;
 const UploadThingCodeSample = /* ts */ `
 import { createStellarUploadthing } from "@stellartools/uploadthing-adapter"
 
+// Verifies the customer has an active subscription or payment before uploading
 const f = createStellarUploadthing({
   api_key: process.env.STELLAR_TOOLS_API_KEY!,
   product_id: "pr_jkwheihiuhcuihewe",
 });
 
 export const fileRouter = {
-  image: f({ image: { maxFileSize: "8MB" } }).
-  .middleware(async ({ req }) => {
-    return { userId: req.user.id }
-  })
-  .onUploadComplete(async ({ file }) => {
-    // your logic here
-  })
+  image: f({ image: { maxFileSize: "8MB" } })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Upload complete for customer:", metadata.customerId);
+      console.log("File URL:", file.url);
+    })
 }
 `;
 

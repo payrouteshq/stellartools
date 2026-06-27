@@ -68,7 +68,6 @@ const navMain = [
   { title: "Customers", url: "/customers", icon: Users },
   { title: "Subscriptions", url: "/subscriptions", icon: Repeat },
   { title: "Payout", url: "/payout", icon: Wallet },
-  { title: "Usage", url: "/usage", icon: Activity },
   { title: "Marketplace", url: "/marketplace", icon: Store },
   { title: "Settings", url: "/settings", icon: Settings2 },
   {

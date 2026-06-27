@@ -4,7 +4,6 @@ import z from "zod";
 import { ApiClient } from "./api-client";
 import { AppInstallationApi } from "./resources/app-installation";
 import { CheckoutApi } from "./resources/checkout";
-import { CreditApi } from "./resources/credit";
 import { CustomerApi } from "./resources/customer";
 import { PaymentApi } from "./resources/payment";
 import { ProductApi } from "./resources/product";
@@ -25,7 +24,6 @@ export class StellarTools {
   public refunds: RefundApi;
   public checkouts: CheckoutApi;
   public payments: PaymentApi;
-  public credits: CreditApi;
   public products: ProductApi;
   public subscriptions: SubscriptionApi;
 
@@ -57,7 +55,6 @@ export class StellarTools {
     this.refunds = new RefundApi(apiClient);
     this.checkouts = new CheckoutApi(apiClient);
     this.payments = new PaymentApi(apiClient);
-    this.credits = new CreditApi(apiClient);
     this.products = new ProductApi(apiClient);
     this.subscriptions = new SubscriptionApi(apiClient);
     this.webhooks = new WebhookApi(apiClient);
@@ -79,7 +76,6 @@ export * from "./schema/product";
 export * from "./schema/refund";
 export * from "./schema/shared";
 export * from "./schema/currencies";
-export * from "./schema/credits";
 export * from "./schema/subscription";
 export * from "./schema/webhooks";
 export * from "./schema/app-installation";

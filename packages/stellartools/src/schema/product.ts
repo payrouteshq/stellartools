@@ -4,7 +4,7 @@ import { schemaFor } from "../utils";
 import { currencyCodeSchema } from "./checkout";
 import { Environment, environmentSchema } from "./shared";
 
-export const productTypeEnum = z.enum(["one_time", "subscription", "metered"]);
+export const productTypeEnum = z.enum(["one_time", "subscription"]);
 
 export type ProductType = z.infer<typeof productTypeEnum>;
 

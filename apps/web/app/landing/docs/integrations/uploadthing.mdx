@@ -1,9 +1,9 @@
 ---
-title: "Uploadthing Adapter"
-description: "Charge by upload size with StellarTools credits"
+title: "UploadThing Adapter"
+description: "Gate file uploads to subscribers"
 ---
 
-The `@stellartools/uploadthing-adapter` meters file uploads by total byte size. It runs a preflight credit check, charges after a successful upload, and refunds if the upload fails.
+The `@stellartools/uploadthing-adapter` package adds a `shield` function that wraps [UploadThing](https://uploadthing.com) with StellarTools subscription gating. It returns a route factory you use in place of `createUploadthing()`.
 
 ## Install
 
@@ -14,38 +14,38 @@ npm install @stellartools/uploadthing-adapter uploadthing
 ## Usage
 
 ```ts
-import { createMeteredUploadthing } from "@stellartools/uploadthing-adapter";
-import { createUploadthing } from "uploadthing/server";
+import { shield } from "@stellartools/uploadthing-adapter";
 
-const ut = createUploadthing();
-const f = createMeteredUploadthing({
-  api_key: process.env.STELLAR_TOOLS_API_KEY!,
-  product_id: "prod_uploads",
+const f = shield({
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  productId: "prod_xxx",
 });
 
-export const uploadRouter = f({
-  image: ut.imageUploader().maxSize("4MB"),
-}).middleware(async (opts) => {
-  return { userId: opts.req.headers.get("x-user-id") ?? "" };
-});
+export const fileRouter = {
+  imageUploader: f({ image: { maxFileSize: "8MB" } })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Upload complete for:", metadata.customerId);
+      console.log("File URL:", file.url);
+    }),
+};
 ```
 
-Each request must include an `x-customer-id` header with the StellarTools customer ID to charge.
+Each request must include an `x-customer-id` header with the StellarTools customer ID. The check runs before any file transfer begins — if the customer has no active subscription, the upload is rejected immediately with a `FORBIDDEN` error.
 
-## Config options
+The `customerId` and `productId` are passed through to `metadata` inside `onUploadComplete`.
 
-<ParamField body="api_key" type="string" required>
+## Config
+
+<ParamField body="apiKey" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="product_id" type="string" required>
-  Credit product ID to charge for uploads.
+<ParamField body="productId" type="string" required>
+  The product the customer must have an active subscription to.
 </ParamField>
 
 ## Required headers
 
 <ParamField header="x-customer-id" type="string" required>
-  The StellarTools customer ID to charge for the upload.
+  The StellarTools customer ID to verify access for.
 </ParamField>
-
-If the customer does not have enough credits, the adapter throws and the upload is rejected before any files are stored.

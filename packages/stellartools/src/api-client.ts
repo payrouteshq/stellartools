@@ -1,5 +1,3 @@
-import { stellar } from "@stellar/mpp/channel/client";
-import { Store } from "@stellar/mpp/channel/server";
 import { Result } from "better-result";
 import ky, { HTTPError, KyInstance } from "ky";
 
@@ -19,7 +17,6 @@ export interface DetailedResponse<T> {
 
 export class ApiClient {
   private api: KyInstance;
-  private mppClient: any = null;
 
   constructor(config: ApiClientConfig) {
     this.api = ky.create({
@@ -33,47 +30,6 @@ export class ApiClient {
         methods: ["get", "put", "post", "delete", "patch"],
         statusCodes: [408, 413, 429, 500, 502, 503, 504],
       },
-      hooks: {
-        afterResponse: [
-          async (request, options, response) => {
-            // THE CRACKED INTERCEPTOR
-            // 1. Only wake up if the server demands a cryptographic payment
-            if (response.status === 402 && this.mppClient) {
-              const challenge = response.headers.get("WWW-Authenticate");
-              if (!challenge) return response;
-
-              // 2. Generate the "Permission Slip" (Off-chain Voucher)
-              // This signs the new cumulative total (last_total + requested_amount)
-              const paymentHeader = await this.mppClient.createCredential(challenge);
-
-              // 3. Retry the request with the 'Payment' header
-              return this.api(request, {
-                ...options,
-                headers: { ...options.headers, Payment: paymentHeader },
-              });
-            }
-            return response;
-          },
-        ],
-      },
-    });
-  }
-
-  async setupMeteredSession(customerId: string, productId: string) {
-    if (this.mppClient) return;
-
-    const res = await this.get<{ channel: string; meteringSecret: string; currentCumulative: string }>(`channel/sync`, {
-      customerId,
-      productId,
-    });
-
-    if (res.isErr()) throw res.error;
-
-    const { meteringSecret } = res.value;
-
-    this.mppClient = stellar.channel({
-      commitmentSecret: meteringSecret,
-      store: Store.memory(), // Prevents server from tricking client into over-signing
     });
   }
 

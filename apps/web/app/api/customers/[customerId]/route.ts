@@ -1,4 +1,3 @@
-import { closeChannelOnChain, retrieveCreditBalances } from "@/actions/credit";
 import { deleteCustomer, putCustomer, retrieveCustomers } from "@/actions/customers";
 import { retrieveSubscriptions } from "@/actions/subscription";
 import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
@@ -61,17 +60,12 @@ export const DELETE = apiHandler({
 
     if (!customer) return Result.err(new AppError("Customer not found"));
 
-    const [{ data: subscriptions }, { data: credits }] = await Promise.all([
-      retrieveSubscriptions(
-        auth.organizationId,
-        auth.environment,
-        {
-          customerId: customer.id,
-        },
-        { withCustomerWallets: true, withCustomer: true }
-      ),
-      retrieveCreditBalances(auth.organizationId, auth.environment, { customerId: customer.id }),
-    ]);
+    const { data: subscriptions } = await retrieveSubscriptions(
+      auth.organizationId,
+      auth.environment,
+      { customerId: customer.id },
+      { withCustomerWallets: true, withCustomer: true }
+    );
 
     for (const subscription of subscriptions) {
       const customerWallet = subscription.customerWallet;
@@ -86,11 +80,6 @@ export const DELETE = apiHandler({
       );
 
       if (cancellationResult.isErr()) return Result.err(new AppError(cancellationResult.error.message));
-    }
-
-    for (const credit of credits) {
-      if (!credit.channelAddress) continue;
-      await closeChannelOnChain(credit, auth.environment);
     }
 
     await deleteCustomer(params.customerId, auth.organizationId, auth.environment);
