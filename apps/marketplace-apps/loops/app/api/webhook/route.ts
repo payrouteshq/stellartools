@@ -1,7 +1,7 @@
 import { resolveAppContext } from "@/app/actions/context";
 import { logEvent } from "@/app/actions/db";
 import {
-  AppInstallationSettingValue,
+  AppInstallationSettings,
   Network,
   z as Schema,
   StellarTools,
@@ -22,7 +22,7 @@ type WebhookHandlers = {
     st: StellarTools,
     loops: LoopsClient,
     event: WebhookEventBase<K, WebhookObjectMap[K]>,
-    settings: Record<string, AppInstallationSettingValue>,
+    settings: AppInstallationSettings,
     orgId: string | null,
     environment: Network
   ) => Promise<void>;
@@ -32,7 +32,7 @@ async function dispatch(
   loops: LoopsClient,
   eventType: WebhookEventType,
   email: string,
-  settings: Record<string, AppInstallationSettingValue>,
+  settings: AppInstallationSettings,
   orgId: string | null,
   environment: Network,
   dataVariables?: Record<string, string | number>,
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const { event, settings } = parseJSON<{ event: WebhookEvent; settings: Record<string, AppInstallationSettingValue> }>(
+  const { event, settings } = parseJSON<{ event: WebhookEvent; settings: AppInstallationSettings }>(
     rawBody,
     Schema.object({ event: Schema.any(), settings: Schema.any() })
   );
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
           st: StellarTools,
           loops: LoopsClient,
           event: WebhookEvent,
-          settings: Record<string, AppInstallationSettingValue>,
+          settings: AppInstallationSettings,
           orgId: string | null,
           environment: Network
         ) => Promise<void>)

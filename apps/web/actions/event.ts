@@ -7,7 +7,7 @@ import { Event, Network, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
-import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-embed-bridge";
+import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk/schema";
 import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { SQL, and, desc, eq, inArray } from "drizzle-orm";

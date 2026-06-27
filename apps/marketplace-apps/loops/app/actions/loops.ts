@@ -2,7 +2,7 @@
 
 import { getActivityStats as dbGetActivityStats } from "@/app/actions/db";
 import { ActivityStats, EmailOption, MailingList } from "@/app/types";
-import { AppInstallationSettingValue, StellarTools } from "@stellartools/core";
+import { Primitive, StellarTools } from "@stellartools/core";
 import { LoopsClient } from "loops";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ export const logout = async (appToken: string): Promise<void> => {
 
 export const updateSettings = async (
   appToken: string,
-  patch: Record<string, AppInstallationSettingValue>
+  patch: Record<string, Primitive>
 ): Promise<void> => {
   await new StellarTools({ api_key: appToken }).appInstallations.updateSettings(patch);
 };
