@@ -22,9 +22,16 @@ export const validateApiKeyAndConnect = async (apiKey: string, appToken: string)
 };
 
 export const logout = async (appToken: string): Promise<void> => {
-  await new StellarTools({ api_key: appToken }).appInstallations.updateSettings({
-    loopsApiKey: null,
-  });
+  const st = new StellarTools({ api_key: appToken });
+
+  const settings = await st.appInstallations.retrieveSettings();
+
+  if (!settings?.error) {
+    await st.appInstallations.updateSettings(
+      Object.fromEntries(Object.keys(settings).map((key) => [key, null])),
+      "suspended"
+    );
+  }
 };
 
 // ─── Settings ────────────────────────────────────────────────────────────────

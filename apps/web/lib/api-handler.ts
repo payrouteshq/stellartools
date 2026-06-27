@@ -4,7 +4,7 @@ import { resolveAuthContext } from "@/actions/apikey";
 import { getCorsHeaders } from "@/constant";
 import { processResource } from "@/lib/api-registry";
 import { AuthContext } from "@/types";
-import { AppScope } from "@stellartools/app-embed-bridge";
+import { AppScope } from "@stellartools/app-sdk/schema";
 import { MaybePromise, Result, z as Schema, validateSchema } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 

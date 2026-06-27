@@ -9,7 +9,7 @@ import {
   retrieveActivityStats,
   updateSettings,
 } from "@/app/actions/loops";
-import { ActivityStats, EmailOption, MailingList, SendType } from "@/app/types";
+import { ActivityStats, EmailOption, MailingList } from "@/app/types";
 import {
   type AppContext,
   useStellarToolsContext,
@@ -18,7 +18,6 @@ import {
 } from "@stellartools/app-sdk";
 import { Primitive, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
 import {
-  Badge,
   DataTable,
   Input,
   SelectField,
@@ -38,12 +37,6 @@ import {
 } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 
-type LogRow = { original: ActivityStats["logs"][number] };
-
-const TYPE_VARIANT: Record<SendType, "default" | "secondary"> = {
-  transactional: "default",
-  event: "secondary",
-};
 
 const TYPE_FILTER_OPTIONS = [
   { value: "all", label: "All types" },
@@ -108,23 +101,9 @@ const Dashboard = () => {
     () => [
       { accessorKey: "email", header: "Email", enableSorting: true },
       { accessorKey: "eventType", header: "Event", enableSorting: true },
-      {
-        accessorKey: "templateId",
-        header: "Template",
-        cell: ({ row }: { row: LogRow }) => {
-          const label =
-            emailOptions.find((o) => o.value === row.original.templateId)?.label ?? row.original.templateId;
-          return (
-            <Badge variant={TYPE_VARIANT[row.original.sendType]} className="text-xs shadow-none">
-              {label}
-            </Badge>
-          );
-        },
-        enableSorting: false,
-      },
       { accessorKey: "sentAt", header: "Sent at", enableSorting: true },
     ],
-    [emailOptions]
+    []
   );
 
   const mailingListOptions = React.useMemo(

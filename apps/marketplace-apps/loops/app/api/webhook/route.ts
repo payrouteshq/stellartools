@@ -38,7 +38,9 @@ async function dispatch(
   dataVariables?: Record<string, string | number>,
   contactProperties?: Record<string, string | null>
 ): Promise<void> {
-  const transactionalId = settings[`${eventType}.templateId`] as string | null | undefined;
+  const raw = settings[`${eventType}.templateId`] as string | null | undefined;
+  // Strip legacy "A:" prefix if present from settings saved before the prefix system was removed.
+  const transactionalId = raw?.startsWith("A:") ? raw.slice(2) : raw;
   const mailingListId = settings["contactSyncMailingListId"] as string | null | undefined;
   const mailingLists = mailingListId ? { [mailingListId]: true } : undefined;
   const eventName = toEventName(eventType);
