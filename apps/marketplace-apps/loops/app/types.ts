@@ -1,10 +1,5 @@
 export type SendType = "transactional" | "event";
 
-export const EMAIL_TYPE_PREFIX = {
-  TRANSACTIONAL: "A",
-  WORKFLOW: "B",
-} as const;
-
 export type ActivityStats = {
   totalSent: number;
   transactionalCount: number;

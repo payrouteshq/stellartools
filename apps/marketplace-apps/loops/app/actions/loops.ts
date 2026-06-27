@@ -1,15 +1,9 @@
 "use server";
 
 import { getActivityStats as dbGetActivityStats } from "@/app/actions/db";
-import { ActivityStats, EMAIL_TYPE_PREFIX, EmailOption, MailingList } from "@/app/types";
+import { ActivityStats, EmailOption, MailingList } from "@/app/types";
 import { AppInstallationSettingValue, StellarTools } from "@stellartools/core";
 import { LoopsClient } from "loops";
-
-const LOOPS_API = "https://app.loops.so/api/v1";
-
-function settled<T>(result: PromiseSettledResult<T>): T | null {
-  return result.status === "fulfilled" ? result.value : null;
-}
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -45,52 +39,12 @@ export const updateSettings = async (
 // ─── Emails & lists ──────────────────────────────────────────────────────────
 
 export const listAvailableEmails = async (apiKey: string): Promise<EmailOption[]> => {
-  const loops = new LoopsClient(apiKey);
-
-  const [transactionalResult, workflowsResult] = await Promise.allSettled([
-    loops.listTransactionalEmails(),
-    loops.listWorkflows(),
-  ]);
-
-  const toOptions = (items: { id: string; name: string }[], prefix: string, suffix: string): EmailOption[] =>
-    items.map(({ id, name }) => ({ value: `${prefix}:${id}`, label: `${name} (${suffix})` }));
-
-  return [
-    ...toOptions(settled(transactionalResult)?.data ?? [], EMAIL_TYPE_PREFIX.TRANSACTIONAL, "Transactional"),
-    ...toOptions(settled(workflowsResult)?.data ?? [], EMAIL_TYPE_PREFIX.WORKFLOW, "Workflow"),
-  ];
+  const result = await new LoopsClient(apiKey).listTransactionalEmails().catch(() => null);
+  return (result?.data ?? []).map(({ id, name }) => ({ value: id, label: name }));
 };
 
 export const listMailingLists = async (apiKey: string): Promise<MailingList[]> => {
   return new LoopsClient(apiKey).listMailingLists();
-};
-
-// ─── Contact stats ───────────────────────────────────────────────────────────
-
-export type ContactStats = {
-  totalContacts: number | null;
-  subscribed: number | null;
-  mailingListCount: number;
-};
-
-export const getContactStats = async (apiKey: string): Promise<ContactStats> => {
-  const headers = { Authorization: `Bearer ${apiKey}` };
-  const loopsGet = (path: string) => fetch(`${LOOPS_API}${path}`, { headers }).then((r) => r.json());
-
-  // limit=1 — we only need pagination.totalResults for the count, not the actual contacts.
-  const [totalResult, subscribedResult, listsResult] = await Promise.allSettled([
-    loopsGet("/contacts?limit=1"),
-    loopsGet("/contacts?subscribed=true&limit=1"),
-    new LoopsClient(apiKey).listMailingLists(),
-  ]);
-
-  const totalResults = (r: typeof totalResult) => settled(r)?.pagination?.totalResults ?? null;
-
-  return {
-    totalContacts: totalResults(totalResult),
-    subscribed: totalResults(subscribedResult),
-    mailingListCount: settled(listsResult)?.length ?? 0,
-  };
 };
 
 // ─── Activity ────────────────────────────────────────────────────────────────

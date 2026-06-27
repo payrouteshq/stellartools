@@ -3,8 +3,6 @@
 import * as React from "react";
 
 import {
-  type ContactStats,
-  getContactStats,
   listAvailableEmails,
   listMailingLists,
   logout,
@@ -33,6 +31,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -67,12 +69,6 @@ const Dashboard = () => {
   const { data: stats } = useStellarToolsQuery<ActivityStats>(
     ["stats"],
     (ctx: AppContext) => retrieveActivityStats(ctx.orgId, ctx.ui.periodDays, ctx.env),
-    { enabled: !!settings.loopsApiKey }
-  );
-
-  const { data: contactStats, isLoading: contactStatsLoading } = useStellarToolsQuery<ContactStats>(
-    ["contactStats"],
-    () => getContactStats(settings.loopsApiKey as string),
     { enabled: !!settings.loopsApiKey }
   );
 
@@ -114,7 +110,7 @@ const Dashboard = () => {
       { accessorKey: "eventType", header: "Event", enableSorting: true },
       {
         accessorKey: "templateId",
-        header: "Template / Workflow",
+        header: "Template",
         cell: ({ row }: { row: LogRow }) => {
           const label =
             emailOptions.find((o) => o.value === row.original.templateId)?.label ?? row.original.templateId;
@@ -160,8 +156,6 @@ const Dashboard = () => {
     patchSettings({ contactSyncMailingListId: value === "__none__" ? null : value });
   };
 
-  const hasWorkflowSelected = Object.values(templateIds).some((v) => v.startsWith("B:"));
-
   return (
     <div className="bg-background min-h-screen px-5 pb-8">
       <section className="flex flex-col gap-8 py-6">
@@ -195,13 +189,35 @@ const Dashboard = () => {
           </div>
           <dl className="grid grid-cols-3 gap-3">
             {[
-              { label: "Total contacts", value: String(contactStats?.totalContacts ?? 0) },
-              { label: "Subscribed", value: String(contactStats?.subscribed ?? 0) },
-              { label: "Mailing lists", value: String(contactStats?.mailingListCount ?? 0) },
+              {
+                label: "Emails sent",
+                value: String(stats?.totalSent ?? 0),
+                tooltip: "Total emails triggered by your webhook events in the selected period, tracked in the activity log below.",
+              },
+              {
+                label: "Transactional",
+                value: String(stats?.transactionalCount ?? 0),
+                tooltip: "Emails sent using a Loops transactional template in the selected period.",
+              },
+              { label: "Mailing lists", value: String(mailingLists.length), tooltip: undefined },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col gap-1 rounded-xl border px-5 py-4">
-                <dt className="text-muted-foreground text-xs font-medium">{stat.label}</dt>
-                {contactStatsLoading ? (
+                <dt className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+                  {stat.label}
+                  {stat.tooltip && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-muted-foreground/50 hover:text-muted-foreground cursor-default select-none">
+                            ?
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-52 text-xs">{stat.tooltip}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </dt>
+                {!stats ? (
                   <Skeleton className="mt-1 h-7 w-16" />
                 ) : (
                   <dd className="text-2xl font-bold tabular-nums">{stat.value}</dd>
@@ -271,14 +287,20 @@ const Dashboard = () => {
         <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
           <div className="flex items-center justify-between gap-4">
             <h3 className="text-sm font-medium">Notification rules</h3>
-            <span className="text-muted-foreground text-xs">Select an email or workflow; leave blank to skip</span>
+            <span className="text-muted-foreground text-xs">Select a transactional email; leave blank to skip</span>
+          </div>
+          <div className="bg-muted/40 rounded-lg border px-4 py-3">
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              <span className="text-foreground font-medium">Using Loops workflows? </span>
+              Create a workflow in Loops and set its trigger to the event name from the row, replacing dots with underscores (e.g. <span className="font-mono">payment.confirmed</span> becomes <span className="font-mono">payment_confirmed</span>). It will run automatically when that event fires. Only transactional emails need to be selected below.
+            </p>
           </div>
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Event</TableHead>
-                  <TableHead>Email / Workflow</TableHead>
+                  <TableHead>Transactional Email</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -301,23 +323,6 @@ const Dashboard = () => {
               </TableBody>
             </Table>
           </div>
-          {hasWorkflowSelected && (
-            <div className="bg-muted/50 rounded-lg border px-4 py-3">
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                <span className="text-foreground font-medium">Workflow events: </span>
-                When a Workflow is selected, StellarTools sends a Loops event to trigger it. Create a workflow in Loops
-                with an <span className="font-mono">Event trigger</span> matching the name below. The contact is created
-                automatically on first trigger if they don&apos;t yet exist in Loops.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {WEBHOOK_EVENT_TYPES.filter((e) => templateIds[e]?.startsWith("B:")).map((e) => (
-                  <span key={e} className="bg-background rounded border px-1.5 py-0.5 font-mono text-xs">
-                    {e.replace(/\./g, "_")}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </section>
     </div>

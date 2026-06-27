@@ -1,6 +1,5 @@
 import { resolveAppContext } from "@/app/actions/context";
 import { logEvent } from "@/app/actions/db";
-import { EMAIL_TYPE_PREFIX } from "@/app/types";
 import {
   AppInstallationSettingValue,
   Network,
@@ -39,26 +38,20 @@ async function dispatch(
   dataVariables?: Record<string, string | number>,
   contactProperties?: Record<string, string | null>
 ): Promise<void> {
-  const raw = settings[`${eventType}.templateId`] as string | null | undefined;
-  if (!raw) return;
-
-  const colonIdx = raw.indexOf(":");
-  const prefix = raw.slice(0, colonIdx);
-  const id = raw.slice(colonIdx + 1);
-
+  const transactionalId = settings[`${eventType}.templateId`] as string | null | undefined;
   const mailingListId = settings["contactSyncMailingListId"] as string | null | undefined;
+  const mailingLists = mailingListId ? { [mailingListId]: true } : undefined;
+  const eventName = toEventName(eventType);
 
-  if (prefix === EMAIL_TYPE_PREFIX.TRANSACTIONAL) {
-    await loops.sendTransactionalEmail({ transactionalId: id, email, addToAudience: true, dataVariables });
-    if (orgId) logEvent(orgId, environment, eventType, email, "transactional", raw).catch(console.error);
-  } else if (prefix === EMAIL_TYPE_PREFIX.WORKFLOW) {
-    const eventName = toEventName(eventType);
-    const mailingLists = mailingListId ? { [mailingListId]: true } : undefined;
-    await loops.sendEvent({ email, eventName, contactProperties, mailingLists });
-    // Save the event name (e.g. "payment_confirmed") instead of the raw "B:wfl_abc123" settings value.
-    // Loops workflows are triggered by event name, not workflow ID — the ID is only used by the
-    // dashboard dropdown to remember which workflow the user selected. Storing the event name here
-    if (orgId) logEvent(orgId, environment, eventType, email, "event", eventName).catch(console.error);
+  // Always fire sendEvent — if the merchant has a Loops workflow with this trigger, it runs automatically.
+  await loops.sendEvent({ email, eventName, contactProperties, mailingLists });
+  if (orgId) logEvent(orgId, environment, eventType, email, "event", eventName).catch(console.error);
+
+  // Also send transactional email if the merchant selected one for this event.
+  if (transactionalId) {
+    const contactVars = { email, ...Object.fromEntries(Object.entries(contactProperties ?? {}).filter(([, v]) => v != null)) } as Record<string, string>;
+    await loops.sendTransactionalEmail({ transactionalId, email, addToAudience: true, dataVariables: { ...contactVars, ...dataVariables } });
+    if (orgId) logEvent(orgId, environment, eventType, email, "transactional", transactionalId).catch(console.error);
   }
 }
 
@@ -227,6 +220,7 @@ const HANDLERS: WebhookHandlers = {
     await dispatch(loops, "customer.deleted", event.data.object.email, settings, orgId, environment, undefined, {
       firstName: event.data.object.name ?? "",
       userId: event.data.object.id,
+      email: event.data.object.email,
     });
   },
 };
