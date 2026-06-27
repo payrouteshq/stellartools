@@ -1,133 +1,69 @@
-import { InsufficientCreditsError, createMeteredPlugin } from "@stellartools/plugin-sdk";
-import * as rawAI from "ai";
+import { z as Schema, StellarTools } from "@stellartools/core";
+import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 
-type StellarToolsParams = {
-  /**
-   * The API key for the Stellar Tools API.
-   */
-  api_key: string;
-
-  /**
-   * The customer ID.
-   */
-  customer_id: string;
-
-  /**
-   * The product ID.
-   */
-  product_id: string;
-};
-
-const handleError = (err: unknown): never => {
-  if (err instanceof InsufficientCreditsError) {
-    throw new rawAI.InvalidArgumentError({
-      message: err.message,
-      parameter: "credits",
-      value: err.required,
-    });
+export class ShieldError extends Error {
+  constructor(
+    public customerId: string,
+    public productId: string
+  ) {
+    super(`Access Denied: Customer "${customerId}" does not have an active subscription to "${productId}".`);
+    this.name = "ShieldError";
   }
-  throw err;
-};
+}
 
-export const generateText = async (params: StellarToolsParams, ...args: Parameters<typeof rawAI.generateText>) => {
-  const { api_key, customer_id, product_id } = params;
+const schema = Schema.object({
+  apiKey: Schema.string(),
+  customerId: Schema.string(),
+  productId: Schema.string(),
+});
 
-  if (!customer_id || !product_id) {
-    return handleError(new Error("Customer ID and product ID are required"));
-  }
+type ShieldConfig = Schema.infer<typeof schema>;
 
-  const plugin = createMeteredPlugin({ api_key });
+/**
+ * Creates the internal middleware that runs before every LLM call.
+ */
+const createShieldMiddleware = (config: ShieldConfig): LanguageModelMiddleware => {
+  const { error, data } = schema.safeParse(config);
 
-  try {
-    return await plugin.meter(
-      customer_id,
-      product_id,
-      () => rawAI.generateText(...args),
-      (result) => result.usage.totalTokens ?? 0,
-      { operation: "generateText" }
+  if (error) throw new Error(`Invalid config: ${error.message}`);
+
+  const st = new StellarTools({ api_key: data.apiKey });
+
+  const verify = async () => {
+    // We check for active subscriptions for this specific product.
+    // If no active subscription is found, we block the request.
+    const subs = await st.subscriptions.list(data.customerId);
+    const hasAccess = subs.some(
+      (s) => s.product_id === data.productId && (s.status === "active" || s.status === "trialing")
     );
-  } catch (err) {
-    handleError(err);
-  }
+
+    if (!hasAccess) {
+      throw new ShieldError(data.customerId, data.productId);
+    }
+  };
+
+  return {
+    middlewareVersion: "v2",
+    wrapGenerate: async ({ doGenerate }) => {
+      await verify();
+      return doGenerate();
+    },
+    wrapStream: async ({ doStream }) => {
+      await verify();
+      return doStream();
+    },
+  };
 };
 
-export const generateObject = async <T>(
-  params: StellarToolsParams,
-  ...args: Parameters<typeof rawAI.generateObject>
-) => {
-  const { api_key, customer_id, product_id } = params;
-
-  if (!customer_id || !product_id) {
-    return handleError(new Error("Customer ID and product ID are required"));
-  }
-
-  const plugin = createMeteredPlugin({ api_key });
-
-  try {
-    return await plugin.meter(
-      customer_id,
-      product_id,
-      () => rawAI.generateObject(...args),
-      (result) => result.usage.totalTokens ?? 0,
-      { operation: "generateObject" }
-    );
-  } catch (err) {
-    handleError(err);
-  }
-};
-
-export const streamText = async (params: StellarToolsParams, ...args: Parameters<typeof rawAI.streamText>) => {
-  const { api_key, customer_id, product_id } = params;
-
-  if (!customer_id || !product_id) {
-    return handleError(new Error("Customer ID and product ID are required"));
-  }
-
-  const plugin = createMeteredPlugin({ api_key });
-
-  try {
-    await plugin.preflight(customer_id, product_id);
-    const originalOnFinish = args[0]?.onFinish;
-
-    return rawAI.streamText({
-      ...args[0],
-      onFinish: async (event) => {
-        await plugin.charge(customer_id, product_id, event.usage.totalTokens ?? 0, {
-          operation: "streamText",
-        });
-        if (originalOnFinish) await originalOnFinish(event);
-      },
-    });
-  } catch (err) {
-    handleError(err);
-  }
-};
-
-export const streamObject = async <T>(params: StellarToolsParams, ...args: Parameters<typeof rawAI.streamObject>) => {
-  const { api_key, customer_id, product_id } = params;
-
-  if (!customer_id || !product_id) {
-    return handleError(new Error("Customer ID and product ID are required"));
-  }
-
-  const plugin = createMeteredPlugin({ api_key });
-
-  try {
-    await plugin.preflight(customer_id, product_id);
-    const originalOnFinish = args[0]?.onFinish;
-
-    return rawAI.streamObject({
-      ...args[0],
-      onFinish: async (event) => {
-        await plugin.charge(customer_id, product_id, event.usage.totalTokens ?? 0, {
-          operation: "streamObject",
-        });
-        if (originalOnFinish) await originalOnFinish(event);
-      },
-    });
-  } catch (err) {
-    handleError(err);
-  }
-};
-
-export * from "ai";
+/**
+ * shield
+ * Wraps any AI language model with StellarTools access control.
+ *
+ * It intercepts the request and verifies the customer's subscription
+ * status on the Stellar network before allowing the LLM to process.
+ */
+export const shield = (model: Parameters<typeof wrapLanguageModel>[0]["model"], config: ShieldConfig) =>
+  wrapLanguageModel({
+    model,
+    middleware: createShieldMiddleware(config),
+  });

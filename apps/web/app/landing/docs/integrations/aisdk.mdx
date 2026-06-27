@@ -1,9 +1,9 @@
 ---
 title: "AI SDK Adapter"
-description: "Metered billing for Vercel AI SDK"
+description: "Gate AI model access to subscribers"
 ---
 
-The `@stellartools/aisdk-adapter` package wraps [Vercel AI SDK](https://sdk.vercel.ai) functions with metered billing. Each call checks the customer's credit balance, runs the model, and charges by token usage.
+The `@stellartools/aisdk-adapter` package adds a `shield` function that wraps any [Vercel AI SDK](https://sdk.vercel.ai) model with StellarTools subscription gating. You still call `generateText`, `streamText`, etc. from `"ai"` — `shield` just blocks the call if the customer has no active subscription.
 
 ## Install
 
@@ -13,50 +13,69 @@ npm install @stellartools/aisdk-adapter ai
 
 ## Usage
 
-The adapter exports `generateText`, `generateObject`, `streamText`, and `streamObject` directly. Pass your StellarTools config alongside the usual AI SDK options.
-
 ```ts
-import { generateText } from "@stellartools/aisdk-adapter";
+import { shield } from "@stellartools/aisdk-adapter";
+import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
-const response = await generateText({
-  api_key: process.env.STELLAR_TOOLS_API_KEY!,
-  product_id: "prod_llm_ai",
-  customer_id: "cust_xxx",
-  model: openai("gpt-4o"),
+const result = await generateText({
+  model: shield(openai("gpt-4o"), {
+    apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+    customerId: "cus_xxx",
+    productId: "prod_xxx",
+  }),
   prompt: "Write a haiku about Stellar",
 });
 
-console.log(response.text);
+console.log(result.text);
 ```
 
-Streaming:
+Streaming works the same way:
 
 ```ts
-import { streamText } from "@stellartools/aisdk-adapter";
-import { openai } from "@ai-sdk/openai";
+import { shield } from "@stellartools/aisdk-adapter";
+import { streamText } from "ai";
 
-await streamText({
-  api_key: process.env.STELLAR_TOOLS_API_KEY!,
-  product_id: "prod_llm_ai",
-  customer_id: "cust_xxx",
-  model: openai("gpt-4o"),
+const { textStream } = await streamText({
+  model: shield(openai("gpt-4o"), {
+    apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+    customerId: req.user.stellartoolsCustomerId,
+    productId: "prod_xxx",
+  }),
   messages: [{ role: "user", content: "Hello" }],
 });
 ```
 
-The preflight check runs before the model call. If the customer does not have enough credits, the adapter throws before any tokens are used.
+## Error handling
 
-## Options
+If the customer has no active subscription for the product, `shield` throws a `ShieldError` before the model is ever called.
 
-<ParamField body="api_key" type="string" required>
+```ts
+import { shield, ShieldError } from "@stellartools/aisdk-adapter";
+
+try {
+  const result = await generateText({
+    model: shield(openai("gpt-4o"), config),
+    prompt: "Hello",
+  });
+} catch (err) {
+  if (err instanceof ShieldError) {
+    return res.status(403).json({ error: err.message });
+  }
+  throw err;
+}
+```
+
+## Config
+
+<ParamField body="apiKey" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="product_id" type="string" required>
-  The credit product ID to charge for usage.
+<ParamField body="customerId" type="string" required>
+  The StellarTools customer ID to check.
 </ParamField>
 
-<ParamField body="customer_id" type="string" required>
-  The StellarTools customer ID to bill.
+<ParamField body="productId" type="string" required>
+  The product the customer must have an active subscription to.
 </ParamField>

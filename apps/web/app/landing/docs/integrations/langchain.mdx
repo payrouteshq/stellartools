@@ -1,60 +1,76 @@
 ---
 title: "LangChain Adapter"
-description: "Metered billing for LangChain models"
+description: "Gate LangChain model access to subscribers"
 ---
 
-The `@stellartools/langchain-adapter` package wraps any LangChain language model with metered billing. It checks credit balance before each call and charges by token usage after.
+The `@stellartools/langchain-adapter` package adds a `shield` function that wraps any LangChain model with StellarTools subscription gating. The result is a full LangChain `Runnable` — `.invoke()`, `.stream()`, `.batch()`, `.pipe()` all work normally.
 
 ## Install
 
 ```bash
-npm install @stellartools/langchain-adapter @langchain/core langchain
+npm install @stellartools/langchain-adapter @langchain/core
 ```
 
 ## Usage
 
-Pass your config and a base model to `createMeteredModel`. Then call it with a `customerId` as the first argument, followed by the usual LangChain arguments.
-
 ```ts
+import { shield } from "@stellartools/langchain-adapter";
 import { ChatOpenAI } from "@langchain/openai";
-import { createMeteredModel } from "@stellartools/langchain-adapter";
+import { HumanMessage } from "@langchain/core/messages";
 
-const model = createMeteredModel(
-  {
-    api_key: process.env.STELLAR_TOOLS_API_KEY!,
-    product_id: "prod_llm_metered",
-  },
-  new ChatOpenAI({ model: "gpt-4o" })
-);
+const model = shield(new ChatOpenAI({ model: "gpt-4o" }), {
+  apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+  customerId: "cus_xxx",
+  productId: "prod_xxx",
+});
 
-const result = await model.invoke("cust_xxx", [{ role: "user", content: "Hello" }]);
-
-console.log(result);
+const result = await model.invoke([new HumanMessage("Hello")]);
 ```
 
-Streaming:
+Because `shield` returns a standard `Runnable`, it composes naturally with LCEL chains:
 
 ```ts
-for await (const chunk of model.stream("cust_xxx", [{ role: "user", content: "Hello" }])) {
-  process.stdout.write(chunk.content as string);
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+
+const chain = ChatPromptTemplate.fromMessages([["human", "{question}"]])
+  .pipe(shield(new ChatOpenAI(), {
+    apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+    customerId: "cus_xxx",
+    productId: "prod_xxx",
+  }))
+  .pipe(new StringOutputParser());
+
+const answer = await chain.invoke({ question: "What is Stellar?" });
+```
+
+## Error handling
+
+If the customer has no active subscription for the product, `shield` throws a `ShieldError` before the model is called.
+
+```ts
+import { shield, ShieldError } from "@stellartools/langchain-adapter";
+
+try {
+  const result = await model.invoke([new HumanMessage("Hello")]);
+} catch (err) {
+  if (err instanceof ShieldError) {
+    return res.status(403).json({ error: err.message });
+  }
+  throw err;
 }
 ```
 
-## Config options
+## Config
 
-<ParamField body="api_key" type="string" required>
+<ParamField body="apiKey" type="string" required>
   Your StellarTools API key.
 </ParamField>
 
-<ParamField body="product_id" type="string" required>
-  Credit product ID to charge for model usage.
+<ParamField body="customerId" type="string" required>
+  The StellarTools customer ID to check.
 </ParamField>
 
-## Available methods
-
-| Method                                      | Description                           |
-| ------------------------------------------- | ------------------------------------- |
-| `invoke(customerId, input, options?)`       | Single call; charges by token usage.  |
-| `stream(customerId, input, options?)`       | Streaming; charges after stream ends. |
-| `batch(customerId, inputs, options?)`       | Batch calls; charges by total usage.  |
-| `streamEvents(customerId, input, options?)` | Stream events; charges on model end.  |
+<ParamField body="productId" type="string" required>
+  The product the customer must have an active subscription to.
+</ParamField>

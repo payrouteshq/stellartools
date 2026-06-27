@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "declaration": true,
+    "declaration": false,
     "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
@@ -12,5 +12,5 @@
     "resolveJsonModule": true
   },
   "include": ["**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "tsup.config.ts"]
 }

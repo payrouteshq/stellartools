@@ -35,7 +35,6 @@
     "url": "https://github.com/payrouteshq/stellartools/issues"
   },
   "dependencies": {
-    "@stellar/mpp": "^0.6.0",
     "better-result": "^2.5.1",
     "jsonwebtoken": "^9.0.3",
     "ky": "^1.14.2",

@@ -48,16 +48,13 @@ export interface ProductEsque extends Pick<
   | "images"
   | "metadata"
   | "unit"
-  | "unitsPerCredit"
-  | "totalCredits"
-  | "creditsExpiryDays"
 > {}
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   images: z.array(z.any()).transform((val) => val as FileWithPreview[]),
-  type: z.enum(["one_time", "subscription", "metered"]),
+  type: z.enum(["one_time", "subscription"]),
   recurringPeriod: z.enum(["day", "week", "month", "year", "custom"]).optional(),
   customDurationMs: z.number().int().min(3600000, "Minimum duration is 1 hour").optional(),
   pricing: z.object({
@@ -68,9 +65,6 @@ const productSchema = z.object({
     option: z.string().min(1, "Currency is required"),
   }),
   unit: z.string().optional(),
-  totalCredits: z.number().min(0).optional(),
-  unitsPerCredit: z.number().min(1).optional(),
-  creditsExpiryDays: z.number().int().min(1).optional(),
   metadata: z
     .array(
       z.object({
@@ -137,9 +131,6 @@ export function ProductsModalContent({
       recurringPeriod: editingProduct?.recurringPeriod ?? initialDraft?.recurringPeriod ?? "month",
       customDurationMs: editingProduct?.customDurationMs ?? initialDraft?.customDurationMs ?? undefined,
       pricing: initialDraft?.pricing ?? { amount: editDisplayAmount, option: editCurrency },
-      totalCredits: initialDraft?.totalCredits ?? 0,
-      unitsPerCredit: initialDraft?.unitsPerCredit ?? 1,
-      creditsExpiryDays: initialDraft?.creditsExpiryDays ?? undefined,
       metadata: editingProduct?.metadata
         ? Object.entries(editingProduct.metadata).map(([key, value]) => ({ key, value: String(value) }))
         : (initialDraft?.metadata ?? []),
@@ -177,9 +168,6 @@ export function ProductsModalContent({
         customDurationMs: editingProduct.customDurationMs ?? undefined,
         pricing: { amount: editDisplayAmount, option: editCurrency },
         unit: editingProduct.unit ?? "",
-        totalCredits: Number(editingProduct.totalCredits ?? 0),
-        unitsPerCredit: Number(editingProduct.unitsPerCredit ?? 1),
-        creditsExpiryDays: editingProduct.creditsExpiryDays ?? undefined,
         metadata: metadataArray,
       });
       if (editingProduct.customDurationMs) {
@@ -195,7 +183,6 @@ export function ProductsModalContent({
         type: "one_time",
         recurringPeriod: "month",
         customDurationMs: undefined,
-        creditsExpiryDays: undefined,
         pricing: { amount: "", option: orgCurrency },
         metadata: [],
       });
@@ -251,9 +238,6 @@ export function ProductsModalContent({
           recurring_period: data.recurringPeriod,
           custom_duration_ms: data.recurringPeriod === "custom" ? data.customDurationMs : null,
           unit: data.unit,
-          total_credits: data.totalCredits,
-          units_per_credit: data.unitsPerCredit,
-          credits_expiry_days: data.creditsExpiryDays ?? null,
         });
 
         if (response.isErr()) throw new AppError(response.error.message);
@@ -271,9 +255,6 @@ export function ProductsModalContent({
         recurring_period: data.recurringPeriod,
         custom_duration_ms: data.recurringPeriod === "custom" ? data.customDurationMs : undefined,
         unit: data.unit,
-        total_credits: data.totalCredits,
-        units_per_credit: data.unitsPerCredit,
-        credits_expiry_days: data.creditsExpiryDays ?? null,
         metadata: metadataRecord,
         status: "active",
       });
@@ -491,7 +472,6 @@ export function ProductsModalContent({
                       description: "Charge customers on a recurring schedule.",
                     },
                     { value: "one_time", label: "One-off", description: "A single charge with no renewal." },
-                    { value: "metered", label: "Metered (Credits)", description: "Bill based on actual usage." },
                   ]}
                   error={error?.message}
                 />
@@ -505,80 +485,6 @@ export function ProductsModalContent({
             >
               Learn more about products
             </a>
-
-            {watched.type === "metered" && (
-              <div className="animate-in fade-in slide-in-from-top-1 space-y-4 rounded-lg border p-4">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-semibold">Credit Configuration</h4>
-                  <p className="text-muted-foreground text-xs">
-                    Define the conversion rate between raw usage and billing credits.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <RHF.Controller
-                    control={form.control}
-                    name="unit"
-                    render={({ field, fieldState: { error } }) => (
-                      <TextField
-                        {...field}
-                        disabled={isEditMode}
-                        value={field.value || ""}
-                        id="unit"
-                        label="Unit Label"
-                        placeholder="e.g., tokens, bytes, seconds"
-                        helpText="What are you measuring?"
-                        error={error?.message}
-                      />
-                    )}
-                  />
-
-                  <RHF.Controller
-                    control={form.control}
-                    name="unitsPerCredit"
-                    render={({ field, fieldState: { error } }) => (
-                      <NumberField
-                        {...field}
-                        disabled={isEditMode}
-                        value={field.value?.toString() || "1"}
-                        id="units_per_credit"
-                        label="Units per Credit"
-                        placeholder="1"
-                        helpText={`How many ${watched.unit || "units"} equal 1 credit?`}
-                        error={error?.message}
-                      />
-                    )}
-                  />
-                </div>
-
-                <RHF.Controller
-                  control={form.control}
-                  name="totalCredits"
-                  render={({ field, fieldState: { error } }) => (
-                    <NumberField
-                      {...field}
-                      disabled={isEditMode}
-                      value={field.value || "0"}
-                      id="totalCredits"
-                      label="Total Credits"
-                      placeholder="e.g., 1000"
-                      helpText="Credits included in the initial purchase."
-                      error={error?.message}
-                    />
-                  )}
-                />
-
-                <div className="bg-primary/5 border-primary/10 flex items-center gap-2 rounded-md border p-3">
-                  <Info className="text-primary h-4 w-4" />
-                  <p className="text-primary text-[11px] leading-relaxed font-medium">
-                    Every <span className="font-bold underline">{(watched.unitsPerCredit || 1).toLocaleString()}</span>{" "}
-                    {watched.unit || "units"} used will deduct <span className="font-bold underline">1</span> credit
-                    from the customer's balance of{" "}
-                    <span className="font-bold underline">{(watched.totalCredits || 0).toLocaleString()}</span>.
-                  </p>
-                </div>
-              </div>
-            )}
 
             <div className="space-y-3">
               <div className="flex items-start gap-2">
@@ -670,28 +576,6 @@ export function ProductsModalContent({
                 </div>
               )}
 
-              {watched.type === "metered" && (
-                <div className="animate-in fade-in slide-in-from-top-1 relative ml-3 flex items-center gap-2 pl-5">
-                  <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
-                  <span className="text-muted-foreground shrink-0 text-sm font-medium">Expires after</span>
-                  <RHF.Controller
-                    control={form.control}
-                    name="creditsExpiryDays"
-                    render={({ field, fieldState: { error } }) => (
-                      <NumberField
-                        id="credits-expiry-days"
-                        value={field.value?.toString() ?? ""}
-                        onChange={(v) => field.onChange(v ? Number(v) : undefined)}
-                        placeholder="e.g. 30"
-                        className="w-24"
-                        error={error?.message}
-                        disabled={isEditMode}
-                      />
-                    )}
-                  />
-                  <span className="text-muted-foreground shrink-0 text-sm font-medium">days</span>
-                </div>
-              )}
             </div>
           </div>
         </div>

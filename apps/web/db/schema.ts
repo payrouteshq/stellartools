@@ -272,9 +272,6 @@ export const products = pgTable("product", {
   images: text("images").array(),
   metadata: jsonb("metadata").$type<Record<string, string> | null>(),
   unit: text("unit"),
-  totalCredits: integer("total_credits"),
-  unitsPerCredit: integer("units_per_credit"),
-  creditsExpiryDays: integer("credits_expiry_days"),
   environment: networkEnum("environment").notNull().default("testnet"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -500,48 +497,6 @@ export const refunds = pgTable(
   })
 );
 
-export const creditBalances = pgTable(
-  "credit_balance",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
-    customerId: text("customer_id")
-      .notNull()
-      .references(() => customers.id),
-    productId: text("product_id")
-      .notNull()
-      .references(() => products.id),
-    paymentId: text("payment_id").references(() => payments.id),
-    environment: networkEnum("network").notNull(),
-
-    // -- ON-CHAIN IDENTITY --
-    channelAddress: text("channel_address").unique(), // The C... address of the deployed channel
-    funderPublicKey: text("funder_public_key"), // The Customer's G... address
-    startLedger: integer("start_ledger"), // For fast history scanning
-
-    // -- SYSTEM-MANAGED KEYPAIR --
-    // Nullable: set immediately in the customer-managed flow, set after channel deploy in the platform-managed flow.
-    commitmentPublicKey: text("commitment_public_key"),
-    encryptedMeteringSecret: text("encrypted_metering_secret"),
-
-    // -- THE OFF-CHAIN VOUCHER --
-    // This is the "Latest Check" we haven't cashed yet.
-    latestCumulativeAmount: bigint("latest_cumulative_amount", { mode: "number" }).default(0),
-    latestSignature: text("latest_signature"), // Hex string of the signature
-
-    settledAt: timestamp("settled_at"), // Set when the balance is settled; null = active
-
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-  },
-  (table) => ({
-    uniqueCustomerProduct: unique().on(table.customerId, table.productId, table.environment),
-  })
-);
-
 export const passwordReset = pgTable(
   "password_reset",
   {
@@ -685,7 +640,6 @@ export type Webhook = InferSelectModel<typeof webhooks>;
 export type WebhookLog = InferSelectModel<typeof webhookLogs>;
 export type Network = (typeof networkEnum.enumValues)[number];
 export type Refund = InferSelectModel<typeof refunds>;
-export type CreditBalance = InferSelectModel<typeof creditBalances>;
 export type Subscription = InferSelectModel<typeof subscriptions>;
 export type Auth = InferSelectModel<typeof auth>;
 export type PasswordReset = InferSelectModel<typeof passwordReset>;
@@ -706,19 +660,12 @@ export type ResolvedPayment = Payment & {
   refunds?: Refund | null;
   customer?: Customer | null;
   org?: Organization | null;
-  creditBalance?: CreditBalance | null;
 };
 
 export type ResolvedSubscription = Subscription & {
   customer?: Customer | null;
   product?: Product | null;
   customerWallet?: CustomerWallet | null;
-};
-
-export type ResolvedCreditBalance = CreditBalance & {
-  product?: Product | null;
-  payment?: Payment | null;
-  customer?: Customer | null;
 };
 
 export type { ProductStatus, ProductType };

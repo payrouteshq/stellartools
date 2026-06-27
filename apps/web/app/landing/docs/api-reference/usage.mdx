@@ -1,137 +1,91 @@
 ---
-title: "Usage"
-description: "Read and write usage credits for metered products"
+title: "Access"
+description: "Check whether a customer can access a product"
 ---
 
-Usage endpoints let you track and bill metered consumption. Each customer has a credit balance per product — you deduct credits as they use your service, grant credits when they top up, and refund credits when needed.
+The access endpoint tells you whether a customer is entitled to use a product — either because they have an active subscription or because they made a confirmed one-time payment. This is the check the AI SDK, LangChain, and UploadThing adapters run automatically, but you can call it directly from your own server-side logic.
 
-Only works with `metered` products.
+## Check access
 
-## The credit balance object
+`GET /customers/{customer_id}/access/{product_id}`
 
-<ResponseField name="id" type="string">
-  Unique identifier for this balance record.
-</ResponseField>
-
-<ResponseField name="customer_id" type="string">
-  The customer this balance belongs to.
-</ResponseField>
-
-<ResponseField name="product_id" type="string">
-  The product this balance is tied to.
-</ResponseField>
-
-<ResponseField name="balance" type="number">
-  Current available credits.
-</ResponseField>
-
-<ResponseField name="consumed" type="number">
-  Total credits consumed to date.
-</ResponseField>
-
-<ResponseField name="granted" type="number">
-  Total credits granted to date.
-</ResponseField>
-
-<ResponseField name="created_at" type="string">
-  ISO 8601 timestamp.
-</ResponseField>
-
-<ResponseField name="updated_at" type="string">
-  ISO 8601 timestamp.
-</ResponseField>
-
----
-
-## Get balance
-
-`GET /customers/{customer_id}/credits/{product_id}`
-
-Returns the current credit balance for a customer on a given product.
+Returns whether the customer has access to the product and the reason why.
 
 ```bash
-curl https://api.stellartools.dev/customers/cus_01jx.../credits/prod_01jx... \
+curl https://api.stellartools.dev/customers/cus_01jx.../access/prod_01jx... \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
----
-
-## Ingest usage
-
-`POST /customers/{customer_id}/credits/{product_id}/transaction`
-
-Deduct, refund, or grant credits. Pass `dry_run: true` to check if the customer has enough credits without committing anything.
-
-```bash
-curl -X POST https://api.stellartools.dev/customers/cus_01jx.../credits/prod_01jx.../transaction \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 5000,
-    "type": "deduct"
-  }'
-```
-
-### Body
-
-<ParamField body="amount" type="number" required>
-  Raw usage amount in the product's native unit (e.g. tokens, requests). Converted to credits automatically based on the product's `units_per_credit` setting.
-</ParamField>
-
-<ParamField body="type" type="string" required>
-  One of `deduct`, `refund`, or `grant`.
-</ParamField>
-
-<ParamField body="dry_run" type="boolean">
-  If `true`, checks credit sufficiency without making any changes. Returns `is_sufficient` and `remaining_balance` instead of the normal response.
-</ParamField>
-
-<ParamField body="reason" type="string">
-  Optional description of why this transaction occurred.
-</ParamField>
-
-<ParamField body="metadata" type="object">
-  Arbitrary key-value data to attach to the transaction.
-</ParamField>
-
 ### Response
 
-<Tabs>
-  <Tab title="Normal">
-    ```json
-    {
-      "balance": 4950,
-      "billed_units": 5000,
-      "credits_deducted": 50
-    }
-    ```
+```json
+{
+  "has_access": true,
+  "grant": {
+    "type": "subscription",
+    "subscription_id": "sub_01jx...",
+    "status": "active"
+  }
+}
+```
 
-    <ResponseField name="balance" type="number">
-      New credit balance after the transaction.
-    </ResponseField>
+```json
+{
+  "has_access": true,
+  "grant": {
+    "type": "one_time",
+    "payment_id": "pay_01jx..."
+  }
+}
+```
 
-    <ResponseField name="billed_units" type="number">
-      The raw usage amount you passed in.
-    </ResponseField>
+```json
+{
+  "has_access": false,
+  "grant": null
+}
+```
 
-    <ResponseField name="credits_deducted" type="number">
-      Credits actually consumed (converted from raw units).
-    </ResponseField>
-  </Tab>
-  <Tab title="Dry run">
-    ```json
-    {
-      "is_sufficient": true,
-      "remaining_balance": 4950
-    }
-    ```
+<ResponseField name="has_access" type="boolean">
+  Whether the customer is entitled to use the product.
+</ResponseField>
 
-    <ResponseField name="is_sufficient" type="boolean">
-      Whether the customer has enough credits for the requested amount.
-    </ResponseField>
+<ResponseField name="grant" type="object | null">
+  The reason access was granted. `null` when `has_access` is false.
 
-    <ResponseField name="remaining_balance" type="number">
-      Current balance (unchanged — nothing was deducted).
+  <Expandable title="grant fields">
+    <ResponseField name="type" type='"subscription" | "one_time"'>
+      What kind of entitlement granted access.
     </ResponseField>
-  </Tab>
-</Tabs>
+    <ResponseField name="subscription_id" type="string">
+      Present when `type` is `"subscription"`. The subscription that is active.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Present when `type` is `"subscription"`. The subscription status (`active` or `trialing`).
+    </ResponseField>
+    <ResponseField name="payment_id" type="string">
+      Present when `type` is `"one_time"`. The confirmed payment that granted access.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## SDK usage
+
+The `@stellartools/core` SDK exposes this as `customers.access.verify(customerId, productId)`:
+
+```ts
+import { StellarTools } from "@stellartools/core";
+
+const stellar = new StellarTools({ api_key: process.env.STELLAR_TOOLS_API_KEY! });
+
+const { has_access, grant } = await stellar.customers.access.verify("cus_xxx", "prod_xxx");
+
+if (!has_access) {
+  throw new Error("Customer does not have access to this product");
+}
+
+// grant.type tells you whether it's a subscription or one-time payment
+if (grant?.type === "subscription") {
+  console.log("Active subscription:", grant.subscription_id);
+}
+```

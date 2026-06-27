@@ -1,4 +1,3 @@
-import { putCreditBalance } from "@/actions/credit";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
@@ -31,7 +30,7 @@ export const POST = apiHandler({
         organizationId,
         environment,
         { paymentId: payment_id },
-        { withWallets: true, withCreditBalance: true }
+        { withWallets: true }
       ),
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
@@ -77,10 +76,6 @@ export const POST = apiHandler({
     );
 
     const runSidedEffects = async () => {
-      if (payment.creditBalance?.id) {
-        await putCreditBalance(payment.creditBalance.id, { settledAt: new Date() }, organizationId, environment);
-      }
-
       if (payment.subscriptionId && payment.customerId) {
         const {
           data: [subscription],
