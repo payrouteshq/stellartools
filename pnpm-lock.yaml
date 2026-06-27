@@ -48,6 +48,61 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  apps/marketplace-apps/loops:
+    dependencies:
+      '@stellartools/app-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/app-sdk
+      '@stellartools/core':
+        specifier: workspace:*
+        version: link:../../../packages/stellartools
+      '@stellartools/shared-ui':
+        specifier: workspace:*
+        version: link:../../../packages/shared-ui
+      loops:
+        specifier: ^7.0.0
+        version: 7.0.0
+      next:
+        specifier: 16.2.9
+        version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4
+        version: 4.3.0
+      '@types/node':
+        specifier: ^20
+        version: 20.19.41
+      '@types/pg':
+        specifier: ^8.6.1
+        version: 8.6.1
+      '@types/react':
+        specifier: ^19
+        version: 19.2.15
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.3(@types/react@19.2.15)
+      eslint:
+        specifier: ^9
+        version: 9.39.4(jiti@2.7.0)
+      eslint-config-next:
+        specifier: 16.2.9
+        version: 16.2.9(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
+      tailwindcss:
+        specifier: ^4
+        version: 4.3.0
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   apps/marketplace-apps/resend:
     dependencies:
       '@stellartools/app-sdk':
@@ -8356,6 +8411,10 @@ packages:
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
+  loops@7.0.0:
+    resolution: {integrity: sha512-TNbnJndtZwE7Esmc6+xKy3xWZOqzq8xQ5IqvZ+CBS9MOjqcx8qgyfsWoW4F7oNZGkX7uS1+RDxvUAswwD2hR5Q==}
+    engines: {node: '>=18'}
+
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
@@ -9203,15 +9262,6 @@ packages:
 
   pg@8.20.0:
     resolution: {integrity: sha512-ldhMxz2r8fl/6QkXnBD3CR9/xg694oT6DZQ2s6c/RI28OjtSOpxnPrUCGOBJ46RCUxcWdx3p6kw/xnDHjKvaRA==}
-    engines: {node: '>= 16.0.0'}
-    peerDependencies:
-      pg-native: '>=3.0.1'
-    peerDependenciesMeta:
-      pg-native:
-        optional: true
-
-  pg@8.21.0:
-    resolution: {integrity: sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==}
     engines: {node: '>= 16.0.0'}
     peerDependencies:
       pg-native: '>=3.0.1'
@@ -12728,10 +12778,10 @@ snapshots:
 
   '@medusajs/deps@2.15.5(@types/node@20.19.41)':
     dependencies:
-      '@mikro-orm/cli': 6.6.12(pg@8.21.0)
+      '@mikro-orm/cli': 6.6.12(pg@8.22.0)
       '@mikro-orm/core': 6.6.12
-      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.21.0)
-      '@mikro-orm/migrations': 6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.41)(pg@8.21.0)
+      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.22.0)
+      '@mikro-orm/migrations': 6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.41)(pg@8.22.0)
       '@mikro-orm/postgresql': 6.6.12(@mikro-orm/core@6.6.12)
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/instrumentation-pg': 0.52.0(@opentelemetry/api@1.9.1)
@@ -12739,7 +12789,7 @@ snapshots:
       '@opentelemetry/sdk-node': 0.200.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-node': 2.7.1(@opentelemetry/api@1.9.1)
       awilix: 8.0.1
-      pg: 8.21.0
+      pg: 8.22.0
       zod: 4.2.0
     transitivePeerDependencies:
       - '@types/node'
@@ -12909,11 +12959,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@mikro-orm/cli@6.6.12(pg@8.21.0)':
+  '@mikro-orm/cli@6.6.12(pg@8.22.0)':
     dependencies:
       '@jercle/yargonaut': 1.1.5
       '@mikro-orm/core': 6.6.12
-      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.21.0)
+      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.22.0)
       fs-extra: 11.3.3
       tsconfig-paths: 4.2.0
       yargs: 17.7.2
@@ -12956,11 +13006,11 @@ snapshots:
       - supports-color
       - tedious
 
-  '@mikro-orm/knex@6.6.12(@mikro-orm/core@6.6.12)(pg@8.21.0)':
+  '@mikro-orm/knex@6.6.12(@mikro-orm/core@6.6.12)(pg@8.22.0)':
     dependencies:
       '@mikro-orm/core': 6.6.12
       fs-extra: 11.3.3
-      knex: 3.2.8(pg@8.21.0)
+      knex: 3.2.8(pg@8.22.0)
       sqlstring: 2.3.3
     transitivePeerDependencies:
       - mysql
@@ -12972,10 +13022,10 @@ snapshots:
       - supports-color
       - tedious
 
-  '@mikro-orm/migrations@6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.41)(pg@8.21.0)':
+  '@mikro-orm/migrations@6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.41)(pg@8.22.0)':
     dependencies:
       '@mikro-orm/core': 6.6.12
-      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.21.0)
+      '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(pg@8.22.0)
       fs-extra: 11.3.3
       umzug: 3.8.2(@types/node@20.19.41)
     transitivePeerDependencies:
@@ -18466,7 +18516,7 @@ snapshots:
       eslint: 9.39.4(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.4(jiti@2.7.0))
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.4(jiti@2.7.0))
@@ -18514,7 +18564,7 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
@@ -18568,7 +18618,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -20081,27 +20131,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  knex@3.2.8(pg@8.21.0):
-    dependencies:
-      colorette: 2.0.19
-      commander: 10.0.1
-      debug: 4.3.4
-      escalade: 3.2.0
-      esm: 3.2.25
-      get-package-type: 0.1.0
-      getopts: 2.3.0
-      interpret: 2.2.0
-      lodash: 4.18.1
-      pg-connection-string: 2.6.2
-      rechoir: 0.8.0
-      resolve-from: 5.0.0
-      tarn: 3.0.2
-      tildify: 2.0.0
-    optionalDependencies:
-      pg: 8.21.0
-    transitivePeerDependencies:
-      - supports-color
-
   knex@3.2.8(pg@8.22.0):
     dependencies:
       colorette: 2.0.19
@@ -20122,7 +20151,6 @@ snapshots:
       pg: 8.22.0
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   kuler@2.0.0: {}
 
@@ -20348,6 +20376,8 @@ snapshots:
   long@5.3.2: {}
 
   longest-streak@3.1.0: {}
+
+  loops@7.0.0: {}
 
   loose-envify@1.4.0:
     dependencies:
@@ -21411,10 +21441,6 @@ snapshots:
     dependencies:
       pg: 8.20.0
 
-  pg-pool@3.14.0(pg@8.21.0):
-    dependencies:
-      pg: 8.21.0
-
   pg-pool@3.14.0(pg@8.22.0):
     dependencies:
       pg: 8.22.0
@@ -21433,16 +21459,6 @@ snapshots:
     dependencies:
       pg-connection-string: 2.13.0
       pg-pool: 3.14.0(pg@8.20.0)
-      pg-protocol: 1.15.0
-      pg-types: 2.2.0
-      pgpass: 1.0.5
-    optionalDependencies:
-      pg-cloudflare: 1.4.0
-
-  pg@8.21.0:
-    dependencies:
-      pg-connection-string: 2.13.0
-      pg-pool: 3.14.0(pg@8.21.0)
       pg-protocol: 1.15.0
       pg-types: 2.2.0
       pgpass: 1.0.5

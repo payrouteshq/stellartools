@@ -5,18 +5,13 @@ import { postWebhookLog } from "@/actions/webhook";
 import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
-import { AppError } from "@/lib/action-handler";
-import { unmaskData } from "@/lib/utils";
 import { Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
 
-export const deliverToApp = async (
+export const deliverToApp = async <TName extends string, TObject>(
   app: App,
   appInstallationId: string,
-  event: WebhookEventBase<any, any>,
-  webhookLogId: string,
-  settings: Record<string, any> | null,
-  organizationId: string,
-  environment: Network
+  envelope: WebhookEventBase<TName, TObject> & { organizationId: string; environment: Network },
+  webhookLogId: string
 ) => {
   const startTime = Date.now();
 
