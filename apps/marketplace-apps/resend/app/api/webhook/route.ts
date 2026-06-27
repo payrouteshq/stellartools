@@ -1,7 +1,7 @@
 import { resolveAppContext } from "@/app/actions/context";
 import { indexEmail } from "@/app/actions/db";
 import {
-  AppInstallationSettingValue,
+  AppInstallationSettings,
   Network,
   STELLARTOOLS_ID,
   z as Schema,
@@ -21,7 +21,7 @@ type WebhookHandlers = {
     st: StellarTools,
     resend: Resend,
     event: WebhookEventBase<K, WebhookObjectMap[K]>,
-    settings: Record<string, AppInstallationSettingValue>,
+    settings: AppInstallationSettings,
     orgId: string | null,
     environment: Network
   ) => Promise<void>;
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const { event, settings } = parseJSON<{ event: WebhookEvent; settings: Record<string, AppInstallationSettingValue> }>(
+  const { event, settings } = parseJSON<{ event: WebhookEvent; settings: AppInstallationSettings }>(
     rawBody,
     Schema.object({ event: Schema.any(), settings: Schema.any() })
   );
@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
           st: StellarTools,
           resend: Resend,
           event: WebhookEvent,
-          settings: Record<string, AppInstallationSettingValue>,
+          settings: AppInstallationSettings,
           orgId: string | null,
           environment: Network
         ) => Promise<void>)

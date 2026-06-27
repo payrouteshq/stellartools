@@ -95,7 +95,7 @@ function AuthenticationForm() {
               <InputGroup>
                 <InputGroupInput
                   value={fromPrefix}
-                  onChange={(e) => setFromPrefix(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFromPrefix(e.target.value)}
                   placeholder="noreply"
                   className="text-sm"
                 />

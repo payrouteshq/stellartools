@@ -166,7 +166,7 @@ const Dashboard = () => {
             activeKey="sent"
             color="var(--chart-1)"
             className="h-[200px]"
-            xAxisFormatter={(value) => (Number(value) % 5 === 0 ? String(value) : "")}
+            xAxisFormatter={(value: number) => (Number(value) % 5 === 0 ? String(value) : "")}
           />
           <dl className="grid grid-cols-3 gap-4">
             {[
@@ -191,7 +191,7 @@ const Dashboard = () => {
             <Input
               placeholder="Search by email or subject..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
               className="text-xs shadow-none sm:flex-1"
             />
             <SelectField
@@ -248,7 +248,7 @@ const Dashboard = () => {
                       <SelectField
                         id={event}
                         value={templateIds[event] ?? "__none__"}
-                        onChange={(v) => handleTemplateChange(event, v)}
+                        onChange={(v: string) => handleTemplateChange(event, v)}
                         items={templateOptions}
                         isLoading={templatesLoading}
                         disabled={isSaving}
