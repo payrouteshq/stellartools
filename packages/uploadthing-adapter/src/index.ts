@@ -14,7 +14,7 @@ type ShieldConfig = Schema.infer<typeof schema>;
  * It intercepts the upload request and verifies the customer's subscription
  * status before allowing the file to be processed by UploadThing.
  */
-export const shield = (config: ShieldConfig) => {
+export const shield = (config: ShieldConfig): ((routeConfig: any, options?: any) => any) => {
   const { error, data } = schema.safeParse(config);
 
   if (error) throw new Error(`Invalid config: ${error.message}`);

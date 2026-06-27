@@ -49,14 +49,13 @@ export function InstallAppButton({
         app_slug: appSlug,
         app_name: appName,
         app_category: appCategory,
-        already_installed: result.alreadyInstalled,
       });
 
       await invalidate(["installed-apps"]);
 
       openApp(result.app.id);
 
-      toast.success(result.alreadyInstalled ? `${appName} is already installed` : `${appName} installed successfully`);
+      toast.success(`${appName} installed successfully`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to install app");
     } finally {
