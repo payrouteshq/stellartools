@@ -250,6 +250,30 @@ export const accountValidator = safeAction(
   }
 );
 
+export const completeGoogleSignup = safeAction(async (email: string, password: string) => {
+  const account = await retrieveAccount({ email });
+
+  if (!account) throw new AppError("Account not found. Please try signing up again.");
+
+  const hasLocalSso = account.sso?.values?.some((s) => s.provider === "local");
+  if (hasLocalSso) throw new AppError("A password is already set on this account. Please sign in.");
+
+  const hasGoogleSso = account.sso?.values?.some((s) => s.provider === "google");
+  if (!hasGoogleSso) throw new AppError("Invalid account state. Please sign up again.");
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+
+  await putAccount(account.id, {
+    sso: {
+      values: [...account.sso.values, { provider: "local", sub: passwordHash }],
+    },
+  });
+
+  await generateAndSetSession(account, "local");
+
+  return { accountId: account.id, isNewUser: true };
+});
+
 export const forgotPassword = safeAction(async (email: string) => {
   const account = await retrieveAccount({ email });
 

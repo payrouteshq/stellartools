@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { accountValidator } from "@/actions/auth";
+import { accountValidator, completeGoogleSignup } from "@/actions/auth";
 import { useAction } from "@/hooks/use-action";
 import { useAuth } from "@/hooks/use-auth";
 import { capture, identifyUser } from "@/lib/posthog";
@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, InputGroup, InputGroupAddon, InputGroupInput, Label, TextField } from "@stellartools/shared-ui";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -26,10 +27,22 @@ type SignUpFormData = z.infer<typeof signUpSchema>;
 export default function SignUp() {
   const [showPassword, setShowPassword] = React.useState(false);
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
+  const searchParams = useSearchParams();
+
+  const mode = searchParams?.get("mode");
+  const isGoogleComplete = mode === "google-complete";
+  const prefillEmail = searchParams?.get("email") ?? "";
+  const prefillFirstName = searchParams?.get("firstName") ?? "";
+  const prefillLastName = searchParams?.get("lastName") ?? "";
+  const prefillName = [prefillFirstName, prefillLastName].filter(Boolean).join(" ");
 
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: {
+      name: prefillName || "",
+      email: prefillEmail || "",
+      password: "",
+    },
   });
 
   const { mutate: signup, isPending: isSigning } = useAction(
@@ -63,15 +76,47 @@ export default function SignUp() {
     }
   );
 
+  const { mutate: completeGoogle, isPending: isCompletingGoogle } = useAction(
+    (data: SignUpFormData) => completeGoogleSignup(data.email, data.password),
+    {
+      onSuccess: (_, variables) => {
+        identifyUser(variables.email, {
+          email: variables.email,
+          name: variables.name,
+          firstName: prefillFirstName,
+          lastName: prefillLastName,
+          authMethod: "google",
+        });
+        capture("user_signed_up", { email: variables.email, auth_method: "google" });
+      },
+      successMsg: "Account set up successfully",
+      errorMsg: "Failed to set up account",
+    }
+  );
+
+  const isPending = isSigning || isCompletingGoogle;
+
+  const handleSubmit = form.handleSubmit((data) => {
+    if (isGoogleComplete) {
+      completeGoogle(data);
+    } else {
+      signup(data);
+    }
+  });
+
   return (
     <AuthLayout
-      title="Get started"
-      subtitle="Create your StellarTools account"
+      title={isGoogleComplete ? "Set your password" : "Get started"}
+      subtitle={
+        isGoogleComplete
+          ? "Your Google account is linked. Set a password to also sign in with email."
+          : "Create your StellarTools account"
+      }
       error={error}
       onDismissError={() => setDismissedError(true)}
-      isPending={isSigning}
-      googleConfig={{ onClick: handleGoogleSignIn }}
-      onSubmit={form.handleSubmit((d) => signup(d))}
+      isPending={isPending}
+      googleConfig={isGoogleComplete ? undefined : { onClick: handleGoogleSignIn }}
+      onSubmit={handleSubmit}
       alternateLink={
         <p className="text-muted-foreground text-sm">
           Already have an account?{" "}
@@ -92,6 +137,7 @@ export default function SignUp() {
             placeholder="John Doe"
             className="shadow-none"
             error={fieldState.error?.message}
+            disabled={isGoogleComplete}
           />
         )}
       />
@@ -107,6 +153,7 @@ export default function SignUp() {
             placeholder="name@example.com"
             className="shadow-none"
             error={fieldState.error?.message}
+            disabled={isGoogleComplete}
           />
         )}
       />
@@ -150,9 +197,9 @@ export default function SignUp() {
       <Button
         type="submit"
         className="w-full rounded-md font-semibold transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-        isLoading={isSigning}
+        isLoading={isPending}
       >
-        Sign up
+        {isGoogleComplete ? "Continue" : "Sign up"}
       </Button>
     </AuthLayout>
   );

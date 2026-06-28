@@ -1,4 +1,5 @@
 import { accountValidator } from "@/actions/auth";
+import { postAccount, retrieveAccount } from "@/actions/account";
 import { AppError } from "@/lib/action-handler";
 import { Result } from "@stellartools/core";
 import { OAuth2Client } from "google-auth-library";
@@ -77,10 +78,42 @@ export async function GET(req: NextRequest) {
     const firstName = payload.given_name || nameParts[0] || "";
     const lastName = payload.family_name || nameParts.slice(1).join(" ") || "";
 
+    if (stateData.intent === "SIGN_UP") {
+      // For sign-up via Google: save the user with Google SSO but redirect to
+      // the signup page so they can set a password (enabling both auth methods).
+      let existingAccount = await retrieveAccount({ email: payload.email });
+
+      if (!existingAccount) {
+        await postAccount({
+          email: payload.email,
+          sso: { values: [{ provider: "google", sub: payload.sub! }] },
+          profile: { firstName, lastName, avatarUrl: payload.picture ?? undefined },
+        });
+      } else if (existingAccount.sso?.values?.some((s) => s.provider === "local")) {
+        // Already fully registered — send to sign-in with an informative message
+        return NextResponse.redirect(
+          new URL(
+            `${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signin?error=already_registered&error_description=${encodeURIComponent("An account with this email already exists. Please sign in.")}`,
+            req.url
+          )
+        );
+      }
+      // Account exists with Google SSO only (or was just created) — collect password
+      const params = new URLSearchParams({
+        firstName,
+        lastName,
+        email: payload.email,
+        mode: "google-complete",
+      });
+      return NextResponse.redirect(
+        new URL(`${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signup?${params.toString()}`, req.url)
+      );
+    }
+
     const account = await accountValidator(
       payload.email,
       { provider: "google", sub: payload.sub },
-      stateData.intent === "SIGN_UP" ? "SIGN_UP" : "SIGN_IN",
+      "SIGN_IN",
       { firstName, lastName, avatarUrl: payload.picture },
       { ...stateData }
     );
