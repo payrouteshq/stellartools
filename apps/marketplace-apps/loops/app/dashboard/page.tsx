@@ -37,7 +37,6 @@ import {
 } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 
-
 const TYPE_FILTER_OPTIONS = [
   { value: "all", label: "All types" },
   { value: "transactional", label: "Transactional" },
@@ -171,7 +170,8 @@ const Dashboard = () => {
               {
                 label: "Emails sent",
                 value: String(stats?.totalSent ?? 0),
-                tooltip: "Total emails triggered by your webhook events in the selected period, tracked in the activity log below.",
+                tooltip:
+                  "Total emails triggered by your webhook events in the selected period, tracked in the activity log below.",
               },
               {
                 label: "Transactional",
@@ -271,7 +271,10 @@ const Dashboard = () => {
           <div className="bg-muted/40 rounded-lg border px-4 py-3">
             <p className="text-muted-foreground text-xs leading-relaxed">
               <span className="text-foreground font-medium">Using Loops workflows? </span>
-              Create a workflow in Loops and set its trigger to the event name from the row, replacing dots with underscores (e.g. <span className="font-mono">payment.confirmed</span> becomes <span className="font-mono">payment_confirmed</span>). It will run automatically when that event fires. Only transactional emails need to be selected below.
+              Create a workflow in Loops and set its trigger to the event name from the row, replacing dots with
+              underscores (e.g. <span className="font-mono">payment.confirmed</span> becomes{" "}
+              <span className="font-mono">payment_confirmed</span>). It will run automatically when that event fires.
+              Only transactional emails need to be selected below.
             </p>
           </div>
           <div className="overflow-hidden rounded-lg border">

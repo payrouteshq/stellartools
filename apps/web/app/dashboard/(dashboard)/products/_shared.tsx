@@ -575,7 +575,6 @@ export function ProductsModalContent({
                   />
                 </div>
               )}
-
             </div>
           </div>
         </div>

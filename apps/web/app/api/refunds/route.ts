@@ -26,12 +26,7 @@ export const POST = apiHandler({
       },
       { secret },
     ] = await Promise.all([
-      retrievePayments(
-        organizationId,
-        environment,
-        { paymentId: payment_id },
-        { withWallets: true }
-      ),
+      retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true }),
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
 

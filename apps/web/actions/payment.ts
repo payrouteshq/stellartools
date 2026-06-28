@@ -196,17 +196,8 @@ const paymentActionHandler = async (
           console.log("paymentCount", paymentCount);
 
           const emailTemplate = MERCHANT_EMAIL_TEMPLATES[ctx.product?.type as keyof typeof MERCHANT_EMAIL_TEMPLATES];
-          if (
-            paymentCount === 1 &&
-            ctx.org.supportEmail &&
-            ctx.product &&
-            ctx.checkout &&
-            emailTemplate
-          ) {
-            const { subject, component } = emailTemplate(
-              ctx as Required<PaymentContext>,
-              payment
-            );
+          if (paymentCount === 1 && ctx.org.supportEmail && ctx.product && ctx.checkout && emailTemplate) {
+            const { subject, component } = emailTemplate(ctx as Required<PaymentContext>, payment);
 
             if (ctx.account?.email) {
               console.log("sending merchant first payment confirmed email to", ctx.account.email);

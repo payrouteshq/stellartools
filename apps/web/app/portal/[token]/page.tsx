@@ -303,14 +303,12 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             </section>
           )}
 
-          {activeSubscriptions.length === 0 &&
-            wallets.length === 0 &&
-            payments.length === 0 && (
-              <div className="border-border rounded-xl border py-16 text-center">
-                <p className="text-foreground font-medium">No activity yet</p>
-                <p className="text-muted-foreground mt-1 text-sm">Subscriptions and payments will appear here.</p>
-              </div>
-            )}
+          {activeSubscriptions.length === 0 && wallets.length === 0 && payments.length === 0 && (
+            <div className="border-border rounded-xl border py-16 text-center">
+              <p className="text-foreground font-medium">No activity yet</p>
+              <p className="text-muted-foreground mt-1 text-sm">Subscriptions and payments will appear here.</p>
+            </div>
+          )}
 
           <Link
             href="https://stellartools.dev"

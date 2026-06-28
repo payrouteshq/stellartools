@@ -179,7 +179,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     let send_tx_response = await stellarRpc.sendTransaction(signedTx);
     let curr_time = Date.now();
-    console.log("[wallet] step 3 — sendTransaction initial status:", send_tx_response.status, "hash:", send_tx_response.hash);
+    console.log(
+      "[wallet] step 3 — sendTransaction initial status:",
+      send_tx_response.status,
+      "hash:",
+      send_tx_response.hash
+    );
 
     // Only retry on TRY_AGAIN_LATER (transient RPC congestion).
     // ERROR = hard rejection by the network — retrying the same signed tx never helps.
@@ -232,7 +237,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return { txHash, status: "SUCCESS" };
     } else {
       const parsed = parseError(get_tx_response);
-      console.error("[wallet] step 7 — FAILED, code:", parsed.code, "message:", parsed.message, "raw:", get_tx_response);
+      console.error(
+        "[wallet] step 7 — FAILED, code:",
+        parsed.code,
+        "message:",
+        parsed.message,
+        "raw:",
+        get_tx_response
+      );
       setTxStatus(TxStatus.FAIL);
       return { txHash: get_tx_response.txHash ?? txHash, status: "FAIL", message: parsed.message };
     }

@@ -36,10 +36,7 @@ export const logout = async (appToken: string): Promise<void> => {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-export const updateSettings = async (
-  appToken: string,
-  patch: Record<string, Primitive>
-): Promise<void> => {
+export const updateSettings = async (appToken: string, patch: Record<string, Primitive>): Promise<void> => {
   await new StellarTools({ api_key: appToken }).appInstallations.updateSettings(patch);
 };
 

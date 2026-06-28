@@ -2,8 +2,6 @@
 
 import { deleteEvents, paginate, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
-import { getCookie, setCookies, deleteCookies } from "@/integrations/cookie-manager";
-import { sendEmail } from "@/integrations/email";
 import {
   Customer,
   CustomerMetadata,
@@ -19,6 +17,8 @@ import {
   subscriptions as subscriptionsSchema,
 } from "@/db";
 import { CustomerWallet as CustomerWalletSchema } from "@/db";
+import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
+import { sendEmail } from "@/integrations/email";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
@@ -353,75 +353,74 @@ export async function getCustomerPortalData(token: string) {
 
   const { customerId, organizationId, environment } = session;
 
-  const [customer, org, customerSubscriptions, customerPayments, customerWalletList] =
-    await Promise.all([
-      db
-        .select()
-        .from(customersSchema)
-        .where(eq(customersSchema.id, customerId))
-        .limit(1)
-        .then((r) => r[0] ?? null),
+  const [customer, org, customerSubscriptions, customerPayments, customerWalletList] = await Promise.all([
+    db
+      .select()
+      .from(customersSchema)
+      .where(eq(customersSchema.id, customerId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
 
-      db
-        .select({ name: organizations.name, logoUrl: organizations.logoUrl, socialLinks: organizations.socialLinks })
-        .from(organizations)
-        .where(eq(organizations.id, organizationId))
-        .limit(1)
-        .then((r) => r[0] ?? null),
+    db
+      .select({ name: organizations.name, logoUrl: organizations.logoUrl, socialLinks: organizations.socialLinks })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
 
-      db
-        .select({
-          id: subscriptionsSchema.id,
-          status: subscriptionsSchema.status,
-          currentPeriodStart: subscriptionsSchema.currentPeriodStart,
-          currentPeriodEnd: subscriptionsSchema.currentPeriodEnd,
-          cancelAtPeriodEnd: subscriptionsSchema.cancelAtPeriodEnd,
-          canceledAt: subscriptionsSchema.canceledAt,
-          productId: subscriptionsSchema.productId,
-          productName: productsSchema.name,
-          productType: productsSchema.type,
-          productUnit: productsSchema.unit,
-          customerWalletId: subscriptionsSchema.customerWalletId,
-          walletAddress: customerWallets.address,
-        })
-        .from(subscriptionsSchema)
-        .leftJoin(productsSchema, eq(subscriptionsSchema.productId, productsSchema.id))
-        .leftJoin(customerWallets, eq(subscriptionsSchema.customerWalletId, customerWallets.id))
-        .where(
-          and(
-            eq(subscriptionsSchema.customerId, customerId),
-            eq(subscriptionsSchema.organizationId, organizationId),
-            eq(subscriptionsSchema.environment, environment)
-          )
+    db
+      .select({
+        id: subscriptionsSchema.id,
+        status: subscriptionsSchema.status,
+        currentPeriodStart: subscriptionsSchema.currentPeriodStart,
+        currentPeriodEnd: subscriptionsSchema.currentPeriodEnd,
+        cancelAtPeriodEnd: subscriptionsSchema.cancelAtPeriodEnd,
+        canceledAt: subscriptionsSchema.canceledAt,
+        productId: subscriptionsSchema.productId,
+        productName: productsSchema.name,
+        productType: productsSchema.type,
+        productUnit: productsSchema.unit,
+        customerWalletId: subscriptionsSchema.customerWalletId,
+        walletAddress: customerWallets.address,
+      })
+      .from(subscriptionsSchema)
+      .leftJoin(productsSchema, eq(subscriptionsSchema.productId, productsSchema.id))
+      .leftJoin(customerWallets, eq(subscriptionsSchema.customerWalletId, customerWallets.id))
+      .where(
+        and(
+          eq(subscriptionsSchema.customerId, customerId),
+          eq(subscriptionsSchema.organizationId, organizationId),
+          eq(subscriptionsSchema.environment, environment)
         )
-        .orderBy(desc(subscriptionsSchema.createdAt)),
+      )
+      .orderBy(desc(subscriptionsSchema.createdAt)),
 
-      db
-        .select()
-        .from(paymentsSchema)
-        .where(
-          and(
-            eq(paymentsSchema.customerId, customerId),
-            eq(paymentsSchema.organizationId, organizationId),
-            eq(paymentsSchema.environment, environment),
-            eq(paymentsSchema.status, "confirmed")
-          )
+    db
+      .select()
+      .from(paymentsSchema)
+      .where(
+        and(
+          eq(paymentsSchema.customerId, customerId),
+          eq(paymentsSchema.organizationId, organizationId),
+          eq(paymentsSchema.environment, environment),
+          eq(paymentsSchema.status, "confirmed")
         )
-        .orderBy(desc(paymentsSchema.createdAt))
-        .limit(20),
+      )
+      .orderBy(desc(paymentsSchema.createdAt))
+      .limit(20),
 
-      db
-        .select()
-        .from(customerWallets)
-        .where(
-          and(
-            eq(customerWallets.customerId, customerId),
-            eq(customerWallets.organizationId, organizationId),
-            eq(customerWallets.environment, environment)
-          )
+    db
+      .select()
+      .from(customerWallets)
+      .where(
+        and(
+          eq(customerWallets.customerId, customerId),
+          eq(customerWallets.organizationId, organizationId),
+          eq(customerWallets.environment, environment)
         )
-        .orderBy(desc(customerWallets.createdAt)),
-    ]);
+      )
+      .orderBy(desc(customerWallets.createdAt)),
+  ]);
 
   return {
     customer,
@@ -447,7 +446,10 @@ export async function sendPortalOtp(token: string): Promise<{ maskedEmail: strin
   if (!customer?.email) return { error: "No email address on file. Contact the merchant." };
 
   const otp = String(Math.floor(100000 + Math.random() * 900000));
-  const hash = crypto.createHash("sha256").update(otp + token).digest("hex");
+  const hash = crypto
+    .createHash("sha256")
+    .update(otp + token)
+    .digest("hex");
   const expiresAt = Date.now() + 10 * 60 * 1000;
 
   await setCookies([{ key: `portal_otp_${token.slice(0, 20)}`, value: `${hash}:${expiresAt}`, maxAge: 600 }]);
@@ -466,7 +468,7 @@ export async function sendPortalOtp(token: string): Promise<{ maskedEmail: strin
 
 export async function verifyPortalOtp(token: string, code: string): Promise<{ success: true } | { error: string }> {
   const cookieKey = `portal_otp_${token.slice(0, 20)}`;
-  
+
   const cookieValue = await getCookie(cookieKey);
 
   if (!cookieValue) return { error: "No pending verification. Please request a new code." };
@@ -479,7 +481,10 @@ export async function verifyPortalOtp(token: string, code: string): Promise<{ su
     return { error: "Code expired. Please request a new one." };
   }
 
-  const submittedHash = crypto.createHash("sha256").update(code + token).digest("hex");
+  const submittedHash = crypto
+    .createHash("sha256")
+    .update(code + token)
+    .digest("hex");
   if (submittedHash !== storedHash) return { error: "Invalid code. Please try again." };
 
   const authValue = crypto.createHmac("sha256", process.env.JWT_SECRET!).update(token).digest("hex");

@@ -15,8 +15,6 @@ import {
 import { LoopsClient } from "loops";
 import { NextRequest, NextResponse } from "next/server";
 
-const toEventName = (eventType: WebhookEventType) => eventType.replaceAll(".", "_");
-
 type WebhookHandlers = {
   [K in WebhookEventType]?: (
     st: StellarTools,
@@ -43,7 +41,7 @@ async function dispatch(
   const transactionalId = raw?.startsWith("A:") ? raw.slice(2) : raw;
   const mailingListId = settings["contactSyncMailingListId"] as string | null | undefined;
   const mailingLists = mailingListId ? { [mailingListId]: true } : undefined;
-  const eventName = toEventName(eventType);
+  const eventName = eventType.replaceAll(".", "_");
 
   // Always fire sendEvent — if the merchant has a Loops workflow with this trigger, it runs automatically.
   await loops.sendEvent({ email, eventName, contactProperties, mailingLists });
@@ -51,8 +49,16 @@ async function dispatch(
 
   // Also send transactional email if the merchant selected one for this event.
   if (transactionalId) {
-    const contactVars = { email, ...Object.fromEntries(Object.entries(contactProperties ?? {}).filter(([, v]) => v != null)) } as Record<string, string>;
-    await loops.sendTransactionalEmail({ transactionalId, email, addToAudience: true, dataVariables: { ...contactVars, ...dataVariables } });
+    const contactVars = {
+      email,
+      ...Object.fromEntries(Object.entries(contactProperties ?? {}).filter(([, v]) => v != null)),
+    } as Record<string, string>;
+    await loops.sendTransactionalEmail({
+      transactionalId,
+      email,
+      addToAudience: true,
+      dataVariables: { ...contactVars, ...dataVariables },
+    });
     if (orgId) logEvent(orgId, environment, eventType, email, "transactional", transactionalId).catch(console.error);
   }
 }

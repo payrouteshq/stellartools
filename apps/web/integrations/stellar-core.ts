@@ -382,4 +382,3 @@ export function parseError(
 
   return { code: "unknown", message: "Transaction failed" };
 }
-

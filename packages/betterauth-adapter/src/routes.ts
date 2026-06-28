@@ -1,9 +1,4 @@
-import {
-  z as Schema,
-  createRefundSchema,
-  createSubscriptionSchema,
-  updateCustomerSchema,
-} from "@stellartools/core";
+import { z as Schema, createRefundSchema, createSubscriptionSchema, updateCustomerSchema } from "@stellartools/core";
 import { GenericEndpointContext } from "better-auth";
 import { createAuthEndpoint, sessionMiddleware } from "better-auth/api";
 
