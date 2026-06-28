@@ -117,7 +117,8 @@ export async function withEvent<T>(
               app,
               app_installation.id,
               { ...envelope, organizationId: orgId, environment: env },
-              webhookLogId!
+              webhookLogId!,
+              app_installation.settings
             )
           );
         });

@@ -5,13 +5,16 @@ import { postWebhookLog } from "@/actions/webhook";
 import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
-import { Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
+import { AppError } from "@/lib/action-handler";
+import { unmaskData } from "@/lib/utils";
+import { AppInstallationSettings, Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
 
 export const deliverToApp = async <TName extends string, TObject>(
   app: App,
   appInstallationId: string,
   envelope: WebhookEventBase<TName, TObject> & { organizationId: string; environment: Network },
-  webhookLogId: string
+  webhookLogId: string,
+  rawSettings: AppInstallationSettings | null
 ) => {
   const startTime = Date.now();
 
@@ -19,7 +22,13 @@ export const deliverToApp = async <TName extends string, TObject>(
 
   if (!webhookUrl) throw new AppError("App webhook URL not found");
 
-  const body = JSON.stringify({ event, settings: unmaskData(settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt) });
+  const { organizationId, environment, ...eventData } = envelope;
+
+  const body = JSON.stringify({
+    event: eventData,
+    settings: unmaskData(rawSettings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt),
+  });
+
   try {
     const signer = new WebhookSigner();
     const signature = signer.generateSignature(body, decrypt(app.appSecret));
@@ -51,7 +60,7 @@ export const deliverToApp = async <TName extends string, TObject>(
       { appInstallationId },
       {
         id: webhookLogId,
-        eventType: event.type,
+        eventType: envelope.type,
         request: JSON.parse(body),
         statusCode: response.status,
         responseTime: duration,
@@ -76,7 +85,7 @@ export const deliverToApp = async <TName extends string, TObject>(
       { appInstallationId },
       {
         id: webhookLogId,
-        eventType: event.type,
+        eventType: envelope.type,
         request: JSON.parse(body),
         statusCode: 500,
         errorMessage: error.message,
