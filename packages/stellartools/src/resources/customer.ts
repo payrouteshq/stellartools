@@ -31,10 +31,10 @@ export class CustomerApi {
     );
   }
 
-  async list(params: ListCustomers) {
+  async list(params?: ListCustomers) {
     return unwrap(
-      await Result.andThenAsync(validateSchema(listCustomersSchema, params), async (data) => {
-        return await this.apiClient.get<Array<Customer>>(`/customers`, data);
+      await Result.andThenAsync(validateSchema(listCustomersSchema.optional(), params), async (data) => {
+        return await this.apiClient.get<Array<Customer>>(`/customers?${new URLSearchParams(data).toString()}`);
       })
     );
   }
