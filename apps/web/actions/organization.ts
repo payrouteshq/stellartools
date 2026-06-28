@@ -2,6 +2,7 @@
 
 import { resolveAccountContext } from "@/actions/account";
 import { runAtomic } from "@/actions/event";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import {
   Network,
   Organization,
@@ -267,8 +268,8 @@ export const postOrganizationSecretWithEncryption = async (
       testnetPublicKey: params.testnetPublicKey,
       mainnetSecretVersion: params.testnetSecretVersion,
       testnetSecretVersion: params.testnetSecretVersion,
-      mainnetSecretEncrypted: params.mainnetSecret ? encrypt(params.mainnetSecret) : null,
-      testnetSecretEncrypted: params.testnetSecret ? encrypt(params.testnetSecret) : null,
+      mainnetSecretEncrypted: params.mainnetSecret ? `${SENSITIVE_KEY_PREFIX}${encrypt(params.mainnetSecret)}` : null,
+      testnetSecretEncrypted: params.testnetSecret ? `${SENSITIVE_KEY_PREFIX}${encrypt(params.testnetSecret)}` : null,
       id: generateResourceId("org_sec", organizationId, 25),
       organizationId,
     })

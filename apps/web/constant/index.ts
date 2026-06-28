@@ -42,4 +42,4 @@ export const SAC_TOKEN_ADDRESSES: Record<"xlm" | "usdc", Record<Network, string>
   },
 };
 
-export const APP_SENSITIVE_KEY_PREFIX = "__ST_ENC__:";
+export const SENSITIVE_KEY_PREFIX = "__ST_ENC__:";

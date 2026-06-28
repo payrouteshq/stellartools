@@ -1,4 +1,5 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
@@ -32,7 +33,7 @@ export const POST = apiHandler({
     const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
     if (!secret) throw new AppError("Organization has no Stellar account configured");
 
-    const secretKey = decrypt(secret.encrypted);
+    const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
     const keypair = StellarSDK.Keypair.fromSecret(secretKey);
     const publicKey = keypair.publicKey();
 

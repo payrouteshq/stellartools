@@ -5,7 +5,7 @@ import { runAtomic } from "@/actions/event";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayment } from "@/actions/payment";
 import { postSubscriptionsBulk } from "@/actions/subscription";
-import { STELLAR_PRECISION, subscriptionIntervals } from "@/constant";
+import { SENSITIVE_KEY_PREFIX, STELLAR_PRECISION, subscriptionIntervals } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
@@ -60,7 +60,12 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   if (sendAssetIssuer) {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
     if (!orgSecret) throw new AppError("Merchant wallet not configured");
-    await ensureTrustline(decrypt(orgSecret.encrypted), sendAssetCode, sendAssetIssuer, checkout.environment);
+    await ensureTrustline(
+      decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
+      sendAssetCode,
+      sendAssetIssuer,
+      checkout.environment
+    );
   }
 
   builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));

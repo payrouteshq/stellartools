@@ -1,5 +1,6 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayout, putPayout } from "@/actions/payout";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import { sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
@@ -33,7 +34,7 @@ export const POST = apiHandler({
       },
     });
 
-    const secretKey = decrypt(secret.encrypted);
+    const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 
     const payoutId = generateResourceId("pay", organizationId, 20);
 

@@ -2,6 +2,7 @@
 
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Network, charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { getFiatRates } from "@/integrations/price-feed";
@@ -57,7 +58,7 @@ export async function processPaymentBilling(
   console.log("Fee Crypto Amount Cents", feeCryptoAmountCents, paymentCurrency);
 
   try {
-    const secretKey = decrypt(secret.encrypted);
+    const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
     const keeperKey = process.env.CHARGES_PUBLIC_KEY!;
 
     const res = await sendAssetPayment(

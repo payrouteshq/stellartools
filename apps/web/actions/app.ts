@@ -1,7 +1,7 @@
 "use server";
 
 import { resolveOrgContext } from "@/actions/organization";
-import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App, AppInstallation, AppInstallationStatus, AppStatus, Network, appInstallations, apps, db } from "@/db";
 import { decrypt, encrypt } from "@/integrations/encryption";
 import { maskData, unmaskData } from "@/lib/utils";
@@ -50,7 +50,7 @@ export const generateAppToken = async (
     instId: row.id,
     appId: row.appId,
     scopes: row.scopes,
-    settings: unmaskData(row.settings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt),
+    settings: unmaskData(row.settings ?? {}, SENSITIVE_KEY_PREFIX, decrypt),
     ui: {
       periodDays: uiContext.periodDays,
       currency: uiContext.currency,
@@ -65,11 +65,14 @@ export const generateAppToken = async (
 };
 
 export const postApp = async (params: Omit<App, "id" | "createdAt">) => {
-  const encryptedSecret = encrypt(params.appSecret);
-
   return await db
     .insert(apps)
-    .values({ ...params, appSecret: encryptedSecret } as App)
+    .values({
+      ...params,
+      id: `app_${nanoid(25)}`,
+      createdAt: new Date(),
+      appSecret: `${SENSITIVE_KEY_PREFIX}${encrypt(params.appSecret)}`,
+    })
     .returning()
     .then(([app]) => app);
 };
@@ -99,7 +102,7 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
     .values({ ...params, id: installationId } as AppInstallation)
     .onConflictDoUpdate({
       target: [appInstallations.appId, appInstallations.organizationId, appInstallations.environment],
-      set: { updatedAt: new Date(), status: "active" },
+      set: { updatedAt: new Date(), ...(params.status ? { status: params.status } : {}) },
     })
     .returning();
 
@@ -160,7 +163,7 @@ export const updateAppInstallation = async (
   const sensitiveKeys = row.sensitiveKeys ?? [];
 
   const maskedPatch = settingsPatch
-    ? maskData(settingsPatch as Record<string, any>, sensitiveKeys, APP_SENSITIVE_KEY_PREFIX, encrypt)
+    ? maskData(settingsPatch as Record<string, any>, sensitiveKeys, SENSITIVE_KEY_PREFIX, encrypt)
     : undefined;
 
   const [updated] = await db

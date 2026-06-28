@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateAppToken } from "@/actions/app";
 import { postWebhookLog } from "@/actions/webhook";
-import { APP_SENSITIVE_KEY_PREFIX } from "@/constant";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
 import { AppError } from "@/lib/action-handler";
@@ -26,7 +26,7 @@ export const deliverToApp = async <TName extends string, TObject>(
 
   const body = JSON.stringify({
     event: eventData,
-    settings: unmaskData(rawSettings ?? {}, APP_SENSITIVE_KEY_PREFIX, decrypt),
+    settings: unmaskData(rawSettings ?? {}, SENSITIVE_KEY_PREFIX, decrypt),
   });
 
   try {

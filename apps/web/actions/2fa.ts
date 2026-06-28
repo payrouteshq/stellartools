@@ -2,6 +2,7 @@
 
 import { retrieveAccount } from "@/actions/account";
 import { generateAndSetSession } from "@/actions/auth";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { AuthProvider } from "@/constant/schema.client";
 import { accounts, db } from "@/db";
 import { TwoFaDisableVerificationEmail } from "@/emails/2fa-disable-verification";
@@ -49,9 +50,11 @@ export const setup2fa = safeAction(async (accountId: string) => {
   const secret = existingEncrypted ? decrypt(existingEncrypted) : generateSecret();
 
   if (!existingEncrypted) {
+    const pending2faSecret = `${SENSITIVE_KEY_PREFIX}${encrypt(secret)}`;
+
     await db
       .update(accounts)
-      .set({ metadata: { ...(account.metadata ?? {}), pending2faSecret: encrypt(secret) } })
+      .set({ metadata: { ...(account.metadata ?? {}), pending2faSecret } })
       .where(eq(accounts.id, accountId));
   }
 
@@ -84,7 +87,11 @@ export const toggle2fa = safeAction(
       if (payload.accountId !== accountId) throw new AppError("Invalid verification token");
       if (payload.code !== code) throw new AppError("Invalid email verification code");
     } else {
-      const secretToVerify = isEnabling ? setupSecret : account.$2faSecret ? decrypt(account.$2faSecret) : null;
+      const secretToVerify = isEnabling
+        ? setupSecret
+        : account.$2faSecret
+          ? decrypt(account.$2faSecret?.replace(SENSITIVE_KEY_PREFIX, "") ?? "")
+          : null;
 
       if (!secretToVerify) throw new AppError("2FA configuration not found");
 
@@ -98,7 +105,7 @@ export const toggle2fa = safeAction(
     await db
       .update(accounts)
       .set({
-        $2faSecret: isEnabling ? encrypt(setupSecret) : null,
+        $2faSecret: isEnabling ? `${SENSITIVE_KEY_PREFIX}${encrypt(setupSecret)}` : null,
         metadata: cleanMetadata,
         updatedAt: new Date(),
       })
@@ -124,7 +131,10 @@ export const complete2fa = safeAction(async (code: string) => {
   if (!account) throw new AppError("Account not found");
   if (!account.$2faSecret) throw new AppError("2FA not configured");
 
-  const { valid } = verifySync({ token: code, secret: decrypt(account.$2faSecret) });
+  const { valid } = verifySync({
+    token: code,
+    secret: decrypt(account.$2faSecret?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
+  });
 
   if (!valid) throw new AppError("Invalid verification code");
 

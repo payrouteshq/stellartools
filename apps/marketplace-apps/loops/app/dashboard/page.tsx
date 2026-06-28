@@ -58,7 +58,7 @@ const Dashboard = () => {
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState("all");
 
-  const { data: stats } = useStellarToolsQuery<ActivityStats>(
+  const { data: stats, isLoading: statsLoading } = useStellarToolsQuery<ActivityStats>(
     ["stats"],
     (ctx: AppContext) => retrieveActivityStats(ctx.orgId, ctx.ui.periodDays, ctx.env),
     { enabled: !!settings.loopsApiKey }
@@ -227,11 +227,12 @@ const Dashboard = () => {
             />
           </div>
           <DataTable
+            isLoading={statsLoading}
             data={filteredLogs}
             columns={logColumns}
             withFilterPill={false}
             emptyMessage="No activity yet."
-            containerClassName="[&_.bg-card]:shadow-none"
+            containerClassName="[&_.bg-card]:shadow-none [&_[data-slot=table-cell]]:text-xs [&_[data-slot=table-head]]:text-xs [&_[data-slot=table-container]::-webkit-scrollbar]:h-1 [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:rounded-full [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:bg-border [&_[data-slot=table-container]::-webkit-scrollbar-track]:bg-transparent"
           />
         </div>
 

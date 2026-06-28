@@ -3,8 +3,9 @@
 import { retrieveApps } from "@/actions/app";
 import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
-import { decrypt } from "@/integrations/encryption";
+import { decrypt, encrypt } from "@/integrations/encryption";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, patchJSON } from "@/lib/utils";
 import { AuthContext } from "@/types";
@@ -13,7 +14,12 @@ import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stella
 import { and, eq } from "drizzle-orm";
 
 export const postApiKey = safeAction(
-  async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
+  async (
+    params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">,
+    apiToken: string,
+    orgId?: string,
+    env?: Network
+  ) => {
     const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
     return await db
@@ -23,7 +29,7 @@ export const postApiKey = safeAction(
         id: generateResourceId("st_api", organizationId, 20),
         organizationId,
         environment,
-        token: generateResourceId("st_key", organizationId, 52),
+        token: `${SENSITIVE_KEY_PREFIX}${encrypt(apiToken)}`,
       })
       .returning()
       .then(([apiKey]) => apiKey);
@@ -131,7 +137,11 @@ export const resolveAuthContext = async (params: {
 
     if (!app) throw new AppError("Invalid App Token");
 
-    const payload = verifyJwt<AppContext>(rawToken, decrypt(app.appSecret), STELLARTOOLS_ID);
+    const payload = verifyJwt<AppContext>(
+      rawToken,
+      decrypt(app.appSecret?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
+      STELLARTOOLS_ID
+    );
 
     return {
       organizationId: payload.orgId,

@@ -2,6 +2,7 @@ import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
 import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } from "@/actions/subscription";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
@@ -33,7 +34,7 @@ export const POST = apiHandler({
     if (!secret) throw new AppError("Merchant keys not configured, please contact support");
 
     const refundId = generateResourceId("rf", payment_id, 15);
-    const secretKey = decrypt(secret.encrypted);
+    const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 
     const isValidPublicKeyResult = isValidPublicKey(wallet_address ?? payment?.wallets?.address);
 

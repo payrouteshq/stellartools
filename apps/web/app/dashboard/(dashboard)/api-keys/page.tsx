@@ -8,8 +8,9 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2 } from "@/components/icon";
 import { ApiKey } from "@/db";
 import { useAction } from "@/hooks/use-action";
-import { useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { generateResourceId } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
@@ -343,6 +344,7 @@ function ApiKeyModalContent({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
+  const { data: orgContext } = useOrgContext();
   const { handleCopy, copied } = useCopy();
   const [createdApiKey, setCreatedApiKey] = React.useState<string | null>(null);
 
@@ -372,18 +374,26 @@ function ApiKeyModalContent({
 
   const { mutate: createApiKeyAction, isPending: isCreatingApiKey } = useAction(
     async (data: ApiKeyFormData) => {
-      const apiKey = await postApiKey({
-        name: data.name,
-        scope: ["*"],
-        isRevoked: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        metadata: null,
-        lastUsedAt: null,
-      });
-      return { success: true, token: apiKey.token };
+      if (!orgContext) throw new Error("Organization not found");
+      const apiToken = generateResourceId("st_key", orgContext.id, 52);
+      await postApiKey(
+        {
+          name: data.name,
+          scope: ["*"],
+          isRevoked: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metadata: null,
+          lastUsedAt: null,
+        },
+        apiToken,
+        orgContext.id,
+        orgContext.environment
+      );
+      return { success: true, apiToken };
     },
     {
+      onSuccess: ({ apiToken }) => setCreatedApiKey(apiToken),
       invalidate: ["apikeys"],
       errorMsg: "Failed to create API key",
       successMsg: "API key created",
