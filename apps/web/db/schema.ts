@@ -7,13 +7,14 @@ import {
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
 } from "@/constant/schema.client";
-import { APP_INSTALLATION_STATUS, type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
+import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
   Primitive,
   ProductStatus,
   ProductType,
   SubscriptionData,
   WebhookEventType,
+  APP_INSTALLATION_STATUS,
   checkoutStatusEnum as checkoutStatusEnum$1,
   productStatusEnum as productStatusEnum$1,
   productTypeEnum as productTypeEnum$1,

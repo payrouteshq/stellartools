@@ -47,7 +47,9 @@ export const setup2fa = safeAction(async (accountId: string) => {
   if (!account) throw new AppError("Account not found");
 
   const existingEncrypted = account.metadata?.pending2faSecret as string | undefined;
-  const secret = existingEncrypted ? decrypt(existingEncrypted) : generateSecret();
+  const secret = existingEncrypted
+    ? decrypt(existingEncrypted.replace(SENSITIVE_KEY_PREFIX, ""))
+    : generateSecret();
 
   if (!existingEncrypted) {
     const pending2faSecret = `${SENSITIVE_KEY_PREFIX}${encrypt(secret)}`;

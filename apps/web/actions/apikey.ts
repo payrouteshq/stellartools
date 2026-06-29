@@ -14,25 +14,24 @@ import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stella
 import { and, eq } from "drizzle-orm";
 
 export const postApiKey = safeAction(
-  async (
-    params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">,
-    apiToken: string,
-    orgId?: string,
-    env?: Network
-  ) => {
+  async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
     const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-    return await db
+    const rawToken = generateResourceId("st_key", organizationId, 52);
+
+    const apiKey = await db
       .insert(apiKeys)
       .values({
         ...params,
         id: generateResourceId("st_api", organizationId, 20),
         organizationId,
         environment,
-        token: `${SENSITIVE_KEY_PREFIX}${encrypt(apiToken)}`,
+        token: `${SENSITIVE_KEY_PREFIX}${encrypt(rawToken)}`,
       })
       .returning()
       .then(([apiKey]) => apiKey);
+
+    return { ...apiKey, rawToken };
   }
 );
 
@@ -162,7 +161,7 @@ export const resolveAuthContext = async (params: {
     .select({ organizationId: organizations.id, environment: apiKeys.environment, apiKeyId: apiKeys.id })
     .from(apiKeys)
     .innerJoin(organizations, eq(apiKeys.organizationId, organizations.id))
-    .where(eq(apiKeys.token, `${SENSITIVE_KEY_PREFIX}${encrypt(apiKey)}`))
+    .where(and(eq(apiKeys.token, `${SENSITIVE_KEY_PREFIX}${encrypt(apiKey)}`), eq(apiKeys.isRevoked, false)))
     .limit(1);
 
   if (!row) return null;

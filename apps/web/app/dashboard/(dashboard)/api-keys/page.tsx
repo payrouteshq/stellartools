@@ -10,7 +10,6 @@ import { ApiKey } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
-import { generateResourceId } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
@@ -50,7 +49,7 @@ export default function ApiKeysPage() {
   const { handleCopy } = useCopy();
 
   const { mutate: deleteApiKeyAction, isPending: isDeletingApiKey } = useAction(deleteApiKey, {
-    invalidate: ["apikeys"],
+    invalidate: ["apiKeys"],
     onSuccess: () => AppModal.close(),
     successMsg: "API key deleted",
     errorMsg: "Failed to delete API key",
@@ -365,7 +364,7 @@ function ApiKeyModalContent({
       return { success: true, name };
     },
     {
-      invalidate: ["apikeys"],
+      invalidate: ["apiKeys"],
       errorMsg: "Failed to update API key",
       successMsg: "API key updated",
       onSuccess: () => onSuccess?.(),
@@ -375,8 +374,7 @@ function ApiKeyModalContent({
   const { mutate: createApiKeyAction, isPending: isCreatingApiKey } = useAction(
     async (data: ApiKeyFormData) => {
       if (!orgContext) throw new Error("Organization not found");
-      const apiToken = generateResourceId("st_key", orgContext.id, 52);
-      await postApiKey(
+      const result = await postApiKey(
         {
           name: data.name,
           scope: ["*"],
@@ -386,15 +384,14 @@ function ApiKeyModalContent({
           metadata: null,
           lastUsedAt: null,
         },
-        apiToken,
         orgContext.id,
         orgContext.environment
       );
-      return { success: true, apiToken };
+      return { success: true, apiToken: result.rawToken };
     },
     {
       onSuccess: ({ apiToken }) => setCreatedApiKey(apiToken),
-      invalidate: ["apikeys"],
+      invalidate: ["apiKeys"],
       errorMsg: "Failed to create API key",
       successMsg: "API key created",
     }
@@ -468,26 +465,22 @@ function ApiKeyModalContent({
           />
         </form>
       ) : createdApiKey ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Info className="text-muted-foreground h-4 w-4 shrink-0" />
-            <span className="truncate">Copy your API key now — you won't see it again.</span>
+            <Info className="h-4 w-4 shrink-0" />
+            Copy your API key now — you won't be able to see it again.
           </p>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Your API key</label>
-            <div className="border-border bg-muted/50 flex min-w-0 items-center gap-2 rounded-md border px-3 py-2">
-              <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm whitespace-nowrap">
-                {createdApiKey}
-              </code>
-              <Button type="button" variant="ghost" size="icon" onClick={handleCopyKey} className="h-8 w-8 shrink-0">
-                {copied ? (
-                  <CheckMark2 width={16} height={16} className="text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            <p className="text-muted-foreground truncate text-xs">Click copy to save to clipboard.</p>
+          <div className="border-border bg-muted/50 flex min-w-0 items-center gap-2 rounded-md border px-3 py-2">
+            <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm whitespace-nowrap">
+              {createdApiKey}
+            </code>
+            <Button type="button" variant="ghost" size="icon" onClick={handleCopyKey} className="h-8 w-8 shrink-0">
+              {copied ? (
+                <CheckMark2 width={16} height={16} className="text-green-600" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </div>
       ) : (

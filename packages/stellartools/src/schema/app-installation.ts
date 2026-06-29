@@ -22,3 +22,7 @@ export const appInstallationSettingsSchema: z.ZodType<AppInstallationSettings> =
       message: "Settings object is too large (max 32KB)",
     }
   );
+
+export const APP_INSTALLATION_STATUS = ["active", "suspended"] as const;
+
+export type AppInstallationStatus = (typeof APP_INSTALLATION_STATUS)[number];

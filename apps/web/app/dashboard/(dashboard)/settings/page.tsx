@@ -36,6 +36,7 @@ import {
   FileUpload,
   type FileWithPreview,
   InputOTP,
+  Separator,
   InputOTPGroup,
   InputOTPSlot,
   PhoneNumber,
@@ -67,9 +68,8 @@ import {
   Copy,
   ExternalLink,
   RotateCcw,
-  ShieldCheck,
-  ShieldOff,
 } from "lucide-react";
+import countryToCurrency from "country-to-currency";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -88,6 +88,8 @@ const organizationSchema = Schema.object({
   phoneNumber: phoneNumberSchema.optional().nullable(),
   description: Schema.string().optional(),
   logo: Schema.custom<FileWithPreview>((val) => val instanceof File).nullable(),
+  selectedCurrency: Schema.string(),
+  receiptEmails: Schema.boolean(),
 });
 
 type OrganizationFormData = Schema.infer<typeof organizationSchema>;
@@ -107,11 +109,8 @@ const ProfileTabContent = ({ user }: { user: User }) => {
   const { mutate: updateProfile, isPending: isSubmitting } = useAction(
     async (data: ProfileFormData) => {
       const formdata = new FormData();
-
       const file = data.avatar;
-
       if (file instanceof File) formdata.set("avatar", file);
-
       await putAccount(
         user.id,
         {
@@ -122,12 +121,49 @@ const ProfileTabContent = ({ user }: { user: User }) => {
         },
         { formDataWithFiles: formdata }
       );
-
       return true;
     },
     { successMsg: "Profile updated successfully", invalidate: ["current-user"], errorMsg: "Failed to update profile" }
   );
 
+  const { mutate: handleToggle2fa, isPending: isToggling2fa } = useAction(
+    async (checked: boolean) => {
+      if (checked) {
+        const response = await setup2fa(user.id);
+        return { ...response, isEnabling: true };
+      } else {
+        AppModal.open({
+          title: "Disable two-factor authentication",
+          description: "Enter the current 6-digit code from your authenticator app to confirm.",
+          size: "small",
+          content: <$2faModal userId={user.id} userEmail={user.email} />,
+        });
+        return { isEnabling: false };
+      }
+    },
+    {
+      invalidate: ["current-user"],
+      onSuccess: (data) => {
+        if ("isEnabling" in data && data.isEnabling && "secret" in data && "qrCodeDataUrl" in data) {
+          AppModal.open({
+            title: "Authenticator App",
+            size: "small",
+            showCloseButton: true,
+            content: <$2faModal userId={user.id} setupData={data} userEmail={user.email} />,
+          });
+        } else if ("isEnabling" in data && !data.isEnabling) {
+          AppModal.open({
+            title: "Disable two-factor authentication",
+            description: "Enter the current 6-digit code from your authenticator app to confirm.",
+            size: "small",
+            content: <$2faModal userId={user.id} userEmail={user.email} />,
+          });
+        }
+      },
+    }
+  );
+
+  const isTwoFactorEnabled = !!user.$2faSecret;
   const avatar = profileForm.watch("avatar");
 
   return (
@@ -147,12 +183,12 @@ const ProfileTabContent = ({ user }: { user: User }) => {
               enableTransformation
               targetFormat="image/png"
               error={profileForm.formState.errors.avatar?.message}
+              maxDimension={1024}
               placeholder=""
               description=""
               shape="circle"
               className="w-fit"
             />
-
             <div className="flex-1 space-y-2">
               <CardTitle className="text-xl">Profile Information</CardTitle>
               {user.createdAt && (
@@ -170,7 +206,7 @@ const ProfileTabContent = ({ user }: { user: User }) => {
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <form onSubmit={profileForm.handleSubmit((data) => updateProfile(data))} className="space-y-6">
             <RHF.Controller
               control={profileForm.control}
@@ -185,7 +221,6 @@ const ProfileTabContent = ({ user }: { user: User }) => {
                 />
               )}
             />
-
             <div className="space-y-2">
               <TextField
                 id="email"
@@ -213,6 +248,47 @@ const ProfileTabContent = ({ user }: { user: User }) => {
               </Button>
             </div>
           </form>
+
+          <Separator />
+
+          <div className="flex items-start justify-between gap-6">
+            <div className="space-y-0.5 min-w-0">
+              <p className="text-sm font-semibold">Two-Factor Authentication</p>
+              <p className="text-muted-foreground text-xs">
+                Add an extra layer of security by requiring a verification code from your authenticator app on each
+                sign-in.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {isTwoFactorEnabled && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive size-8"
+                  onClick={() =>
+                    AppModal.open({
+                      title: "Reset two-factor authentication",
+                      description:
+                        "If you've lost access to your authenticator app, verify your email to reset 2FA. You can set it up again afterwards.",
+                      size: "small",
+                      showCloseButton: true,
+                      content: <$2faModal userId={user.id} userEmail={user.email} />,
+                    })
+                  }
+                >
+                  <RotateCcw className="size-4" />
+                </Button>
+              )}
+              <Switch
+                checked={isTwoFactorEnabled}
+                onCheckedChange={handleToggle2fa}
+                disabled={isToggling2fa}
+                aria-label="Toggle two-factor authentication"
+                className="cursor-pointer"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
     </>
@@ -221,11 +297,30 @@ const ProfileTabContent = ({ user }: { user: User }) => {
 
 const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
 
-const CurrencyPickerCard = () => {
-  const { data: orgContext } = useOrgContext();
-  const [open, setOpen] = React.useState(false);
+// Build currency → country map for flag lookup
+const currencyToCountry: Record<string, string> = {};
+for (const [country, currency] of Object.entries(countryToCurrency)) {
+  if (!currencyToCountry[currency]) currencyToCountry[currency] = country;
+}
+// Override shared currencies with the most recognisable country
+Object.assign(currencyToCountry, { USD: "US", EUR: "EU", GBP: "GB", AUD: "AU", CAD: "CA", CHF: "CH", JPY: "JP", CNY: "CN" });
 
-  const { fiatRates, isLoading } = useCurrencyConverter();
+const getCurrencyFlag = (currencyCode: string): string => {
+  const country = currencyToCountry[currencyCode];
+  if (!country || country.length !== 2) return "";
+  try {
+    return String.fromCodePoint(...[...country.toUpperCase()].map((c) => 127397 + c.charCodeAt(0)));
+  } catch {
+    return "";
+  }
+};
+
+const OrganizationTabContent = ({ organization }: { organization: Organization }) => {
+  const { data: orgContext } = useOrgContext();
+  const [currencyOpen, setCurrencyOpen] = React.useState(false);
+
+  const { file, isLoading: imgLoading } = useFilePreview(organization.logoUrl);
+  const { fiatRates, isLoading: isLoadingCurrencies } = useCurrencyConverter();
 
   const currencyItems = React.useMemo(() => {
     if (!fiatRates) return [];
@@ -234,83 +329,7 @@ const CurrencyPickerCard = () => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [fiatRates]);
 
-  const { mutate: updateCurrency, isPending } = useAction(
-    async (code: string) => {
-      if (!orgContext?.id) return;
-      await putOrganization(orgContext.id, { selectedCurrency: code });
-    },
-    { invalidate: ["*"], successMsg: "Currency updated", errorMsg: "Failed to update currency" }
-  );
-
-  const selected = currencyItems.find((c) => c.code === orgContext?.selectedCurrency) ?? null;
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <CardTitle>Display Currency</CardTitle>
-        <CardDescription>
-          This is the currency used across your dashboard and shown to customers at checkout.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            {isLoading ? (
-              <div className="flex h-9 w-full max-w-xs items-center">
-                <Skeleton className="h-9 w-full max-w-xs rounded-lg" />
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={open}
-                className="h-9 w-full max-w-xs justify-between rounded-lg font-normal shadow-none"
-              >
-                <span className="truncate">{selected ? `${selected.name} (${selected.code})` : "Select currency"}</span>
-                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-              </Button>
-            )}
-          </PopoverTrigger>
-          <PopoverContent className="w-[320px] p-0" align="start" onWheel={(e) => e.stopPropagation()}>
-            <Command>
-              <CommandInput placeholder="Search currency..." />
-              <CommandList className="max-h-[280px]">
-                <CommandEmpty>No currency found.</CommandEmpty>
-                <CommandGroup>
-                  {currencyItems.map((item) => (
-                    <CommandItem
-                      key={item.code}
-                      value={`${item.name} ${item.code}`.toLowerCase()}
-                      disabled={isPending}
-                      onSelect={() => {
-                        updateCurrency(item.code);
-                        setOpen(false);
-                      }}
-                    >
-                      <span
-                        className={cn("flex-1 truncate", orgContext?.selectedCurrency === item.code && "font-medium")}
-                      >
-                        {item.name} ({item.code})
-                      </span>
-                      {orgContext?.selectedCurrency === item.code && <Check className="size-4 shrink-0" />}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </CardContent>
-    </Card>
-  );
-};
-
-const OrganizationTabContent = ({ organization }: { organization: Organization }) => {
-  const { data: orgContext } = useOrgContext();
-
-  const { file, isLoading: imgLoading } = useFilePreview(organization.logoUrl);
-
-  const organizationForm = RHF.useForm({
+  const form = RHF.useForm({
     resolver: zodResolver(organizationSchema),
     defaultValues: {
       id: organization.id,
@@ -318,6 +337,8 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
       description: organization.description ?? "",
       logo: undefined,
       phoneNumber: organization.phoneNumber ? phoneNumberFromString(organization.phoneNumber) : undefined,
+      selectedCurrency: organization.selectedCurrency,
+      receiptEmails: organization.settings?.disableNativeEmails !== true,
     },
     values: {
       id: organization.id,
@@ -325,6 +346,8 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
       description: organization.description ?? "",
       logo: file,
       phoneNumber: organization.phoneNumber ? phoneNumberFromString(organization.phoneNumber) : undefined,
+      selectedCurrency: organization.selectedCurrency,
+      receiptEmails: organization.settings?.disableNativeEmails !== true,
     },
   });
 
@@ -335,7 +358,12 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
       if (data.logo instanceof File) formData.set("logo", data.logo);
       await putOrganization(
         orgContext.id,
-        { name: data.name, description: data.description || null },
+        {
+          name: data.name,
+          description: data.description || null,
+          selectedCurrency: data.selectedCurrency,
+          settings: { ...(organization.settings ?? {}), disableNativeEmails: !data.receiptEmails },
+        },
         { formDataWithFiles: formData }
       );
       return true;
@@ -345,13 +373,14 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
         ["organization", orgContext?.id ? orgContext.id : undefined],
         ["sidebar-organizations"],
         ["org-context"],
+        "*",
       ],
-      successMsg: "Organization settings updated successfully",
+      successMsg: "Organization settings updated",
       errorMsg: "Failed to update organization settings",
     }
   );
 
-  const logo = organizationForm.watch("logo");
+  const logo = form.watch("logo");
 
   return (
     <>
@@ -361,7 +390,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
             <FileUpload
               label={null}
               value={logo ? [logo] : undefined}
-              onFilesChange={(files) => organizationForm.setValue("logo", files[0])}
+              onFilesChange={(files) => form.setValue("logo", files[0])}
               disabled={isSubmitting}
               dropzoneAccept={{ "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"] }}
               dropzoneMaxSize={5 * 1024 * 1024}
@@ -372,7 +401,6 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
               className="w-fit"
               isLoading={imgLoading}
             />
-
             <div className="flex-1 space-y-2">
               <CardTitle className="text-xl">Organization Information</CardTitle>
               <CardDescription className="mt-1">Update your organization details and branding.</CardDescription>
@@ -388,14 +416,10 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
       </Card>
 
       <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>Organization Details</CardTitle>
-          <CardDescription>Update your organization name and description</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={organizationForm.handleSubmit((data) => updateOrganization(data))} className="space-y-6">
+        <CardContent className="pt-6">
+          <form onSubmit={form.handleSubmit((data) => updateOrganization(data))} className="space-y-6">
             <RHF.Controller
-              control={organizationForm.control}
+              control={form.control}
               name="name"
               render={({ field, fieldState: { error } }) => (
                 <TextField
@@ -409,7 +433,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
             />
 
             <RHF.Controller
-              control={organizationForm.control}
+              control={form.control}
               name="phoneNumber"
               render={({ field, fieldState: { error } }) => (
                 <PhoneNumberField
@@ -426,14 +450,14 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
 
             <RHF.Controller
               name="id"
-              control={organizationForm.control}
+              control={form.control}
               render={({ field, fieldState: { error } }) => (
                 <TextField {...field} label="Organization ID" error={error?.message} id={field.name} disabled />
               )}
             />
 
             <RHF.Controller
-              control={organizationForm.control}
+              control={form.control}
               name="description"
               render={({ field, fieldState: { error } }) => (
                 <TextAreaField
@@ -448,16 +472,109 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
               )}
             />
 
+            <Separator />
+
+            <div className="flex items-center justify-between gap-6">
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-sm font-semibold">Display currency</p>
+                <p className="text-muted-foreground text-xs">
+                  Used across your dashboard and shown to customers at checkout.
+                </p>
+              </div>
+              <RHF.Controller
+                control={form.control}
+                name="selectedCurrency"
+                render={({ field }) => {
+                  const selected = currencyItems.find((c) => c.code === field.value) ?? null;
+                  const flag = getCurrencyFlag(field.value);
+                  return (
+                    <Popover open={currencyOpen} onOpenChange={setCurrencyOpen}>
+                      <PopoverTrigger asChild>
+                        {isLoadingCurrencies ? (
+                          <Skeleton className="h-9 w-48 rounded-lg shrink-0" />
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={currencyOpen}
+                            className="h-9 w-52 shrink-0 justify-between gap-2 font-normal shadow-none"
+                          >
+                            {flag && <span className="text-base leading-none shrink-0">{flag}</span>}
+                            <span className="flex-1 truncate text-left">
+                              {selected ? `${selected.name} (${selected.code})` : "Select currency"}
+                            </span>
+                            <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                          </Button>
+                        )}
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[320px] p-0" align="end" onWheel={(e) => e.stopPropagation()}>
+                        <Command>
+                          <CommandInput placeholder="Search currency..." />
+                          <CommandList className="max-h-[280px]">
+                            <CommandEmpty>No currency found.</CommandEmpty>
+                            <CommandGroup>
+                              {currencyItems.map((item) => {
+                                const itemFlag = getCurrencyFlag(item.code);
+                                return (
+                                  <CommandItem
+                                    key={item.code}
+                                    value={`${item.name} ${item.code}`.toLowerCase()}
+                                    onSelect={() => {
+                                      field.onChange(item.code);
+                                      setCurrencyOpen(false);
+                                    }}
+                                  >
+                                    {itemFlag && <span className="text-base leading-none shrink-0 mr-1">{itemFlag}</span>}
+                                    <span className={cn("flex-1 truncate", field.value === item.code && "font-medium")}>
+                                      {item.name} ({item.code})
+                                    </span>
+                                    {field.value === item.code && <Check className="size-4 shrink-0" />}
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  );
+                }}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-sm font-semibold">Receipt emails</p>
+                <p className="text-muted-foreground text-xs">
+                  StellarTools sends payment receipts to customers and first-payment alerts to you. Turn this off if a
+                  marketplace app like Resend or Loops is already handling emails for you.
+                </p>
+              </div>
+              <RHF.Controller
+                control={form.control}
+                name="receiptEmails"
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    className="mt-0.5 shrink-0 cursor-pointer"
+                    aria-label="Toggle receipt emails"
+                  />
+                )}
+              />
+            </div>
+
             <div className="flex justify-end">
-              <Button isLoading={isSubmitting} type="submit" disabled={isSubmitting} className="gap-2 shadow-none">
+              <Button isLoading={isSubmitting} type="submit" disabled={isSubmitting} className="shadow-none">
                 Save Changes
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-
-      <CurrencyPickerCard />
     </>
   );
 };
@@ -508,31 +625,23 @@ const $2faModal = ({
 
   if (step === "request") {
     return (
-      <div className="flex flex-col items-center gap-6 text-center">
+      <div className="flex flex-col gap-3">
         <p className="text-muted-foreground text-sm">
-          For your security, we can send a 6-digit code to{" "}
-          <span className="text-foreground font-medium">{userEmail}</span>, or you can use your authenticator app code
-          instead.
+          Send a one-time code to <span className="text-foreground font-medium">{userEmail}</span>, or verify with your
+          authenticator app directly.
         </p>
-        <div className="flex w-full flex-col gap-2">
-          <div className="flex w-full gap-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => AppModal.close()}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              isLoading={isSending}
-              disabled={isSending}
-              onClick={() => sendCode(userId)}
-            >
-              Send Code
-            </Button>
-          </div>
-          <Button type="button" variant="ghost" className="w-full" onClick={() => setStep("verify")}>
-            Use authenticator app instead
-          </Button>
-        </div>
+        <Button
+          type="button"
+          className="w-full"
+          isLoading={isSending}
+          disabled={isSending}
+          onClick={() => sendCode(userId)}
+        >
+          Send code to email
+        </Button>
+        <Button type="button" variant="outline" className="w-full" onClick={() => setStep("verify")}>
+          Use authenticator app
+        </Button>
       </div>
     );
   }
@@ -617,99 +726,6 @@ const $2faModal = ({
   );
 };
 
-const SecurityTabContent = ({ user }: { user: User }) => {
-  const { mutate: handleToggle, isPending: isToggling } = useAction(
-    async (checked: boolean) => {
-      if (checked) {
-        const response = await setup2fa(user.id);
-        return { ...response, isEnabling: true };
-      } else {
-        AppModal.open({
-          title: "Disable two-factor authentication",
-          description: "Enter the current 6-digit code from your authenticator app to confirm.",
-          size: "small",
-          content: <$2faModal userId={user.id} userEmail={user.email} />,
-        });
-        return { isEnabling: false };
-      }
-    },
-
-    {
-      invalidate: ["current-user"],
-      onSuccess: (data) => {
-        if ("isEnabling" in data && data.isEnabling && "secret" in data && "qrCodeDataUrl" in data) {
-          AppModal.open({
-            title: "Authenticator App",
-            size: "small",
-            showCloseButton: true,
-            content: <$2faModal userId={user.id} setupData={data} userEmail={user.email} />,
-          });
-        } else if ("isEnabling" in data && !data.isEnabling) {
-          AppModal.open({
-            title: "Disable two-factor authentication",
-            description: "Enter the current 6-digit code from your authenticator app to confirm.",
-            size: "small",
-            content: <$2faModal userId={user.id} userEmail={user.email} />,
-          });
-        }
-      },
-    }
-  );
-
-  const isTwoFactorEnabled = !!user.$2faSecret;
-
-  return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2">
-              {isTwoFactorEnabled ? (
-                <ShieldCheck className="text-primary h-5 w-5" />
-              ) : (
-                <ShieldOff className="text-muted-foreground h-5 w-5" />
-              )}
-              Two-Factor Authentication
-            </CardTitle>
-            <CardDescription>
-              Add an extra layer of security by requiring a verification code from your authenticator app on each
-              sign-in.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-3">
-            {isTwoFactorEnabled && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-destructive size-8"
-                onClick={() =>
-                  AppModal.open({
-                    title: "Reset two-factor authentication",
-                    description:
-                      "If you've lost access to your authenticator app, verify your email to reset 2FA. You can set it up again afterwards.",
-                    size: "small",
-                    showCloseButton: true,
-                    content: <$2faModal userId={user.id} userEmail={user.email} />,
-                  })
-                }
-              >
-                <RotateCcw className="size-4" />
-              </Button>
-            )}
-            <Switch
-              checked={isTwoFactorEnabled}
-              onCheckedChange={handleToggle}
-              disabled={isToggling}
-              aria-label="Toggle two-factor authentication"
-              className="cursor-pointer"
-            />
-          </div>
-        </div>
-      </CardHeader>
-    </Card>
-  );
-};
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useCookieState("settings_tab", "profile");
@@ -754,7 +770,6 @@ export default function SettingsPage() {
                 <UnderlineTabsTrigger value="profile">Profile</UnderlineTabsTrigger>
                 <UnderlineTabsTrigger value="organization">Organization</UnderlineTabsTrigger>
                 <UnderlineTabsTrigger value="api">API Keys</UnderlineTabsTrigger>
-                <UnderlineTabsTrigger value="security">Security</UnderlineTabsTrigger>
               </UnderlineTabsList>
 
               <UnderlineTabsContent value="profile" className="mt-6 space-y-6">
@@ -777,14 +792,6 @@ export default function SettingsPage() {
                     <Skeleton className="h-64 w-full rounded-lg" />
                   </div>
                 ) : null}
-              </UnderlineTabsContent>
-
-              <UnderlineTabsContent value="security" className="mt-6 space-y-6">
-                {user ? (
-                  <SecurityTabContent key={user.id} user={user} />
-                ) : (
-                  <Skeleton className="h-32 w-full rounded-lg" />
-                )}
               </UnderlineTabsContent>
 
               <UnderlineTabsContent value="api" className="mt-6 space-y-6">

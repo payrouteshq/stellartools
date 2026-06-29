@@ -1,6 +1,20 @@
 import * as React from "react";
 
-import { Body, Container, Font, Head, Hr, Html, Img, Preview, Section, Tailwind, Text } from "@react-email/components";
+import {
+  Body,
+  Column,
+  Container,
+  Font,
+  Head,
+  Hr,
+  Html,
+  Img,
+  Preview,
+  Row,
+  Section,
+  Tailwind,
+  Text,
+} from "@react-email/components";
 
 interface EmailLayoutProps {
   preview: string;
@@ -14,13 +28,23 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
     <Html lang="en">
       <Head>
         <Font
-          fontFamily="Inter"
+          fontFamily="DM Sans"
           fallbackFontFamily="sans-serif"
           webFont={{
-            url: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2",
+            url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywxg089UriCZOIHQ.woff2",
             format: "woff2",
           }}
           fontWeight={400}
+          fontStyle="normal"
+        />
+        <Font
+          fontFamily="DM Sans"
+          fallbackFontFamily="sans-serif"
+          webFont={{
+            url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Cp2ywxg089UriAZSKGYguYg.woff2",
+            format: "woff2",
+          }}
+          fontWeight={700}
           fontStyle="normal"
         />
       </Head>
@@ -30,17 +54,17 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
           theme: {
             extend: {
               colors: {
-                brand: "#6d28d9",
-                "brand-foreground": "#ffffff",
-                background: "#f8f8fd",
-                foreground: "#1e1e30",
-                muted: "#f3f3f9",
-                "muted-foreground": "#71717a",
-                border: "#e4e4ed",
+                primary: "#fdda24",
+                "primary-foreground": "#0f0f0f",
+                background: "#f6f7f8",
+                foreground: "#0f0f0f",
                 card: "#ffffff",
+                muted: "#f4f4f5",
+                "muted-foreground": "#5a5750",
+                border: "#e4e4e7",
               },
               fontFamily: {
-                sans: ["Inter", "sans-serif"],
+                sans: ["DM Sans", "sans-serif"],
               },
             },
           },
@@ -48,38 +72,78 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
       >
         <Body className="bg-background font-sans">
           <Container className="mx-auto max-w-[560px] py-10">
-            <Section className="bg-brand mb-6 rounded-xl px-8 py-6">
-              <div className="flex items-center gap-3">
-                {organizationLogo && (
-                  <Img
-                    src={organizationLogo}
-                    width={32}
-                    height={32}
-                    alt={organizationName}
-                    className="rounded-lg object-cover"
-                  />
-                )}
-                <Text className="text-brand-foreground m-0 text-lg font-bold">{organizationName}</Text>
-              </div>
+            {/* Org header */}
+            <Section className="mb-4 px-1">
+              <Row>
+                <Column>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {organizationLogo ? (
+                      <Img
+                        src={organizationLogo}
+                        width={20}
+                        height={20}
+                        alt={organizationName}
+                        style={{ borderRadius: "4px", display: "inline-block", verticalAlign: "middle" }}
+                      />
+                    ) : null}
+                    <Text
+                      style={{
+                        margin: 0,
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#0f0f0f",
+                        display: "inline",
+                        verticalAlign: "middle",
+                      }}
+                    >
+                      {organizationName}
+                    </Text>
+                  </div>
+                </Column>
+              </Row>
             </Section>
 
-            <Section className="border-border bg-card rounded-xl border px-8 py-8">{children}</Section>
+            {/* Main card */}
+            <Section
+              style={{
+                backgroundColor: "#ffffff",
+                borderRadius: "12px",
+                border: "1px solid #e4e4e7",
+                padding: "32px",
+              }}
+            >
+              {children}
+            </Section>
 
-            <Section className="mt-6 px-2">
-              <Hr className="border-border mb-4" />
-              <div className="flex items-center justify-center gap-2">
-                <Img
-                  src="https://xlkijtc9st.ufs.sh/f/vCOBlQjXN5w7U4OBdbvs1DcodmjBUHtCP4IE7bazNT8ORYfK"
-                  width={20}
-                  height={20}
-                  alt="StellarTools logo"
-                  className="inline-block"
-                />
-                <Text className="text-muted-foreground m-0 text-center text-xs">
-                  Powered by <span className="text-foreground font-semibold">StellarTools</span> — Stellar Payments
-                  Infrastructure
-                </Text>
-              </div>
+            {/* Footer */}
+            <Section className="mt-6 px-1">
+              <Hr style={{ borderColor: "#e4e4e7", marginBottom: "16px" }} />
+              <Row>
+                <Column align="center">
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Img
+                      src="https://xlkijtc9st.ufs.sh/f/vCOBlQjXN5w7U4OBdbvs1DcodmjBUHtCP4IE7bazNT8ORYfK"
+                      width={16}
+                      height={16}
+                      alt="StellarTools"
+                      style={{ display: "inline-block", verticalAlign: "middle" }}
+                    />
+                    <Text
+                      style={{
+                        margin: 0,
+                        fontSize: "11px",
+                        color: "#5a5750",
+                        display: "inline",
+                        verticalAlign: "middle",
+                      }}
+                    >
+                      Powered by{" "}
+                      <span style={{ color: "#0f0f0f", fontWeight: 600 }}>StellarTools</span>
+                      {" "}— Stellar Payments Infrastructure
+                    </Text>
+                  </div>
+                </Column>
+              </Row>
             </Section>
           </Container>
         </Body>

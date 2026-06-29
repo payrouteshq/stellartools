@@ -143,9 +143,17 @@ export const putOrganization = async (
     params.logoUrl = logoUploadResult?.[0] ?? null;
   }
 
+  const org = await retrieveOrganization(id);
+
+  const { settings: settingsPatch, ...baseUpdate } = params;
+
   const [organization] = await db
     .update(organizations)
-    .set({ ...params, updatedAt: new Date() })
+    .set({
+      ...baseUpdate,
+      ...(settingsPatch ? { settings: { ...(org.settings ?? {}), ...settingsPatch } } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(organizations.id, id))
     .returning();
 

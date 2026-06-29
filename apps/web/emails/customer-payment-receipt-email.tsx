@@ -18,11 +18,11 @@ export const CustomerPaymentReceiptEmail = (props: CustomerPaymentReceiptEmailPr
   return (
     <EmailLayout preview={preview} organizationName={organizationName} organizationLogo={organizationLogo}>
       <Section className="border-border mb-6 overflow-hidden rounded-xl border">
-        <Section className="bg-[#0b2644] px-8 py-7 text-center">
-          <Text className="mb-1 text-xs font-medium tracking-[0.16em] text-white/80 uppercase">
+        <Section className="bg-foreground px-8 py-7 text-center">
+          <Text className="m-0 mb-1 text-xs font-medium tracking-[0.16em] text-white/60 uppercase">
             {organizationName} received your payment of
           </Text>
-          <Text className="m-0 text-3xl leading-tight font-bold text-white">{amount}</Text>
+          <Text className="m-0 text-3xl leading-tight font-bold text-primary">{amount}</Text>
         </Section>
 
         <Section className="bg-card px-8 py-6">

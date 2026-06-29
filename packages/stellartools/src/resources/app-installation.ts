@@ -1,10 +1,12 @@
 import { Result } from "better-result";
 
 import { ApiClient } from "../api-client";
-import { AppInstallationSettings, appInstallationSettingsSchema } from "../schema/app-installation";
+import {
+  AppInstallationSettings,
+  AppInstallationStatus,
+  appInstallationSettingsSchema,
+} from "../schema/app-installation";
 import { unwrap, validateSchema } from "../utils";
-
-export type AppInstallationStatus = "active" | "suspended";
 
 export class AppInstallationApi {
   constructor(private apiClient: ApiClient) {}

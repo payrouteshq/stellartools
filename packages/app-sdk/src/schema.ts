@@ -88,5 +88,3 @@ export const appManifestSchema = Schema.object({
 });
 
 export type AppManifest = Schema.infer<typeof appManifestSchema>;
-
-export const APP_INSTALLATION_STATUS = ["active", "suspended"] as const;
