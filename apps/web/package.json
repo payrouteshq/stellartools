@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "concurrently -n next,mint \"next dev\" \"cd app/landing/docs && pnpm dlx mintlify dev --port 3333\"",
@@ -68,7 +68,7 @@
     "react-dom": "19.2.3",
     "react-email-components": "^0.1.13",
     "react-hook-form": "^7.68.0",
-    "resend": "^6.6.0",
+    "resend": "^0.1.1",
     "server-only": "^0.0.1",
     "sharp": "^0.34.5",
     "tailwind-scrollbar": "^4.0.2",
