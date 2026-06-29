@@ -58,7 +58,7 @@ export const generateAppToken = async (
     },
   };
 
-  const rawToken = signJwt(context, "1h", decrypt(row.appSecret), STELLARTOOLS_ID);
+  const rawToken = signJwt(context, "1h", decrypt(row.appSecret.replaceAll(SENSITIVE_KEY_PREFIX, "")), STELLARTOOLS_ID);
   const token = `${APP_TOKEN_PREFIX}${rawToken}`;
 
   return token;
