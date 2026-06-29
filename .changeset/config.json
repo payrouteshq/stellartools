@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": ["@stellartools/web", "@stellartools/app-resend", "@stellartools/app-loops"]
 }

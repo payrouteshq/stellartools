@@ -1,5 +1,5 @@
 {
-  "name": "loops",
+  "name": "@stellartools/app-loops",
   "version": "0.1.0",
   "private": true,
   "scripts": {

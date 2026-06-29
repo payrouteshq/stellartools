@@ -9,4 +9,4 @@
 "@stellartools/uploadthing-adapter": patch
 ---
 
-fix: \* various improvements
+fix: various improvements
