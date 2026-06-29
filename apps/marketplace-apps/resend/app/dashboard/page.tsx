@@ -166,7 +166,7 @@ const Dashboard = () => {
             activeKey="sent"
             color="var(--chart-1)"
             className="h-[200px]"
-            xAxisFormatter={(value: number) => (Number(value) % 5 === 0 ? String(value) : "")}
+            xAxisFormatter={(value: string | number) => (Number(value) % 5 === 0 ? String(value) : "")}
           />
           <dl className="grid grid-cols-3 gap-4">
             {[
