@@ -18,14 +18,14 @@ export const OPTIONS = createOptionsHandler();
 export const GET = apiHandler({
   auth: ["session", "apikey", "app", "portal"],
   requiredAppScope: "read:subscriptions",
-  schema: { params: Schema.object({ id: Schema.string() }) },
-  handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
+  schema: { params: Schema.object({ subscriptionId: Schema.string() }) },
+  handler: async ({ params: { subscriptionId }, auth: { organizationId, environment } }) => {
     const {
       data: [subscription],
     } = await retrieveSubscriptions(
       organizationId,
       environment,
-      { subscriptionId: id },
+      { subscriptionId },
       { withCustomer: true, withProduct: true, withCustomerWallets: true }
     );
 
@@ -56,14 +56,14 @@ export const GET = apiHandler({
 
     if (diff) {
       await runAtomic(async () => {
-        const updated = await putSubscription(id, chainStateAsDb, organizationId, environment);
+        const updated = await putSubscription(subscriptionId, chainStateAsDb, organizationId, environment);
         updatedSubscription = updated;
       });
     }
 
     const [lastPayment, [product]] = await Promise.all([
       retrievePayments(organizationId, environment, {
-        subscriptionId: id,
+        subscriptionId,
         limit: 1,
       }).then((res) => res.data[0]),
       retrieveProducts(organizationId, environment, { productId: subscription.productId }),

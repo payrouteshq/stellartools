@@ -5,15 +5,15 @@ import { Result, z as Schema, updateProductSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
-const paramsSchema = Schema.object({ id: Schema.string() });
+const paramsSchema = Schema.object({ productId: Schema.string() });
 
 export const PUT = apiHandler({
   auth: ["session", "apikey"],
   schema: { body: updateProductSchema, params: paramsSchema },
   mcp: { name: "update_product", description: "Update a product" },
-  handler: async ({ body, auth: { organizationId, environment }, params: { id } }) => {
+  handler: async ({ body, auth: { organizationId, environment }, params: { productId } }) => {
     const product = await putProduct(
-      id,
+      productId,
       organizationId,
       environment,
       toCamelCase({
@@ -32,8 +32,8 @@ export const DELETE = apiHandler({
   auth: ["session", "apikey"],
   schema: { params: paramsSchema },
   mcp: { name: "delete_product", description: "Delete a product" },
-  handler: async ({ params: { id }, auth: { organizationId } }) => {
-    const product = await deleteProduct(id, organizationId);
+  handler: async ({ params: { productId }, auth: { organizationId } }) => {
+    const product = await deleteProduct(productId, organizationId);
     return Result.ok(product);
   },
 });

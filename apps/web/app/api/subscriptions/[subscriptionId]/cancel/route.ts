@@ -8,14 +8,14 @@ export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
   auth: ["session", "apikey", "portal"],
-  schema: { params: Schema.object({ id: Schema.string() }) },
-  handler: async ({ params: { id }, auth: { organizationId, environment } }) => {
+  schema: { params: Schema.object({ subscriptionId: Schema.string() }) },
+  handler: async ({ params: { subscriptionId }, auth: { organizationId, environment } }) => {
     const {
       data: [subscription],
     } = await retrieveSubscriptions(
       organizationId,
       environment,
-      { subscriptionId: id },
+      { subscriptionId },
       { withCustomer: true, withProduct: true, withCustomerWallets: true }
     );
 
@@ -32,7 +32,7 @@ export const POST = apiHandler({
 
     if (cancellationResult.isErr()) return Result.err(cancellationResult.error);
 
-    return await putSubscription(id, { canceledAt: new Date() }, organizationId, environment).then((_) =>
+    return await putSubscription(subscriptionId, { canceledAt: new Date() }, organizationId, environment).then((_) =>
       Result.ok({ success: true })
     );
   },

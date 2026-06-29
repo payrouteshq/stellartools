@@ -8,10 +8,10 @@ export const GET = apiHandler({
   auth: ["apikey", "app"],
   requiredAppScope: "read:payments",
   mcp: { name: "get_payment", description: "Get a payment" },
-  schema: { params: Schema.object({ id: Schema.string() }) },
-  handler: async ({ params, auth }) => {
+  schema: { params: Schema.object({ paymentId: Schema.string() }) },
+  handler: async ({ params: { paymentId }, auth }) => {
     const { data } = await resolvePublicPayments(auth.organizationId, auth.environment, {
-      paymentId: params.id,
+      paymentId,
       limit: 1,
     });
 
