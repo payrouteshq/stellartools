@@ -54,7 +54,7 @@ export function EnvironmentToggle({ currentEnvironment }: EnvironmentToggleProps
 
 export function TestModeBanner() {
   return (
-    <div className="bg-primary border-border fixed top-0 right-0 left-0 z-50 border-b px-6 py-1">
+    <div className="bg-primary border-border fixed top-0 right-0 left-0 z-39 border-b px-6 py-1">
       <div className="flex w-screen items-center justify-between">
         <div />
         <div className="flex items-center gap-2">
