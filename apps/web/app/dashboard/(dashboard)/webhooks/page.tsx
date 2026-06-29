@@ -531,32 +531,15 @@ function WebhooksPageContent() {
             </Button>
           </header>
 
-          <Tabs defaultValue="webhooks">
-            <TabsList>
-              <TabsTrigger value="overview" className="data-[state=active]:shadow-none">
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="webhooks" className="data-[state=active]:shadow-none">
-                Webhooks
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="py-12">
-              <ComingSoonView />
-            </TabsContent>
-
-            <TabsContent value="webhooks" className="pt-4">
-              <DataTable
-                columns={columns}
-                data={webhooks as any}
-                isLoading={isLoading}
-                onRowClick={(row) => router.push(`/webhooks/${row.id}`)}
-                actions={tableActions}
-                columnFilters={columnFilters}
-                setColumnFilters={setColumnFilters}
-              />
-            </TabsContent>
-          </Tabs>
+          <DataTable
+            columns={columns}
+            data={webhooks as any}
+            isLoading={isLoading}
+            onRowClick={(row) => router.push(`/webhooks/${row.id}`)}
+            actions={tableActions}
+            columnFilters={columnFilters}
+            setColumnFilters={setColumnFilters}
+          />
         </div>
       </DashboardSidebarInset>
     </DashboardSidebar>
@@ -897,30 +880,3 @@ function WebhooksModalContent({
   );
 }
 
-function ComingSoonView() {
-  return (
-    <div className="flex flex-col items-center justify-center space-y-6 py-20 text-center">
-      <div className="relative">
-        <div className="bg-primary/20 absolute inset-0 animate-pulse rounded-full blur-3xl" />
-        <div className="from-primary/20 border-primary/20 relative flex size-24 items-center justify-center rounded-3xl border bg-linear-to-br to-transparent">
-          <BarChart3 className="text-primary size-12" />
-        </div>
-        <div className="absolute -top-2 -right-2">
-          <Sparkles className="text-primary size-6 animate-pulse" />
-        </div>
-      </div>
-      <div className="max-w-sm space-y-3">
-        <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed font-medium">
-          We’re building real-time monitoring to track your delivery rates, latencies, and payload health.
-        </p>
-        <Badge
-          variant="secondary"
-          className="bg-primary/10 text-primary border-none text-[10px] font-bold tracking-widest uppercase"
-        >
-          In Development
-        </Badge>
-      </div>
-    </div>
-  );
-}

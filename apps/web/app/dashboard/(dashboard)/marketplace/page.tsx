@@ -32,14 +32,6 @@ export default async function MarketplacePage() {
             </a>
           </div>
 
-          <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-            <Construction className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              <span className="font-semibold">Marketplace is in development.</span> All integrations listed below are
-              coming soon
-            </p>
-          </div>
-
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {apps.map((app) => (
               <Link key={app.id} href={`/marketplace/${app.slug}`} className="group block">
