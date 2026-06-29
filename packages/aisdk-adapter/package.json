@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/aisdk-adapter",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Stellar Tools AI SDK Adapter",
   "main": "dist/index.js",
   "scripts": {
