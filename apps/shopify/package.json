@@ -1,0 +1,40 @@
+{
+  "name": "@stellartools/shopify",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "shopify app dev",
+    "build": "remix vite:build",
+    "start": "remix-serve ./build/server/index.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remix-run/node": "^2.16.3",
+    "@remix-run/react": "^2.16.3",
+    "@remix-run/serve": "^2.16.3",
+    "@shopify/app-bridge-react": "^4.1.7",
+    "@shopify/polaris": "^13.9.5",
+    "@shopify/polaris-icons": "^9.3.1",
+    "@shopify/shopify-app-remix": "^3.7.0",
+    "@stellartools/core": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "isbot": "^5.1.27",
+    "nanoid": "^5.1.5",
+    "postgres": "^3.4.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "^2.16.3",
+    "@shopify/cli": "3.x",
+    "@types/node": "^22.15.29",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vite-tsconfig-paths": "^5.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

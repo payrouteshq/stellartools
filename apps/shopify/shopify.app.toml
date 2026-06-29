@@ -1,0 +1,43 @@
+name = "StellarTools Payments"
+client_id = "${SHOPIFY_API_KEY}"
+application_url = "${SHOPIFY_APP_URL}"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "${DEV_STORE_URL}"
+
+[access_scopes]
+scopes = "read_products,write_products,read_customers,write_customers,read_orders,write_orders,write_payment_gateways,write_payment_sessions"
+
+[auth]
+redirect_urls = [
+  "${SHOPIFY_APP_URL}/auth/callback",
+  "${SHOPIFY_APP_URL}/auth/shopify/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+  [[webhooks.subscriptions]]
+  topics = ["app/uninstalled"]
+  uri = "/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = ["products/create", "products/update", "products/delete"]
+  uri = "/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/create", "customers/update", "customers/delete"]
+  uri = "/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = ["orders/cancelled"]
+  uri = "/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "/gdpr"
+
+[pos]
+embedded = false

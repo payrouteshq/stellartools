@@ -49,4 +49,24 @@ export interface Payment {
    * The metadata of the payment.
    */
   metadata: Record<string, unknown> | null;
+
+  /**
+   * The currency code of the payment
+   */
+  currency_code: string;
+
+  /**
+   * The amount of the payment in cents
+   */
+  amount_cents: number;
+
+  /**
+   * The selected asset code of the payment
+   */
+  selected_asset_code: string;
+
+  /**
+   * The selected asset issuer of the payment
+   */
+  selected_asset_issuer: string;
 }

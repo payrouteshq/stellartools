@@ -615,6 +615,39 @@ export const appLogs = pgTable("app_log", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const shopifySessions = pgTable("shopify_session", {
+  id: text("id").primaryKey(),
+  shop: text("shop").notNull(),
+  state: text("state").notNull(),
+  isOnline: boolean("is_online").notNull().default(false),
+  scope: text("scope"),
+  expires: timestamp("expires"),
+  accessToken: text("access_token"),
+  userId: text("user_id"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  email: text("email"),
+  accountOwner: boolean("account_owner").notNull().default(false),
+  locale: text("locale"),
+  collaborator: boolean("collaborator").default(false),
+  emailVerified: boolean("email_verified").default(false),
+});
+
+export const shopifyShops = pgTable("shopify_shop", {
+  id: text("id").primaryKey(),
+  shopDomain: text("shop_domain").notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  stellartoolsOrgId: text("stellartools_org_id").references(() => organizations.id, { onDelete: "set null" }),
+  stellartoolsApiKey: text("stellartools_api_key"),
+  environment: networkEnum("environment").notNull().default("testnet"),
+  settings: jsonb("settings").$type<{
+    syncProducts: boolean;
+    syncCustomers: boolean;
+  } | null>(),
+  installedAt: timestamp("installed_at").defaultNow().notNull(),
+  uninstalledAt: timestamp("uninstalled_at"),
+});
+
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;
@@ -655,5 +688,8 @@ export type ResolvedSubscription = Subscription & {
   product?: Product | null;
   customerWallet?: CustomerWallet | null;
 };
+
+export type ShopifySession = InferSelectModel<typeof shopifySessions>;
+export type ShopifyShop = InferSelectModel<typeof shopifyShops>;
 
 export type { ProductStatus, ProductType };
