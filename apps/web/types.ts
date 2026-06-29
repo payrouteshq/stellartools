@@ -72,14 +72,4 @@ export type ApiList<T> = {
   url: string;
 };
 
-export type ApiResponse<T> = T & {
-  object: string;
-  live_mode: boolean;
-  billing_details?: any;
-  latest_attempt?: any;
-  next_action?: any;
-  line_items?: ApiList<any>;
-  related_resources?: Record<string, any>;
-};
-
 // -- INTERNAL
