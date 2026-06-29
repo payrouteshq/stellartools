@@ -2,5 +2,10 @@
   "buildCommand": "pnpm -w --filter @stellartools/core run build:dev && pnpm -w --filter @stellartools/app-sdk run build && pnpm -w --filter @stellartools/shared-ui run build && next build --webpack",
   "installCommand": "pnpm install",
   "framework": "nextjs",
-  "crons": []
+  "crons": [
+    {
+      "path": "/dashboard/~api/cron/charge-subscription",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

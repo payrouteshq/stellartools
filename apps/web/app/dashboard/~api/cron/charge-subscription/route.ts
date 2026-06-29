@@ -9,8 +9,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { Result } from "@stellartools/core";
 
 export const GET = apiHandler({
-  auth: null, // TODO: protect with Vercel secret
-
+  auth: ["vercelToken"],
   handler: async () => {
     const { data: subs } = await retrieveSubscriptions(
       undefined,
@@ -18,6 +17,7 @@ export const GET = apiHandler({
       { isDue: true },
       { withCustomer: true, withProduct: true, withCustomerWallets: true }
     );
+
     const stats = { processed: 0, succeeded: 0, failed: 0 };
 
     for (const sub of subs) {

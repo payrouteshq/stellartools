@@ -16,13 +16,14 @@ export type DangerouslyAllowedAppScopes = "write:app-installation" | "read:app-i
 
 export const mcpToolsRegistry = new Map<string, HandlerConfig<any, any, any>>();
 
-export type AuthScope = "session" | "apikey" | "portal" | "app";
+export type AuthScope = "session" | "apikey" | "portal" | "app" | "vercelToken";
 
 const AUTH_SCOPE_LABELS: Record<AuthScope, string> = {
   apikey: "API Key",
   session: "Session Token",
   portal: "Portal Token",
   app: "App Token",
+  vercelToken: "Vercel Cron Secret",
 };
 
 function authRequiredMessage(scopes: Array<AuthScope>): string {
@@ -75,6 +76,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
           sessionToken: req.headers.get("x-session-token"),
           portalToken: req.headers.get("x-portal-token"),
           appToken: req.headers.get("x-stellartools-app-token"),
+          vercelToken: req.headers.get("authorization"), // Vercel Cron uses standard Auth header
         };
 
         const hasAnyCreds = Object.values(authParams).some(Boolean);
