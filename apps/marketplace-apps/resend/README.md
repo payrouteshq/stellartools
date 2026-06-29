@@ -41,4 +41,4 @@ app/
 
 payment.confirmed, payment.failed, refund.succeeded, subscription.created, subscription.canceled, customer.created
 
-Full event reference: https://stellartools.dev/docs/webhooks#event-types
+Full event reference: https://docs.stellartools.dev/webhooks#event-types
