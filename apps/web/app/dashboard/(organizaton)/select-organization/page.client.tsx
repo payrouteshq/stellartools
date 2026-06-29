@@ -319,9 +319,6 @@ const CreateOrganizationModalContent = ({
           socialLinks: null,
           supportEmail: null,
           selectedCurrency: selectedCurrency ?? "USD",
-          payoutAssetCode: null,
-          payoutAssetIssuer: null,
-          payoutFiatOptions: null,
         },
         defaultEnvironment,
         { formDataWithFiles: formData }

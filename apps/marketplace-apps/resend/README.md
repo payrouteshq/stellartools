@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Resend — StellarTools Marketplace App
 
-## Getting Started
+Sends transactional emails via Resend when payment, subscription, and refund events fire in a merchant's StellarTools account.
 
-First, run the development server:
+## What it does
+
+- On install, the merchant pastes their Resend API key. The app verifies it and auto-resolves a sender address from their first verified domain.
+- The dashboard lets merchants map each event type to a Resend email template ID, and toggle customer contact syncing on or off.
+- When an event fires, the webhook handler sends the corresponding email using the saved template and the event payload as template variables.
+- New customers are optionally synced to a Resend contacts audience when customerSyncEnabled is true.
+
+## Running locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev        # starts on port 3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set these env vars:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+YOUR_APP_SECRET=          # signing secret from the StellarTools developer portal
+NEXT_PUBLIC_APP_URL=http://localhost:3001
+WEBHOOK_SECRET=           # webhook signing secret
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Structure
 
-## Learn More
+```
+app/
+  page.tsx                 routes to /authentication or /dashboard based on settings
+  authentication/          API key input and validation
+  dashboard/               template ID mapping and sync toggle
+  api/webhook/route.ts     receives and handles StellarTools events
+  actions/
+    context.ts             resolveAppContext — verifies the st_token server-side
+    resend.ts              validateApiKeyAndConnect, email sending helpers
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Events handled
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+payment.confirmed, payment.failed, refund.succeeded, subscription.created, subscription.canceled, customer.created
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Full event reference: https://stellartools.dev/docs/webhooks#event-types

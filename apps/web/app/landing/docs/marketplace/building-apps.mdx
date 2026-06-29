@@ -1,21 +1,33 @@
 ---
 title: "Building Marketplace Apps"
-description: "Ship an app that runs inside the StellarTools dashboard"
+description: "Ship an app that runs natively inside the StellarTools dashboard."
 ---
 
-StellarTools marketplace apps are web apps that run inside an `iframe` embedded in the dashboard. Your app receives the active organization's context — including decrypted installation settings — via a signed token, and can subscribe to real-time payment events via webhooks.
+StellarTools Marketplace Apps are web applications embedded directly into the merchant dashboard via an `iframe`. Your app automatically inherits the merchant's active organization context, theme, and time-range filters — and can react to real-time payment events via webhooks.
 
-## Install the SDK
+## Installation
+
+Install the core libraries required to communicate with the host dashboard and use our shared design system.
 
 ```bash
-npm install @stellartools/app-sdk @stellartools/core
+npm install @stellartools/app-sdk @stellartools/core @stellartools/shared-ui
+```
+
+## Styling
+
+Import the shared CSS so your app looks native inside the StellarTools dashboard.
+
+```css
+/* globals.css */
+@import "tailwindcss";
+@import "@stellartools/shared-ui/dist/output.css";
 ```
 
 ## Bootstrap your app
 
-### Providers
+### Server-side verification
 
-`st_token` is a signed JWT containing the org context. Because your app secret must stay server-side, verification happens in a server action or API route.
+When StellarTools loads your app it appends `st_token` to your `baseUrl`. This token is a signed JWT prefixed with `st_app_` that contains the `AppContext` — the identity, permissions, and decrypted settings for this installation. Because your App Secret must never reach the browser, verification happens in a server action.
 
 ```ts
 // app/actions/context.ts
@@ -36,21 +48,23 @@ export async function resolveAppContext(token: string): Promise<AppContext | nul
 }
 ```
 
-**Client provider** — reads the token from the URL, calls the server action, and mounts the context:
+### Client provider
+
+Reads the token from the URL, calls the server action, and mounts the context for the entire component tree. `StellarAppBootstrap` ensures internal links and fetch calls resolve correctly inside the iframe.
 
 ```tsx
 // app/providers.tsx
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
-import { type AppContext, StellarToolsAppProvider } from "@stellartools/app-sdk";
+
 import { resolveAppContext } from "@/app/actions/context";
+import { type AppContext, StellarAppBootstrap, StellarToolsAppProvider } from "@stellartools/app-sdk";
+import { useSearchParams } from "next/navigation";
 
 function AppContextBridge({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const token = searchParams.get("st_token");
-
   const [context, setContext] = React.useState<AppContext | null>(null);
 
   React.useEffect(() => {
@@ -65,7 +79,12 @@ function AppContextBridge({ children }: { children: React.ReactNode }) {
 
   if (!context) return null;
 
-  return <StellarToolsAppProvider context={context}>{children}</StellarToolsAppProvider>;
+  return (
+    <StellarToolsAppProvider context={context}>
+      <StellarAppBootstrap baseUrl={process.env.NEXT_PUBLIC_APP_URL!} />
+      {children}
+    </StellarToolsAppProvider>
+  );
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -77,17 +96,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### Route based on settings
+### Routing on settings
 
-The root page reads `context.settings` and routes the user — no fetch required. Settings are already decrypted in the token.
+The root page reads `context.settings` and routes the user — no fetch required. Settings are already decrypted inside the token.
 
 ```tsx
 // app/page.tsx
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+
 import { useStellarToolsContext } from "@stellartools/app-sdk";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function AppRouter() {
   const router = useRouter();
@@ -96,8 +116,6 @@ function AppRouter() {
 
   useEffect(() => {
     const qs = searchParams.toString() ? `?${searchParams.toString()}` : "";
-    // Route based on whether the user has completed setup.
-    // For example, the Resend app checks for `settings.resendApiKey`.
     router.replace(settings?.connectedApiKey ? `/dashboard${qs}` : `/authentication${qs}`);
   }, [settings, router, searchParams]);
 
@@ -105,25 +123,30 @@ function AppRouter() {
 }
 
 export default function Page() {
-  return <Suspense><AppRouter /></Suspense>;
+  return (
+    <Suspense>
+      <AppRouter />
+    </Suspense>
+  );
 }
 ```
 
-## Context fields
+## AppContext reference
 
 `useStellarToolsContext()` returns the full `AppContext` decoded from `st_token`.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `orgId` | `string` | The active organization |
-| `env` | `"testnet" \| "mainnet"` | Which network the org is on |
-| `instId` | `string` | Unique ID for this installation |
-| `appId` | `string` | Your app's ID |
-| `scopes` | `AppScope[]` | Scopes granted at install time |
-| `settings` | `Record<string, any>` | Decrypted installation settings — read directly, no fetch needed |
-| `ui.theme` | `"light" \| "dark"` | The dashboard's current theme |
-| `ui.periodDays` | `number` | The selected time window (e.g. 30 days) |
-| `ui.currency` | `string` | The dashboard's display currency |
+| Field           | Type                     | Description                                                               |
+| --------------- | ------------------------ | ------------------------------------------------------------------------- |
+| `orgId`         | `string`                 | The active organization                                                   |
+| `env`           | `"testnet" \| "mainnet"` | Which network the org is on                                               |
+| `instId`        | `string`                 | Unique ID for this installation                                           |
+| `appId`         | `string`                 | Your app's ID                                                             |
+| `scopes`        | `AppScope[]`             | Scopes granted at install time                                            |
+| `settings`      | `Record<string, any>`    | Decrypted installation settings — read directly, no fetch needed          |
+| `st_token`      | `string`                 | The prefixed `st_app_...` JWT — pass this to server actions and SDK calls |
+| `ui.theme`      | `"light" \| "dark"`      | The dashboard's current theme                                             |
+| `ui.periodDays` | `number`                 | The selected time window (e.g. `30`)                                      |
+| `ui.currency`   | `string`                 | The dashboard's display currency                                          |
 
 ## Fetching data
 
@@ -134,30 +157,37 @@ The fetcher receives the full `AppContext` as its argument — use it to access 
 ```tsx
 "use client";
 
-import { useStellarToolsContext, useStellarToolsQuery } from "@stellartools/app-sdk";
 import { getEmailStats } from "@/app/actions";
+import { useStellarToolsQuery } from "@stellartools/app-sdk";
 
 export default function DashboardPage() {
-  const { settings, ui } = useStellarToolsContext();
-
   const { data: stats } = useStellarToolsQuery(
     ["stats"],
-    // context is the full AppContext — use settings, ui, etc.
     async (context) => getEmailStats(context.settings.apiKey, context.ui.periodDays),
-    { enabled: !!settings.apiKey }
+    { enabled: (ctx) => !!ctx.settings.apiKey }
   );
 
   return <div>{/* render stats */}</div>;
 }
 ```
 
+### Resource hydration
+
+Webhook event payloads contain only the primary resource. Use the `st_app_` token to hydrate related objects when you need more detail.
+
+```ts
+import { StellarTools } from "@stellartools/core";
+
+// Retrieve the full customer from a payment event
+const st = new StellarTools({ api_key: appToken });
+const customer = await st.customers.retrieve(event.data.object.customer_id);
+```
+
 ## Mutations and saving settings
 
-`useStellarToolsMutation` wraps `useMutation` from TanStack Query, injects the `AppContext` as the second argument to your mutation function, and gives you `isPending` for loading states.
+`useStellarToolsMutation` wraps TanStack Query's `useMutation`, injects the `AppContext` as the second argument, and gives you `isPending` for loading states.
 
 ### Server action
-
-Call `st.appInstallations.updateSettings` to persist any settings changes back to StellarTools. The patch is merged into the existing settings object.
 
 ```ts
 // app/actions/index.ts
@@ -165,7 +195,6 @@ Call `st.appInstallations.updateSettings` to persist any settings changes back t
 
 import { StellarTools } from "@stellartools/core";
 
-// Unified action — pass any settings you want to update
 export const updateSettings = async (
   appToken: string,
   patch: Record<string, string | boolean | undefined>
@@ -175,22 +204,22 @@ export const updateSettings = async (
 };
 ```
 
-### In your component
+The patch is merged into the existing settings object. When you call `updateSettings`, the SDK automatically notifies the host dashboard to refresh its state.
 
-`useSearchParams` gives you `appToken` (`st_token`), which you pass to the server action. Use `onMutate` for optimistic updates.
+### In your component
 
 ```tsx
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useStellarToolsContext, useStellarToolsMutation } from "@stellartools/app-sdk";
+
 import { updateSettings } from "@/app/actions";
+import { useStellarToolsContext, useStellarToolsMutation } from "@stellartools/app-sdk";
+import { useSearchParams } from "next/navigation";
 
 function SettingsPanel() {
   const { settings } = useStellarToolsContext();
   const appToken = useSearchParams().get("st_token") ?? "";
-
   const [syncEnabled, setSyncEnabled] = useState(Boolean(settings.customerSyncEnabled));
 
   const { mutate: toggleSync, isPending } = useStellarToolsMutation(
@@ -198,36 +227,19 @@ function SettingsPanel() {
     { onMutate: (enabled) => setSyncEnabled(enabled) }
   );
 
-  return (
-    <Switch
-      checked={syncEnabled}
-      onCheckedChange={toggleSync}
-      disabled={isPending}
-    />
-  );
+  return <Switch checked={syncEnabled} onCheckedChange={toggleSync} disabled={isPending} />;
 }
 
 export default function Page() {
-  return <Suspense><SettingsPanel /></Suspense>;
+  return (
+    <Suspense>
+      <SettingsPanel />
+    </Suspense>
+  );
 }
 ```
 
-**Example — the Resend app uses two mutations on the dashboard:**
-
-```tsx
-// One mutation handles all settings patches (template ID changes)
-const { mutate: saveSettings } = useStellarToolsMutation(
-  async (patch: Partial<TemplateIds>) => updateSettings(appToken, patch)
-);
-
-// A separate mutation for the sync toggle so isPending drives the Switch's disabled state
-const { mutate: toggleSync, isPending: syncPending } = useStellarToolsMutation(
-  async (enabled: boolean) => updateSettings(appToken, { customerSyncEnabled: enabled }),
-  { onMutate: (enabled) => setCustomerSyncEnabled(enabled) }
-);
-```
-
-## Validating and connecting on first setup
+## First-time setup
 
 On the authentication page, validate the user's credentials before saving them. Return `true` on success, or an error string to display in the form.
 
@@ -237,76 +249,34 @@ On the authentication page, validate the user's credentials before saving them. 
 
 import { StellarTools } from "@stellartools/core";
 
-export const validateAndConnect = async (
-  apiKey: string,
-  appToken: string
-): Promise<true | string> => {
-  // 1. Validate the credentials (call the third-party API)
+export const validateAndConnect = async (apiKey: string, appToken: string): Promise<true | string> => {
   const { error } = await validateCredentials(apiKey);
   if (error) return error.message;
 
-  // 2. Resolve any derived config (e.g. a sender address, segment ID)
   const resolvedConfig = await resolveConfig(apiKey);
 
-  // 3. Persist everything in one call
   const st = new StellarTools({ api_key: appToken });
-  const result = await st.appInstallations.updateSettings({
-    apiKey,
-    ...resolvedConfig,
-  });
+  const result = await st.appInstallations.updateSettings({ apiKey, ...resolvedConfig });
 
   if (result?.error) return result.error;
   return true;
 };
 ```
-
-**Example — the Resend app's connect action:**
-
-```ts
-"use server";
-
-import { StellarTools } from "@stellartools/core";
-import { Resend } from "resend";
-
-export const validateApiKeyAndConnect = async (
-  apiKey: string,
-  appToken: string
-): Promise<true | string> => {
-  const resend = new Resend(apiKey);
-  const { error, data } = await resend.domains.list();
-
-  if (error) return error.message;
-
-  // Auto-resolve fromEmail from the first verified domain
-  const verifiedDomain = data?.data?.find((d) => d.status === "verified");
-  const fromEmail = verifiedDomain
-    ? `noreply@${verifiedDomain.name}`
-    : "onboarding@resend.dev";
-
-  const st = new StellarTools({ api_key: appToken });
-  const result = await st.appInstallations.updateSettings({ resendApiKey: apiKey, fromEmail });
-
-  if (result?.error) return result.error;
-  return true;
-};
-```
-
-### On the authentication page
 
 ```tsx
+// app/authentication/page.tsx
 "use client";
 
 import { Suspense } from "react";
+
+import { validateAndConnect } from "@/app/actions";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button, TextAreaField } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button, TextAreaField } from "@stellartools/shared-ui";
-import { validateApiKeyAndConnect } from "@/app/actions";
 
-const schema = z.object({
-  apiKey: z.string().min(1, "API key is required"),
-});
+const schema = z.object({ apiKey: z.string().min(1, "API key is required") });
 
 function AuthenticationForm() {
   const router = useRouter();
@@ -317,7 +287,7 @@ function AuthenticationForm() {
   const { isSubmitting } = form.formState;
 
   const onSubmit = async ({ apiKey }: { apiKey: string }) => {
-    const result = await validateApiKeyAndConnect(apiKey, appToken);
+    const result = await validateAndConnect(apiKey, appToken);
     if (result !== true) {
       form.setError("apiKey", { message: result });
       return;
@@ -351,21 +321,17 @@ function AuthenticationForm() {
 }
 
 export default function AuthenticationPage() {
-  return <Suspense><AuthenticationForm /></Suspense>;
+  return (
+    <Suspense>
+      <AuthenticationForm />
+    </Suspense>
+  );
 }
-```
-
-## Environment variables
-
-```env
-YOUR_APP_SECRET=sec_...         # Your app's signing secret — used by resolveAppContext
-NEXT_PUBLIC_APP_URL=https://your-app.com
-WEBHOOK_SECRET=whsec_...        # Secret for verifying incoming webhook payloads
 ```
 
 ## Webhooks
 
-When a matching event fires, StellarTools POSTs a signed payload to your `webhookUrl`. The body contains both the `event` and the installation's decrypted `settings` — your handler reads merchant config without a round-trip.
+When a matching event fires, StellarTools POSTs a signed payload to your `webhookUrl`. The body contains both the `event` and the installation's decrypted `settings` — your handler can access merchant config without a database round-trip.
 
 ### Verify and handle
 
@@ -376,7 +342,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 type Settings = {
   apiKey: string;
-  // ... your app's settings shape
+  // your app's settings shape
 };
 
 const wh = new WebhookSigner();
@@ -408,57 +374,35 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-**Example — the Resend app's webhook sends transactional emails on every event:**
-
-```ts
-import { Resend } from "resend";
-
-// settings contains resendApiKey, fromEmail, and all templateIds saved at setup
-const resend = new Resend(settings.resendApiKey);
-
-switch (event.type) {
-  case "payment.confirmed": {
-    if (!settings.paymentReceivedTemplateId) break;
-    await resend.emails.send({
-      from: settings.fromEmail,
-      to: event.data.object.customer_email,
-      template: {
-        id: settings.paymentReceivedTemplateId,
-        variables: event.data.object,
-      },
-    });
-    break;
-  }
-  case "customer.created": {
-    if (settings.customerSyncEnabled) {
-      await resend.contacts.create({ email: event.data.object.email, unsubscribed: false });
-    }
-    break;
-  }
-}
-```
-
 <Note>
-  Always check that the required setting (template ID, feature flag, etc.) is set before acting. Merchants may install your app before completing configuration.
+  Always check that the required setting (template ID, feature flag, etc.) is present before acting. Merchants may
+  install your app before completing setup.
 </Note>
 
 ### Available events
 
-| Event | Fires when | `data.object` type |
-| --- | --- | --- |
-| `payment.confirmed` | A payment is confirmed | `Payment` |
-| `payment.failed` | A payment fails | `Payment` |
-| `refund.succeeded` | A refund is issued | `Refund` |
-| `subscription.created` | A subscription starts | `Subscription` |
-| `subscription.updated` | A subscription is modified | `Subscription` |
-| `subscription.canceled` | A subscription is canceled | `Subscription` |
-| `checkout.created` | A checkout session opens | `Checkout` |
-| `customer.created` | A new customer is created | `Customer` |
-| `customer.updated` | Customer details change | `Customer` |
-| `payment_method.created` | A payment method is saved | `CustomerWallet` |
-| `payment_method.deleted` | A payment method is removed | `CustomerWallet` |
+For the complete list of event types, payloads, and object shapes see [Webhook event types](/webhooks#event-types).
 
-## Define your manifest
+| Event                    | Fires when                                   | `data.object` type |
+| ------------------------ | -------------------------------------------- | ------------------ |
+| `payment.confirmed`      | A payment is confirmed on-chain              | `Payment`          |
+| `payment.pending`        | A payment is submitted but not yet confirmed | `Payment`          |
+| `payment.failed`         | A payment fails on-chain                     | `Payment`          |
+| `refund.succeeded`       | A refund is issued successfully              | `Refund`           |
+| `refund.failed`          | A refund could not be processed              | `Refund`           |
+| `subscription.created`   | A new subscription starts                    | `Subscription`     |
+| `subscription.updated`   | A subscription is modified                   | `Subscription`     |
+| `subscription.canceled`  | A subscription is canceled                   | `Subscription`     |
+| `checkout.created`       | A checkout session opens                     | `Checkout`         |
+| `customer.created`       | A new customer is created                    | `Customer`         |
+| `customer.updated`       | Customer details change                      | `Customer`         |
+| `customer.deleted`       | A customer is deleted                        | `Customer`         |
+| `payment_method.created` | A wallet is linked to a customer             | `CustomerWallet`   |
+| `payment_method.deleted` | A wallet is removed from a customer          | `CustomerWallet`   |
+
+## The App Manifest
+
+The manifest is the source of truth for your app's identity and requirements. Submit it when publishing to the marketplace.
 
 ```json
 {
@@ -467,12 +411,14 @@ switch (event.type) {
   "homepageUrl": "https://myapp.com",
   "baseUrl": "https://myapp.com/stellartools",
   "webhookUrl": "https://myapp.com/api/webhooks/stellar",
-  "scopes": ["read:customers", "read:payments"]
+  "scopes": ["read:customers", "read:payments"],
+  "sensitiveKeys": ["apiKey", "secretToken"],
+  "version": "1.0.0"
 }
 ```
 
 <ParamField body="name" type="string" required>
-  Display name shown in the marketplace. 2–50 characters.
+  Display name in the marketplace. 2–50 characters.
 </ParamField>
 
 <ParamField body="description" type="string" required>
@@ -488,28 +434,76 @@ switch (event.type) {
 </ParamField>
 
 <ParamField body="webhookUrl" type="string">
-  If provided, StellarTools will POST signed event payloads here. Omit if you don't need webhooks.
+  If provided, StellarTools POSTs signed event payloads here. Omit if you don't use webhooks.
 </ParamField>
 
 <ParamField body="scopes" type="string[]" required>
-  At least one scope is required. Declare only what your app actually needs.
+  Permissions requested at install time. Declare only what your app actually needs.
 </ParamField>
+
+<ParamField body="sensitiveKeys" type="string[]">
+  Keys in your settings that require encryption at rest. See [Sensitive keys](#sensitive-keys) below.
+</ParamField>
+
+### Sensitive keys
+
+Add any settings property that holds a secret (API keys, tokens, credentials) to `sensitiveKeys`. StellarTools will:
+
+- Encrypt the value with a platform-level master key before writing it to the database.
+- Decrypt it on-the-fly before delivering it to your app server via the `AppContext` or webhook payload.
+
+Your app logic always receives the plain-text value — the database only ever stores ciphertext.
+
+```json
+{
+  "sensitiveKeys": ["apiKey", "webhookSigningSecret"]
+}
+```
 
 ## Scopes
 
-| Scope | What it grants |
-| --- | --- |
-| `read:customers` | Customer records |
-| `read:payments` | Payment history and status |
-| `read:subscriptions` | Subscription lifecycle |
-| `read:checkouts` | Checkout sessions |
-| `read:payouts` | Payout records |
-| `read:refunds` | Refund records |
-| `read:payment_methods` | Saved payment methods |
-| `read:products` | Product catalog |
-| `read:portal` | Customer portal sessions |
-| `*` | All resources — shown prominently to users, use sparingly |
+Declare only the scopes your app strictly needs. Merchants see these permissions during installation.
+
+| Scope                    | What it grants                                                         |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `read:customers`         | Customer records                                                       |
+| `read:payments`          | Payment history and status                                             |
+| `read:subscriptions`     | Subscription lifecycle                                                 |
+| `read:checkouts`         | Checkout sessions                                                      |
+| `read:payouts`           | Payout records                                                         |
+| `read:refunds`           | Refund records                                                         |
+| `read:payment_methods`   | Saved payment methods                                                  |
+| `read:products`          | Product catalog                                                        |
+| `read:portal`            | Customer portal sessions                                               |
+| `write:app-installation` | Allow the app UI to update its own settings                            |
+| `*`                      | Full access — shown prominently to users during install, use sparingly |
+
+## Environment variables
+
+```env
+YOUR_APP_SECRET=sec_...              # App signing secret — used by resolveAppContext
+NEXT_PUBLIC_APP_URL=https://myapp.com
+WEBHOOK_SECRET=whsec_...             # For verifying incoming webhook signatures
+```
+
+## Deployment
+
+Host your app on any provider (Vercel, AWS, etc.). Before submitting, ensure:
+
+- `baseUrl` is accessible over HTTPS.
+- `YOUR_APP_SECRET` is set in your production environment.
+- Your server correctly strips the `st_app_` prefix before passing the raw JWT to `verifyJwt`.
+
+## Example apps
+
+These are fully working marketplace apps you can reference or clone.
+
+| App                                                                                          | What it does                                                                            |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Resend](https://github.com/payrouteshq/stellartools/tree/main/apps/marketplace-apps/resend) | Sends transactional emails on payment, subscription, and refund events using Resend.    |
+| [Loops](https://github.com/payrouteshq/stellartools/tree/main/apps/marketplace-apps/loops)   | Syncs customers to a Loops audience and triggers email journeys on StellarTools events. |
 
 ## Submit your app
 
-App submission is not yet open. Email [odii@stellartools.dev](mailto:odii@stellartools.dev) to join the early-access list for publishers.
+App submission is currently in private beta.
+To list your app in the StellarTools Marketplace, contact [partners@stellartools.dev](partners@stellartools.dev).

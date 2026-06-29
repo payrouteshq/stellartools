@@ -162,7 +162,7 @@ export const resolveAuthContext = async (params: {
     .select({ organizationId: organizations.id, environment: apiKeys.environment, apiKeyId: apiKeys.id })
     .from(apiKeys)
     .innerJoin(organizations, eq(apiKeys.organizationId, organizations.id))
-    .where(eq(apiKeys.token, apiKey))
+    .where(eq(apiKeys.token, `${SENSITIVE_KEY_PREFIX}${encrypt(apiKey)}`))
     .limit(1);
 
   if (!row) return null;

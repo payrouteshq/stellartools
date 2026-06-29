@@ -100,9 +100,6 @@ export const organizations = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     supportEmail: text("support_email"),
-    payoutAssetCode: text("payout_asset_code").$type<AssetCode>().default("USDC"),
-    payoutAssetIssuer: text("payout_asset_issuer"),
-    payoutFiatOptions: jsonb("payout_fiat_options").$type<Record<string, unknown> | null>(),
     selectedCurrency: text("selected_currency").notNull(),
   },
   (table) => [index("idx_org_created_at").on(table.accountId, table.createdAt)]
