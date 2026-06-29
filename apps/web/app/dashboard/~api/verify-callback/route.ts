@@ -110,6 +110,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // If account doesn't exist or hasn't set a password yet, send through the
+    // google-complete setup flow rather than auto-logging them in.
+    const existingAccount = await retrieveAccount({ email: payload.email });
+    const hasLocalPassword = existingAccount?.sso?.values?.some((s) => s.provider === "local");
+
+    if (!existingAccount || !hasLocalPassword) {
+      if (!existingAccount) {
+        await postAccount({
+          email: payload.email,
+          sso: { values: [{ provider: "google", sub: payload.sub! }] },
+          profile: { firstName, lastName, avatarUrl: payload.picture ?? undefined },
+        });
+      }
+      const params = new URLSearchParams({ firstName, lastName, email: payload.email, mode: "google-complete" });
+      return NextResponse.redirect(
+        new URL(`${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signup?${params.toString()}`, req.url)
+      );
+    }
+
     const account = await accountValidator(
       payload.email,
       { provider: "google", sub: payload.sub },

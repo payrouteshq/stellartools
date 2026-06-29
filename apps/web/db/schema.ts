@@ -9,12 +9,12 @@ import {
 } from "@/constant/schema.client";
 import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
+  APP_INSTALLATION_STATUS,
   Primitive,
   ProductStatus,
   ProductType,
   SubscriptionData,
   WebhookEventType,
-  APP_INSTALLATION_STATUS,
   checkoutStatusEnum as checkoutStatusEnum$1,
   productStatusEnum as productStatusEnum$1,
   productTypeEnum as productTypeEnum$1,
@@ -72,7 +72,7 @@ export const auth = pgTable("auth", {
   id: text("id").primaryKey(),
   accountId: text("account_id")
     .notNull()
-    .references(() => accounts.id),
+    .references(() => accounts.id, { onDelete: "cascade" }),
   provider: authProviderEnum("provider").notNull(),
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token").notNull(),
@@ -89,7 +89,7 @@ export const organizations = pgTable(
     id: text("id").primaryKey(),
     accountId: text("account_id")
       .notNull()
-      .references(() => accounts.id),
+      .references(() => accounts.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description"),
     logoUrl: text("logo_url"),
@@ -110,7 +110,7 @@ export const organizationSecrets = pgTable("organization_secret", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   testnetSecretEncrypted: text("testnet_secret_encrypted"),
   testnetSecretVersion: integer("testnet_secret_version")
     .notNull()
@@ -131,10 +131,10 @@ export const secretAccessLog = pgTable("secret_access_log", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   secretId: text("secret_id")
     .notNull()
-    .references(() => organizationSecrets.id),
+    .references(() => organizationSecrets.id, { onDelete: "cascade" }),
   action: secretAccessLogActionEnum("action").notNull(),
   metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -146,7 +146,7 @@ export const apiKeys = pgTable("api_key", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   token: text("token").notNull().unique(),
   scope: jsonb("scope").$type<string[]>().notNull(),
@@ -193,7 +193,7 @@ export const customers = pgTable(
     id: text("id").primaryKey(),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     email: text("email"),
     name: text("name"),
     phone: text("phone"),
@@ -217,14 +217,14 @@ export const customerWallets = pgTable(
     id: text("id").primaryKey(),
     customerId: text("customer_id")
       .notNull()
-      .references(() => customers.id),
+      .references(() => customers.id, { onDelete: "cascade" }),
     address: text("address").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     environment: networkEnum("network").notNull(),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
@@ -254,7 +254,7 @@ export const products = pgTable("product", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   priceCents: integer("price_cents").notNull(),
@@ -279,9 +279,9 @@ export const checkouts = pgTable(
     id: text("id").primaryKey(),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
-    customerId: text("customer_id").references(() => customers.id),
-    productId: text("product_id").references(() => products.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
     amountCents: integer("amount_cents"), // $10.00 = 1000
     currencyCode: text("currency_code"),
     description: text("description"),
@@ -315,14 +315,14 @@ export const subscriptions = pgTable("subscription", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
     .notNull()
-    .references(() => customers.id),
+    .references(() => customers.id, { onDelete: "cascade" }),
   productId: text("product_id")
     .notNull()
-    .references(() => products.id),
+    .references(() => products.id, { onDelete: "cascade" }),
   status: subscriptionStatusEnum("status").notNull(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   currentPeriodStart: timestamp("current_period_start").notNull(),
   currentPeriodEnd: timestamp("current_period_end").notNull(),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
@@ -333,7 +333,7 @@ export const subscriptions = pgTable("subscription", {
   metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
   environment: networkEnum("network").notNull(),
   trialDays: integer("trial_days").default(0),
-  customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
+  customerWalletId: text("customer_wallet_id").references(() => customerWallets.id, { onDelete: "set null" }),
 });
 
 export const paymentStatusEnum = pgEnum("payment_status", paymentStatusEnum$1);
@@ -342,12 +342,12 @@ export const payments = pgTable("payment", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
-  checkoutId: text("checkout_id").references(() => checkouts.id),
-  customerId: text("customer_id").references(() => customers.id),
-  subscriptionId: text("subscription_id").references(() => subscriptions.id),
-  customerWalletId: text("customer_wallet_id").references(() => customerWallets.id),
-  productId: text("product_id").references(() => products.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  checkoutId: text("checkout_id").references(() => checkouts.id, { onDelete: "set null" }),
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  subscriptionId: text("subscription_id").references(() => subscriptions.id, { onDelete: "set null" }),
+  customerWalletId: text("customer_wallet_id").references(() => customerWallets.id, { onDelete: "set null" }),
+  productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
   amountCents: integer("amount_cents").notNull(),
   currencyCode: text("currency_code").notNull().default("USD"),
   cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
@@ -370,8 +370,8 @@ export const charges = pgTable("charge", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
-  paymentId: text("payment_id").references(() => payments.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  paymentId: text("payment_id").references(() => payments.id, { onDelete: "set null" }),
   amountCents: integer("amount_cents").notNull(),
   currencyCode: text("currency_code").notNull().default("USD"),
   cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
@@ -394,7 +394,7 @@ export const payouts = pgTable(
     id: text("id").primaryKey(),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     amountCents: integer("amount_cents").notNull(),
     currencyCode: text("currency_code").notNull().default("USD"),
     cryptoAmount: text("crypto_amount").notNull(),
@@ -422,7 +422,7 @@ export const webhooks = pgTable("webhook", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
   secret: text("secret").notNull(),
   events: text("events").array().$type<Array<WebhookEventType>>().notNull(),
@@ -438,9 +438,9 @@ export const webhookLogs = pgTable(
   "webhook_log",
   {
     id: text("id").primaryKey(),
-    webhookId: text("webhook_id").references(() => webhooks.id),
-    organizationId: text("organization_id").references(() => organizations.id),
-    appInstallationId: text("app_installation_id").references(() => appInstallations.id),
+    webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "set null" }),
+    organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+    appInstallationId: text("app_installation_id").references(() => appInstallations.id, { onDelete: "set null" }),
     eventType: text("event_type").notNull(),
     request: jsonb("request").$type<unknown>().notNull(),
     statusCode: integer("status_code"),
@@ -465,11 +465,11 @@ export const refunds = pgTable(
     id: text("id").primaryKey(),
     paymentId: text("payment_id")
       .notNull()
-      .references(() => payments.id),
+      .references(() => payments.id, { onDelete: "cascade" }),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
-    customerId: text("customer_id").references(() => customers.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
     amountCents: integer("amount_cents").notNull(),
     currencyCode: text("currency_code").notNull().default("USD"),
     cryptoAmount: text("crypto_amount").notNull(),
@@ -512,13 +512,13 @@ export const events = pgTable("event", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   environment: networkEnum("network").notNull(),
   type: eventTypeEnum("type").notNull(),
 
-  customerId: text("customer_id").references(() => customers.id), // for end users
-  merchantId: text("merchant_id").references(() => organizations.id), // for merchants
-  subscriptionId: text("subscription_id").references(() => subscriptions.id), // for subscriptions
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }), // for end users
+  merchantId: text("merchant_id").references(() => organizations.id, { onDelete: "set null" }), // for merchants
+  subscriptionId: text("subscription_id").references(() => subscriptions.id, { onDelete: "set null" }), // for subscriptions
 
   // Payload for the timeline UI (e.g., { "amount": 50, "currency": "USD" })
   data: jsonb("data").$type<Record<string, unknown>>(),
@@ -533,10 +533,10 @@ export const customerPortalSessions = pgTable(
     token: text("token").notNull().unique(),
     customerId: text("customer_id")
       .notNull()
-      .references(() => customers.id),
+      .references(() => customers.id, { onDelete: "cascade" }),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     environment: networkEnum("network").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -583,10 +583,10 @@ export const appInstallations = pgTable(
     id: text("id").primaryKey(),
     appId: text("app_id")
       .notNull()
-      .references(() => apps.id),
+      .references(() => apps.id, { onDelete: "cascade" }),
     organizationId: text("organization_id")
       .notNull()
-      .references(() => organizations.id),
+      .references(() => organizations.id, { onDelete: "cascade" }),
     environment: networkEnum("network").notNull(),
 
     // Settings specific to this integration (e.g. { "apiKey": "fp_123" })
@@ -608,7 +608,7 @@ export const appLogs = pgTable("app_log", {
     .references(() => appInstallations.id, { onDelete: "cascade" }),
   organizationId: text("organization_id")
     .notNull()
-    .references(() => organizations.id),
+    .references(() => organizations.id, { onDelete: "cascade" }),
   action: text("action").notNull(),
   statusCode: text("status_code"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>(),
