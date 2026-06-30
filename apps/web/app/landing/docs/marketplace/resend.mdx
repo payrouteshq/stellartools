@@ -1,0 +1,87 @@
+---
+title: "Resend"
+description: "Send transactional emails triggered by StellarTools payment events."
+---
+
+The Resend app connects your StellarTools organization to [Resend](https://resend.com), letting you send transactional emails when things happen to your customers — payments, subscriptions, refunds, and more.
+
+With it you can:
+
+- Send emails triggered by any StellarTools event
+- Auto-sync new customers to a Resend audience
+- Map each event type to a Resend email template
+- View a live email log and delivery stats inside the dashboard
+
+## Supported events
+
+The app can trigger emails on any of the following StellarTools events:
+
+| Event | When it fires |
+|---|---|
+| `customer.created` | A new customer is added |
+| `customer.updated` | A customer's details change |
+| `customer.deleted` | A customer is removed |
+| `payment_method.created` | A wallet is linked to a customer |
+| `payment_method.deleted` | A wallet is removed |
+| `checkout.created` | A checkout session is opened |
+| `payment.pending` | A payment is initiated |
+| `payment.confirmed` | A payment is confirmed on-chain |
+| `payment.failed` | A payment fails |
+| `refund.succeeded` | A refund is processed |
+| `refund.failed` | A refund attempt fails |
+| `subscription.created` | A subscription starts |
+| `subscription.updated` | A subscription changes |
+| `subscription.canceled` | A subscription is canceled |
+
+## Connect your account
+
+1. Open the Resend app from the StellarTools Marketplace.
+2. Enter your Resend API key (starts with `re_`). The app validates it against your Resend account.
+3. Choose a **sending domain**. If you have a verified domain in Resend, you can pick it here and set a custom `from` prefix (e.g. `noreply@yourdomain.com`). Without a verified domain, emails go out via `onboarding@resend.dev`, which can only reach addresses registered in your Resend account.
+4. Click **Connect**. The app is now active.
+
+To verify a sending domain, go to [resend.com/domains](https://resend.com/domains).
+
+## Notification rules
+
+Once connected, open the **Notification rules** section in the app dashboard. For each event type, you can assign a Resend email template. When that event fires in StellarTools, Resend sends the matched template to the customer.
+
+Leave an event set to **None** to disable emails for it.
+
+## Contact sync
+
+Enable **Contact sync** to automatically add new StellarTools customers to your Resend audience when `customer.created` fires. Toggle it off to stop syncing.
+
+## Disconnect
+
+Click **Disconnect** in the top-right of the app dashboard. This removes your API key and pauses all email delivery.
+
+## Examples
+
+### Payment confirmed email
+
+Send a receipt when a customer's payment goes through.
+
+1. Create an email template in Resend for payment confirmations.
+2. In the Resend app, open **Notification rules** and assign that template to `payment.confirmed`.
+
+### Subscription welcome email
+
+Send a welcome email when a customer starts a subscription.
+
+1. Create an email template in Resend.
+2. Assign it to `subscription.created` in **Notification rules**.
+
+### Failed payment alert
+
+Notify a customer when their payment fails so they can retry.
+
+1. Create an email template in Resend for payment failures.
+2. Assign it to `payment.failed` in **Notification rules**.
+
+### Refund confirmation
+
+Let customers know their refund was processed.
+
+1. Create a refund confirmation template in Resend.
+2. Assign it to `refund.succeeded` in **Notification rules**.

@@ -1,0 +1,99 @@
+---
+title: "Loops"
+description: "Send lifecycle emails and trigger workflows from StellarTools payment events."
+---
+
+The Loops app connects your StellarTools organization to [Loops](https://loops.so), letting you send transactional emails and trigger automated workflows when things happen — payments confirmed, subscriptions started, refunds processed, and more.
+
+With it you can:
+
+- Send transactional emails triggered by any StellarTools event
+- Trigger Loops workflows from payment and subscription events
+- Auto-sync new customers to your Loops audience and mailing lists
+- View a live activity log of emails sent inside the dashboard
+
+## Supported events
+
+The app fires on any of the following StellarTools events:
+
+| Event                    | When it fires                    |
+| ------------------------ | -------------------------------- |
+| `customer.created`       | A new customer is added          |
+| `customer.updated`       | A customer's details change      |
+| `customer.deleted`       | A customer is removed            |
+| `payment_method.created` | A wallet is linked to a customer |
+| `payment_method.deleted` | A wallet is removed              |
+| `checkout.created`       | A checkout session is opened     |
+| `payment.pending`        | A payment is initiated           |
+| `payment.confirmed`      | A payment is confirmed on-chain  |
+| `payment.failed`         | A payment fails                  |
+| `refund.succeeded`       | A refund is processed            |
+| `refund.failed`          | A refund attempt fails           |
+| `subscription.created`   | A subscription starts            |
+| `subscription.updated`   | A subscription changes           |
+| `subscription.canceled`  | A subscription is canceled       |
+
+## Connect your account
+
+1. Open the Loops app from the StellarTools Marketplace.
+2. Enter your Loops API key. Find it at [Loops → Settings → API](https://app.loops.so/settings?page=api).
+3. Click **Connect**. The app validates the key and activates.
+
+## Transactional emails
+
+Open **Notification rules** in the app dashboard. For each event type, you can assign a Loops transactional email. When that event fires in StellarTools, Loops sends the matched email to the customer.
+
+Leave an event set to **None** to skip sending for it.
+
+## Loops workflows
+
+You can also trigger Loops [workflows](https://loops.so/docs/loop-builder/triggers) directly — no template selection needed. Create a workflow in Loops and set its trigger to the event name with dots replaced by underscores:
+
+| StellarTools event     | Loops trigger name     |
+| ---------------------- | ---------------------- |
+| `payment.confirmed`    | `payment_confirmed`    |
+| `subscription.created` | `subscription_created` |
+| `refund.succeeded`     | `refund_succeeded`     |
+
+The workflow fires automatically when that event occurs.
+
+## Contact sync
+
+Enable **Contact sync** to automatically add new StellarTools customers to your Loops audience when `customer.created` fires. When contact sync is on, you can also select a **mailing list** to subscribe them to immediately.
+
+Toggle it off to stop syncing.
+
+## Disconnect
+
+Click **Disconnect** in the top-right of the app dashboard. This removes your API key and pauses all email delivery.
+
+## Examples
+
+### Payment confirmed email
+
+Send a receipt when a customer's payment goes through.
+
+1. Create a transactional email in Loops for payment confirmations.
+2. In the Loops app, open **Notification rules** and assign it to `payment.confirmed`.
+
+### Subscription welcome email
+
+Send a welcome email when a customer starts a subscription.
+
+1. Create a transactional email in Loops.
+2. Assign it to `subscription.created` in **Notification rules**.
+
+### Subscription canceled — win-back workflow
+
+Trigger a Loops workflow to attempt to win back a customer who canceled.
+
+1. Create a workflow in Loops with trigger `subscription_canceled`.
+2. Add your win-back email sequence to the workflow.
+3. The workflow fires automatically — no template selection needed in the app.
+
+### Failed payment alert
+
+Notify a customer when their payment fails so they can retry.
+
+1. Create a transactional email in Loops for payment failures.
+2. Assign it to `payment.failed` in **Notification rules**.

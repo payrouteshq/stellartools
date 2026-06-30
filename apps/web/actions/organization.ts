@@ -230,23 +230,6 @@ export const resolveOrgContext = async (
   };
 };
 
-// -- Organization Secrets --
-
-export const retrieveOrganizationSecrets = async (organizationId: string) => {
-  const secrets = await db
-    .select()
-    .from(organizationSecrets)
-    .where(eq(organizationSecrets.organizationId, organizationId));
-
-  return secrets;
-};
-
-export const retrieveOrganizationSecret = async (id: string) => {
-  const [secret] = await db.select().from(organizationSecrets).where(eq(organizationSecrets.id, id)).limit(1);
-
-  return secret;
-};
-
 // -- Internal --
 
 export const postOrganizationSecretWithEncryption = async (

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n next,mint \"next dev\" \"cd app/landing/docs && pnpm dlx mintlify dev --port 3333\"",
-    "build": "pnpm -w --filter @stellartools/core run build:dev && pnpm -w --filter @stellartools/shared-ui run build && next build --webpack",
+    "build": "pnpm -w --filter @stellartools/core run build:prod && pnpm -w --filter @stellartools/shared-ui run build && next build --webpack",
     "web:build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
