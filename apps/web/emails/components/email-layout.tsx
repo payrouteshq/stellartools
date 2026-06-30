@@ -16,6 +16,7 @@ import {
   Text,
 } from "@react-email/components";
 
+
 interface EmailLayoutProps {
   preview: string;
   organizationName: string;
@@ -23,53 +24,63 @@ interface EmailLayoutProps {
   children: React.ReactNode;
 }
 
+
+export const emailFonts = {
+  sans: ["DM Sans", "sans-serif"],
+  serif: ["Instrument Serif", "serif"],
+} as const;
+
+
+export const emailColors = {
+  primary: "#fdda24",
+  "primary-foreground": "#0f0f0f",
+  background: "#f6f7f8",
+  foreground: "#0f0f0f",
+  card: "#ffffff",
+  muted: "#d6d2c4",
+  "muted-foreground": "#5a5750",
+  border: "#d6d2c4",
+} as const;
+
+
 export function EmailLayout({ preview, organizationName, organizationLogo, children }: EmailLayoutProps) {
   return (
     <Html lang="en">
-      <Head>
-        <Font
-          fontFamily="DM Sans"
-          fallbackFontFamily="sans-serif"
-          webFont={{
-            url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywxg089UriCZOIHQ.woff2",
-            format: "woff2",
-          }}
-          fontWeight={400}
-          fontStyle="normal"
-        />
-        <Font
-          fontFamily="DM Sans"
-          fallbackFontFamily="sans-serif"
-          webFont={{
-            url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Cp2ywxg089UriAZSKGYguYg.woff2",
-            format: "woff2",
-          }}
-          fontWeight={700}
-          fontStyle="normal"
-        />
-      </Head>
-      <Preview>{preview}</Preview>
       <Tailwind
         config={{
           theme: {
             extend: {
-              colors: {
-                primary: "#fdda24",
-                "primary-foreground": "#0f0f0f",
-                background: "#f6f7f8",
-                foreground: "#0f0f0f",
-                card: "#ffffff",
-                muted: "#f4f4f5",
-                "muted-foreground": "#5a5750",
-                border: "#e4e4e7",
-              },
-              fontFamily: {
-                sans: ["DM Sans", "sans-serif"],
-              },
+              colors: emailColors,
+              fontFamily: emailFonts,
             },
           },
         }}
       >
+        <Head>
+          <Font
+            fontFamily="DM Sans"
+            fallbackFontFamily="sans-serif"
+            webFont={{
+              url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywxg089UriCZOIHQ.woff2",
+              format: "woff2",
+            }}
+            fontWeight={400}
+            fontStyle="normal"
+          />
+          <Font
+            fontFamily="DM Sans"
+            fallbackFontFamily="sans-serif"
+            webFont={{
+              url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Cp2ywxg089UriAZSKGYguYg.woff2",
+              format: "woff2",
+            }}
+            fontWeight={700}
+            fontStyle="normal"
+          />
+          {/* ponytail: style tag applies serif to headings — Gmail strips it and falls back to system serif */}
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');h1,h2,h3,h4,h5,h6,em{font-family:'Instrument Serif',serif!important}`}</style>
+        </Head>
+        <Preview>{preview}</Preview>
         <Body className="bg-background font-sans">
           <Container className="mx-auto max-w-[560px] py-10">
             {/* Org header */}
@@ -149,5 +160,6 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
         </Body>
       </Tailwind>
     </Html>
+
   );
 }

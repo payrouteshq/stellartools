@@ -58,3 +58,5 @@ export const MerchantSubscriptionStartedEmail = ({
     </EmailLayout>
   );
 };
+
+export default MerchantSubscriptionStartedEmail;
