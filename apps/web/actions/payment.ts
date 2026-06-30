@@ -43,7 +43,6 @@ type PaymentContext = {
   product?: Product;
   checkout?: Checkout;
   account?: Account;
-  lifeTimeVolumeUsdCents: number;
 };
 
 async function loadPaymentContext(
@@ -51,7 +50,7 @@ async function loadPaymentContext(
   organizationId: string,
   environment: Network
 ): Promise<PaymentContext> {
-  const { org, customer, checkout, product, lifeTimeVolumeUsdCents } = await all({
+  const { org, customer, checkout, product } = await all({
     org: async () => retrieveOrganization(organizationId),
     account: async () => retrieveAccount({ organizationId }),
     customer: async () => {
@@ -72,15 +71,9 @@ async function loadPaymentContext(
       if (!productId) return undefined;
       return retrieveProducts(organizationId, environment, { productId }).then(([res]) => res);
     },
-    lifeTimeVolumeUsdCents: async () => {
-      return retrieveLifetimeVolumeCents(organizationId, environment);
-    },
   });
 
-  console.log("loaded payment context");
-  console.dir({ org, customer, product, checkout, lifeTimeVolumeUsdCents }, { depth: 100 });
-
-  return { org, customer, product, checkout, lifeTimeVolumeUsdCents };
+  return { org, customer, product, checkout };
 }
 
 const MERCHANT_EMAIL_TEMPLATES = {
@@ -172,7 +165,7 @@ const paymentActionHandler = async (
         try {
           const ctx = await loadPaymentContext(payment, organizationId, environment);
 
-          await processPaymentBilling(payment.id, organizationId, environment, ctx.lifeTimeVolumeUsdCents);
+          await processPaymentBilling(payment.id, organizationId, environment);
 
           if (ctx.customer?.email) {
             if (ctx.org.settings?.disableNativeEmails === true) return;

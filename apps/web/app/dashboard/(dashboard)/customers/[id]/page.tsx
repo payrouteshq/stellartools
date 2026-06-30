@@ -329,6 +329,7 @@ export default function CustomerDetailPage() {
         />
       ),
       footer: null,
+      size: "small",
       showCloseButton: true,
     });
   }, [customer, router]);

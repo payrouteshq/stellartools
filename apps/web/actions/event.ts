@@ -81,7 +81,6 @@ export async function withEvent<T>(
           const targets = subscribers.filter((s) => s.events.includes(trigger.event));
           if (targets.length === 0) return;
 
-          // todo: make many envelopes for each target
           const envelope: WebhookEventBase<string, any> = {
             id: webhookLogId!,
             type: trigger.event,

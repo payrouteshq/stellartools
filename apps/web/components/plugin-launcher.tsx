@@ -69,7 +69,6 @@ export function PluginLauncher() {
 
   React.useEffect(() => {
     if (!activePlugin?.installation.id || !resolvedTheme) return;
-    console.log("generating app token", activePlugin.installation.id, period, org?.selectedCurrency, resolvedTheme);
 
     (async () => {
       const response = await generateAppToken(
@@ -83,8 +82,6 @@ export function PluginLauncher() {
         org?.environment
       );
 
-      console.log("response", response);
-
       setAppToken(response);
     })();
   }, [activePlugin?.installation.id, org?.selectedCurrency, period, resolvedTheme, tokenRefreshKey]);
@@ -95,8 +92,6 @@ export function PluginLauncher() {
     if (appToken) url.searchParams.set("st_token", appToken);
     return url.toString();
   }, [activePlugin?.app.baseUrl, appToken]);
-
-  console.log({ appToken, src, activePlugin });
 
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
