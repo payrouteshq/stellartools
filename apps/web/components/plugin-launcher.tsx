@@ -70,16 +70,23 @@ export function PluginLauncher() {
   React.useEffect(() => {
     if (!activePlugin?.installation.id || !resolvedTheme) return;
     console.log("generating app token", activePlugin.installation.id, period, org?.selectedCurrency, resolvedTheme);
-    generateAppToken(
-      activePlugin.installation.id,
-      {
-        periodDays: Number(period),
-        currency: org?.selectedCurrency ?? "USD",
-        theme: resolvedTheme === "dark" ? "dark" : "light",
-      },
-      org?.id,
-      org?.environment
-    ).then((token) => setAppToken(token));
+
+    (async () => {
+      const response = await generateAppToken(
+        activePlugin.installation.id,
+        {
+          periodDays: Number(period),
+          currency: org?.selectedCurrency ?? "USD",
+          theme: resolvedTheme === "dark" ? "dark" : "light",
+        },
+        org?.id,
+        org?.environment
+      );
+
+      console.log("response", response);
+
+      setAppToken(response);
+    })();
   }, [activePlugin?.installation.id, org?.selectedCurrency, period, resolvedTheme, tokenRefreshKey]);
 
   const src = React.useMemo(() => {
