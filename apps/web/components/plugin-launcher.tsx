@@ -171,7 +171,7 @@ export function PluginLauncher() {
             animate={{ x: 0 }}
             exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="bg-background border-border/80 fixed inset-y-0 right-12 z-[40] flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
+            className="bg-background border-border/80 fixed inset-y-0 right-12 z-40 flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
             role="complementary"
             aria-label={activePlugin?.app.name ?? "Installed app"}
           >
