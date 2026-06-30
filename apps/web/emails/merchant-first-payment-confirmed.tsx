@@ -71,3 +71,5 @@ export const MerchantFirstPaymentConfirmedEmail = ({
     </EmailLayout>
   );
 };
+
+export default MerchantFirstPaymentConfirmedEmail;
