@@ -174,9 +174,9 @@ const paymentActionHandler = async (
 
           await processPaymentBilling(payment.id, organizationId, environment, ctx.lifeTimeVolumeUsdCents);
 
-          if (ctx.org.settings?.disableNativeEmails === true) return;
-
           if (ctx.customer?.email) {
+            if (ctx.org.settings?.disableNativeEmails === true) return;
+
             await sendEmail(
               ctx.customer.email,
               "Payment Confirmed",

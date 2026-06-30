@@ -112,34 +112,11 @@ export const organizationSecrets = pgTable("organization_secret", {
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
   testnetSecretEncrypted: text("testnet_secret_encrypted"),
-  testnetSecretVersion: integer("testnet_secret_version")
-    .notNull()
-    .default(parseInt(process.env.ENCRYPTION_KEY_VERSION!)),
   testnetPublicKey: text("testnet_public_key"),
   mainnetSecretEncrypted: text("mainnet_secret_encrypted"),
-  mainnetSecretVersion: integer("mainnet_secret_version")
-    .notNull()
-    .default(parseInt(process.env.ENCRYPTION_KEY_VERSION!)),
   mainnetPublicKey: text("mainnet_public_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const secretAccessLogActionEnum = pgEnum("secret_access_log_action", ["decrypt", "rotate", "backup"]);
-
-export const secretAccessLog = pgTable("secret_access_log", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }),
-  secretId: text("secret_id")
-    .notNull()
-    .references(() => organizationSecrets.id, { onDelete: "cascade" }),
-  action: secretAccessLogActionEnum("action").notNull(),
-  metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  environment: networkEnum("network").notNull(),
 });
 
 export const apiKeys = pgTable("api_key", {
@@ -631,7 +608,6 @@ export type Refund = InferSelectModel<typeof refunds>;
 export type Subscription = InferSelectModel<typeof subscriptions>;
 export type Auth = InferSelectModel<typeof auth>;
 export type PasswordReset = InferSelectModel<typeof passwordReset>;
-export type SecretAccessLog = InferSelectModel<typeof secretAccessLog>;
 export type OrganizationSecret = InferSelectModel<typeof organizationSecrets>;
 export type Payout = InferSelectModel<typeof payouts>;
 export type Event = InferSelectModel<typeof events>;

@@ -69,6 +69,7 @@ export function PluginLauncher() {
 
   React.useEffect(() => {
     if (!activePlugin?.installation.id || !resolvedTheme) return;
+    console.log("generating app token", activePlugin.installation.id, period, org?.selectedCurrency, resolvedTheme);
     generateAppToken(
       activePlugin.installation.id,
       {
@@ -84,11 +85,11 @@ export function PluginLauncher() {
   const src = React.useMemo(() => {
     if (!activePlugin?.app.baseUrl) return "";
     const url = new URL(activePlugin.app.baseUrl);
-    if (appToken) {
-      url.searchParams.set("st_token", appToken);
-    }
+    if (appToken) url.searchParams.set("st_token", appToken);
     return url.toString();
   }, [activePlugin?.app.baseUrl, appToken]);
+
+  console.log({ appToken, src, activePlugin });
 
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -113,10 +114,10 @@ export function PluginLauncher() {
     <>
       <Separator
         orientation="vertical"
-        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-[35] h-full"
+        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-35 h-full"
       />
 
-      <div className="fixed top-1/2 -right-3 z-[40] flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
+      <div className="fixed top-1/2 -right-3 z-40 flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
         <div className="flex flex-col items-end gap-2.5">
           {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
           {installations?.map((installation) => {
