@@ -44,7 +44,9 @@ export default function SubscriptionsPage() {
   const [footerState, setFooterState] = React.useState({ isPending: false });
 
   const { data: subs = [], isLoading } = useOrgQuery(["subscriptions"], async () =>
-    retrieveSubscriptions(undefined, undefined).then((res) => res.data)
+    retrieveSubscriptions(undefined, undefined, undefined, { withCustomer: true, withProduct: true }).then(
+      (res) => res.data
+    )
   );
 
   const stats = React.useMemo(() => {
@@ -66,6 +68,8 @@ export default function SubscriptionsPage() {
           status: s.status,
           product: s.product?.name,
           amount: s.product?.priceCents,
+          currencyCode: s.product?.currencyCode ?? "USD",
+          period: s.product?.recurringPeriod,
           createdAt: s.createdAt,
         })),
     [subs, activeTab]
@@ -101,9 +105,24 @@ export default function SubscriptionsPage() {
     {
       accessorKey: "amount",
       header: "Amount",
-      cell: ({ row }) => (
-        <div className="text-sm">{Money.format(row.original.amount, row.original.currencyCode)} XLM / mo</div>
-      ),
+      cell: ({ row }) => {
+        const amount = row.original.amount;
+        if (amount == null) return <div className="text-muted-foreground text-sm">—</div>;
+        const periodLabel: Record<string, string> = {
+          day: "day",
+          week: "wk",
+          month: "mo",
+          year: "yr",
+          custom: "cycle",
+        };
+        const suffix = row.original.period ? ` / ${periodLabel[row.original.period] ?? row.original.period}` : "";
+        return (
+          <div className="text-sm">
+            {Money.formatFiat(amount, row.original.currencyCode)}
+            {suffix}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "createdAt",

@@ -17,13 +17,6 @@ import { InputGroup, InputGroupInput } from "../../ui/input-group";
 import { Label } from "../../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 
-class AppError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AppError";
-  }
-}
-
 export const phoneNumberSchema = Schema.object({
   number: Schema.string().min(1, "Phone number is required"),
   countryCode: Schema.string().default("US"),
@@ -42,7 +35,11 @@ export const phoneNumberToString = (phoneNumber: PhoneNumber): string => {
   return `${prefix} ${digits}`;
 };
 
+const DEFAULT_COUNTRY_CODE = "US";
+
 export const phoneNumberFromString = (raw: string): PhoneNumber => {
+  if (!raw?.trim()) return { number: "", countryCode: DEFAULT_COUNTRY_CODE };
+
   try {
     const parsed = parsePhoneNumberWithError(raw);
     if (parsed?.country) {
@@ -51,20 +48,20 @@ export const phoneNumberFromString = (raw: string): PhoneNumber => {
   } catch {}
 
   const countryCodeMatch = raw.match(/^(\+\d{1,4})/);
-  if (!countryCodeMatch) return { number: raw, countryCode: "US" };
+  // No dialing prefix → treat the digits as a default-country (US) national number.
+  if (!countryCodeMatch) return { number: raw.replace(/[^\d]/g, ""), countryCode: DEFAULT_COUNTRY_CODE };
 
   const prefix = countryCodeMatch[1];
   const number = raw.slice(prefix.length).replace(/[^\d]/g, "");
 
-  if (prefix === "+1") return { number, countryCode: "US" };
+  if (prefix === "+1") return { number, countryCode: DEFAULT_COUNTRY_CODE };
 
   const countryCode = countries.find((iso) => {
     const { phone } = getCountryData(iso as TCountryCode);
     return phone && phone.length > 0 && `+${phone[0]}` === prefix;
   });
 
-  if (!countryCode) throw new AppError("Invalid country code");
-  return { number, countryCode };
+  return { number, countryCode: countryCode ?? DEFAULT_COUNTRY_CODE };
 };
 
 type LabelProps = React.ComponentProps<typeof Label>;
