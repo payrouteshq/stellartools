@@ -59,11 +59,9 @@ export const postOrganizationAndSecret = safeAction(
       postOrganizationSecretWithEncryption(
         {
           testnetSecret: account.value!.keypair.secret(),
-          testnetSecretVersion: parseInt(process.env.NEXT_PUBLIC_CURRENT_ENCRYPTION_KEY_VERSION!) || 1,
           testnetPublicKey: account.value!.keypair.publicKey(),
           mainnetSecret: null,
           mainnetPublicKey: null,
-          mainnetSecretVersion: 0,
         },
         organization.id,
         defaultEnvironment
@@ -111,11 +109,10 @@ export const retrieveOrganizationIdAndSecret = async (id: string, environment: N
   const [result] = await db
     .select({
       organizationId: organizations.id,
-      secret: sql<{ encrypted: string; version: number; publicKey: string } | null>`
+      secret: sql<{ encrypted: string; publicKey: string } | null>`
         CASE WHEN ${sql.raw(`"organization_secret"."${prefix}_secret_encrypted"`)} IS NOT NULL THEN
             jsonb_build_object(
               'encrypted', ${sql.raw(`"organization_secret"."${prefix}_secret_encrypted"`)},
-              'version', ${sql.raw(`"organization_secret"."${prefix}_secret_version"`)},
               'publicKey', ${sql.raw(`"organization_secret"."${prefix}_public_key"`)}
             )
           ELSE NULL 
@@ -230,31 +227,12 @@ export const resolveOrgContext = async (
   };
 };
 
-// -- Organization Secrets --
-
-export const retrieveOrganizationSecrets = async (organizationId: string) => {
-  const secrets = await db
-    .select()
-    .from(organizationSecrets)
-    .where(eq(organizationSecrets.organizationId, organizationId));
-
-  return secrets;
-};
-
-export const retrieveOrganizationSecret = async (id: string) => {
-  const [secret] = await db.select().from(organizationSecrets).where(eq(organizationSecrets.id, id)).limit(1);
-
-  return secret;
-};
-
 // -- Internal --
 
 export const postOrganizationSecretWithEncryption = async (
   params: {
     mainnetPublicKey: string | null;
     testnetPublicKey: string | null;
-    testnetSecretVersion: number;
-    mainnetSecretVersion: number;
     testnetSecret: string | null;
     mainnetSecret: string | null;
   },
@@ -268,8 +246,6 @@ export const postOrganizationSecretWithEncryption = async (
     .values({
       mainnetPublicKey: params.mainnetPublicKey,
       testnetPublicKey: params.testnetPublicKey,
-      mainnetSecretVersion: params.testnetSecretVersion,
-      testnetSecretVersion: params.testnetSecretVersion,
       mainnetSecretEncrypted: params.mainnetSecret ? `${SENSITIVE_KEY_PREFIX}${encrypt(params.mainnetSecret)}` : null,
       testnetSecretEncrypted: params.testnetSecret ? `${SENSITIVE_KEY_PREFIX}${encrypt(params.testnetSecret)}` : null,
       id: generateResourceId("org_sec", organizationId, 25),

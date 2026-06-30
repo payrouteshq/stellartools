@@ -31,7 +31,7 @@ export const deliverToApp = async <TName extends string, TObject>(
 
   try {
     const signer = new WebhookSigner();
-    const signature = signer.generateSignature(body, decrypt(app.appSecret));
+    const signature = signer.generateSignature(body, decrypt(app.appSecret.replace(SENSITIVE_KEY_PREFIX, "")));
 
     const appToken = await generateAppToken(
       appInstallationId,

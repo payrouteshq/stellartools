@@ -35,8 +35,13 @@ export const processResource = <T>(data: T, convertToSnakeCase: boolean = false)
   if (_.isPlainObject(data)) {
     const result: Record<string, any> = {};
 
-    for (const [key, value] of Object.entries(data)) {
-      if (SENSITIVE_KEY_REGEXES.some((regex) => regex.test(key))) continue;
+    for (const [rawKey, value] of Object.entries(data)) {
+      // A leading `*` is an explicit opt-out: return the key even if it looks sensitive
+      // (the `*` is stripped from the output). we should use this only when you know what you're doing.
+      const forced = rawKey.startsWith("*");
+      const key = forced ? rawKey.slice(1) : rawKey;
+
+      if (!forced && SENSITIVE_KEY_REGEXES.some((regex) => regex.test(key))) continue;
 
       if (value === null || value === undefined) continue;
       if (Array.isArray(value) && value.length === 0) continue;

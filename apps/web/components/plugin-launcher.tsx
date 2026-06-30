@@ -69,24 +69,27 @@ export function PluginLauncher() {
 
   React.useEffect(() => {
     if (!activePlugin?.installation.id || !resolvedTheme) return;
-    generateAppToken(
-      activePlugin.installation.id,
-      {
-        periodDays: Number(period),
-        currency: org?.selectedCurrency ?? "USD",
-        theme: resolvedTheme === "dark" ? "dark" : "light",
-      },
-      org?.id,
-      org?.environment
-    ).then((token) => setAppToken(token));
+
+    (async () => {
+      const response = await generateAppToken(
+        activePlugin.installation.id,
+        {
+          periodDays: Number(period),
+          currency: org?.selectedCurrency ?? "USD",
+          theme: resolvedTheme === "dark" ? "dark" : "light",
+        },
+        org?.id,
+        org?.environment
+      );
+
+      setAppToken(response);
+    })();
   }, [activePlugin?.installation.id, org?.selectedCurrency, period, resolvedTheme, tokenRefreshKey]);
 
   const src = React.useMemo(() => {
     if (!activePlugin?.app.baseUrl) return "";
     const url = new URL(activePlugin.app.baseUrl);
-    if (appToken) {
-      url.searchParams.set("st_token", appToken);
-    }
+    if (appToken) url.searchParams.set("st_token", appToken);
     return url.toString();
   }, [activePlugin?.app.baseUrl, appToken]);
 
@@ -113,10 +116,10 @@ export function PluginLauncher() {
     <>
       <Separator
         orientation="vertical"
-        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-[35] h-full"
+        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-35 h-full"
       />
 
-      <div className="fixed top-1/2 -right-3 z-[40] flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
+      <div className="fixed top-1/2 -right-3 z-40 flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
         <div className="flex flex-col items-end gap-2.5">
           {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
           {installations?.map((installation) => {
@@ -163,7 +166,7 @@ export function PluginLauncher() {
             animate={{ x: 0 }}
             exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="bg-background border-border/80 fixed inset-y-0 right-12 z-[40] flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
+            className="bg-background border-border/80 fixed inset-y-0 right-12 z-40 flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
             role="complementary"
             aria-label={activePlugin?.app.name ?? "Installed app"}
           >

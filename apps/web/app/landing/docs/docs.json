@@ -59,7 +59,7 @@
           },
           {
             "group": "Marketplace",
-            "pages": ["marketplace/building-apps"]
+            "pages": ["marketplace/building-apps", "marketplace/resend", "marketplace/loops"]
           },
           {
             "group": "Webhooks",

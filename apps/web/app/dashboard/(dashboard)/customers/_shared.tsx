@@ -37,7 +37,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useFilePreview } from "@stellartools/shared-ui";
 import _ from "lodash";
-import { AlertTriangle, ArrowRight, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Papa from "papaparse";
 import * as RHF from "react-hook-form";
@@ -384,40 +384,27 @@ export function DeleteCustomerModalContent({ customer, onClose }: { customer: Cu
     },
     {
       onSuccess: onClose,
-      invalidate: [[["customers"], ["customer", customer.id]]],
+      invalidate: [["customers"], ["customer", customer.id]],
       successMsg: "Customer deleted successfully",
       errorMsg: "Failed to delete customer",
     }
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="bg-destructive/10 border-destructive/20 flex items-start gap-3 rounded-lg border p-4">
-        <AlertTriangle className="text-destructive mt-0.5 size-5 shrink-0" />
-        <div className="space-y-1">
-          <p className="text-destructive text-sm font-medium">This action is irreversible</p>
-          <p className="text-muted-foreground text-sm">
-            Deleting <span className="text-foreground font-medium">{customer.name}</span> will permanently remove their
-            account. Any active subscriptions will be cancelled.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-3 border-t pt-4">
-        <Button type="button" variant="outline" onClick={onClose} disabled={isPending} className="shadow-none">
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          variant="destructive"
-          isLoading={isPending}
-          disabled={isPending}
-          onClick={() => deleteCustomerAction(customer.id)}
-          className="gap-2 shadow-none"
-        >
-          Delete customer
-        </Button>
-      </div>
+    <div className="flex justify-end gap-3 pt-2">
+      <Button type="button" variant="outline" onClick={onClose} disabled={isPending} className="shadow-none">
+        Cancel
+      </Button>
+      <Button
+        type="button"
+        variant="destructive"
+        isLoading={isPending}
+        disabled={isPending}
+        onClick={() => deleteCustomerAction(customer.id)}
+        className="shadow-none"
+      >
+        Delete customer
+      </Button>
     </div>
   );
 }
