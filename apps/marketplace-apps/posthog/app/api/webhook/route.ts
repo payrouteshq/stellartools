@@ -149,7 +149,8 @@ export async function POST(req: NextRequest) {
     const posthog = new PostHog(projectToken, { flushAt: 1, flushInterval: 0 });
 
     const track = (eventName: string, properties: Record<string, unknown>) => {
-      posthog.capture({ distinctId: projectToken, event: eventName, properties: { ...properties, environment } });
+      const distinctId = String(properties.stellartools_customer_id ?? "anonymous");
+      posthog.capture({ distinctId, event: eventName, properties: { ...properties, environment } });
     };
 
     await handler(event, track);

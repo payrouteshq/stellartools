@@ -9,6 +9,7 @@ export type AppSettings = {
   posthogProjectToken: string;
   posthogPersonalApiKey: string;
   posthogProjectId: string;
+  posthogHost: string;
 };
 
 // ─── PostHog cohort helpers ───────────────────────────────────────────────────
@@ -57,7 +58,7 @@ function compileCohort(cohort: Cohort) {
 }
 
 function cohortUrl(settings: AppSettings, id?: string) {
-  const base = `https://app.posthog.com/api/projects/${settings.posthogProjectId}/cohorts`;
+  const base = `${settings.posthogHost}/api/projects/${settings.posthogProjectId}/cohorts`;
   return id ? `${base}/${id}/` : `${base}/`;
 }
 
@@ -83,11 +84,14 @@ export async function validateAndConnect(
   });
   if (!valid.ok) return "Couldn't connect to PostHog. Check your keys and try again.";
 
+  const posthogHost = new URL(valid.url).origin;
+
   const st = new StellarTools({ api_key: appToken });
   const result = await st.appInstallations.updateSettings({
     posthogProjectToken: projectApiKey,
     posthogPersonalApiKey: personalApiKey,
     posthogProjectId: projectId,
+    posthogHost,
   });
 
   return result?.error ?? true;

@@ -47,7 +47,7 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-3">
             <a
-              href={`https://us.posthog.com/project/${appSettings.posthogProjectId}`}
+              href={`${appSettings.posthogHost}/project/${appSettings.posthogProjectId}`}
               target="_blank"
               rel="noreferrer"
               className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
