@@ -1,5 +1,13 @@
 # @stellartools/app-sdk
 
+## 0.0.6
+
+### Patch Changes
+
+- bf5b3ce: chore: bump versions
+- Updated dependencies [bf5b3ce]
+  - @stellartools/core@0.0.6
+
 ## 0.0.2
 
 ### Patch Changes
