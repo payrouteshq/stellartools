@@ -2,8 +2,11 @@
 
 import * as React from "react";
 
+import { GitHub } from "@/components/icon";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+
+const GITHUB_URL = "https://github.com/payrouteshq/stellartools";
 
 const WORDS = ["SaaS", "Agency", "Store", "Startup", "Platform", "Product"];
 
@@ -36,6 +39,15 @@ function CyclingWord() {
 export function HeroSection() {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-28 pb-20 text-center">
+      <Link
+        href={GITHUB_URL}
+        target="_blank"
+        className="border-border text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium no-underline transition-colors"
+      >
+        <GitHub className="size-3.5" />
+        Open source
+      </Link>
+
       <p className="text-muted-foreground mb-5 text-[11px] font-semibold tracking-[1.6px] uppercase">
         A Payroutes company.
       </p>
@@ -48,7 +60,7 @@ export function HeroSection() {
 
       <p className="text-muted-foreground mb-10 max-w-[480px] text-[17px] leading-relaxed">
         Accept payments across borders at near-zero cost. 3-second settlements, fractions of a cent per transaction —
-        Stripe-like billing on Stellar.
+        open-source, Stripe-like billing on Stellar.
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -57,6 +69,14 @@ export function HeroSection() {
           className="bg-foreground text-background rounded-lg px-6 py-2.5 text-[14.5px] font-semibold no-underline transition-all hover:opacity-90"
         >
           Get started free
+        </Link>
+        <Link
+          href={GITHUB_URL}
+          target="_blank"
+          className="border-border text-foreground inline-flex items-center gap-2 rounded-lg border px-6 py-2.5 text-[14.5px] font-semibold no-underline transition-all hover:opacity-90"
+        >
+          <GitHub className="size-4" />
+          Star on GitHub
         </Link>
         <Link
           href={process.env.NEXT_PUBLIC_DOCS_URL ?? "#"}

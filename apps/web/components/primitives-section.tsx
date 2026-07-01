@@ -2,7 +2,8 @@ const primitives = [
   {
     label: "Payments",
     id: "payments",
-    description: "Accept XLM, USDC, or any Stellar asset. 3-second settlement, sub-cent fees, no chargebacks.",
+    description:
+      "Price in your local currency — NGN, GHS, USD and more — while customers pay in XLM, USDC, or any Stellar asset. 3-second settlement, sub-cent fees, no chargebacks.",
   },
   {
     label: "Subscriptions",
@@ -26,23 +27,20 @@ const primitives = [
   },
 ];
 
-export default function PrimitivesSection() {
+export const PrimitivesSection = () => {
   return (
     <section className="border-border border-t px-6 py-24">
       <div className="mx-auto max-w-5xl">
         <p className="text-muted-foreground mb-3 text-[11px] font-semibold tracking-[1.6px] uppercase">
-          Six primitives.
+          The primitives.
         </p>
         <h2 className="text-foreground mb-14 text-[clamp(26px,3vw,38px)] font-bold tracking-tight">
-          Everything you need. Nothing you don&apos;t.
+          Everything you need.
         </h2>
 
         <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-3">
           {primitives.map((p) => (
-            <div
-              key={p.id}
-              className="border-border bg-background border p-6 first:rounded-tl-xl last:rounded-br-xl nth-3:rounded-tr-xl nth-4:rounded-bl-xl sm:first:rounded-tl-xl sm:nth-2:rounded-tr-xl sm:nth-5:rounded-bl-xl sm:nth-6:rounded-br-xl lg:first:rounded-tl-xl lg:nth-3:rounded-tr-xl lg:nth-4:rounded-bl-none lg:nth-6:rounded-br-xl"
-            >
+            <div key={p.id} className="border-border bg-background border p-6">
               <p className="text-foreground mb-2 font-semibold">{p.label}</p>
               <p className="text-muted-foreground text-sm leading-relaxed">{p.description}</p>
             </div>
@@ -51,4 +49,4 @@ export default function PrimitivesSection() {
       </div>
     </section>
   );
-}
+};

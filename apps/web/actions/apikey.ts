@@ -5,12 +5,13 @@ import { retrieveCustomerPortalSession } from "@/actions/customers";
 import { resolveOrgContext } from "@/actions/organization";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
-import { decrypt, encrypt } from "@/integrations/encryption";
+import { decrypt } from "@/integrations/encryption";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, patchJSON } from "@/lib/utils";
 import { AuthContext } from "@/types";
 import { AppContext } from "@stellartools/app-sdk";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stellartools/core";
+import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
 
 export const postApiKey = safeAction(
@@ -26,7 +27,7 @@ export const postApiKey = safeAction(
         id: generateResourceId("st_api", organizationId, 20),
         organizationId,
         environment,
-        token: `${SENSITIVE_KEY_PREFIX}${encrypt(rawToken)}`,
+        token: `${SENSITIVE_KEY_PREFIX}${createHash("sha256").update(rawToken).digest("hex")}`,
       })
       .returning()
       .then(([apiKey]) => apiKey);
@@ -169,7 +170,9 @@ export const resolveAuthContext = async (params: {
   }
 
   // 4. API Key Degree (Standard Developer Access)
-  if (!apiKey?.trim()) {
+  const rawApiKey = apiKey?.trim();
+
+  if (!rawApiKey) {
     return null;
   }
 
@@ -177,7 +180,12 @@ export const resolveAuthContext = async (params: {
     .select({ organizationId: organizations.id, environment: apiKeys.environment, apiKeyId: apiKeys.id })
     .from(apiKeys)
     .innerJoin(organizations, eq(apiKeys.organizationId, organizations.id))
-    .where(and(eq(apiKeys.token, `${SENSITIVE_KEY_PREFIX}${encrypt(apiKey)}`), eq(apiKeys.isRevoked, false)))
+    .where(
+      and(
+        eq(apiKeys.token, `${SENSITIVE_KEY_PREFIX}${createHash("sha256").update(rawApiKey).digest("hex")}`),
+        eq(apiKeys.isRevoked, false)
+      )
+    )
     .limit(1);
 
   if (!row) return null;
