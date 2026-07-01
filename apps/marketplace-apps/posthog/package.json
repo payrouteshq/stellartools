@@ -1,0 +1,31 @@
+{
+  "name": "@stellartools/app-posthog",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@stellartools/app-sdk": "workspace:*",
+    "@stellartools/core": "workspace:*",
+    "@stellartools/shared-ui": "workspace:*",
+    "next": "16.2.9",
+    "pg": "^8.22.0",
+"react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.6.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

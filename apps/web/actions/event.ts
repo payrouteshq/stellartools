@@ -57,7 +57,11 @@ export async function withEvent<T>(
         ? await retrieveInstalledApps({ status: "active", scopes: [requiredScope] }, orgId, env)
         : [];
 
-      const webhookLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
+
+      const webhookLogId =
+        subscribers.length > 0 || installedApps.length > 0
+          ? generateResourceId("wh_evt", orgId, 52)
+          : undefined;
 
       // 3. EMIT INTERNAL EVENTS (Dashboard Timeline)
       if (eventConfigs) {
@@ -102,25 +106,27 @@ export async function withEvent<T>(
       }
 
       // B. Plugin/App Webhooks (Partner servers)
-      if (installedApps.length > 0) {
+      if (installedApps.length > 0 && triggers.length > 0) {
         installedApps.forEach(({ app, app_installation }) => {
-          const envelope: WebhookEventBase<any, any> = {
-            id: webhookLogId!,
-            type: primaryEvent!.type,
-            created: new Date().toISOString(),
-            livemode: env === "mainnet",
-            data: { object: primaryEvent!.map(result) },
-          };
+          triggers.forEach((trigger) => {
+            const envelope: WebhookEventBase<any, any> = {
+              id: webhookLogId!,
+              type: trigger.event,
+              created: new Date().toISOString(),
+              livemode: env === "mainnet",
+              data: trigger.map(result),
+            };
 
-          deliveries.push(
-            deliverToApp(
-              app,
-              app_installation.id,
-              { ...envelope, organizationId: orgId, environment: env },
-              webhookLogId!,
-              app_installation.settings
-            )
-          );
+            deliveries.push(
+              deliverToApp(
+                app,
+                app_installation.id,
+                { ...envelope, organizationId: orgId, environment: env },
+                webhookLogId!,
+                app_installation.settings
+              )
+            );
+          });
         });
       }
 

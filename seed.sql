@@ -62,6 +62,31 @@ CREATE TABLE IF NOT EXISTS event_log (
 CREATE INDEX IF NOT EXISTS idx_event_log_org ON event_log (org_id, environment, sent_at DESC);
 
 -- ============================================================
+-- posthog_app database (for cohorts)
+-- ============================================================
+SELECT 'CREATE DATABASE posthog_app' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'posthog_app')\gexec
+
+\c posthog_app;
+GRANT ALL ON SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
+
+CREATE TABLE IF NOT EXISTS cohorts (
+  id                TEXT PRIMARY KEY,
+  installation_id   TEXT NOT NULL,
+  name              TEXT NOT NULL,
+  description       TEXT,
+  match             TEXT NOT NULL DEFAULT 'all',
+  blocks            JSONB NOT NULL DEFAULT '[]',
+  posthog_cohort_id TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cohorts_inst ON cohorts (installation_id, updated_at DESC);
+
+-- ============================================================
 -- Seed data for postgres DB (run AFTER drizzle migrations)
 -- ============================================================
 \c postgres;
@@ -134,7 +159,7 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'https://posthog.com',
     -- decrypted: sec_Ph5tWqYzMnKjVbXcRd8La2EfGsHu9oPi
     '__ST_ENC__:9872e6800de8b03bef2d092afb1f747c34661c0662aa83a9c8027a9c606f1e3028002c878c36dcae6dc5cf15482af76b982d09ab27236ee63ac41e66900cbcdfc1e53f63',
-    NULL,
+    'http://localhost:3001/api/webhook',
     'PostHog',
     E'## Revenue events in your product funnels\n\nPipe payment, subscription, and churn events from StellarTools into PostHog as custom events. Build funnels that show the full journey from first visit to paid customer.\n\n## Segment product analytics by revenue tier\n\nStellarTools enriches PostHog person profiles with plan, MRR, and payment status so you can filter session recordings, feature flags, and experiments by what customers actually pay.',
     'Free up to 1M events/mo, then usage-based',
@@ -142,9 +167,9 @@ INSERT INTO public.app (id, name, slug, base_url, app_secret, webhook_url, publi
     'https://posthog.com',
     'hey@posthog.com',
     ARRAY['read:customers','read:payments','read:refunds','read:subscriptions'],
-    ARRAY['posthugApiKey'],
+    ARRAY['posthogApiKey'],
     '1.0',
-    'coming_soon',
+      'available',
     'https://8rcejvvfub.ufs.sh/f/PUZcIXo3ao8InYN939nBaHU7t1CPbms8dX3phBTJclYyExAK'
   )
 ON CONFLICT (id) DO NOTHING;
