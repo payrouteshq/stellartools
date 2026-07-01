@@ -180,7 +180,7 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
 
 export default function CustomerDetailPage() {
   const router = useRouter();
-  const { id: customerId } = useParams() as { id: string };
+  const { customerId } = useParams() as { customerId: string };
   const [hiddenWallets, setHiddenWallets] = React.useState<Set<string>>(new Set());
   const checkoutModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [checkoutModalFooterProps, setCheckoutModalFooterProps] = React.useState({
@@ -329,6 +329,7 @@ export default function CustomerDetailPage() {
         />
       ),
       footer: null,
+      size: "small",
       showCloseButton: true,
     });
   }, [customer, router]);
@@ -922,14 +923,18 @@ function CustomerDetailSkeleton() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
-              <section className="space-y-3">
-                <Skeleton className="h-6 w-24" />
-                <div className="space-y-2 rounded-lg border p-4">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              </section>
+              <DataTable columns={paymentColumns} data={[]} isLoading={true} skeletonRowCount={3} />
+
+              <Timeline
+                items={[]}
+                isLoading={true}
+                skeletonRowCount={3}
+                renderItem={() => ({
+                  title: <div />,
+                  date: <div />,
+                  data: null,
+                })}
+              />
 
               <section className="space-y-3">
                 <div className="flex items-center justify-between">

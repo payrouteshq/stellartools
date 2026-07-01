@@ -177,6 +177,7 @@ export default function CustomersPage() {
       description: `Are you sure you want to delete ${customer.name ?? "this customer"}?`,
       content: <DeleteCustomerModalContent customer={customer} onClose={AppModal.close} />,
       footer: null,
+      size: "small",
       showCloseButton: true,
     });
   }, []);

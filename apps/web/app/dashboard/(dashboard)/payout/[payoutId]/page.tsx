@@ -111,7 +111,7 @@ const DetailRow = ({ label, value, icon: Icon, action, mono = false }: any) => (
 
 export default function PayoutDetailPage() {
   const router = useRouter();
-  const { id } = useParams()! as { id: string };
+  const { payoutId } = useParams()! as { payoutId: string };
   const { data: orgContext } = useOrgContext();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
@@ -120,9 +120,11 @@ export default function PayoutDetailPage() {
     queryFn: async () => await retrieveOrganizations(),
   });
 
-  const { data: payout, isLoading: isLoadingPayout } = useOrgQuery(["payout", id], () => retrievePayoutById(id));
+  const { data: payout, isLoading: isLoadingPayout } = useOrgQuery(["payout", payoutId], () =>
+    retrievePayoutById(payoutId)
+  );
 
-  const { data: payoutEvents, isLoading: isLoadingPayoutEvents } = useOrgQuery(["payout-events", id], () =>
+  const { data: payoutEvents, isLoading: isLoadingPayoutEvents } = useOrgQuery(["payout-events", payoutId], () =>
     retrieveEvents({ merchantId: "current" }, ["payout::requested", "payout::processed"])
   );
 

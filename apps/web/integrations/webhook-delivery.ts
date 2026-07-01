@@ -1,6 +1,6 @@
 import "server-only";
 
-import { postWebhookLog } from "@/actions/webhook";
+import { postDeliveryLog } from "@/actions/webhook";
 import { Webhook as WebhookSchema } from "@/db/schema";
 import { AppError } from "@/lib/action-handler";
 import { ApiClient, WebhookEventBase, WebhookEventType, WebhookSigner } from "@stellartools/core";
@@ -49,7 +49,7 @@ export const deliverWebhook = async <TName extends string, TObject>(
     errorMessage = result.error.message;
   }
 
-  await postWebhookLog(
+  await postDeliveryLog(
     { webhookId: webhook.id },
     {
       id: logId,

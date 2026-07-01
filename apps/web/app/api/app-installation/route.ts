@@ -1,4 +1,4 @@
-import { retrieveInstalledApps, updateAppInstallation } from "@/actions/app";
+import { retrieveAppInstallations, updateAppInstallation } from "@/actions/app";
 import { apiHandler } from "@/lib/api-handler";
 import { APP_INSTALLATION_STATUS, Result, z as Schema, appInstallationSettingsSchema } from "@stellartools/core";
 
@@ -9,7 +9,7 @@ export const GET = apiHandler({
     /**
      * Retrieves the settings for the app installation without decrypting the sensitive keys
      */
-    const [response] = await retrieveInstalledApps(undefined, auth.organizationId, auth.environment, {
+    const [response] = await retrieveAppInstallations(undefined, auth.organizationId, auth.environment, {
       installationId: auth.installationId,
     });
 

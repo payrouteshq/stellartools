@@ -525,9 +525,9 @@ const DataTableSkeleton = <TData, TValue>({
         <div className="text-muted-foreground flex-1 text-sm">
           {enableBulkSelect && <Skeleton className="h-4 w-32" />}
         </div>
-        <div className="space-x-2">
-          <Skeleton className="h-9 w-20 rounded border" />
-          <Skeleton className="h-9 w-16 rounded border" />
+        <div className="flex items-center space-x-2">
+          <Skeleton data-slot="data-table-skeleton" className="h-7 w-20 rounded border" />
+          <Skeleton data-slot="data-table-skeleton" className="h-7 w-16 rounded border" />
         </div>
       </div>
     </div>
