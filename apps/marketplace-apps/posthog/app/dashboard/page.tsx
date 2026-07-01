@@ -47,7 +47,7 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-3">
             <a
-              href="https://app.posthog.com"
+              href={`https://us.posthog.com/project/${appSettings.posthogProjectId}`}
               target="_blank"
               rel="noreferrer"
               className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
@@ -106,12 +106,7 @@ const Dashboard = () => {
                     <span className="text-sm font-medium truncate">{cohort.name}</span>
                     <span className="text-muted-foreground text-xs">
                       {cohort.blocks.length} rule{cohort.blocks.length !== 1 ? "s" : ""} ·{" "}
-                      {cohort.match === "all" ? "all must match" : "any must match"} ·{" "}
-                      {cohort.posthogCohortId ? (
-                        <span className="text-green-600 dark:text-green-400">synced to PostHog</span>
-                      ) : (
-                        <span className="text-muted-foreground">not synced</span>
-                      )}
+                      {cohort.match === "all" ? "all must match" : "any must match"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

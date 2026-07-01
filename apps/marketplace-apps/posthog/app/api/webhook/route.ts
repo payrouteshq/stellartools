@@ -1,4 +1,3 @@
-import { resolveAppContext } from "@/app/actions/context";
 import {
   AppInstallationSettings,
   Network,
@@ -10,108 +9,113 @@ import {
   z as Schema,
   parseJSON,
 } from "@stellartools/core";
+import { PostHog } from "posthog-node";
 import { NextRequest, NextResponse } from "next/server";
 
 type WebhookHandlers = {
   [K in WebhookEventType]?: (
     event: WebhookEventBase<K, WebhookObjectMap[K]>,
-    settings: AppInstallationSettings,
-    orgId: string | null,
-    environment: Network
+    track: (event: string, properties: Record<string, unknown>) => void
   ) => Promise<void>;
 };
 
-function capture(apiKey: string, distinctId: string, event: string, properties: Record<string, unknown>) {
-  return fetch("https://app.posthog.com/capture/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: apiKey, distinct_id: distinctId, event, properties }),
-  });
+function parseAmount(raw: unknown) {
+  const [rawAmt, currency] = String(raw).split(" ");
+  return { amountCents: parseInt(rawAmt) || 0, currency: currency ?? "USD" };
 }
 
 const HANDLERS: WebhookHandlers = {
-  "payment.confirmed": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "payment.confirmed": async (event, track) => {
     const p = event.data.object;
-    const [rawAmt, currency] = String(p.amount).split(" ");
-    const amountCents = parseInt(rawAmt) || 0;
-    await capture(key, p.customer_id, "payment_confirmed", {
+    const { amountCents, currency } = parseAmount(p.amount);
+    track("payment_confirmed", {
+      stellartools_customer_id: p.customer_id,
       amount: amountCents / 100,
       amount_cents: amountCents,
-      currency: currency ?? "USD",
+      currency,
       checkout_id: p.checkout_id,
       transaction_hash: p.transaction_hash,
       ...(p.metadata ?? {}),
-      $set: { last_payment_status: "confirmed" },
     });
   },
-  "payment.failed": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "payment.pending": async (event, track) => {
     const p = event.data.object;
-    const [rawAmt, currency] = String(p.amount).split(" ");
-    const amountCents = parseInt(rawAmt) || 0;
-    await capture(key, p.customer_id, "payment_failed", {
+    const { amountCents, currency } = parseAmount(p.amount);
+    track("payment_pending", {
+      stellartools_customer_id: p.customer_id,
       amount: amountCents / 100,
       amount_cents: amountCents,
-      currency: currency ?? "USD",
-      $set: { last_payment_status: "failed" },
+      currency,
     });
   },
-  "subscription.created": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "payment.failed": async (event, track) => {
+    const p = event.data.object;
+    const { amountCents, currency } = parseAmount(p.amount);
+    track("payment_failed", {
+      stellartools_customer_id: p.customer_id,
+      amount: amountCents / 100,
+      amount_cents: amountCents,
+      currency,
+    });
+  },
+  "subscription.created": async (event, track) => {
     const s = event.data.object;
-    await capture(key, s.customer_id, "subscription_created", {
+    track("subscription_created", {
+      stellartools_customer_id: s.customer_id,
       product_id: s.product_id,
       status: s.status,
-      $set: { product_id: s.product_id, subscription_status: s.status },
     });
   },
-  "subscription.updated": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "subscription.updated": async (event, track) => {
     const s = event.data.object;
-    const prev = (event.data.previous_attributes ?? {}) as Record<string, unknown>;
-    const $set: Record<string, unknown> = {};
-    if ("product_id" in prev) $set.product_id = s.product_id;
-    if ("status" in prev) $set.subscription_status = s.status;
-    await capture(key, s.customer_id, "subscription_updated", {
+    track("subscription_updated", {
+      stellartools_customer_id: s.customer_id,
       product_id: s.product_id,
       status: s.status,
-      ...(Object.keys($set).length ? { $set } : {}),
     });
   },
-  "subscription.canceled": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "subscription.canceled": async (event, track) => {
     const s = event.data.object;
-    await capture(key, s.customer_id, "subscription_canceled", {
-      $set: { subscription_status: "canceled" },
+    track("subscription_canceled", {
+      stellartools_customer_id: s.customer_id,
+      status: s.status,
     });
   },
-  "refund.succeeded": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "refund.succeeded": async (event, track) => {
     const r = event.data.object;
-    if (r.customer_id) await capture(key, r.customer_id, "refund_created", { amount: r.amount });
+    if (!r.customer_id) return;
+    const { amountCents, currency } = parseAmount(r.amount);
+    track("refund_succeeded", {
+      stellartools_customer_id: r.customer_id,
+      amount: amountCents / 100,
+      amount_cents: amountCents,
+      currency,
+    });
   },
-  "refund.failed": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "refund.failed": async (event, track) => {
     const r = event.data.object;
-    if (r.customer_id) await capture(key, r.customer_id, "refund_failed", { amount: r.amount });
+    if (!r.customer_id) return;
+    const { amountCents, currency } = parseAmount(r.amount);
+    track("refund_failed", {
+      stellartools_customer_id: r.customer_id,
+      amount: amountCents / 100,
+      amount_cents: amountCents,
+      currency,
+    });
   },
-  "customer.created": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "customer.created": async (event, track) => {
     const c = event.data.object;
-    await capture(key, c.id, "customer_created", { $set: { email: c.email, name: c.name } });
+    track("customer_created", { stellartools_customer_id: c.id, email: c.email, name: c.name });
   },
-  "customer.updated": async (event, settings) => {
-    const key = settings["posthogProjectToken"] as string;
+  "customer.updated": async (event, track) => {
     const c = event.data.object;
-    await capture(key, c.id, "customer_updated", { $set: { email: c.email, name: c.name } });
+    track("customer_updated", { stellartools_customer_id: c.id, email: c.email, name: c.name });
   },
 };
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-stellartools-signature") ?? "";
-  const appToken = req.headers.get("x-stellartools-app-token") ?? "";
 
   const signer = new WebhookSigner();
 
@@ -127,28 +131,30 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    if (!settings["posthogProjectToken"]) {
+    const projectToken = settings["posthogProjectToken"] as string | undefined;
+    if (!projectToken) {
       return NextResponse.json({ error: "No project token configured" }, { status: 404 });
     }
 
-    const appContext = await resolveAppContext(appToken);
-    const orgId = appContext?.orgId ?? null;
-    const environment: Network = event.livemode ? "mainnet" : "testnet";
-
     const handler = HANDLERS[event.type] as
-      | ((
-          event: WebhookEvent,
-          settings: AppInstallationSettings,
-          orgId: string | null,
-          environment: Network
-        ) => Promise<void>)
+      | ((event: WebhookEvent, track: (event: string, properties: Record<string, unknown>) => void) => Promise<void>)
       | undefined;
 
     if (!handler) {
       return NextResponse.json({ error: "No handler for event type" }, { status: 404 });
     }
 
-    await handler(event, settings, orgId, environment);
+    const environment: Network = event.livemode ? "mainnet" : "testnet";
+
+    const posthog = new PostHog(projectToken, { flushAt: 1, flushInterval: 0 });
+
+    const track = (eventName: string, properties: Record<string, unknown>) => {
+      posthog.capture({ distinctId: projectToken, event: eventName, properties: { ...properties, environment } });
+    };
+
+    await handler(event, track);
+    await posthog.shutdown();
+
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     console.error("[PostHog Webhook Error]:", err);

@@ -7,57 +7,26 @@ import { getCohort } from "@/app/actions/db";
 import { AppSettings, saveCohort } from "@/app/actions/posthog";
 import { useStellarToolsContext } from "@stellartools/app-sdk";
 import { Button, Input, SelectField, Spinner } from "@stellartools/shared-ui";
-import { WebhookEventType } from "@stellartools/core";
+import { WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // ─── Event catalog ────────────────────────────────────────────────────────────
 
-type EventCatalogEntry = {
-  properties: Record<string, { type: "currency" | "enum" | "string"; source?: "products" }>;
+type PropMeta = { type: "currency" | "enum" | "string"; source?: "products" };
+type EventCatalogEntry = { properties: Record<string, PropMeta> };
+
+const RESOURCE_PROPS: Record<string, Record<string, PropMeta>> = {
+  customer:        { email: { type: "string" }, name: { type: "string" } },
+  payment_method:  {},
+  checkout:        { product_id: { type: "enum", source: "products" }, status: { type: "string" } },
+  payment:         { amount: { type: "currency" } },
+  refund:          { amount: { type: "currency" } },
+  subscription:    { product_id: { type: "enum", source: "products" }, status: { type: "string" } },
 };
 
-const EVENT_CATALOG: Partial<Record<WebhookEventType, EventCatalogEntry>> = {
-  "payment.confirmed": {
-    properties: {
-      amount: { type: "currency" },
-      product_id: { type: "enum", source: "products" },
-    },
-  },
-  "payment.pending": {
-    properties: {
-      amount: { type: "currency" },
-    },
-  },
-  "payment.failed": {
-    properties: {
-      amount: { type: "currency" },
-    },
-  },
-  "subscription.created": {
-    properties: {
-      plan: { type: "string" },
-      product_id: { type: "enum", source: "products" },
-    },
-  },
-  "subscription.updated": {
-    properties: {
-      plan: { type: "string" },
-    },
-  },
-  "subscription.canceled": {
-    properties: {},
-  },
-  "refund.succeeded": {
-    properties: {
-      amount: { type: "currency" },
-    },
-  },
-  "refund.failed": {
-    properties: {
-      amount: { type: "currency" },
-    },
-  },
-};
+const EVENT_CATALOG = Object.fromEntries(
+  WEBHOOK_EVENT_TYPES.map((k) => [k, { properties: RESOURCE_PROPS[k.split(".")[0]] ?? {} }])
+) as Record<WebhookEventType, EventCatalogEntry>;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -61,10 +61,6 @@ function cohortUrl(settings: AppSettings, id?: string) {
   return id ? `${base}/${id}/` : `${base}/`;
 }
 
-function phHeaders(settings: AppSettings) {
-  return { Authorization: `Bearer ${settings.posthogPersonalApiKey}`, "Content-Type": "application/json" };
-}
-
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export async function listPostHogProjects(personalApiKey: string): Promise<PostHogProject[]> {
@@ -117,7 +113,7 @@ export async function saveCohort(cohort: Cohort, settings: AppSettings): Promise
   if (cohort.posthogCohortId) {
     const res = await fetch(cohortUrl(settings, cohort.posthogCohortId), {
       method: "PATCH",
-      headers: phHeaders(settings),
+      headers: { Authorization: `Bearer ${settings.posthogPersonalApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to update cohort in PostHog");
@@ -126,7 +122,7 @@ export async function saveCohort(cohort: Cohort, settings: AppSettings): Promise
   } else {
     const res = await fetch(cohortUrl(settings), {
       method: "POST",
-      headers: phHeaders(settings),
+      headers: { Authorization: `Bearer ${settings.posthogPersonalApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to create cohort in PostHog");
