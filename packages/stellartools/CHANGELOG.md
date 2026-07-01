@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.6
+
+### Patch Changes
+
+- bf5b3ce: chore: bump versions
+
 ## 0.0.3
 
 ### Patch Changes
