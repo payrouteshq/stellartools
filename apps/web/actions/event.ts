@@ -1,6 +1,6 @@
 "use server";
 
-import { retrieveInstalledApps } from "@/actions/app";
+import { retrieveAppInstallations } from "@/actions/app";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrieveWebhooks, triggerWebhooks } from "@/actions/webhook";
 import { Event, Network, db, events, rawDb, txContext } from "@/db";
@@ -41,8 +41,6 @@ export async function withEvent<T>(
       const subscribers =
         triggers.length > 0 ? await retrieveWebhooks(orgId, env, { events: triggers.map((t) => t.event) }) : [];
 
-      console.log({ triggers, subscribers });
-
       // 2. DISCOVER INSTALLED APPS (Plugins)
       // Logic: If an action emits "customer::created", find apps with "read:customers" scope.
       const primaryEvent = Array.isArray(eventConfigs) ? eventConfigs[0] : eventConfigs;
@@ -54,10 +52,10 @@ export async function withEvent<T>(
       const requiredScope = resource ? (`read:${resource}` as const) : null;
 
       const installedApps = requiredScope
-        ? await retrieveInstalledApps({ status: "active", scopes: [requiredScope] }, orgId, env)
+        ? await retrieveAppInstallations({ status: "active", scopes: [requiredScope] }, orgId, env)
         : [];
 
-      const webhookLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
+      const deliveryLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
 
       // 3. EMIT INTERNAL EVENTS (Dashboard Timeline)
       if (eventConfigs) {
@@ -66,7 +64,7 @@ export async function withEvent<T>(
           return (Array.isArray(mapped) ? mapped : [mapped]).map((m) => ({
             ...m,
             type: cfg.type,
-            data: webhookLogId ? { ...m.data, webhookLogId } : m.data,
+            data: deliveryLogId ? { ...m.data, deliveryLogId } : m.data,
           }));
         });
         await emitEvents(eventsToEmit, orgId, env);
@@ -82,14 +80,14 @@ export async function withEvent<T>(
           if (targets.length === 0) return;
 
           const envelope: WebhookEventBase<string, any> = {
-            id: webhookLogId!,
+            id: deliveryLogId!,
             type: trigger.event,
             created: new Date().toISOString(),
             livemode: env === "mainnet",
             data: { object: trigger.map(result) },
           };
 
-          deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], webhookLogId!));
+          deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], deliveryLogId!));
         });
       }
 
@@ -101,25 +99,29 @@ export async function withEvent<T>(
       }
 
       // B. Plugin/App Webhooks (Partner servers)
-      if (installedApps.length > 0) {
-        installedApps.forEach(({ app, app_installation }) => {
-          const envelope: WebhookEventBase<any, any> = {
-            id: webhookLogId!,
-            type: primaryEvent!.type,
-            created: new Date().toISOString(),
-            livemode: env === "mainnet",
-            data: { object: primaryEvent!.map(result) },
-          };
+      if (installedApps.length > 0 && triggers.length > 0) {
+        triggers.forEach((trigger) => {
+          installedApps.forEach(({ app, app_installation }) => {
+            const appLogId = generateResourceId("wh_evt", orgId, 52);
 
-          deliveries.push(
-            deliverToApp(
-              app,
-              app_installation.id,
-              { ...envelope, organizationId: orgId, environment: env },
-              webhookLogId!,
-              app_installation.settings
-            )
-          );
+            const envelope: WebhookEventBase<string, any> = {
+              id: appLogId,
+              type: trigger.event,
+              created: new Date().toISOString(),
+              livemode: env === "mainnet",
+              data: { object: trigger.map(result) },
+            };
+
+            deliveries.push(
+              deliverToApp(
+                app,
+                app_installation.id,
+                { ...envelope, organizationId: orgId, environment: env },
+                appLogId,
+                app_installation.settings
+              )
+            );
+          });
         });
       }
 

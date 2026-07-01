@@ -1,7 +1,7 @@
 import "server-only";
 
 import { generateAppToken } from "@/actions/app";
-import { postWebhookLog } from "@/actions/webhook";
+import { postDeliveryLog } from "@/actions/webhook";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
@@ -13,7 +13,7 @@ export const deliverToApp = async <TName extends string, TObject>(
   app: App,
   appInstallationId: string,
   envelope: WebhookEventBase<TName, TObject> & { organizationId: string; environment: Network },
-  webhookLogId: string,
+  appInstallationDeliveryLogId: string,
   rawSettings: AppInstallationSettings | null
 ) => {
   const startTime = Date.now();
@@ -56,10 +56,10 @@ export const deliverToApp = async <TName extends string, TObject>(
 
     const duration = Date.now() - startTime;
 
-    await postWebhookLog(
+    await postDeliveryLog(
       { appInstallationId },
       {
-        id: webhookLogId,
+        id: appInstallationDeliveryLogId,
         eventType: envelope.type,
         request: JSON.parse(body),
         statusCode: response.status,
@@ -81,10 +81,10 @@ export const deliverToApp = async <TName extends string, TObject>(
   } catch (error: any) {
     const duration = Date.now() - startTime;
 
-    await postWebhookLog(
+    await postDeliveryLog(
       { appInstallationId },
       {
-        id: webhookLogId,
+        id: appInstallationDeliveryLogId,
         eventType: envelope.type,
         request: JSON.parse(body),
         statusCode: 500,

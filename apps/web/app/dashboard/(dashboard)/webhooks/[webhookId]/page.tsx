@@ -2,11 +2,11 @@
 
 import * as React from "react";
 
-import { resendWebhookLog, retrieveWebhookLogs } from "@/actions/webhook";
+import { resendDeliveryLog, retrieveDeliveryLogs as retrieveWebhookDeliveryLogs } from "@/actions/webhook";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2 } from "@/components/icon";
-import { WebhookLog } from "@/db";
+import { DeliveryLog } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgQuery } from "@/hooks/use-org-query";
@@ -75,7 +75,7 @@ const CopyButton = ({ text, label }: { text: string; label?: string }) => {
   );
 };
 
-const columns: ColumnDef<WebhookLog>[] = [
+const columns: ColumnDef<DeliveryLog>[] = [
   {
     accessorKey: "status",
     header: () => null,
@@ -114,7 +114,7 @@ const columns: ColumnDef<WebhookLog>[] = [
 
 // --- Main Component ---
 
-export default function WebhookLogPage() {
+export default function DeliveryLogPage() {
   const { webhookId } = useParams() as { webhookId: string };
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId");
@@ -122,12 +122,12 @@ export default function WebhookLogPage() {
   const [statusFilter, setStatusFilter] = useCookieState("webhook_status_filter", "all");
 
   const {
-    data: webhookLogs,
-    isLoading: isLoadingWebhookLogs,
-    refetch: refetchWebhookLogs,
+    data: deliveryLogs,
+    isLoading: isLoadingWebhookDeliveryLogs,
+    refetch: refetchWebhookDeliveryLogs,
   } = useOrgQuery(
-    ["webhookLogs", webhookId],
-    () => retrieveWebhookLogs(webhookId, undefined, undefined, { appInstallationId: undefined }),
+    ["deliveryLogs", webhookId],
+    () => retrieveWebhookDeliveryLogs(webhookId, undefined, undefined, { appInstallationId: undefined }),
     {
       enabled: !!webhookId,
       select: (data) => {
@@ -150,11 +150,11 @@ export default function WebhookLogPage() {
     }
   );
 
-  const { mutate: resendWebhookLogAction, isPending: isResendingWebhookLog } = useAction(
+  const { mutate: resendDeliveryLogAction, isPending: isResendingDeliveryLog } = useAction(
     async ({ eventType, payload }: { eventType: WebhookEventType; payload: WebhookEvent }) =>
-      resendWebhookLog(webhookId, eventType, payload),
+      resendDeliveryLog({ webhookId }, eventType, payload),
     {
-      onSuccess: () => refetchWebhookLogs(),
+      onSuccess: () => refetchWebhookDeliveryLogs(),
       errorMsg: "Failed to resend webhook",
       successMsg: "Webhook resent successfully",
     }
@@ -169,7 +169,7 @@ export default function WebhookLogPage() {
   };
 
   const filteredLogs = React.useMemo(() => {
-    let logs = webhookLogs;
+    let logs = deliveryLogs;
 
     if (eventId && logs) {
       const targetLog = logs.find((l) => l.id === eventId);
@@ -189,9 +189,9 @@ export default function WebhookLogPage() {
     }
 
     return logs ?? [];
-  }, [webhookLogs, searchQuery, statusFilter, eventId]);
+  }, [deliveryLogs, searchQuery, statusFilter, eventId]);
 
-  const renderDetail = (log: WebhookLog) => {
+  const renderDetail = (log: DeliveryLog) => {
     return (
       <div className="flex h-full flex-col">
         <div className="border-border mb-4 flex items-start justify-between border-b pb-4">
@@ -202,13 +202,13 @@ export default function WebhookLogPage() {
           <Button
             size="sm"
             onClick={() =>
-              resendWebhookLogAction({
+              resendDeliveryLogAction({
                 eventType: log.eventType as WebhookEventType,
                 payload: getResendPayload(log) as WebhookEvent,
               })
             }
-            disabled={isResendingWebhookLog}
-            isLoading={isResendingWebhookLog}
+            disabled={isResendingDeliveryLog}
+            isLoading={isResendingDeliveryLog}
           >
             Resend
           </Button>
@@ -332,7 +332,12 @@ export default function WebhookLogPage() {
                   <UnderlineTabsTrigger value="failed">Failed</UnderlineTabsTrigger>
                 </UnderlineTabsList>
               </UnderlineTabs>
-              <Button variant="outline" size="sm" className="cursor-pointer gap-2" onClick={() => refetchWebhookLogs()}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="cursor-pointer gap-2"
+                onClick={() => refetchWebhookDeliveryLogs()}
+              >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
@@ -344,13 +349,13 @@ export default function WebhookLogPage() {
 
             <div className="h-[calc(100vh-400px)] min-h-[600px]">
               <Log
-                data={filteredLogs as unknown as WebhookLog[]}
+                data={filteredLogs as unknown as DeliveryLog[]}
                 columns={columns}
                 renderDetail={renderDetail}
                 detailPanelWidth={500}
                 emptyMessage="No logs found"
                 className="h-full"
-                isLoading={isLoadingWebhookLogs}
+                isLoading={isLoadingWebhookDeliveryLogs}
                 defaultSelected={eventId ? (filteredLogs[0] as any | undefined) : undefined}
               />
             </div>

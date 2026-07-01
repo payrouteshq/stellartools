@@ -1,7 +1,9 @@
 "use server";
 
+import { retrieveAppInstallations } from "@/actions/app";
 import { resolveOrgContext } from "@/actions/organization";
-import { Network, Webhook, WebhookLog, db, webhookLogs, webhooks } from "@/db";
+import { DeliveryLog, Network, Webhook, db, deliveryLogs, webhooks } from "@/db";
+import { deliverToApp } from "@/integrations/app-delivery";
 import { deliverWebhook } from "@/integrations/webhook-delivery";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
@@ -48,26 +50,26 @@ export const getWebhooksWithAnalytics = async (orgId?: string, env?: Network) =>
       createdAt: webhooks.createdAt,
       updatedAt: webhooks.updatedAt,
       environment: webhooks.environment,
-      logsCount: sql<number>`cast(count(${webhookLogs.id}) as integer)`.as("logs_count"),
-      errorCount: sql<number>`cast(count(${webhookLogs.id}) filter (where ${webhookLogs.statusCode} >= 400) as integer)`,
+      logsCount: sql<number>`cast(count(${deliveryLogs.id}) as integer)`.as("logs_count"),
+      errorCount: sql<number>`cast(count(${deliveryLogs.id}) filter (where ${deliveryLogs.statusCode} >= 400) as integer)`,
       hourlyActivity: sql<Array<{ h: string; c: number }>>`
         (SELECT coalesce(jsonb_agg(item), '[]'::jsonb) FROM (
           SELECT 
-            to_char(date_trunc('hour', ${webhookLogs.createdAt}), 'YYYY-MM-DD"T"HH24') as h, 
+            to_char(date_trunc('hour', ${deliveryLogs.createdAt}), 'YYYY-MM-DD"T"HH24') as h, 
             count(*)::int as c
-          FROM ${webhookLogs}
-          WHERE ${webhookLogs.webhookId} = ${webhooks.id} 
-            AND ${webhookLogs.createdAt} >= NOW() - INTERVAL '24 hours'
+          FROM ${deliveryLogs}
+          WHERE ${deliveryLogs.webhookId} = ${webhooks.id} 
+            AND ${deliveryLogs.createdAt} >= NOW() - INTERVAL '24 hours'
           GROUP BY 1 ORDER BY 1
         ) item)
       `,
       responseTime: sql<number[]>`
-        array_agg(${webhookLogs.responseTime} order by ${webhookLogs.createdAt} desc) 
-        filter (where ${webhookLogs.responseTime} is not null)
+        array_agg(${deliveryLogs.responseTime} order by ${deliveryLogs.createdAt} desc) 
+        filter (where ${deliveryLogs.responseTime} is not null)
       `,
     })
     .from(webhooks)
-    .leftJoin(webhookLogs, eq(webhookLogs.webhookId, webhooks.id))
+    .leftJoin(deliveryLogs, eq(deliveryLogs.webhookId, webhooks.id))
     .where(and(eq(webhooks.organizationId, organizationId), eq(webhooks.environment, environment)))
     .groupBy(webhooks.id);
 
@@ -131,31 +133,31 @@ export const deleteWebhook = async (id: string, orgId?: string, env?: Network) =
   return null;
 };
 
-export const postWebhookLog = async (
+export const postDeliveryLog = async (
   filter: { webhookId?: string } | { appInstallationId?: string },
-  params: Omit<WebhookLog, "organizationId" | "environment" | "webhookId">,
+  params: Omit<DeliveryLog, "organizationId" | "environment" | "webhookId">,
   orgId?: string,
   env?: Network
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  const [webhookLog] = await db
-    .insert(webhookLogs)
+  const [deliveryLog] = await db
+    .insert(deliveryLogs)
     .values({
       ...params,
       ...("webhookId" in filter && { webhookId: filter.webhookId }),
       ...("appInstallationId" in filter && { appInstallationId: filter.appInstallationId }),
       organizationId,
       environment,
-    } as WebhookLog)
+    } as DeliveryLog)
     .returning();
 
-  if (!webhookLog) throw new AppError("Failed to create webhook log");
+  if (!deliveryLog) throw new AppError("Failed to create delivery log");
 
-  return webhookLog;
+  return deliveryLog;
 };
 
-export const retrieveWebhookLogs = async (
+export const retrieveDeliveryLogs = async (
   webhookId: string,
   orgId?: string,
   env?: Network,
@@ -168,21 +170,21 @@ export const retrieveWebhookLogs = async (
   let whereClause: SQL<unknown>[] = [];
 
   if (appInstallationId) {
-    whereClause.push(eq(webhookLogs.appInstallationId, appInstallationId));
+    whereClause.push(eq(deliveryLogs.appInstallationId, appInstallationId));
   } else {
-    whereClause.push(isNull(webhookLogs.appInstallationId) as SQL<unknown>);
-    whereClause.push(eq(webhookLogs.organizationId, organizationId));
+    whereClause.push(isNull(deliveryLogs.appInstallationId) as SQL<unknown>);
+    whereClause.push(eq(deliveryLogs.organizationId, organizationId));
   }
 
-  const webhookLogsResult = await db
+  const deliveryLogsResult = await db
     .select()
-    .from(webhookLogs)
-    .where(and(eq(webhookLogs.webhookId, webhookId), eq(webhookLogs.environment, environment), ...whereClause));
+    .from(deliveryLogs)
+    .where(and(eq(deliveryLogs.webhookId, webhookId), eq(deliveryLogs.environment, environment), ...whereClause));
 
-  return webhookLogsResult;
+  return deliveryLogsResult;
 };
 
-export const retrieveWebhookLog = async (
+export const retrieveDeliveryLog = async (
   id: string,
   orgId?: string,
   env?: Network,
@@ -195,50 +197,50 @@ export const retrieveWebhookLog = async (
   const appInstallationId = params?.appInstallationId ?? undefined;
 
   if (appInstallationId) {
-    whereClause.push(eq(webhookLogs.appInstallationId, appInstallationId));
+    whereClause.push(eq(deliveryLogs.appInstallationId, appInstallationId));
   } else {
-    whereClause.push(isNull(webhookLogs.appInstallationId) as SQL<unknown>);
-    whereClause.push(eq(webhookLogs.organizationId, organizationId));
+    whereClause.push(isNull(deliveryLogs.appInstallationId) as SQL<unknown>);
+    whereClause.push(eq(deliveryLogs.organizationId, organizationId));
   }
 
-  const [webhookLog] = await db
+  const [deliveryLog] = await db
     .select()
-    .from(webhookLogs)
-    .where(and(eq(webhookLogs.id, id), eq(webhookLogs.environment, environment), ...whereClause));
+    .from(deliveryLogs)
+    .where(and(eq(deliveryLogs.id, id), eq(deliveryLogs.environment, environment), ...whereClause));
 
-  return webhookLog;
+  return deliveryLog;
 };
 
-export const putWebhookLog = async (id: string, data: Partial<WebhookLog>, orgId?: string, env?: Network) => {
+export const putDeliveryLog = async (id: string, data: Partial<DeliveryLog>, orgId?: string, env?: Network) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  const [webhookLog] = await db
-    .update(webhookLogs)
+  const [deliveryLog] = await db
+    .update(deliveryLogs)
     .set({ ...data, updatedAt: new Date() })
     .where(
       and(
-        eq(webhookLogs.id, id),
-        eq(webhookLogs.organizationId, organizationId),
-        eq(webhookLogs.environment, environment)
+        eq(deliveryLogs.id, id),
+        eq(deliveryLogs.organizationId, organizationId),
+        eq(deliveryLogs.environment, environment)
       )
     )
     .returning();
 
-  if (!webhookLog) throw new AppError("Failed to update webhook log");
+  if (!deliveryLog) throw new AppError("Failed to update delivery log");
 
-  return webhookLog;
+  return deliveryLog;
 };
 
-export const deleteWebhookLog = async (id: string, orgId?: string, env?: Network) => {
+export const deleteDeliveryLog = async (id: string, orgId?: string, env?: Network) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   await db
-    .delete(webhookLogs)
+    .delete(deliveryLogs)
     .where(
       and(
-        eq(webhookLogs.id, id),
-        eq(webhookLogs.organizationId, organizationId),
-        eq(webhookLogs.environment, environment)
+        eq(deliveryLogs.id, id),
+        eq(deliveryLogs.organizationId, organizationId),
+        eq(deliveryLogs.environment, environment)
       )
     )
     .returning();
@@ -270,19 +272,40 @@ export const triggerWebhooks = async <TName extends string, TObject>(
   };
 };
 
-export const resendWebhookLog = safeAction(
+export const resendDeliveryLog = safeAction(
   async (
-    webhookId: string,
+    scope: { webhookId?: string } | { appInstallationId?: string },
     eventType: WebhookEventType,
     payload: WebhookEventBase<any, any>,
     orgId?: string,
     env?: Network
   ) => {
-    const [webhook] = await retrieveWebhooks(orgId, env, { id: webhookId });
-    const normalizedPayload = toSnakeCase(payload) as WebhookEventBase<any, any>;
+    if ("webhookId" in scope) {
+      const [webhook] = await retrieveWebhooks(orgId, env, { id: scope.webhookId });
+      const normalizedPayload = toSnakeCase(payload) as WebhookEventBase<any, any>;
+      const logId = generateResourceId("wh_evt", scope.webhookId!, 52);
+      return deliverWebhook(webhook, eventType, normalizedPayload, logId);
+    }
 
-    const logId = generateResourceId("wh_evt", webhookId, 52);
+    if ("appInstallationId" in scope) {
+      const [appInstallation] = await retrieveAppInstallations({ status: "active" }, orgId, env, {
+        installationId: scope.appInstallationId,
+      });
 
-    return deliverWebhook(webhook, eventType, normalizedPayload, logId);
+      const payloadEsquee = toSnakeCase(payload) as WebhookEventBase<any, any>;
+      const logId = generateResourceId("wh_evt", scope.appInstallationId!, 52);
+
+      return deliverToApp(
+        appInstallation.app,
+        appInstallation.app_installation.id,
+        {
+          ...payloadEsquee,
+          organizationId: appInstallation.app_installation.organizationId,
+          environment: appInstallation.app_installation.environment,
+        },
+        logId,
+        appInstallation.app_installation.settings
+      );
+    }
   }
 );
