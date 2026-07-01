@@ -3,8 +3,6 @@ title: "LangChain Adapter"
 description: "Gate LangChain model access to subscribers"
 ---
 
-The `@stellartools/langchain-adapter` package adds a `shield` function that wraps any LangChain model with StellarTools subscription gating. The result is a full LangChain `Runnable` — `.invoke()`, `.stream()`, `.batch()`, `.pipe()` all work normally.
-
 ## Install
 
 ```bash
@@ -14,9 +12,9 @@ npm install @stellartools/langchain-adapter @langchain/core
 ## Usage
 
 ```ts
-import { shield } from "@stellartools/langchain-adapter";
-import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage } from "@langchain/core/messages";
+import { ChatOpenAI } from "@langchain/openai";
+import { shield } from "@stellartools/langchain-adapter";
 
 const model = shield(new ChatOpenAI({ model: "gpt-4o" }), {
   apiKey: process.env.STELLAR_TOOLS_API_KEY!,
@@ -34,11 +32,13 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 
 const chain = ChatPromptTemplate.fromMessages([["human", "{question}"]])
-  .pipe(shield(new ChatOpenAI(), {
-    apiKey: process.env.STELLAR_TOOLS_API_KEY!,
-    customerId: "cus_xxx",
-    productId: "prod_xxx",
-  }))
+  .pipe(
+    shield(new ChatOpenAI(), {
+      apiKey: process.env.STELLAR_TOOLS_API_KEY!,
+      customerId: "cus_xxx",
+      productId: "prod_xxx",
+    })
+  )
   .pipe(new StringOutputParser());
 
 const answer = await chain.invoke({ question: "What is Stellar?" });
@@ -49,7 +49,7 @@ const answer = await chain.invoke({ question: "What is Stellar?" });
 If the customer has no active subscription for the product, `shield` throws a `ShieldError` before the model is called.
 
 ```ts
-import { shield, ShieldError } from "@stellartools/langchain-adapter";
+import { ShieldError, shield } from "@stellartools/langchain-adapter";
 
 try {
   const result = await model.invoke([new HumanMessage("Hello")]);

@@ -3,8 +3,6 @@ title: "AI SDK Adapter"
 description: "Gate AI model access to subscribers"
 ---
 
-The `@stellartools/aisdk-adapter` package adds a `shield` function that wraps any [Vercel AI SDK](https://sdk.vercel.ai) model with StellarTools subscription gating. You still call `generateText`, `streamText`, etc. from `"ai"` — `shield` just blocks the call if the customer has no active subscription.
-
 ## Install
 
 ```bash
