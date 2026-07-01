@@ -28,10 +28,10 @@ function MetaBlock({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-export default async function MarketplaceAppPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function MarketplaceAppPage({ params }: { params: Promise<{ appSlug: string }> }) {
+  const { appSlug } = await params;
 
-  const [app] = await retrieveApps({ slug });
+  const [app] = await retrieveApps({ slug: appSlug });
 
   if (!app) notFound();
 

@@ -180,7 +180,7 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
 
 export default function CustomerDetailPage() {
   const router = useRouter();
-  const { id: customerId } = useParams() as { id: string };
+  const { customerId } = useParams() as { customerId: string };
   const [hiddenWallets, setHiddenWallets] = React.useState<Set<string>>(new Set());
   const checkoutModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [checkoutModalFooterProps, setCheckoutModalFooterProps] = React.useState({

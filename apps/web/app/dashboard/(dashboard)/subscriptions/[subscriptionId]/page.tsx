@@ -65,13 +65,13 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export default function SubscriptionDetailPage() {
   const router = useRouter();
-  const { id } = useParams() as { id: string };
+  const { subscriptionId } = useParams() as { subscriptionId: string };
   const { data: orgContext } = useOrgContext();
 
   const { data: allSubs, isLoading } = useOrgQuery(["subscriptions"], async () =>
     retrieveSubscriptions(undefined, undefined, undefined).then((res) => res.data)
   );
-  const sub = React.useMemo(() => allSubs?.find((s) => s.id === id), [allSubs, id]);
+  const sub = React.useMemo(() => allSubs?.find((s) => s.id === subscriptionId), [allSubs, subscriptionId]);
 
   const { data: subEvents, isLoading: loadingEvents } = useOrgQuery(
     ["subscription-events", sub?.customerId],
@@ -86,12 +86,15 @@ export default function SubscriptionDetailPage() {
   );
 
   const { data: payments = [], isLoading: loadingPayments } = useOrgQuery(
-    ["subscription-payments", id],
+    ["subscription-payments", subscriptionId],
     () => retrievePayments(undefined, undefined, { customerId: sub!.customerId }).then((res) => res.data),
     { enabled: !!sub }
   );
 
-  const subscriptionPayments = React.useMemo(() => payments.filter((p) => p.subscriptionId === id), [payments, id]);
+  const subscriptionPayments = React.useMemo(
+    () => payments.filter((p) => p.subscriptionId === subscriptionId),
+    [payments, subscriptionId]
+  );
 
   const isEditMode = !!sub?.id;
 
@@ -103,8 +106,8 @@ export default function SubscriptionDetailPage() {
         headers: { "x-session-token": orgContext?.token! },
       });
       const res = await (method === "POST"
-        ? api.post(`/api/subscriptions/${id}${path}`, {})
-        : api.put(`/api/subscriptions/${id}${path}`, {}));
+        ? api.post(`/api/subscriptions/${subscriptionId}${path}`, {})
+        : api.put(`/api/subscriptions/${subscriptionId}${path}`, {}));
       if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
     },

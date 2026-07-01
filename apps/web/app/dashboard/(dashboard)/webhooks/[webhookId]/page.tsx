@@ -115,8 +115,7 @@ const columns: ColumnDef<WebhookLog>[] = [
 // --- Main Component ---
 
 export default function WebhookLogPage() {
-  const params = useParams();
-  const webhookId = params?.id as string;
+  const { webhookId } = useParams() as { webhookId: string };
   const searchParams = useSearchParams();
   const eventId = searchParams.get("eventId");
   const [searchQuery, _] = React.useState("");

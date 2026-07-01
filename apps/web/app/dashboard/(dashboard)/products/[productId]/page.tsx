@@ -153,7 +153,7 @@ function ProductDetailSkeleton() {
 }
 
 export default function ProductDetailPage() {
-  const { id } = useParams() as { id: string };
+  const { productId } = useParams() as { productId: string };
   const { data: org } = useOrgContext();
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
   const productModalSubmitRef = React.useRef<(() => void) | null>(null);
@@ -164,8 +164,8 @@ export default function ProductDetailPage() {
   const isProductModalOpenRef = React.useRef(false);
 
   const { data: product, isLoading } = useOrgQuery(
-    ["products", id],
-    () => retrieveProducts(undefined, undefined, { productId: id }),
+    ["products", productId],
+    () => retrieveProducts(undefined, undefined, { productId }),
     { select: (data) => data[0] ?? null }
   );
 
@@ -237,7 +237,7 @@ export default function ProductDetailPage() {
         headers: { "x-session-token": org.token },
       });
       if (!product?.organizationId) throw new AppError("Product not found");
-      const response = await api.delete<null>(`/product/${id}`);
+      const response = await api.delete<null>(`/product/${productId}`);
       if (response.isErr()) throw new AppError(response.error.message);
       return response.value;
     },
