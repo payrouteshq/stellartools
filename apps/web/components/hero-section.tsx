@@ -33,7 +33,7 @@ function CyclingWord() {
   );
 }
 
-export default function HeroSection() {
+export function HeroSection() {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-28 pb-20 text-center">
       <p className="text-muted-foreground mb-5 text-[11px] font-semibold tracking-[1.6px] uppercase">

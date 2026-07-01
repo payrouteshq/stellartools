@@ -1,8 +1,7 @@
 "use client";
 
-import DevelopersSection from "@/components/developers-section";
 import { FooterSection } from "@/components/footer-section";
-import HeroSection from "@/components/hero-section";
+import { HeroSection } from "@/components/hero-section";
 import { Header } from "@/components/navbar";
 import PrimitivesSection from "@/components/primitives-section";
 import { VideoSection } from "@/components/video-section";
@@ -13,7 +12,6 @@ export default function Home() {
       <Header />
       <HeroSection />
       <VideoSection />
-      <DevelopersSection />
       <PrimitivesSection />
       <FooterSection />
     </div>
