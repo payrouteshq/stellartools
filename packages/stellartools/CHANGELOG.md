@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.4
+
+### Patch Changes
+
+- 7b51474: fix(ui): data table control buttons and more
+
 ## 0.0.3
 
 ### Patch Changes
