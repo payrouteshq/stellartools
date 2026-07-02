@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { installMarketplaceApp, retrieveInstalledApps } from "@/actions/app";
+import { installMarketplaceApp, retrieveAppInstallations } from "@/actions/app";
 import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { capture } from "@/lib/posthog";
 import { Button, toast } from "@stellartools/shared-ui";
@@ -21,7 +21,7 @@ export function InstallAppButton({
 
   const { data: org } = useOrgContext();
   const { data: installations } = useOrgQuery(["installed-apps"], async () => {
-    const installations = await retrieveInstalledApps({ status: "active" }, org?.id, org?.environment);
+    const installations = await retrieveAppInstallations({ status: "active" }, org?.id, org?.environment);
     return installations.map((p) => ({
       installation: p.app_installation,
       app: p.app,

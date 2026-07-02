@@ -191,7 +191,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     ...checkout,
     merchantPublicKey,
     finalAmount,
-    currencyCode: product?.currencyCode ?? organizationCurrency ?? "USD",
+    currencyCode: product?.currencyCode ?? checkout.currencyCode ?? organizationCurrency ?? "USD",
     productType: product?.type ?? "one_time",
     productName: product?.name ?? "Payment",
     recurringPeriod: product?.recurringPeriod ?? "month",

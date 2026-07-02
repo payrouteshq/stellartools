@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { createPortal } from "react-dom";
 
-import { generateAppToken, retrieveInstalledApps } from "@/actions/app";
+import { generateAppToken, retrieveAppInstallations } from "@/actions/app";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { Button, Separator, Spinner, cn, useMounted } from "@stellartools/shared-ui";
@@ -20,7 +20,7 @@ export function PluginLauncher() {
   const isMounted = useMounted();
   const { data: org } = useOrgContext();
   const { data: installations, isLoading: isLoadingInstalledApps } = useOrgQuery(["installed-apps"], async () => {
-    const installations = await retrieveInstalledApps({ status: "active" }, org?.id, org?.environment);
+    const installations = await retrieveAppInstallations({ status: "active" }, org?.id, org?.environment);
     return installations.map((p) => ({
       installation: p.app_installation,
       app: p.app,

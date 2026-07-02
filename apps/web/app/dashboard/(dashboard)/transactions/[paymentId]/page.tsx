@@ -171,8 +171,7 @@ function TransactionDetailSkeleton() {
 
 export default function TransactionDetailPage() {
   const router = useRouter();
-  const params = useParams();
-  const paymentId = params?.id as string;
+  const { paymentId } = useParams() as { paymentId: string };
   const invalidateOrgQuery = useInvalidateOrgQuery();
 
   const [isRefreshing, setIsRefreshing] = React.useState(false);

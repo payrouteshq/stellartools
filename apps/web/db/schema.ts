@@ -411,8 +411,8 @@ export const webhooks = pgTable("webhook", {
   environment: networkEnum("network").notNull(),
 });
 
-export const webhookLogs = pgTable(
-  "webhook_log",
+export const deliveryLogs = pgTable(
+  "delivery_log",
   {
     id: text("id").primaryKey(),
     webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "set null" }),
@@ -431,7 +431,7 @@ export const webhookLogs = pgTable(
     nextRetry: timestamp("next_retry"),
     description: text("description").notNull(),
   },
-  (t) => [check("webhook_log_source_check", sql`${t.webhookId} IS NOT NULL OR ${t.appInstallationId} IS NOT NULL`)]
+  (t) => [check("delivery_log_source_check", sql`${t.webhookId} IS NOT NULL OR ${t.appInstallationId} IS NOT NULL`)]
 );
 
 export const refundStatusEnum = pgEnum("refund_status", refundStatusEnum$1.enum);
@@ -635,7 +635,7 @@ export type Product = InferSelectModel<typeof products>;
 export type Checkout = InferSelectModel<typeof checkouts>;
 export type Payment = InferSelectModel<typeof payments>;
 export type Webhook = InferSelectModel<typeof webhooks>;
-export type WebhookLog = InferSelectModel<typeof webhookLogs>;
+export type DeliveryLog = InferSelectModel<typeof deliveryLogs>;
 export type Network = (typeof networkEnum.enumValues)[number];
 export type Refund = InferSelectModel<typeof refunds>;
 export type Subscription = InferSelectModel<typeof subscriptions>;

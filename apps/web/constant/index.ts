@@ -26,7 +26,7 @@ export const TIMELINE_ROUTE_MAP: Record<string, (id: string) => string> = {
   productId: (id) => `/products/${id}`,
   paymentId: (id) => `/transactions/${id}`,
   externalUrl: (url) => url,
-  webhookLogId: (id) => `/webhooks/~?eventId=${id}`,
+  deliveryLogId: (id) => `/webhooks/~?eventId=${id}`,
 };
 
 export const SENSITIVE_KEY_PREFIX = "__ST_ENC__:";

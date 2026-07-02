@@ -109,7 +109,7 @@ export const postAppInstallation = async (params: Partial<AppInstallation>) => {
   return { installation };
 };
 
-export const retrieveInstalledApps = async (
+export const retrieveAppInstallations = async (
   params?: { scopes?: AppScope[]; status?: AppInstallationStatus },
   orgId?: string,
   env?: Network,

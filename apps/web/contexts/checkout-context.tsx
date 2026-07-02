@@ -169,6 +169,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
         )
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] }),
+    onError: (e) => toast.error(e.message || "Failed to save your details"),
   });
 
   const handleWalletPay = async () => {
