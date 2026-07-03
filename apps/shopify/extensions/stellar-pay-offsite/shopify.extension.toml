@@ -6,6 +6,7 @@ name = "Stellar Pay"
 handle = "stellar-pay-offsite"
 
 merchant_label = "Stellar Pay"
+buyer_label = "Stellar Pay"
 payment_session_url = "https://6eca-41-75-204-57.ngrok-free.app/payment-session"
 refund_session_url = "https://6eca-41-75-204-57.ngrok-free.app/refund-session"
 

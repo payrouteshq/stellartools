@@ -56,7 +56,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Call Shopify Payments API to resolve or reject the payment session
-  const shopifyApiUrl = `https://${shopDomain}/payments/apps/2025-10/payment_sessions`;
+  // Shopify Payments Apps GraphQL API — different from the admin API
+  const shopifyApiUrl = `https://${shopDomain}/payments_apps/api/2025-10/graphql.json`;
   const mutation = paymentSucceeded ? RESOLVE_MUTATION : REJECT_MUTATION;
   const variables = paymentSucceeded
     ? { id: paymentGid }

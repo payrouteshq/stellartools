@@ -1,70 +1,59 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { type CurrencyCode, StellarTools } from "@stellartools/core";
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { getShopByDomain } from "~/db.server";
-
-type ShopifyPaymentPayload = {
-  id: string;
-  gid: string;
-  payment_method: { data: Record<string, string> };
-  amount: string;
-  currency: string;
-  test: boolean;
-  merchant_provided_details: {
-    customer_email?: string;
-    customer_phone?: string;
-  };
-};
-
-function verifyShopifyHmac(body: string, hmacHeader: string | null): boolean {
-  if (!hmacHeader) return false;
-  const digest = createHmac("sha256", process.env.SHOPIFY_API_SECRET!).update(body, "utf8").digest("base64");
-  try {
-    return timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader));
-  } catch {
-    return false;
-  }
-}
+import { createPaymentSession, getShopByDomain } from "~/db.server";
+import type { ShopifyOffsitePaymentMethod, ShopifyPaymentSessionRequest } from "~/types/shopify-payments";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const rawBody = await request.text();
-  const hmac = request.headers.get("X-Shopify-Hmac-SHA256");
+  const body: ShopifyPaymentSessionRequest = await request.json();
 
-  if (!verifyShopifyHmac(rawBody, hmac)) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const payload = JSON.parse(rawBody) as ShopifyPaymentPayload;
-  const shop = request.headers.get("X-Shopify-Shop-Domain") ?? "";
+  // Header names from Shopify are lowercase
+  const shop = request.headers.get("shopify-shop-domain") ?? "";
 
   const shopRecord = await getShopByDomain(shop);
-
   if (!shopRecord?.stellartools_api_key) {
     return Response.json({ error: "StellarTools not configured for this shop" }, { status: 400 });
   }
 
-  const st = new StellarTools({ api_key: shopRecord.stellartools_api_key! });
+  const cancelUrl = (body.payment_method as ShopifyOffsitePaymentMethod).data.cancel_url;
+  const customerEmail = body.customer?.email ?? undefined;
+  const customerPhone = body.customer?.phone_number ?? undefined;
 
-  const returnUrl = new URL(
-    `/payments/return?gid=${encodeURIComponent(payload.gid)}&shop=${encodeURIComponent(shop)}`,
-    process.env.SHOPIFY_APP_URL!
-  );
+  const st = new StellarTools({ api_key: shopRecord.stellartools_api_key });
 
   const checkout = await st.checkouts.createDirect(
     {
-      amount_cents: Math.round(parseFloat(payload.amount) * 100),
-      currency_code: payload.currency.toUpperCase() as CurrencyCode,
-      customer_email: payload.merchant_provided_details?.customer_email,
-      customer_phone: payload.merchant_provided_details?.customer_phone,
-      redirect_url: returnUrl.toString(),
+      amount_cents: Math.round(parseFloat(body.amount) * 100),
+      currency_code: body.currency.toUpperCase() as CurrencyCode,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      redirect_url: new URL(
+        `/payments/return?gid=${encodeURIComponent(body.gid)}&shop=${encodeURIComponent(shop)}`,
+        process.env.SHOPIFY_APP_URL!
+      ).toString(),
       description: `Order via ${shop}`,
       metadata: {
-        shopify_payment_gid: payload.gid,
+        shopify_payment_gid: body.gid,
         shop_domain: shop,
+        test: String(body.test),
       },
     },
-    { idempotencyKey: payload.id }
+    { idempotencyKey: body.id }
   );
+
+  if (!checkout || "error" in checkout) {
+    return Response.json({ error: (checkout as any)?.error ?? "Failed to create checkout" }, { status: 500 });
+  }
+
+  await createPaymentSession({
+    id: body.id,
+    gid: body.gid,
+    shop,
+    amount: body.amount,
+    currency: body.currency,
+    customerEmail: customerEmail ?? customerPhone ?? null,
+    cancelUrl,
+    stellartoolsCheckoutId: checkout.id,
+  });
 
   return Response.json({ redirect_url: checkout.payment_url });
 };

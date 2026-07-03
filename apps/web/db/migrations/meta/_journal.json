@@ -15,6 +15,13 @@
       "when": 1783087284050,
       "tag": "0001_messy_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783092726002,
+      "tag": "0002_plain_wolverine",
+      "breakpoints": true
     }
   ]
 }

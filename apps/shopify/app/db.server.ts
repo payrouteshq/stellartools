@@ -92,48 +92,62 @@ export async function createPaymentSession(params: {
   stellartoolsCheckoutId: string;
 }): Promise<void> {
   await query(
-    `INSERT INTO payment_sessions
+    `INSERT INTO shopify_payment_sessions
        (id, gid, shop, amount, currency, customer_email, cancel_url, stellartools_checkout_id, status)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending')
      ON CONFLICT (id) DO NOTHING`,
-    [params.id, params.gid, params.shop, params.amount, params.currency,
-     params.customerEmail, params.cancelUrl, params.stellartoolsCheckoutId]
+    [
+      params.id,
+      params.gid,
+      params.shop,
+      params.amount,
+      params.currency,
+      params.customerEmail,
+      params.cancelUrl,
+      params.stellartoolsCheckoutId,
+    ]
   );
 }
 
 export async function updatePaymentSessionPaymentId(checkoutId: string, paymentId: string): Promise<void> {
-  await query(
-    `UPDATE payment_sessions SET stellartools_payment_id = $1 WHERE stellartools_checkout_id = $2`,
-    [paymentId, checkoutId]
-  );
+  await query(`UPDATE shopify_payment_sessions SET stellartools_payment_id = $1 WHERE stellartools_checkout_id = $2`, [
+    paymentId,
+    checkoutId,
+  ]);
 }
 
 export async function getPaymentSessionByCheckoutId(checkoutId: string): Promise<PaymentSessionRow | null> {
   const rows = await query<PaymentSessionRow>(
-    `SELECT * FROM payment_sessions WHERE stellartools_checkout_id = $1 LIMIT 1`,
+    `SELECT * FROM shopify_payment_sessions WHERE stellartools_checkout_id = $1 LIMIT 1`,
     [checkoutId]
   );
   return rows[0] ?? null;
 }
 
 export async function getPaymentSessionById(id: string): Promise<PaymentSessionRow | null> {
-  const rows = await query<PaymentSessionRow>(
-    `SELECT * FROM payment_sessions WHERE id = $1 LIMIT 1`,
-    [id]
-  );
+  const rows = await query<PaymentSessionRow>(`SELECT * FROM shopify_payment_sessions WHERE id = $1 LIMIT 1`, [id]);
   return rows[0] ?? null;
 }
 
 export async function getPaymentSessionByGid(gid: string): Promise<PaymentSessionRow | null> {
-  const rows = await query<PaymentSessionRow>(
-    `SELECT * FROM payment_sessions WHERE gid = $1 LIMIT 1`,
-    [gid]
-  );
+  const rows = await query<PaymentSessionRow>(`SELECT * FROM shopify_payment_sessions WHERE gid = $1 LIMIT 1`, [gid]);
   return rows[0] ?? null;
 }
 
 export async function markPaymentSessionResolved(id: string): Promise<void> {
-  await query(`UPDATE payment_sessions SET status = 'resolved' WHERE id = $1`, [id]);
+  await query(`UPDATE shopify_payment_sessions SET status = 'resolved' WHERE id = $1`, [id]);
+}
+
+export async function getCustomerEmailsByShop(shop: string, limit = 30): Promise<string[]> {
+  const rows = await query<{ customer_email: string }>(
+    `SELECT DISTINCT customer_email
+     FROM shopify_payment_sessions
+     WHERE shop = $1 AND customer_email IS NOT NULL
+     ORDER BY customer_email
+     LIMIT $2`,
+    [shop, limit]
+  );
+  return rows.map((r) => r.customer_email);
 }
 
 // ─── Refund sessions ─────────────────────────────────────────────────────────
@@ -164,8 +178,7 @@ export async function createRefundSession(params: {
        (id, gid, shop, payment_gid, amount, currency, stellartools_refund_id, status)
      VALUES ($1,$2,$3,$4,$5,$6,$7,'pending')
      ON CONFLICT (id) DO NOTHING`,
-    [params.id, params.gid, params.shop, params.paymentGid,
-     params.amount, params.currency, params.stellartoolsRefundId]
+    [params.id, params.gid, params.shop, params.paymentGid, params.amount, params.currency, params.stellartoolsRefundId]
   );
 }
 

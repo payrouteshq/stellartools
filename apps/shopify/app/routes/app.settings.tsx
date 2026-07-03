@@ -35,7 +35,9 @@ export async function action({ request }: ActionFunctionArgs) {
     };
   }
 
-  await updateShopSettings(session.shop, apiKey, balance[0].network);
+  // Derive network from key prefix — Balance type doesn't expose network
+  const network: "testnet" | "mainnet" = apiKey.startsWith("st_live_") ? "mainnet" : "testnet";
+  await updateShopSettings(session.shop, apiKey, network);
 
   // Register or update the StellarTools webhook so payment.confirmed events reach this app.
   const shop = await getShopByDomain(session.shop);
@@ -83,7 +85,7 @@ export async function action({ request }: ActionFunctionArgs) {
   // Tell Shopify the payment extension is ready to accept payments
   await configurePaymentsApp(session.shop, session.accessToken!).catch(() => {});
 
-  return { success: true, environment: balance[0].network, error: null as string | null };
+  return { success: true, environment: network, error: null as string | null };
 }
 
 export default function Settings() {

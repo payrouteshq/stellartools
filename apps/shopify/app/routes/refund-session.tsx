@@ -8,15 +8,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { StellarTools } from "@stellartools/core";
 import { createRefundSession, getPaymentSessionByGid, getShopByDomain } from "~/db.server";
-
-interface ShopifyRefundSessionRequest {
-  id: string;
-  gid: string;
-  payment_id: string; // gid of the original PaymentSession
-  amount: string;
-  currency: string;
-  proposed_at: string;
-}
+import type { ShopifyRefundSessionRequest } from "~/types/shopify-payments";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const body: ShopifyRefundSessionRequest = await request.json();
