@@ -1,7 +1,0 @@
-api_version = "2025-10"
-uid = "7c04f601-7423-23f7-6acc-14793fca30477f3e9ba7"
-
-[[extensions]]
-type = "theme"
-name = "Stellar Pay Button"
-handle = "stellar-pay-button"

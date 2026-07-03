@@ -1,19 +1,7 @@
-/**
- * Offsite Payment Extension endpoint.
- *
- * Shopify POSTs here when a buyer selects "Pay with Stellar" at checkout.
- * We verify the request via HMAC, create a StellarTools checkout, and return
- * the redirect URL for Shopify to send the buyer to.
- *
- * Requires Shopify Payments Partner approval before Shopify will call this.
- * The endpoint is fully built and ready — wire it in the Partner Dashboard
- * once access is granted.
- */
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { StellarTools } from "@stellartools/core";
-import { eq } from "drizzle-orm";
+import { type CurrencyCode, StellarTools } from "@stellartools/core";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { db, shopifyShops } from "~/db.server";
+import { getShopByDomain } from "~/db.server";
 
 type ShopifyPaymentPayload = {
   id: string;
@@ -49,18 +37,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const payload = JSON.parse(rawBody) as ShopifyPaymentPayload;
   const shop = request.headers.get("X-Shopify-Shop-Domain") ?? "";
 
-  const shopRecord = await db
-    .select()
-    .from(shopifyShops)
-    .where(eq(shopifyShops.shopDomain, shop))
-    .limit(1)
-    .then((r) => r[0] ?? null);
+  const shopRecord = await getShopByDomain(shop);
 
-  if (!shopRecord?.stellartoolsApiKey) {
+  if (!shopRecord?.stellartools_api_key) {
     return Response.json({ error: "StellarTools not configured for this shop" }, { status: 400 });
   }
 
-  const st = new StellarTools({ api_key: shopRecord.stellartoolsApiKey });
+  const st = new StellarTools({ api_key: shopRecord.stellartools_api_key! });
 
   const returnUrl = new URL(
     `/payments/return?gid=${encodeURIComponent(payload.gid)}&shop=${encodeURIComponent(shop)}`,
@@ -69,7 +52,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const checkout = await st.checkouts.createDirect({
     amount_cents: Math.round(parseFloat(payload.amount) * 100),
-    currency_code: payload.currency.toUpperCase() as Parameters<typeof st.checkouts.createDirect>[0]["currency_code"],
+    currency_code: payload.currency.toUpperCase() as CurrencyCode,
     customer_email: payload.merchant_provided_details?.customer_email,
     customer_phone: payload.merchant_provided_details?.customer_phone,
     redirect_url: returnUrl.toString(),

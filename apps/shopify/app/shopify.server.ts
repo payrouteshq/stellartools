@@ -1,19 +1,28 @@
 import { ApiVersion, DeliveryMethod, shopifyApp } from "@shopify/shopify-app-remix/server";
-import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
-import { db, shopifyShops } from "~/db.server";
-import { DrizzleSessionStorage } from "~/session.server";
+import { PgSessionStorage, upsertShop } from "~/db.server";
 
 export const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
   apiSecretKey: process.env.SHOPIFY_API_SECRET!,
   apiVersion: ApiVersion.October25,
-  scopes: [],
+  scopes: ["read_products", "read_customers"],
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
-  sessionStorage: new DrizzleSessionStorage(),
+  sessionStorage: new PgSessionStorage(),
   webhooks: {
     APP_UNINSTALLED: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks",
+    },
+    CUSTOMERS_CREATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks",
+    },
+    PRODUCTS_CREATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks",
+    },
+    PRODUCTS_UPDATE: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
@@ -21,33 +30,7 @@ export const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ session }) => {
       shopify.registerWebhooks({ session });
-
-      // Upsert the shop record after OAuth completes
-      const existing = await db
-        .select()
-        .from(shopifyShops)
-        .where(eq(shopifyShops.shopDomain, session.shop))
-        .limit(1)
-        .then((r) => r[0]);
-
-      if (!existing) {
-        await db.insert(shopifyShops).values({
-          id: `sh_${nanoid(20)}`,
-          shopDomain: session.shop,
-          accessToken: session.accessToken!,
-          environment: "testnet",
-          settings: null,
-          installedAt: new Date(),
-        });
-      } else {
-        await db
-          .update(shopifyShops)
-          .set({
-            accessToken: session.accessToken!,
-            uninstalledAt: null,
-          })
-          .where(eq(shopifyShops.shopDomain, session.shop));
-      }
+      await upsertShop(session.shop, session.accessToken!);
     },
   },
   isEmbeddedApp: true,

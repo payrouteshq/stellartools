@@ -5,10 +5,11 @@ embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 dev_store_url = "stellartools-testnet.myshopify.com"
 
 [access_scopes]
-scopes = ""
+scopes = "read_products,read_customers"
 
 [auth]
 redirect_urls = [
@@ -24,10 +25,10 @@ api_version = "2025-10"
   topics = ["app/uninstalled"]
   uri = "/webhooks"
 
-[app_proxy]
-url = "https://6eca-41-75-204-57.ngrok-free.app/proxy"
-subpath = "stellar-pay"
-prefix = "apps"
+  [[webhooks.subscriptions]]
+  topics = ["customers/create"]
+  uri = "/webhooks"
+
 
 [pos]
 embedded = false

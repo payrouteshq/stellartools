@@ -10,8 +10,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { StellarTools } from "@stellartools/core";
-import { eq } from "drizzle-orm";
-import { db, shopifyShops } from "~/db.server";
+import { getShopByDomain } from "~/db.server";
 
 const RESOLVE_MUTATION = `
   mutation PaymentSessionResolve($id: ID!) {
@@ -41,14 +40,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect("/");
   }
 
-  const shopRecord = await db
-    .select()
-    .from(shopifyShops)
-    .where(eq(shopifyShops.shopDomain, shopDomain))
-    .limit(1)
-    .then((r) => r[0] ?? null);
+  const shopRecord = await getShopByDomain(shopDomain);
 
-  if (!shopRecord?.stellartoolsApiKey || !shopRecord.accessToken) {
+  if (!shopRecord?.stellartools_api_key || !shopRecord.access_token) {
     return redirect("/");
   }
 
@@ -56,7 +50,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let paymentSucceeded = false;
 
   if (checkoutId) {
-    const st = new StellarTools({ api_key: shopRecord.stellartoolsApiKey });
+    const st = new StellarTools({ api_key: shopRecord.stellartools_api_key! });
     const checkout = await st.checkouts.retrieve(checkoutId);
     paymentSucceeded = checkout?.status === "completed";
   }
@@ -73,7 +67,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": shopRecord.accessToken,
+        "X-Shopify-Access-Token": shopRecord.access_token,
       },
       body: JSON.stringify({ query: mutation, variables }),
     });
