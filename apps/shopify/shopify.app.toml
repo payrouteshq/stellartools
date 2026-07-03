@@ -1,43 +1,33 @@
 name = "StellarTools Payments"
-client_id = "${SHOPIFY_API_KEY}"
-application_url = "${SHOPIFY_APP_URL}"
+client_id = "c0177ec17c6e55668f70ba23d6912900"
+application_url = "https://6eca-41-75-204-57.ngrok-free.app"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "${DEV_STORE_URL}"
+dev_store_url = "stellartools-testnet.myshopify.com"
 
 [access_scopes]
-scopes = "read_products,write_products,read_customers,write_customers,read_orders,write_orders,write_payment_gateways,write_payment_sessions"
+scopes = ""
 
 [auth]
 redirect_urls = [
-  "${SHOPIFY_APP_URL}/auth/callback",
-  "${SHOPIFY_APP_URL}/auth/shopify/callback"
+  "https://6eca-41-75-204-57.ngrok-free.app/auth/callback",
+  "https://6eca-41-75-204-57.ngrok-free.app/auth/shopify/callback",
+  "https://6eca-41-75-204-57.ngrok-free.app/auth/login"
 ]
 
 [webhooks]
-api_version = "2025-01"
+api_version = "2025-10"
 
   [[webhooks.subscriptions]]
   topics = ["app/uninstalled"]
   uri = "/webhooks"
 
-  [[webhooks.subscriptions]]
-  topics = ["products/create", "products/update", "products/delete"]
-  uri = "/webhooks"
-
-  [[webhooks.subscriptions]]
-  topics = ["customers/create", "customers/update", "customers/delete"]
-  uri = "/webhooks"
-
-  [[webhooks.subscriptions]]
-  topics = ["orders/cancelled"]
-  uri = "/webhooks"
-
-  [[webhooks.subscriptions]]
-  topics = ["customers/data_request", "customers/redact", "shop/redact"]
-  uri = "/gdpr"
+[app_proxy]
+url = "https://6eca-41-75-204-57.ngrok-free.app/proxy"
+subpath = "stellar-pay"
+prefix = "apps"
 
 [pos]
 embedded = false

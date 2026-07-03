@@ -617,10 +617,7 @@ export const shopifyShops = pgTable("shopify_shop", {
   stellartoolsOrgId: text("stellartools_org_id").references(() => organizations.id, { onDelete: "set null" }),
   stellartoolsApiKey: text("stellartools_api_key"),
   environment: networkEnum("environment").notNull().default("testnet"),
-  settings: jsonb("settings").$type<{
-    syncProducts: boolean;
-    syncCustomers: boolean;
-  } | null>(),
+  settings: jsonb("settings").$type<Record<string, unknown> | null>(),
   installedAt: timestamp("installed_at").defaultNow().notNull(),
   uninstalledAt: timestamp("uninstalled_at"),
 });

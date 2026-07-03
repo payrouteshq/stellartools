@@ -7,50 +7,13 @@ import { DrizzleSessionStorage } from "~/session.server";
 export const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
   apiSecretKey: process.env.SHOPIFY_API_SECRET!,
-  apiVersion: ApiVersion.January25,
-  scopes: [
-    "read_products",
-    "write_products",
-    "read_customers",
-    "write_customers",
-    "read_orders",
-    "write_orders",
-    "write_payment_gateways",
-    "write_payment_sessions",
-  ],
+  apiVersion: ApiVersion.October25,
+  scopes: [],
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage: new DrizzleSessionStorage(),
   webhooks: {
     APP_UNINSTALLED: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    PRODUCTS_CREATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    PRODUCTS_UPDATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    PRODUCTS_DELETE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    CUSTOMERS_CREATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    CUSTOMERS_UPDATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    CUSTOMERS_DELETE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    ORDERS_CANCELLED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
@@ -73,10 +36,7 @@ export const shopify = shopifyApp({
           shopDomain: session.shop,
           accessToken: session.accessToken!,
           environment: "testnet",
-          settings: {
-            syncProducts: true,
-            syncCustomers: true,
-          },
+          settings: null,
           installedAt: new Date(),
         });
       } else {
@@ -91,9 +51,6 @@ export const shopify = shopifyApp({
     },
   },
   isEmbeddedApp: true,
-  future: {
-    unstable_newEmbeddedAuthStrategy: true,
-  },
 });
 
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;

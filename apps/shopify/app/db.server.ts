@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
@@ -41,10 +40,7 @@ export const shopifyShops = pgTable("shopify_shop", {
     .notNull()
     .$type<"testnet" | "mainnet">()
     .default("testnet"),
-  settings: jsonb("settings").$type<{
-    syncProducts: boolean;
-    syncCustomers: boolean;
-  } | null>(),
+  settings: jsonb("settings").$type<Record<string, unknown> | null>(),
   installedAt: timestamp("installed_at").defaultNow().notNull(),
   uninstalledAt: timestamp("uninstalled_at"),
 });

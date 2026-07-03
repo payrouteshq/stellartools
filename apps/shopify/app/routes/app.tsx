@@ -16,7 +16,6 @@ export default function AppLayout() {
           Dashboard
         </a>
         <a href="/app/settings">Settings</a>
-        <a href="/app/products">Products</a>
         <a href="/app/orders">Orders</a>
       </NavMenu>
       <Outlet />
