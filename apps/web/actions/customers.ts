@@ -102,15 +102,18 @@ export const retrieveCustomers = async (
 ): Promise<PaginatedResult<ResolvedCustomer>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  const lookup = Array.isArray(params) ? params : params ? [params] : [];
+  const lookupGroups = Array.isArray(params) ? params : params ? [params] : [];
 
-  const filters = lookup.flatMap((p) => {
-    const conditions = [];
-    if ("id" in p && p.id != null) conditions.push(eq(customersSchema.id, p.id));
-    if ("email" in p && p.email != null) conditions.push(eq(customersSchema.email, p.email));
-    if ("phone" in p && p.phone != null) conditions.push(eq(customersSchema.phone, p.phone));
-    return conditions;
-  });
+  const filters = lookupGroups
+    .map((group) => {
+      const groupConditions = [];
+      if (group.id != null) groupConditions.push(eq(customersSchema.id, group.id));
+      if (group.email != null) groupConditions.push(eq(customersSchema.email, group.email));
+      if (group.phone != null) groupConditions.push(eq(customersSchema.phone, group.phone));
+
+      return groupConditions.length > 0 ? and(...groupConditions) : null;
+    })
+    .filter((f): f is SQL => f !== null);
 
   if (options?.requireLookUpParams && filters.length < 1) return { data: [], has_more: false };
 
@@ -120,10 +123,10 @@ export const retrieveCustomers = async (
       and(
         eq(c.organizationId, organizationId),
         eq(c.environment, environment),
-        filters.length ? or(...(filters as [(typeof filters)[0], ...typeof filters])) : undefined
+        filters.length > 0 ? or(...filters) : undefined
       ),
     with: options?.withWallets ? { wallets: true } : undefined,
-    limit,
+    limit: limit + 1,
   });
 
   return await paginate(customers, limit);
