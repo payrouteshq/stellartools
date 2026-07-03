@@ -13,7 +13,7 @@
  */
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { CurrencyCode, StellarTools } from "@stellartools/core";
-import { getShopByDomain } from "~/db.server";
+import { createUnstableCheckoutRecord, getShopByDomain } from "~/db.server";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -67,6 +67,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!checkout || "error" in checkout) {
     return json({ error: (checkout as any)?.error ?? "Failed to create checkout" }, 500);
   }
+
+  await createUnstableCheckoutRecord({
+    shop: shop_domain,
+    amount,
+    currency,
+    customerEmail: customer_email ?? null,
+    stellartoolsCheckoutId: checkout.id,
+  }).catch(() => {});
 
   return json({ payment_url: checkout.payment_url });
 };

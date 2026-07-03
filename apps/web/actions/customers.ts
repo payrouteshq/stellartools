@@ -107,9 +107,9 @@ export const retrieveCustomers = async (
   const filters = lookupGroups
     .map((group) => {
       const groupConditions = [];
-      if (group.id != null) groupConditions.push(eq(customersSchema.id, group.id));
-      if (group.email != null) groupConditions.push(eq(customersSchema.email, group.email));
-      if (group.phone != null) groupConditions.push(eq(customersSchema.phone, group.phone));
+      if ("id" in group && group.id != null) groupConditions.push(eq(customersSchema.id, group.id));
+      if ("email" in group && group.email != null) groupConditions.push(eq(customersSchema.email, group.email));
+      if ("phone" in group && group.phone != null) groupConditions.push(eq(customersSchema.phone, group.phone));
 
       return groupConditions.length > 0 ? and(...groupConditions) : null;
     })

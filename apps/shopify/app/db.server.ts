@@ -138,6 +138,29 @@ export async function markPaymentSessionResolved(id: string): Promise<void> {
   await query(`UPDATE shopify_payment_sessions SET status = 'resolved' WHERE id = $1`, [id]);
 }
 
+export async function createUnstableCheckoutRecord(params: {
+  shop: string;
+  amount: string;
+  currency: string;
+  customerEmail: string | null;
+  stellartoolsCheckoutId: string;
+}): Promise<void> {
+  await query(
+    `INSERT INTO shopify_payment_sessions
+       (id, gid, shop, amount, currency, customer_email, cancel_url, stellartools_checkout_id, status)
+     VALUES ($1, '', $2, $3, $4, $5, '', $6, 'pending')
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      `unstable_${nanoid(20)}`,
+      params.shop,
+      params.amount,
+      params.currency,
+      params.customerEmail,
+      params.stellartoolsCheckoutId,
+    ]
+  );
+}
+
 export async function getCustomerEmailsByShop(shop: string, limit = 30): Promise<string[]> {
   const rows = await query<{ customer_email: string }>(
     `SELECT DISTINCT customer_email

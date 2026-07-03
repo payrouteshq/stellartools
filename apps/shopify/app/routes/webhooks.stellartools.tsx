@@ -54,7 +54,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const session = await getPaymentSessionByCheckoutId(payment.checkout_id);
     if (session && session.status !== "resolved") {
       await markPaymentSessionResolved(session.id);
-      await resolvePaymentSession(shopDomain, shopRecord.access_token, session.gid).catch(() => {});
+      // Unstable/demo sessions have no real Shopify GID — skip the resolve call
+      if (session.gid) {
+        await resolvePaymentSession(shopDomain, shopRecord.access_token, session.gid).catch(() => {});
+      }
     }
   }
 
