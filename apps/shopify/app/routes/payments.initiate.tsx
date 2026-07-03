@@ -50,18 +50,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     process.env.SHOPIFY_APP_URL!
   );
 
-  const checkout = await st.checkouts.createDirect({
-    amount_cents: Math.round(parseFloat(payload.amount) * 100),
-    currency_code: payload.currency.toUpperCase() as CurrencyCode,
-    customer_email: payload.merchant_provided_details?.customer_email,
-    customer_phone: payload.merchant_provided_details?.customer_phone,
-    redirect_url: returnUrl.toString(),
-    description: `Order via ${shop}`,
-    metadata: {
-      shopify_payment_gid: payload.gid,
-      shop_domain: shop,
+  const checkout = await st.checkouts.createDirect(
+    {
+      amount_cents: Math.round(parseFloat(payload.amount) * 100),
+      currency_code: payload.currency.toUpperCase() as CurrencyCode,
+      customer_email: payload.merchant_provided_details?.customer_email,
+      customer_phone: payload.merchant_provided_details?.customer_phone,
+      redirect_url: returnUrl.toString(),
+      description: `Order via ${shop}`,
+      metadata: {
+        shopify_payment_gid: payload.gid,
+        shop_domain: shop,
+      },
     },
-  });
+    { idempotencyKey: payload.id }
+  );
 
   return Response.json({ redirect_url: checkout.payment_url });
 };

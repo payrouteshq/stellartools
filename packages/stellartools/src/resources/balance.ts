@@ -1,6 +1,6 @@
 import { ApiClient } from "../api-client";
-import type { Network } from "../types";
-import { unwrap } from "../utils";
+import { RequestOptions } from "../types";
+import { mapOptionsToHeaders, unwrap } from "../utils";
 
 export interface Balance {
   balance: string;
@@ -10,13 +10,12 @@ export interface Balance {
   asset_type: string;
   asset_code?: string;
   asset_issuer?: string;
-  network: Network;
 }
 
 export class BalanceApi {
   constructor(private readonly apiClient: ApiClient) {}
 
-  async retrieve(): Promise<Balance[] | { error: string }> {
-    return unwrap(await this.apiClient.get<Balance[]>("/balance"));
+  async retrieve(options?: RequestOptions): Promise<Balance[] | { error: string }> {
+    return unwrap(await this.apiClient.get<Balance[]>("/balance", undefined, mapOptionsToHeaders(options)));
   }
 }

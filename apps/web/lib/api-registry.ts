@@ -39,7 +39,7 @@ export const processResource = <T>(data: T, convertToSnakeCase: boolean = false)
 
     for (const [rawKey, value] of Object.entries(data)) {
       // A leading `*` is an explicit opt-out: return the key even if it looks sensitive
-      // (the `*` is stripped from the output). we should use this only when you know what you're doing.
+      // (the `*` is stripped from the output). this should only be used deliberately for internal purposes.
       const forced = rawKey.startsWith("*");
       const key = forced ? rawKey.slice(1) : rawKey;
 

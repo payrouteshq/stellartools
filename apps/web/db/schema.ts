@@ -622,6 +622,18 @@ export const shopifyShops = pgTable("shopify_shop", {
   uninstalledAt: timestamp("uninstalled_at"),
 });
 
+export const idempotencyKeys = pgTable("idempotency_key", {
+  id: text("id").primaryKey(), // The key sent by the client
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  requestPath: text("request_path").notNull(),
+  responseStatus: integer("response_status"),
+  responseBody: jsonb("response_body").$type<any>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lockedAt: timestamp("locked_at"), // To prevent race conditions
+});
+
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;

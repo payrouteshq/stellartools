@@ -70,7 +70,7 @@ export { WebhookSigner } from "./resources/webhooks";
 export type { Balance } from "./resources/balance";
 export { ApiClient };
 export { Result };
-export { schemaFor, validateSchema, chunk, parseJSON, stringifyObjectFields } from "./utils";
+export { schemaFor, validateSchema, parseJSON, stringifyObjectFields } from "./utils";
 export { raceAsyncIterator, batchProcess } from "./promisify";
 export { z };
 export * from "./schema/customer";
