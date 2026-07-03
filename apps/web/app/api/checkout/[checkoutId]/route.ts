@@ -12,7 +12,7 @@ export const GET = apiHandler({
   schema: { params: paramsSchema },
   handler: async ({ params: { checkoutId }, auth: { organizationId, environment } }) => {
     const checkout = await retrieveCheckout(checkoutId, organizationId, environment);
-    return Result.ok(checkout);
+    return Result.ok({ ...checkout, payment_url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}` });
   },
 });
 

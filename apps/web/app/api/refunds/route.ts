@@ -107,6 +107,16 @@ export const POST = apiHandler({
 
     waitUntil(runSidedEffects());
 
-    return Result.ok(refund);
+    return Result.ok({
+      id: refund.id,
+      payment_id: refund.paymentId,
+      customer_id: refund.customerId,
+      amount: `${refund.cryptoAmount} ${refund.selectedAssetCode}`,
+      status: refund.status,
+      reason: refund.reason ?? null,
+      receiver_wallet_address: refund.receiverWalletAddress,
+      metadata: refund.metadata ?? {},
+      created_at: refund.createdAt,
+    });
   },
 });

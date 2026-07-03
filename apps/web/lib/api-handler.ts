@@ -157,7 +157,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
           );
         }
 
-        return NextResponse.json(processResource(rawValue), { headers: corsHeaders });
+        return NextResponse.json(processResource(rawValue, true), { headers: corsHeaders });
       }
     } catch (error: any) {
       console.error("[API_ERROR]", error);

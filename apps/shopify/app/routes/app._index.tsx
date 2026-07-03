@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { Badge, Banner, BlockStack, Button, Card, DataTable, InlineStack, Layout, Page, Text } from "@shopify/polaris";
-import { ApiClient, Payment } from "@stellartools/core";
+import { Payment, StellarTools } from "@stellartools/core";
 import { eq } from "drizzle-orm";
 import { db, shopifyShops } from "~/db.server";
 import { authenticate } from "~/shopify.server";
@@ -20,13 +20,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return { configured: false, payments: [] as Payment[], shop };
   }
 
-  const api = new ApiClient({
-    baseUrl: process.env.STELLARTOOLS_API_URL!,
-    headers: { "x-api-key": shop.stellartoolsApiKey },
-  });
-
-  const paymentsQuery = await api.get<Payment[]>("/payments?limit=10");
-  const payments = paymentsQuery.isOk() ? (paymentsQuery.value ?? []) : [];
+  const st = new StellarTools({ api_key: shop.stellartoolsApiKey });
+  const payments = await st.payments.list({ limit: 10 }).catch(() => [] as Payment[]);
 
   return { configured: true, payments, shop };
 }

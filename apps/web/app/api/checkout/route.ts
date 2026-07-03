@@ -102,13 +102,7 @@ export const POST = async (req: NextRequest) => {
 
       return Result.ok({
         ...checkout,
-        next_action: {
-          type: "redirect_to_url",
-          redirect_to_url: {
-            url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
-            return_url: checkout.redirectUrl,
-          },
-        },
+        payment_url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
       });
     }
   } catch (error) {

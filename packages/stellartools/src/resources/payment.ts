@@ -8,6 +8,14 @@ import { unwrap, validateSchema } from "../utils";
 export class PaymentApi {
   constructor(private apiClient: ApiClient) {}
 
+  async list(params?: { limit?: number; customer?: string; starting_after?: string }) {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.customer) query.set("customer", params.customer);
+    if (params?.starting_after) query.set("starting_after", params.starting_after);
+    return unwrap(await this.apiClient.get<Payment[]>(`/payments?${query}`));
+  }
+
   async retrieve(id: string) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async () => {

@@ -21,7 +21,7 @@ import {
 import { CheckCircleIcon, KeyIcon, LockIcon } from "@shopify/polaris-icons";
 import { useCallback, useState } from "react";
 import { eq } from "drizzle-orm";
-import { ApiClient } from "@stellartools/core";
+import { StellarTools } from "@stellartools/core";
 import { db, shopifyShops } from "~/db.server";
 import { authenticate } from "~/shopify.server";
 
@@ -51,12 +51,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (intent === "test") {
     try {
-      const client = new ApiClient({
-        baseUrl: process.env.STELLARTOOLS_API_URL!,
-        headers: { "x-api-key": apiKey },
-      });
-      const result = await client.get("/balance");
-      if (!result.isOk()) throw new Error("Invalid key");
+        const st = new StellarTools({ api_key: apiKey });
+      await st.balance.retrieve();
       return { error: null, success: false, valid: true, intent };
     } catch {
       return { error: "Could not connect — check your API key and try again.", success: false, valid: false, intent };

@@ -9,6 +9,8 @@ const RESOURCE_OBJECT_MAP: Record<string, string> = {
   wh_evt: "event",
   rf: "refund",
   cwl: "payment_method",
+  cz: "checkout",
+  prod: "product",
 };
 
 const SENSITIVE_KEY_REGEXES: RegExp[] = [
@@ -43,8 +45,7 @@ export const processResource = <T>(data: T, convertToSnakeCase: boolean = false)
 
       if (!forced && SENSITIVE_KEY_REGEXES.some((regex) => regex.test(key))) continue;
 
-      if (value === null || value === undefined) continue;
-      if (Array.isArray(value) && value.length === 0) continue;
+      if (value === undefined) continue;
 
       const targetKey = convertToSnakeCase ? _.snakeCase(key) : key;
 

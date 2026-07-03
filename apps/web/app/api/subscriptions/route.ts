@@ -8,9 +8,9 @@ export const GET = apiHandler({
   auth: ["session", "apikey", "app"],
   requiredAppScope: "read:subscriptions",
   mcp: { name: "get_subscriptions", description: "Get subscriptions" },
-  schema: { query: Schema.object({ customerId: Schema.string() }) },
-  handler: async ({ query: { customerId }, auth: { organizationId, environment } }) => {
-    const subscriptions = await retrieveSubscriptions(organizationId, environment, { customerId });
+  schema: { query: Schema.object({ customer_id: Schema.string() }) },
+  handler: async ({ query: { customer_id }, auth: { organizationId, environment } }) => {
+    const subscriptions = await retrieveSubscriptions(organizationId, environment, { customerId: customer_id });
     return Result.ok(subscriptions);
   },
 });
