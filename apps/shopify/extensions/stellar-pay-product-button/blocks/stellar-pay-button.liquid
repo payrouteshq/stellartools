@@ -6,49 +6,67 @@
 
 <div
   class="stellar-pay-wrapper"
-  data-app-url="{{ block.settings.app_url | escape }}"
   data-shop="{{ shop.myshopify_domain | escape }}"
   data-currency="{{ cart.currency.iso_code }}"
   data-default-price="{{ product.selected_or_first_available_variant.price }}"
   {{ block.shopify_attributes }}
 >
   <button type="button" class="stellar-pay-btn" aria-label="Pay with Stellar">
-    <span class="stellar-pay-icon">
-      {%- render 'stellar-icon', width: 18, height: 16 -%}
-    </span>
+    <svg class="stellar-pay-icon" width="18" height="16" viewBox="0 0 130 111" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M64.7903 0C72.1812 0 79.3524 1.44442 86.1049 4.29478C89.7128 5.81616 93.1573 7.72824 96.3554 9.98663L95.6725 10.3359L86.8918 14.7994C80.1868 11.0847 72.5524 9.12235 64.7903 9.12235C64.6715 9.12235 64.5557 9.12235 64.4369 9.12235C58.4713 9.16675 52.6601 10.3537 47.1696 12.6476C41.6791 14.9415 36.7558 18.2417 32.5362 22.4536C23.9218 31.0521 19.1767 42.4831 19.1767 54.6423C19.1767 56.6225 19.3073 58.6234 19.5627 60.5887L19.6458 61.2162L20.213 60.9291L96.0823 22.35L111.791 14.3643L129.584 5.31594V15.5512L111.253 24.8719L102.265 29.4419L22.2916 70.1077L21.9323 70.309L17.8434 72.3898L13.6951 74.5002L13.6862 74.4854L13.315 74.6748L0 81.4411V71.2058L4.49871 68.9178C8.27584 66.9969 10.5118 63.0277 10.1941 58.8039C10.0902 57.4276 10.0397 56.0275 10.0397 54.6423C10.0397 47.2663 11.4888 40.1093 14.3424 33.3726C17.101 26.8668 21.0474 21.024 26.0747 16.007C31.1019 10.99 36.9577 7.05043 43.4786 4.29774C50.2311 1.44442 57.4023 0 64.7903 0Z" fill="currentColor"/>
+      <path d="M129.584 29.229V39.4672L125.082 41.7552C121.302 43.6762 119.066 47.6483 119.386 51.875C119.493 53.2721 119.547 54.684 119.547 56.0722C119.547 63.4482 118.098 70.6052 115.241 77.3418C112.482 83.8477 108.536 89.6905 103.509 94.7104C98.4816 99.7274 92.6258 103.667 86.1049 106.42C79.3494 109.27 72.1782 110.714 64.7903 110.714C57.4023 110.714 50.2311 109.27 43.4756 106.42C39.8559 104.892 36.3965 102.968 33.1865 100.701L42.2819 96.0779L42.6442 95.8914C49.3581 99.6238 57.0103 101.595 64.7903 101.595C64.8972 101.595 65.0041 101.595 65.111 101.595C71.0825 101.554 76.8967 100.37 82.3931 98.0728C87.8896 95.7789 92.8159 92.4787 97.0414 88.2638C105.656 79.6654 110.401 68.2343 110.401 56.0751C110.401 54.092 110.27 52.0763 110.012 50.0902L109.929 49.4598L109.362 49.7469L33.4181 88.3644L17.7098 96.3502L0 105.357V95.1218L18.2502 85.8397L27.2357 81.2696L129.584 29.229Z" fill="currentColor"/>
+    </svg>
     <span class="stellar-pay-label">Pay with Stellar</span>
-    <span class="stellar-pay-spinner" style="display:none">&#8987;</span>
   </button>
   <p class="stellar-pay-error" role="alert" style="display:none"></p>
 </div>
 
 <style>
   .stellar-pay-wrapper {
-    margin-top: 8px;
+    --stellar-primary: #fdda24;
+    --stellar-primary-foreground: #0f0f0f;
+    --stellar-destructive: #ef4444;
+    width: 100%;
+    max-width: 100%;
   }
   .stellar-pay-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 0.8rem;
     width: 100%;
-    padding: 14px 20px;
-    background: #1a1a2e;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: 15px;
-    font-weight: 600;
+    max-width: 100%;
+    min-height: calc(4.5rem + var(--buttons-border-width, 1px) * 2);
+    padding: 0 3rem;
+    margin: 0;
+    box-sizing: border-box;
+    background: var(--stellar-primary);
+    color: var(--stellar-primary-foreground);
+    border: var(--buttons-border-width, 1px) solid transparent;
+    border-radius: var(--buttons-radius, 0);
+    font-family: inherit;
+    font-size: 1.5rem;
+    font-weight: inherit;
+    letter-spacing: 0.1rem;
+    line-height: calc(1 + 0.2 / var(--font-body-scale, 1));
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: filter 0.15s ease, opacity 0.15s ease;
   }
-  .stellar-pay-btn:hover { opacity: 0.88; }
-  .stellar-pay-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-  .stellar-pay-icon { display: flex; align-items: center; }
+  .stellar-pay-btn:hover { filter: brightness(0.96); }
+  .stellar-pay-btn:active { filter: brightness(0.92); }
+  .stellar-pay-btn:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+  .stellar-pay-icon {
+    display: block;
+    width: 1.8rem;
+    height: 1.6rem;
+    flex-shrink: 0;
+    color: inherit;
+  }
   .stellar-pay-error {
-    margin-top: 8px;
-    font-size: 13px;
-    color: #c0392b;
+    margin-top: 0.8rem;
+    font-family: inherit;
+    font-size: 1.2rem;
+    color: var(--stellar-destructive);
   }
 </style>
 
@@ -58,13 +76,9 @@
 {
   "name": "Stellar Pay Button",
   "target": "section",
-  "settings": [
-    {
-      "type": "text",
-      "id": "app_url",
-      "label": "App Backend URL",
-      "info": "Your StellarTools Shopify app URL (e.g. https://xxxx.ngrok-free.app). Set this after starting your dev server."
-    }
-  ],
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": []
 }
 {% endschema %}

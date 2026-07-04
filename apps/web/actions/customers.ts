@@ -26,7 +26,7 @@ import { patchJSON } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { MaybeArray } from "@stellartools/core";
 import crypto from "crypto";
-import { SQL, and, desc, eq, gt, inArray } from "drizzle-orm";
+import { SQL, and, desc, eq, gt, inArray, ne, notExists } from "drizzle-orm";
 import moment from "moment";
 
 export const createCustomerImage = async (formData: FormData): Promise<string | undefined> => {
@@ -166,14 +166,46 @@ export const putCustomer = async (
           and(
             eq(customersSchema.id, id),
             eq(customersSchema.organizationId, organizationId),
-            eq(customersSchema.environment, environment)
+            eq(customersSchema.environment, environment),
+            ...(baseUpdate.email
+              ? [
+                  notExists(
+                    db
+                      .select({ _: eq(customersSchema.id, id) })
+                      .from(customersSchema)
+                      .where(
+                        and(
+                          eq(customersSchema.organizationId, organizationId),
+                          eq(customersSchema.environment, environment),
+                          eq(customersSchema.email, baseUpdate.email),
+                          ne(customersSchema.id, id)
+                        )
+                      )
+                  ),
+                ]
+              : []),
+            ...(baseUpdate.phone
+              ? [
+                  notExists(
+                    db
+                      .select({ _: eq(customersSchema.id, id) })
+                      .from(customersSchema)
+                      .where(
+                        and(
+                          eq(customersSchema.organizationId, organizationId),
+                          eq(customersSchema.environment, environment),
+                          eq(customersSchema.phone, baseUpdate.phone),
+                          ne(customersSchema.id, id)
+                        )
+                      )
+                  ),
+                ]
+              : [])
           )
         )
         .returning();
 
-      if (!customer) throw new AppError("Customer not found");
-
-      return customer;
+      return customer ?? oldCustomer;
     },
     {
       events: [

@@ -22,3 +22,8 @@ redirect_urls = [
 [build]
 include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+
+[app_proxy]
+url = "/proxy"
+subpath = "stellartools"
+prefix = "apps"

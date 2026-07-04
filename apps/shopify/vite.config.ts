@@ -2,6 +2,29 @@ import { vitePlugin as remix } from "@remix-run/dev";
 import { defineConfig, type Plugin, type UserConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+function corsForUnstableCheckout(): Plugin {
+  return {
+    name: "cors-unstable-checkout",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith("/unstable/checkout/create-stellar")) return next();
+
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+        if (req.method === "OPTIONS") {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 function requestLogger(): Plugin {
   return {
     name: "request-logger",
@@ -43,6 +66,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    corsForUnstableCheckout(),
     requestLogger(),
     remix({
       ignoredRouteFiles: ["**/.*"],
