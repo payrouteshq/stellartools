@@ -33,24 +33,14 @@
           {
             "group": "Integrations",
             "pages": [
-              {
-                "group": "SDK",
-                "expanded": false,
-                "pages": ["integrations/typescript-sdk"]
-              },
               "integrations/mcp",
-              {
-                "group": "Framework Adapters",
-                "expanded": false,
-                "pages": [
-                  "integrations/aisdk",
-                  "integrations/langchain",
-                  "integrations/medusajs",
-                  "integrations/betterauth",
-                  "integrations/uploadthing",
-                  "integrations/woocommerce"
-                ]
-              }
+              "integrations/typescript-sdk",
+              "integrations/aisdk",
+              "integrations/langchain",
+              "integrations/medusajs",
+              "integrations/betterauth",
+              "integrations/uploadthing",
+              "integrations/woocommerce"
             ]
           },
           {
