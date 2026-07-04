@@ -4,6 +4,8 @@ WooCommerce payment gateway for StellarTools hosted checkout.
 
 Full install and configuration guide: https://docs.stellartools.dev/integrations/woocommerce
 
+Download (sign in required): https://dashboard.stellartools.dev/~api/integrations/woocommerce/download
+
 Local test store: ../../examples/woocommerce/README.md
 
 ## What's included

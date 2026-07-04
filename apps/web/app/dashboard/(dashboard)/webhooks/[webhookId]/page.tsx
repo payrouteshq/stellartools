@@ -163,8 +163,8 @@ export default function DeliveryLogPage() {
 
   const getResendPayload = (log: { request?: unknown }): WebhookEvent => {
     const req = log.request;
-    if (req && typeof req === "object" && "data" in req && req.data && typeof req.data === "object") {
-      return req.data as WebhookEvent;
+    if (req && typeof req === "object" && "type" in req && "data" in req) {
+      return req as WebhookEvent;
     }
     return (req as WebhookEvent) ?? {};
   };

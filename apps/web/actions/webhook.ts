@@ -95,7 +95,7 @@ export const retrieveWebhooks = async (
         eq(webhooks.organizationId, organizationId),
         eq(webhooks.environment, environment),
         ...(params?.id ? [eq(webhooks.id, params.id)] : []),
-        ...(params?.isDisabled ? [eq(webhooks.isDisabled, params.isDisabled)] : [])
+        ...(params?.isDisabled !== undefined ? [eq(webhooks.isDisabled, params.isDisabled)] : [])
       )
     );
 
@@ -251,6 +251,34 @@ export const deleteDeliveryLog = async (id: string, orgId?: string, env?: Networ
 
 // -- WEBHOOK INTERNALS --
 
+function normalizeResendPayload(
+  payload: WebhookEventBase<any, any>,
+  eventType: WebhookEventType
+): WebhookEventBase<any, any> {
+  if (payload.type && payload.data && typeof payload.data === "object" && "object" in payload.data) {
+    const inner = payload.data.object as Record<string, unknown>;
+    if (inner && typeof inner === "object" && "object" in inner && !("id" in inner)) {
+      return { ...payload, data: { ...payload.data, object: inner.object } };
+    }
+    return payload;
+  }
+
+  const loose = payload as unknown as Record<string, unknown>;
+  if (loose.object && typeof loose.object === "object") {
+    const layer = loose.object as Record<string, unknown>;
+    const eventObject = layer.object && typeof layer.object === "object" ? layer.object : layer;
+    return {
+      id: (loose.id as string) ?? generateResourceId("wh_evt", "resend", 52),
+      type: eventType,
+      created: (loose.created as string) ?? new Date().toISOString(),
+      livemode: (loose.livemode as boolean) ?? false,
+      data: { object: eventObject },
+    };
+  }
+
+  return payload;
+}
+
 export const triggerWebhooks = async <TName extends string, TObject>(
   subscribers: Array<Webhook>,
   eventType: WebhookEventType,
@@ -263,7 +291,11 @@ export const triggerWebhooks = async <TName extends string, TObject>(
 
   const results = await Promise.allSettled(
     subscribers.map((webhook) =>
-      Promise.all(snakePayloads.map((payload) => deliverWebhook(webhook, eventType, payload, logId)))
+      Promise.all(
+        snakePayloads.map((payload) =>
+          deliverWebhook(webhook, eventType, payload, generateResourceId("wh_evt", webhook.id, 52))
+        )
+      )
     )
   );
 
@@ -283,7 +315,7 @@ export const resendDeliveryLog = safeAction(
   ) => {
     if ("webhookId" in scope) {
       const [webhook] = await retrieveWebhooks(orgId, env, { id: scope.webhookId });
-      const normalizedPayload = toSnakeCase(payload) as WebhookEventBase<any, any>;
+      const normalizedPayload = normalizeResendPayload(payload, eventType);
       const logId = generateResourceId("wh_evt", scope.webhookId!, 52);
       return deliverWebhook(webhook, eventType, normalizedPayload, logId);
     }

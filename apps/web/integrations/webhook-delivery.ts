@@ -13,9 +13,11 @@ export const deliverWebhook = async <TName extends string, TObject>(
 ) => {
   const startTime = Date.now();
 
-  const signature = new WebhookSigner().generateSignature(JSON.stringify(payload), webhook.secret);
+  const body = JSON.stringify(payload);
+  const signature = new WebhookSigner().generateSignature(body, webhook.secret);
 
   const url = new URL(webhook.url);
+  const requestPath = `${url.pathname.replace(/^\//, "")}${url.search}`;
 
   const client = new ApiClient({
     baseUrl: url.origin.replace(/\/$/, ""),
@@ -27,10 +29,7 @@ export const deliverWebhook = async <TName extends string, TObject>(
     maxRetries: 0,
   });
 
-  const result = await client.postDetailed<Record<string, unknown>>(
-    url.pathname.slice(1) || "",
-    JSON.stringify(payload)
-  );
+  const result = await client.postDetailed<Record<string, unknown>>(requestPath, body);
 
   const duration = Date.now() - startTime;
 

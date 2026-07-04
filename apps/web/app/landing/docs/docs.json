@@ -47,13 +47,9 @@
                   "integrations/langchain",
                   "integrations/medusajs",
                   "integrations/betterauth",
-                  "integrations/uploadthing"
+                  "integrations/uploadthing",
+                  "integrations/woocommerce"
                 ]
-              },
-              {
-                "group": "Plugins",
-                "expanded": false,
-                "pages": ["integrations/woocommerce"]
               }
             ]
           },

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: StellarTools
- * Description: WooCommerce payment gateway for StellarTools.
+ * Description: WooCommerce payment gateway for the Stellar Blockchain.
  * Version:     1.2.0
  * Author:      Prince Ajuzie
  * 

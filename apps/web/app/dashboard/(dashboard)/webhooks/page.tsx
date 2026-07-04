@@ -346,6 +346,7 @@ function WebhooksPageContent() {
     select: (data) => {
       return data.map((webhook) => ({
         ...webhook,
+        is_disabled: webhook.isDisabled,
         eventCount: webhook.events.length,
         eventsFrom: "account" as const,
         activity: normalizeTimeSeries(webhook.hourlyActivity ?? [], 24, "hour"),

@@ -139,6 +139,11 @@ export class ApiClient {
     });
   };
 
-  postDetailed = <T>(url: string, body?: any) =>
-    this.requestDetailed<T>(() => this.api.post(this.formatPath(url), { body }));
+  postDetailed = <T>(url: string, body?: string) =>
+    this.requestDetailed<T>(() =>
+      this.api.post(this.formatPath(url), {
+        body,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
 }
