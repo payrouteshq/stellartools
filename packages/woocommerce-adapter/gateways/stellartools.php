@@ -69,7 +69,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			'api_base_url' => [
 				'title'       => 'StellarTools API URL',
 				'type'        => 'text',
-				'desc_tip'    => 'Base URL of your StellarTools instance. No trailing slash. Docker local store: http://host.docker.internal:3000',
+				'desc_tip'    => 'Base URL of your StellarTools instance. No trailing slash.',
 				'default'     => 'https://api.stellartools.dev',
 				'placeholder' => 'https://api.stellartools.dev',
 			],

@@ -19,8 +19,10 @@ export class ApiClient {
   private api: KyInstance;
 
   constructor(config: ApiClientConfig) {
+    const baseUrl = config.baseUrl.split(",")[0]?.trim() || config.baseUrl;
+
     this.api = ky.create({
-      prefixUrl: config.baseUrl,
+      prefixUrl: baseUrl,
       headers: {
         ...config.headers,
       },

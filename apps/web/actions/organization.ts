@@ -24,7 +24,7 @@ import { getFiatRates } from "@/integrations/price-feed";
 import { createAccount } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId, normalizeTimeSeries } from "@/lib/utils";
-import { signJwt, verifyJwt } from "@stellartools/core";
+import { STELLARTOOLS_ID, signJwt, verifyJwt } from "@stellartools/core";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import moment from "moment";
 
@@ -169,7 +169,7 @@ export const deleteOrganization = async (id: string) => {
 
 export const setCurrentOrganization = async (orgId: string, environment: Network = "testnet") => {
   const payload = { orgId, environment };
-  const token = signJwt(payload, "1y", process.env.JWT_SECRET!, process.env.JWT_ISSUER!, process.env.JWT_AUDIENCE!);
+  const token = signJwt(payload, "1y", process.env.JWT_SECRET!, STELLARTOOLS_ID);
 
   await setCookies([
     { key: "selectedOrg", value: token, maxAge: 365 * 24 * 60 * 60 }, // 1 year
@@ -184,8 +184,7 @@ export const getCurrentOrganization = async (onError?: (err: string) => Promise<
   const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(
     selectedOrg,
     process.env.JWT_SECRET!,
-    process.env.JWT_ISSUER!,
-    process.env.JWT_AUDIENCE!
+    STELLARTOOLS_ID
   );
 
   try {

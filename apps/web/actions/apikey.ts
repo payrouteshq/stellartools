@@ -126,8 +126,7 @@ export const resolveAuthContext = async (params: {
     const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(
       sessionToken,
       process.env.JWT_SECRET!,
-      process.env.JWT_ISSUER!,
-      process.env.JWT_AUDIENCE!
+      STELLARTOOLS_ID
     );
     const [row] = await db
       .select({ id: organizations.id })
