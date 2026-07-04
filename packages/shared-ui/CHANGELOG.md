@@ -1,5 +1,13 @@
 # @stellartools/shared-ui
 
+## 0.0.7
+
+### Patch Changes
+
+- 71ddc45: chore: various improvements
+- Updated dependencies [71ddc45]
+  - @stellartools/core@0.0.7
+
 ## 0.0.6
 
 ### Patch Changes

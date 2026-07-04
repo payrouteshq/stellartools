@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.7
+
+### Patch Changes
+
+- 71ddc45: chore: various improvements
+
 ## 0.0.6
 
 ### Patch Changes
