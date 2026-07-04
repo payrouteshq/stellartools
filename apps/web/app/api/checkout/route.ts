@@ -102,8 +102,21 @@ export const POST = async (req: NextRequest) => {
       const checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);
 
       return Result.ok({
-        ...checkout,
-        payment_url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
+        id: checkout.id,
+        customerId: checkout.customerId,
+        productId: checkout.productId ?? undefined,
+        amountCents: checkout.amountCents ?? undefined,
+        currencyCode: checkout.currencyCode ?? undefined,
+        description: checkout.description ?? undefined,
+        status: checkout.status,
+        paymentUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
+        expiresAt: checkout.expiresAt,
+        createdAt: checkout.createdAt,
+        updatedAt: checkout.updatedAt,
+        metadata: checkout.metadata ?? {},
+        environment: checkout.environment,
+        redirectUrl: checkout.redirectUrl ?? undefined,
+        subscriptionData: checkout.subscriptionData ?? undefined,
       });
     }
   } catch (error) {

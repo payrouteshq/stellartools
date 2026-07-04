@@ -22974,7 +22974,7 @@ snapshots:
     dependencies:
       '@types/node': 20.19.41
       tapable: 2.3.3
-      webpack: 5.108.3(esbuild@0.25.12)(lightningcss@1.32.0)(postcss@8.5.15)
+      webpack: 5.108.3(esbuild@0.27.7)(lightningcss@1.32.0)(postcss@8.5.15)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@swc/core'
@@ -29220,7 +29220,7 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.48.0
-      webpack: 5.108.3(esbuild@0.25.12)(lightningcss@1.32.0)(postcss@8.5.15)
+      webpack: 5.108.3(esbuild@0.27.7)(lightningcss@1.32.0)(postcss@8.5.15)
     optionalDependencies:
       esbuild: 0.25.10
       lightningcss: 1.32.0
@@ -32982,7 +32982,7 @@ snapshots:
 
   webpack-virtual-modules@0.6.2: {}
 
-  webpack@5.108.3(esbuild@0.25.12)(lightningcss@1.32.0)(postcss@8.5.15):
+  webpack@5.108.3(esbuild@0.27.7)(lightningcss@1.32.0)(postcss@8.5.15):
     dependencies:
       '@types/estree': 1.0.9
       '@types/json-schema': 7.0.15

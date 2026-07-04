@@ -12,7 +12,23 @@ export const GET = apiHandler({
   schema: { params: paramsSchema },
   handler: async ({ params: { checkoutId }, auth: { organizationId, environment } }) => {
     const checkout = await retrieveCheckout(checkoutId, organizationId, environment);
-    return Result.ok({ ...checkout, payment_url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}` });
+    return Result.ok({
+      id: checkout.id,
+      customerId: checkout.customerId,
+      productId: checkout.productId ?? undefined,
+      amountCents: checkout.amountCents ?? undefined,
+      currencyCode: checkout.currencyCode ?? undefined,
+      description: checkout.description ?? undefined,
+      status: checkout.status,
+      paymentUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
+      expiresAt: checkout.expiresAt,
+      createdAt: checkout.createdAt,
+      updatedAt: checkout.updatedAt,
+      metadata: checkout.metadata ?? {},
+      environment: checkout.environment,
+      redirectUrl: checkout.redirectUrl ?? undefined,
+      subscriptionData: checkout.subscriptionData ?? undefined,
+    });
   },
 });
 
@@ -22,7 +38,23 @@ export const PUT = apiHandler({
   schema: { params: paramsSchema, body: updateCheckoutSchema },
   handler: async ({ params: { checkoutId }, auth: { organizationId, environment }, body }) => {
     const checkout = await putCheckout(checkoutId, body, organizationId, environment);
-    return Result.ok(checkout);
+    return Result.ok({
+      id: checkout.id,
+      customerId: checkout.customerId,
+      productId: checkout.productId ?? undefined,
+      amountCents: checkout.amountCents ?? undefined,
+      currencyCode: checkout.currencyCode ?? undefined,
+      description: checkout.description ?? undefined,
+      status: checkout.status,
+      paymentUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
+      expiresAt: checkout.expiresAt,
+      createdAt: checkout.createdAt,
+      updatedAt: checkout.updatedAt,
+      metadata: checkout.metadata ?? {},
+      environment: checkout.environment,
+      redirectUrl: checkout.redirectUrl ?? undefined,
+      subscriptionData: checkout.subscriptionData ?? undefined,
+    });
   },
 });
 

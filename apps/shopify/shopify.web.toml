@@ -1,3 +1,6 @@
+# Tells Shopify CLI how to run this Remix app (frontend + backend in one process).
+# shopify.app.toml is the app identity, scopes, webhooks, and app proxy config.
+
 name = "remix"
 roles = ["frontend", "backend"]
 webhooks_path = "/webhooks"

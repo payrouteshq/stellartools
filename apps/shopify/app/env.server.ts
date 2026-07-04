@@ -1,6 +1,6 @@
-/** Public app URL — CLI sets HOST during dev; set SHOPIFY_APP_URL in .env to override or when HOST isn't injected. */
+/** Public app URL — during `pnpm dev`, CLI injects HOST with the live tunnel; SHOPIFY_APP_URL is for production. */
 export function getAppUrl(): string {
-  return (process.env.SHOPIFY_APP_URL || process.env.HOST || "").replace(/\/$/, "");
+  return (process.env.HOST || process.env.SHOPIFY_APP_URL || "").replace(/\/$/, "");
 }
 
 export function getClientEnv() {

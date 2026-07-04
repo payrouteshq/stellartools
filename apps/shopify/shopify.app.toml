@@ -1,30 +1,35 @@
-name = "StellarTools Payments"
-client_id = "c0177ec17c6e55668f70ba23d6912900"
-application_url = "https://example.com"
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "3d59b345cbb6e75ba7c6cf0e1cb3b0ea"
+name = "Stellar Payments"
+application_url = "https://shopify.dev/apps/default-app-home"
 embedded = true
+handle = "stellartools-payments"
 
 [build]
 automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 dev_store_url = "stellartools-testnet.myshopify.com"
 
-[access_scopes]
-scopes = ""
+[webhooks]
+api_version = "2026-10"
 
+  [[webhooks.subscriptions]]
+  uri = "/webhooks"
+  topics = [ "app/uninstalled" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = ""
 
 [auth]
 redirect_urls = [
-  "https://example.com/auth/callback",
-  "https://example.com/auth/shopify/callback",
-  "https://example.com/auth/login"
+  "https://shopify.dev/apps/default-app-home/auth/callback",
+  "https://shopify.dev/apps/default-app-home/auth/shopify/callback",
+  "https://shopify.dev/apps/default-app-home/auth/login",
 ]
 
-[webhooks]
-api_version = "2025-10"
-
-  [[webhooks.subscriptions]]
-  topics = ["app/uninstalled"]
-  uri = "/webhooks"
-
-
-[pos]
-embedded = false
+[app_proxy]
+url = "/proxy"
+subpath = "stellartools"
+prefix = "apps"

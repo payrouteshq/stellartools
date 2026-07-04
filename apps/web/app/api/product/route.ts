@@ -13,7 +13,24 @@ export const GET = apiHandler({
     const productsList = await retrieveProducts(organizationId, environment, {
       ...(query.status && { status: query.status as any }),
     });
-    return Result.ok(productsList);
+    return Result.ok(
+      productsList.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description ?? undefined,
+        images: p.images ?? [],
+        status: p.status,
+        type: p.type,
+        priceAmountCents: p.priceCents,
+        recurringPeriod: p.recurringPeriod ?? undefined,
+        customDurationMs: p.customDurationMs ?? undefined,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        metadata: p.metadata ?? {},
+        environment: p.environment,
+        unit: p.unit ?? undefined,
+      }))
+    );
   },
 });
 
@@ -22,8 +39,6 @@ export const POST = apiHandler({
   mcp: { name: "create_product", description: "Create a product" },
   schema: { body: createProductSchema },
   handler: async ({ body, auth: { organizationId, environment } }) => {
-    console.log(body);
-
     const productData: Parameters<typeof postProduct>[0] = {
       name: body.name,
       description: body.description ?? null,
@@ -42,6 +57,21 @@ export const POST = apiHandler({
 
     const response = await postProduct(productData, organizationId, environment);
 
-    return Result.ok(response);
+    return Result.ok({
+      id: response.id,
+      name: response.name,
+      description: response.description ?? undefined,
+      images: response.images ?? [],
+      status: response.status,
+      type: response.type,
+      priceAmountCents: response.priceCents,
+      recurringPeriod: response.recurringPeriod ?? undefined,
+      customDurationMs: response.customDurationMs ?? undefined,
+      createdAt: response.createdAt,
+      updatedAt: response.updatedAt,
+      metadata: response.metadata ?? {},
+      environment: response.environment,
+      unit: response.unit ?? undefined,
+    });
   },
 });
