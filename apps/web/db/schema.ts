@@ -415,7 +415,7 @@ export const deliveryLogs = pgTable(
   "delivery_log",
   {
     id: text("id").primaryKey(),
-    webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "set null" }),
+    webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
     appInstallationId: text("app_installation_id").references(() => appInstallations.id, { onDelete: "set null" }),
     eventType: text("event_type").notNull(),

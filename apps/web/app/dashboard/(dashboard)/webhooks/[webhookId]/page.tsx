@@ -136,6 +136,7 @@ export default function DeliveryLogPage() {
           eventType: log.eventType,
           status: log.statusCode === 200 ? ("succeeded" as const) : ("failed" as const),
           statusCode: log.statusCode ?? undefined,
+          createdAt: log.createdAt,
           timestamp: new Date(log.createdAt),
           eventId: log.id,
           originDate: new Date(log.createdAt),

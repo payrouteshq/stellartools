@@ -339,9 +339,14 @@ export const retrieveOverviewStats = async (
     .groupBy(products.currencyCode);
 
   // C. Gross Revenue Buckets (Excluding Succeeded Refunds)
-  const excludeRefunded = sql`${payments.id} NOT IN (
+  const excludeRefundedPayments = sql`${payments.id} NOT IN (
     SELECT ${refunds.paymentId} FROM ${refunds} WHERE ${refunds.status} = 'succeeded'
   )`;
+
+  // Exclude charges tied to refunded payments (paymentId IS NULL means subscription/manual charge — keep those)
+  const excludeRefundedCharges = sql`(${charges.paymentId} IS NULL OR ${charges.paymentId} NOT IN (
+    SELECT ${refunds.paymentId} FROM ${refunds} WHERE ${refunds.status} = 'succeeded'
+  ))`;
 
   const grossRevenueQuery = db
     .select({
@@ -355,12 +360,12 @@ export const retrieveOverviewStats = async (
         eq(payments.environment, environment),
         eq(payments.status, "confirmed"),
         gte(payments.createdAt, since),
-        excludeRefunded
+        excludeRefundedPayments
       )
     )
     .groupBy(payments.currencyCode);
 
-  // D. Uncleared Platform Fees Buckets
+  // D. Uncleared Platform Fees Buckets (also excluding fees for refunded payments)
   const feesQuery = db
     .select({
       currencyCode: charges.currencyCode,
@@ -372,7 +377,8 @@ export const retrieveOverviewStats = async (
         eq(charges.organizationId, organizationId),
         eq(charges.environment, environment),
         eq(charges.status, "succeeded"),
-        isNull(charges.clearedAt)
+        isNull(charges.clearedAt),
+        excludeRefundedCharges
       )
     )
     .groupBy(charges.currencyCode);
@@ -391,7 +397,7 @@ export const retrieveOverviewStats = async (
         eq(payments.environment, environment),
         eq(payments.status, "confirmed"),
         gte(payments.createdAt, since),
-        excludeRefunded
+        excludeRefundedPayments
       )
     )
     .groupBy(sql`1`, payments.currencyCode);
@@ -409,7 +415,8 @@ export const retrieveOverviewStats = async (
         eq(charges.environment, environment),
         eq(charges.status, "succeeded"),
         isNull(charges.clearedAt),
-        gte(charges.createdAt, since)
+        gte(charges.createdAt, since),
+        excludeRefundedCharges
       )
     )
     .groupBy(sql`1`, charges.currencyCode);

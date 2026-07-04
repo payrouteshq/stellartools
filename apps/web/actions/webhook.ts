@@ -9,7 +9,7 @@ import { AppError, safeAction } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { generateResourceId } from "@/lib/utils";
 import { WebhookEventBase, WebhookEventType } from "@stellartools/core";
-import { SQL, and, eq, isNull, sql } from "drizzle-orm";
+import { SQL, and, desc, eq, isNull, sql } from "drizzle-orm";
 
 export const postWebhook = async (
   orgId?: string,
@@ -179,7 +179,8 @@ export const retrieveDeliveryLogs = async (
   const deliveryLogsResult = await db
     .select()
     .from(deliveryLogs)
-    .where(and(eq(deliveryLogs.webhookId, webhookId), eq(deliveryLogs.environment, environment), ...whereClause));
+    .where(and(eq(deliveryLogs.webhookId, webhookId), eq(deliveryLogs.environment, environment), ...whereClause))
+    .orderBy(desc(deliveryLogs.createdAt));
 
   return deliveryLogsResult;
 };

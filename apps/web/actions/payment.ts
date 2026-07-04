@@ -31,6 +31,7 @@ import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription
 import { sendEmail } from "@/integrations/email";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
+import { Money } from "@/lib/money";
 import { generateResourceId, patchJSON, toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
@@ -83,7 +84,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
       productName: ctx.product.name || ctx.checkout.description || "Payment",
-      amount: `${p.amountCents} ${p.selectedAssetCode}`,
+      amount: Money.formatFiat(p.amountCents, p.currencyCode),
       assetCode: p.selectedAssetCode,
       transactionHash: p.transactionHash,
     }),
@@ -93,7 +94,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
     component: MerchantSubscriptionStartedEmail({
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
-      amount: `${p.amountCents} ${p.selectedAssetCode}`,
+      amount: Money.formatFiat(p.amountCents, p.currencyCode),
       assetCode: p.selectedAssetCode,
       currentPeriodEnd: moment(ctx.checkout.subscriptionData?.period_end).format("MMMM DD, YYYY [at] h:mm A"),
       productName: ctx.product.name || ctx.checkout.description || "Payment",
@@ -114,14 +115,13 @@ const paymentActionHandler = async (
     const webhooks: WebhookTrigger<typeof payment>[] = [];
     const sideEffects: (() => Promise<void>)[] = [];
 
-    const rawAmount = `${payment.amountCents} ${payment.currencyCode}`;
     const cryptoAmount = `${payment.cryptoAmount} ${payment.selectedAssetCode}`;
 
     const basePayload = {
       id: payment.id,
       checkoutId: payment.checkoutId!,
       customerId: payment.customerId!,
-      amount: rawAmount,
+      amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
       cryptoAmount: cryptoAmount,
       status: payment.status,
       transactionHash: payment.transactionHash ?? "",
@@ -179,7 +179,7 @@ const paymentActionHandler = async (
               "Payment Confirmed",
               CustomerPaymentReceiptEmail({
                 customerName: ctx.customer.name,
-                amount: rawAmount,
+                amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
                 reference: payment.id,
                 date: moment().format("MMMM DD, YYYY [at] h:mm A"),
                 organizationName: ctx.org.name,

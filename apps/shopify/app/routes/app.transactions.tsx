@@ -17,7 +17,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!shop?.stellartools_api_key) {
     return { payments: [] as Payment[], configured: false, ...getClientEnv() };
   }
-
   const st = new StellarTools({ api_key: shop.stellartools_api_key });
   const payments = await st.payments.list({ limit: 50 }).catch(() => [] as Payment[]);
 

@@ -3,6 +3,7 @@ import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
 import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } from "@/actions/subscription";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
+import { charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
@@ -11,6 +12,7 @@ import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
+import { and, eq } from "drizzle-orm";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -33,6 +35,20 @@ export const POST = apiHandler({
 
     if (!secret) throw new AppError("Merchant keys not configured, please contact support");
 
+    // Look up the platform fee charged for this payment so we can deduct it from the refund.
+    // The merchant already paid the fee on the way in — they can only return what they kept.
+    const [platformCharge] = await db
+      .select()
+      .from(charges)
+      .where(and(eq(charges.paymentId, payment_id), eq(charges.status, "succeeded")))
+      .limit(1);
+
+    const feeCrypto = platformCharge ? Number(platformCharge.cryptoAmount) : 0;
+    const feeAmountCents = platformCharge ? platformCharge.amountCents : 0;
+
+    const refundCryptoAmount = (Number(payment.cryptoAmount) - feeCrypto).toFixed(7);
+    const refundAmountCents = payment.amountCents - feeAmountCents;
+
     const refundId = generateResourceId("rf", payment_id, 15);
     const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 
@@ -45,7 +61,7 @@ export const POST = apiHandler({
       payment.wallets!.address,
       payment.selectedAssetCode,
       payment.selectedAssetIssuer!,
-      String(payment.cryptoAmount),
+      refundCryptoAmount,
       environment,
       refundId
     );
@@ -58,11 +74,11 @@ export const POST = apiHandler({
         status: res.isOk() ? "succeeded" : "failed",
         receiverWalletAddress: wallet_address ?? payment.wallets!.address,
         customerId: payment.customerId,
-        cryptoAmount: payment.cryptoAmount,
+        cryptoAmount: refundCryptoAmount,
         selectedAssetCode: payment.selectedAssetCode,
         selectedAssetIssuer: payment.selectedAssetIssuer,
         transactionHash: res.isOk() ? res.value?.hash : null,
-        amountCents: payment.amountCents,
+        amountCents: refundAmountCents,
         currencyCode: payment.currencyCode,
         metadata: metadata,
       },
