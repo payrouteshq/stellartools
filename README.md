@@ -54,7 +54,7 @@ stellar-tools/
     ├── langchain-adapter/
     ├── medusajs-adapter/
     ├── uploadthing-adapter/
-    └── wordpress-adapter/
+    └── woocommerce-adapter/
 ```
 
 ## Getting Started

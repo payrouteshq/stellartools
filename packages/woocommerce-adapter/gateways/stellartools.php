@@ -72,12 +72,23 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$http_code = wp_remote_retrieve_response_code( $response );
 		$body      = json_decode( wp_remote_retrieve_body( $response ), true );
 
-		if ( 200 !== $http_code || ! is_array( $body['data'] ?? null ) ) {
+		if ( 200 !== $http_code ) {
+			return $fallback;
+		}
+
+		$codes = [];
+		if ( is_array( $body ) && array_is_list( $body ) ) {
+			$codes = $body;
+		} elseif ( is_array( $body['data'] ?? null ) ) {
+			$codes = $body['data'];
+		}
+
+		if ( empty( $codes ) ) {
 			return $fallback;
 		}
 
 		$options = [];
-		foreach ( $body['data'] as $code ) {
+		foreach ( $codes as $code ) {
 			$code = sanitize_text_field( (string) $code );
 			if ( $code ) {
 				$options[ $code ] = $code;
@@ -233,16 +244,15 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$result    = json_decode( $body_raw, true );
 
 		if ( 200 !== $http_code || ! is_array( $result ) ) {
-			$error_msg = isset( $result['error'] ) ? (string) $result['error'] : "HTTP {$http_code}";
+			$error_msg = is_array( $result ) && isset( $result['error'] ) ? (string) $result['error'] : "HTTP {$http_code}";
 			$this->log( "API error ({$http_code}): {$error_msg} | body: {$body_raw}" );
 			wc_add_notice( 'Payment could not be initiated. Please try again.', 'error' );
 			$order->update_status( 'failed', "StellarTools error: {$error_msg}" );
 			return [ 'result' => 'failure' ];
 		}
 
-		$checkout_data = $result['data'] ?? null;
-		$checkout_id   = $checkout_data['id'] ?? null;
-		$redirect_url  = $checkout_data['next_action']['redirect_to_url']['url'] ?? $checkout_data['payment_url'] ?? null;
+		$checkout_id  = $result['id'] ?? null;
+		$redirect_url = $result['payment_url'] ?? null;
 
 		if ( ! $checkout_id || ! $redirect_url ) {
 			$this->log( 'Unexpected API response shape: ' . $body_raw );
@@ -279,6 +289,10 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			return [ 'status' => 400, 'body' => [ 'error' => 'Invalid payload' ] ];
 		}
 
+		if ( ! $event_type ) {
+			$event_type = sanitize_text_field( $payload['type'] ?? '' );
+		}
+
 		if ( 'payment.confirmed' === $event_type ) {
 			$this->handle_payment_confirmed( $payload );
 		} elseif ( 'payment.failed' === $event_type ) {
@@ -299,7 +313,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			return;
 		}
 
-		$obj              = $payload['data']['data']['object'] ?? [];
+		$obj              = $payload['data']['object'] ?? $payload['data']['data']['object'] ?? [];
 		$payment_id       = sanitize_text_field( $obj['id'] ?? '' );
 		$transaction_hash = sanitize_text_field( $obj['transaction_hash'] ?? '' );
 		$amount_paid      = sanitize_text_field( (string) ( $obj['amount'] ?? '' ) );
@@ -329,7 +343,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 	}
 
 	private function resolve_order_from_payload( array $payload ): ?WC_Order {
-		$obj = $payload['data']['data']['object'] ?? [];
+		$obj = $payload['data']['object'] ?? $payload['data']['data']['object'] ?? [];
 
 		$order_id = $obj['metadata']['wc_order_id'] ?? null;
 		if ( $order_id ) {
