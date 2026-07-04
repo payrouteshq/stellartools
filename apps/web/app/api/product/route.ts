@@ -1,8 +1,21 @@
-import { postProduct } from "@/actions/product";
+import { postProduct, retrieveProducts } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { Result, createProductSchema } from "@stellartools/core";
+import { Result, createProductSchema, z as Schema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
+
+export const GET = apiHandler({
+  auth: ["session", "apikey", "app"],
+  requiredAppScope: "read:products",
+  mcp: { name: "list_products", description: "List all products" },
+  schema: { query: Schema.object({ status: Schema.string().optional() }) },
+  handler: async ({ query, auth: { organizationId, environment } }) => {
+    const productsList = await retrieveProducts(organizationId, environment, {
+      ...(query.status && { status: query.status as any }),
+    });
+    return Result.ok(productsList);
+  },
+});
 
 export const POST = apiHandler({
   auth: ["session", "apikey"],

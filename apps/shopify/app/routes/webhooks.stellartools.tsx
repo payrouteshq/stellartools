@@ -9,8 +9,7 @@
  * StellarTools POSTs to: /webhooks/stellartools?shop=<shop-domain>
  */
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { StellarTools, WebhookSigner } from "@stellartools/core";
-import type { Payment, Refund } from "@stellartools/core";
+import { type Payment, type Refund, WebhookSigner } from "@stellartools/core";
 import {
   getPaymentSessionByCheckoutId,
   getRefundSessionByStellarRefundId,

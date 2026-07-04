@@ -1,0 +1,24 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "6ca9cc59ec1392cd30e12a34872ad05b"
+application_url = "https://example.com"
+embedded = true
+name = "StellarTools Payments 2"
+
+[webhooks]
+api_version = "2026-10"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = ""
+
+[auth]
+redirect_urls = [
+  "https://example.com/auth/callback",
+  "https://example.com/auth/shopify/callback",
+  "https://example.com/auth/login"
+]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

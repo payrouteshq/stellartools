@@ -27,16 +27,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (stellartoolsPaymentId) {
     const st = new StellarTools({ api_key: shopRecord.stellartools_api_key });
-    const refund = await st.refunds
-      .create({
+    try {
+      const refund = await st.refunds.create({
         payment_id: stellartoolsPaymentId,
         reason: "Merchant initiated refund via Shopify admin",
         metadata: { refund_session_gid: body.gid, shop_domain: shop },
-      })
-      .catch(() => null);
-
-    if (refund && !("error" in refund)) {
+      });
       stellartoolsRefundId = refund.id;
+    } catch {
+      // Refund creation failed — session is still recorded for manual follow-up
     }
   }
 

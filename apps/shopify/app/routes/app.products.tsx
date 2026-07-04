@@ -5,6 +5,8 @@ import { useFetcher, useLoaderData } from "@remix-run/react";
 import { StellarTools } from "@stellartools/core";
 import type { Product, RecurringPeriod } from "@stellartools/core";
 import { getShopByDomain } from "~/db.server";
+import { getClientEnv } from "~/env.server";
+import { useEmbeddedPath } from "~/hooks/use-embedded-navigation";
 import { authenticate } from "~/shopify.server";
 
 // ─── Shopify product from Admin GraphQL ──────────────────────────────────────
@@ -40,7 +42,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const shop = await getShopByDomain(session.shop);
 
   if (!shop?.stellartools_api_key) {
-    return { shopifyProducts: [], stProducts: [], configured: false };
+    return { shopifyProducts: [], stProducts: [], configured: false, ...getClientEnv() };
   }
 
   // Fetch Shopify products via Admin GraphQL
@@ -52,7 +54,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const st = new StellarTools({ api_key: shop.stellartools_api_key });
   const stProducts: Product[] = await st.products.list({ limit: 100 }).catch(() => []);
 
-  return { shopifyProducts, stProducts, configured: true };
+  return { shopifyProducts, stProducts, configured: true, ...getClientEnv() };
 }
 
 // ─── Action ──────────────────────────────────────────────────────────────────
@@ -110,7 +112,8 @@ const PERIOD_LABELS: Record<string, string> = {
 };
 
 export default function Products() {
-  const { shopifyProducts, stProducts, configured } = useLoaderData<typeof loader>();
+  const { shopifyProducts, stProducts, configured, stellartoolsDashboardUrl } = useLoaderData<typeof loader>();
+  const settingsPath = useEmbeddedPath("/app/settings");
   const fetcher = useFetcher<typeof action>();
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [productType, setProductType] = useState<"one_time" | "subscription">("one_time");
@@ -137,7 +140,7 @@ export default function Products() {
         <s-section>
           <s-paragraph tone="subdued">
             Connect your StellarTools account in{" "}
-            <s-link href="/app/settings" tone="auto">
+            <s-link href={settingsPath} tone="auto">
               Settings
             </s-link>{" "}
             to sync products.
@@ -203,7 +206,7 @@ export default function Products() {
                           )}
                           {isSynced && (
                             <s-link
-                              href={`${process.env.STELLARTOOLS_DASHBOARD_URL!}/products`}
+                              href={`${stellartoolsDashboardUrl}/products`}
                               tone="auto"
                               target="_blank"
                             >
@@ -293,7 +296,7 @@ export default function Products() {
                 </s-table-body>
               </s-table>
 
-              <s-link href={`${process.env.STELLARTOOLS_DASHBOARD_URL!}/products`} tone="auto" target="_blank">
+              <s-link href={`${stellartoolsDashboardUrl}/products`} tone="auto" target="_blank">
                 Manage all products in StellarTools ↗
               </s-link>
             </s-section>

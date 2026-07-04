@@ -9,7 +9,7 @@ import {
 } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { computeDiff, toCamelCase, toSnakeCase } from "@/lib/utils";
+import { computeDiff, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, updateSubscriptionSchema } from "@stellartools/core";
 import _ from "lodash";
 
@@ -69,24 +69,21 @@ export const GET = apiHandler({
       retrieveProducts(organizationId, environment, { productId: subscription.productId }),
     ]);
 
-    return Result.ok(
-      toSnakeCase({
-        id: updatedSubscription.id,
-        customerId: updatedSubscription.customerId,
-        productId: updatedSubscription.productId,
-        status: updatedSubscription.status,
-        currentPeriodStart: updatedSubscription.currentPeriodStart,
-        currentPeriodEnd: updatedSubscription.currentPeriodEnd,
-        cancelAtPeriodEnd: updatedSubscription.cancelAtPeriodEnd,
-        metadata: updatedSubscription.metadata,
-        trialDays: updatedSubscription.trialDays,
-        updatedAt: updatedSubscription.updatedAt,
-        createdAt: updatedSubscription.createdAt,
-
-        relatedResources: { product },
-        lastAttempt: lastPayment,
-      })
-    );
+    return Result.ok({
+      id: updatedSubscription.id,
+      customerId: updatedSubscription.customerId,
+      productId: updatedSubscription.productId,
+      status: updatedSubscription.status,
+      currentPeriodStart: updatedSubscription.currentPeriodStart,
+      currentPeriodEnd: updatedSubscription.currentPeriodEnd,
+      cancelAtPeriodEnd: updatedSubscription.cancelAtPeriodEnd,
+      metadata: updatedSubscription.metadata,
+      trialDays: updatedSubscription.trialDays,
+      updatedAt: updatedSubscription.updatedAt,
+      createdAt: updatedSubscription.createdAt,
+      relatedResources: { product },
+      lastAttempt: lastPayment,
+    });
   },
 });
 

@@ -1,131 +1,169 @@
-import { useRef } from "react";
+import { useState } from "react";
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
-import { StellarTools } from "@stellartools/core";
+import { Network, StellarTools, WebhookEventType } from "@stellartools/core";
 import { getShopByDomain, updateShopSettings, updateShopWebhook } from "~/db.server";
+import { getAppUrl, getClientEnv } from "~/env.server";
 import { configurePaymentsApp } from "~/payments-apps.server";
 import { authenticate } from "~/shopify.server";
+
+// ─── Webhook Synchronization Helper ──────────────────────────────────────────
+
+async function syncStellarWebhook(params: {
+  st: StellarTools;
+  shop: any;
+  apiKey: string;
+  appUrl: string | null;
+  shopDomain: string;
+}) {
+  const { st, shop, apiKey, appUrl, shopDomain } = params;
+
+  if (!appUrl) {
+    return "Settings saved, but webhook was not registered — set SHOPIFY_APP_URL in .env to your tunnel URL.";
+  }
+
+  const webhookUrl = `${appUrl}/webhooks/stellartools?shop=${encodeURIComponent(shopDomain)}`;
+  const webhookEvents = [
+    "payment.confirmed",
+    "payment.failed",
+    "refund.succeeded",
+    "refund.failed",
+  ] as Array<WebhookEventType>;
+
+  let webhookId = shop?.stellartools_webhook_id;
+  let webhookSecret = shop?.stellartools_webhook_secret;
+
+  try {
+    // SCENARIO 1: Key changed — Disable old, create new
+    if (webhookId && shop.stellartools_api_key !== apiKey) {
+      const oldSt = new StellarTools({ api_key: shop.stellartools_api_key });
+      await oldSt.webhooks.update(webhookId, { is_disabled: true }).catch(() => {});
+
+      console.log("disabling webhook", { webhookId });
+
+      const created = await st.webhooks.create({
+        name: `Shopify — ${shopDomain}`,
+        url: webhookUrl,
+        events: webhookEvents,
+      });
+      webhookId = created.id;
+      webhookSecret = created.secret;
+      console.log("created webhook", { created });
+    }
+    // SCENARIO 2: No webhook exists — Create fresh
+    else if (!webhookId) {
+      const created = await st.webhooks.create({
+        name: `Shopify — ${shopDomain}`,
+        url: webhookUrl,
+        events: webhookEvents,
+      });
+      console.log("created webhook", { created });
+      webhookId = created.id;
+      webhookSecret = created.secret;
+    }
+    // SCENARIO 3: Same key — Update URL/Status
+    else {
+      const updated = await st.webhooks.update(webhookId, { url: webhookUrl, is_disabled: false });
+      webhookSecret = updated.secret;
+      console.log("updated webhook", { updated });
+    }
+
+    await updateShopWebhook(shopDomain, webhookId, webhookSecret);
+    return null; // Success
+  } catch (error) {
+    return error instanceof Error ? `Webhook sync failed: ${error.message}` : "Webhook sync failed.";
+  }
+}
+
+// ─── Loader ──────────────────────────────────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const shop = await getShopByDomain(session.shop);
-  return { shop };
+  return { shop, ...getClientEnv() };
 }
+
+// ─── Action ──────────────────────────────────────────────────────────────────
 
 export async function action({ request }: ActionFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const form = await request.formData();
   const apiKey = (form.get("apiKey") as string)?.trim();
 
-  if (!apiKey) {
-    return { error: "API key is required", success: false, environment: null as "testnet" | "mainnet" | null };
-  }
+  if (!apiKey) return { error: "API key is required", success: false, environment: null };
 
-  // Validate the key first
   const st = new StellarTools({ api_key: apiKey });
 
-  const balance = await st.balance.retrieve();
-
-  if ("error" in balance) {
-    return {
-      error: balance.error,
-      success: false,
-      environment: null,
-    };
+  // 1. Validate Account & Network
+  let network: Network;
+  try {
+    const response = await st.balance.retrieve();
+    network = response.network;
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Invalid API key", success: false, environment: null };
   }
 
-  // Derive network from key prefix — Balance type doesn't expose network
-  const network: "testnet" | "mainnet" = apiKey.startsWith("st_live_") ? "mainnet" : "testnet";
+  // 2. Persist Settings
   await updateShopSettings(session.shop, apiKey, network);
-
-  // Register or update the StellarTools webhook so payment.confirmed events reach this app.
   const shop = await getShopByDomain(session.shop);
-  const webhookUrl = `${process.env.SHOPIFY_APP_URL}/webhooks/stellartools?shop=${session.shop}`;
 
-  let webhookId = shop?.stellartools_webhook_id ?? null;
-  let webhookSecret = shop?.stellartools_webhook_secret ?? null;
+  // 3. Sync Webhooks (Functional & Clean)
+  const webhookWarning = await syncStellarWebhook({
+    st,
+    shop,
+    apiKey,
+    appUrl: getAppUrl(),
+    shopDomain: session.shop,
+  });
 
-  if (shop?.stellartools_webhook_id) {
-    if (shop.stellartools_api_key && shop.stellartools_api_key !== apiKey) {
-      // API key changed — disable the webhook on the old account, create fresh on the new one
-      const oldSt = new StellarTools({ api_key: shop.stellartools_api_key });
-      await oldSt.webhooks.update(shop.stellartools_webhook_id, { is_disabled: true }).catch(() => {});
+  // 4. Finalize Payments App Config
+  await configurePaymentsApp(session.shop, session.accessToken!).catch(console.error);
 
-      const created = await st.webhooks
-        .create({
-          name: `Shopify — ${session.shop}`,
-          url: webhookUrl,
-          events: ["payment.confirmed", "payment.failed", "refund.succeeded", "refund.failed"],
-        })
-        .catch(() => null);
-      const ok = created && !("error" in created);
-      webhookId = ok ? created.id : null;
-      webhookSecret = ok ? created.secret : null;
-    } else {
-      // Same API key — update the URL (ngrok may have changed) and ensure it's enabled
-      await st.webhooks.update(shop.stellartools_webhook_id, { url: webhookUrl, is_disabled: false }).catch(() => {});
-    }
-  } else {
-    // First time saving — create the webhook
-    const created = await st.webhooks
-      .create({
-        name: `Shopify — ${session.shop}`,
-        url: webhookUrl,
-        events: ["payment.confirmed", "payment.failed", "refund.succeeded", "refund.failed"],
-      })
-      .catch(() => null);
-    const ok = created && !("error" in created);
-    webhookId = ok ? created.id : null;
-    webhookSecret = ok ? created.secret : null;
-  }
-
-  await updateShopWebhook(session.shop, webhookId, webhookSecret);
-
-  // Tell Shopify the payment extension is ready to accept payments
-  await configurePaymentsApp(session.shop, session.accessToken!).catch(() => {});
-
-  return { success: true, environment: network, error: null as string | null };
+  return { success: true, environment: network, error: webhookWarning };
 }
 
 export default function Settings() {
-  const { shop } = useLoaderData<typeof loader>();
+  const { shop, shopifyApiKey, stellartoolsDashboardUrl } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
-  const formRef = useRef<HTMLFormElement>(null);
 
-  const isSaving = navigation.state === "submitting";
+  const [apiKey, setApiKey] = useState(shop?.stellartools_api_key ?? "");
+
+  // Detect if the specific settings form is currently submitting
+  const isSaving =
+    navigation.state === "submitting" &&
+    navigation.formMethod === "POST" &&
+    navigation.location?.pathname === "/app/settings";
+
   const isConnected = !!shop?.stellartools_api_key;
 
   const handleSave = () => {
-    if (!formRef.current) return;
-    const fd = new FormData(formRef.current);
+    const fd = new FormData();
+    fd.set("apiKey", apiKey.trim());
     submit(fd, { method: "POST" });
   };
+
+  const connectionLabel = isConnected ? "Connected" : "Not configured";
+  const currentEnv = actionData?.environment ?? shop?.environment ?? "testnet";
+  const gatewayUrl = `https://${shop?.shop_domain}/services/payments_partners/gateways/${shopifyApiKey}/settings`;
 
   return (
     <s-page heading="Settings">
       {actionData?.success && (
-        <s-banner
-          heading={`Settings saved — connected to StellarTools (${actionData.environment ?? shop?.environment ?? "testnet"})`}
-          tone="success"
-          dismissible
-        >
-          <s-link
-            href={`https://${shop?.shop_domain}/services/payments_partners/gateways/${process.env.SHOPIFY_API_KEY}/settings`}
-            tone="auto"
-            target="_blank"
-          >
+        <s-banner heading={`Settings saved — connected to StellarTools (${currentEnv})`} tone="success" dismissible>
+          <s-link href={gatewayUrl} tone="auto" target="_blank">
             Activate Stellar Pay in your store's payment settings ↗
           </s-link>
         </s-banner>
       )}
+
       {actionData?.error && <s-banner heading={actionData.error} tone="critical" dismissible />}
 
       <s-section heading="Connection status">
         <s-stack direction="inline" gap="base" alignItems="center">
-          <s-badge tone={isConnected ? "success" : "warning"}>{isConnected ? "Connected" : "Not configured"}</s-badge>
+          <s-badge tone={isConnected ? "success" : "warning"}>{connectionLabel}</s-badge>
           {isConnected && (
             <s-text color="subdued">
               Key ending in ···{shop.stellartools_api_key!.slice(-4)} · {shop.environment}
@@ -137,21 +175,27 @@ export default function Settings() {
       <s-section heading="StellarTools API key">
         <s-paragraph tone="subdued">
           Get your key from StellarTools → Settings → API Keys. The network (testnet or mainnet) is determined by where
-          you created the key — no separate choice needed.{" "}
-          <s-link href={`${process.env.STELLARTOOLS_DASHBOARD_URL!}/api-keys`} tone="auto" target="_blank">
+          you created the key{" "}
+          <s-link href={`${stellartoolsDashboardUrl}/api-keys`} tone="auto" target="_blank">
             Open StellarTools ↗
           </s-link>
         </s-paragraph>
 
-        <form ref={formRef}>
+        <s-form
+          onSubmit={(e: React.FormEvent) => {
+            e.preventDefault();
+            handleSave();
+          }}
+        >
           <s-password-field
             label="API key"
             name="apiKey"
-            defaultValue={shop?.stellartools_api_key ?? ""}
+            value={apiKey}
             placeholder="st_live_... or st_test_..."
             autocomplete="off"
+            onInput={(e: React.FormEvent<HTMLInputElement>) => setApiKey(e.currentTarget.value)}
           />
-        </form>
+        </s-form>
       </s-section>
 
       <s-section heading="How it works">
@@ -164,7 +208,7 @@ export default function Settings() {
       </s-section>
 
       <s-section>
-        <s-button variant="primary" loading={isSaving} onClick={handleSave}>
+        <s-button variant="primary" {...(isSaving ? { loading: true } : {})} onClick={handleSave}>
           Save settings
         </s-button>
       </s-section>

@@ -17,6 +17,6 @@ export const GET = apiHandler({
 
     if (accountResult.isErr()) return Result.ok([]);
 
-    return Result.ok({ ...accountResult.value!.balances, network: environment });
+    return Result.ok({ value: accountResult.value!.balances, network: environment });
   },
 });

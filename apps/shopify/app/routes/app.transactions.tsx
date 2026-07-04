@@ -5,6 +5,8 @@ import { useFetcher, useLoaderData } from "@remix-run/react";
 import { StellarTools } from "@stellartools/core";
 import type { Payment } from "@stellartools/core";
 import { getShopByDomain } from "~/db.server";
+import { getClientEnv } from "~/env.server";
+import { useEmbeddedPath } from "~/hooks/use-embedded-navigation";
 import { authenticate } from "~/shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -13,13 +15,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const shop = await getShopByDomain(session.shop);
 
   if (!shop?.stellartools_api_key) {
-    return { payments: [] as Payment[], configured: false };
+    return { payments: [] as Payment[], configured: false, ...getClientEnv() };
   }
 
   const st = new StellarTools({ api_key: shop.stellartools_api_key });
   const payments = await st.payments.list({ limit: 50 }).catch(() => [] as Payment[]);
 
-  return { configured: true, payments };
+  return { configured: true, payments, ...getClientEnv() };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -54,7 +56,8 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 export default function Transactions() {
-  const { payments, configured } = useLoaderData<typeof loader>();
+  const { payments, configured, stellartoolsDashboardUrl } = useLoaderData<typeof loader>();
+  const settingsPath = useEmbeddedPath("/app/settings");
   const fetcher = useFetcher<typeof action>();
   const [refundingId, setRefundingId] = useState<string | null>(null);
 
@@ -71,7 +74,7 @@ export default function Transactions() {
         {!configured ? (
           <s-paragraph tone="subdued">
             Connect your StellarTools account in{" "}
-            <s-link href="/app/settings" tone="auto">
+            <s-link href={settingsPath} tone="auto">
               Settings
             </s-link>{" "}
             to see transactions here.
@@ -148,7 +151,7 @@ export default function Transactions() {
       </s-section>
 
       <s-section>
-        <s-link href={`${process.env.STELLARTOOLS_DASHBOARD_URL!}/transactions`} tone="auto" target="_blank">
+        <s-link href={`${stellartoolsDashboardUrl}/transactions`} tone="auto" target="_blank">
           View all transactions in StellarTools ↗
         </s-link>
       </s-section>

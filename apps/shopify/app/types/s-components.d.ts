@@ -12,6 +12,7 @@ declare module "react" {
     interface IntrinsicElements {
       // Layout
       "s-page": SBase & { heading?: string; inlineSize?: string };
+      "s-app-nav": SChildren;
       "s-section": SBase & { heading?: string; padding?: string };
       "s-stack": SBase & { direction?: "inline" | "block"; gap?: string; alignItems?: string; wrap?: boolean };
       "s-grid": SBase & { gridTemplateColumns?: string; gap?: string };
@@ -23,7 +24,7 @@ declare module "react" {
       "s-heading": SBase;
       "s-text": SBase & { type?: "strong" | "emphasis" | "code"; tone?: string; color?: string };
       "s-paragraph": SBase & { tone?: string; color?: string };
-      "s-link": SBase & { href?: string; tone?: string; target?: string };
+      "s-link": SBase & { href?: string; tone?: string; target?: string; rel?: string };
 
       // Media
       "s-image": SBase & { src?: string; alt?: string; aspectRatio?: string; objectFit?: string; loading?: string };
@@ -51,7 +52,7 @@ declare module "react" {
 
       // Actions
       "s-button": SBase & {
-        variant?: "primary" | "secondary" | "tertiary" | "plain";
+        variant?: "primary" | "secondary" | "tertiary" | "plain" | "auto";
         tone?: string;
         type?: "button" | "submit" | "reset";
         loading?: boolean;
@@ -60,6 +61,8 @@ declare module "react" {
         form?: string;
         name?: string;
         value?: string;
+        href?: string;
+        slot?: string;
         commandFor?: string;
       };
       "s-button-group": SBase & { gap?: string };
@@ -71,6 +74,7 @@ declare module "react" {
       "s-popover": SBase & { inlineSize?: string };
 
       // Form fields
+      "s-form": SBase & { onSubmit?: FormEventHandler<HTMLElement> };
       "s-text-field": SBase & {
         label?: string;
         name?: string;

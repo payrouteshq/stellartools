@@ -1,12 +1,13 @@
 import { ApiVersion, DeliveryMethod, shopifyApp } from "@shopify/shopify-app-remix/server";
 import { PgSessionStorage, upsertShop } from "~/db.server";
+import { getAppUrl } from "~/env.server";
 
 export const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
   apiSecretKey: process.env.SHOPIFY_API_SECRET!,
   apiVersion: ApiVersion.October25,
-  scopes: ["read_products", "read_customers"],
-  appUrl: process.env.SHOPIFY_APP_URL!,
+  scopes: [],
+  appUrl: getAppUrl(),
   authPathPrefix: "/auth",
   sessionStorage: new PgSessionStorage(),
   webhooks: {
@@ -14,22 +15,11 @@ export const shopify = shopifyApp({
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
-    CUSTOMERS_CREATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    PRODUCTS_CREATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
-    PRODUCTS_UPDATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks",
-    },
   },
   hooks: {
     afterAuth: async ({ session }) => {
-      shopify.registerWebhooks({ session });
+      console.log("afterAuth", session);
+      await shopify.registerWebhooks({ session });
       await upsertShop(session.shop, session.accessToken!);
     },
   },

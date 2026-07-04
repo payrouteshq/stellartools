@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { type CurrencyCode, StellarTools } from "@stellartools/core";
 import { createPaymentSession, getShopByDomain } from "~/db.server";
+import { getAppUrl } from "~/env.server";
 import type { ShopifyOffsitePaymentMethod, ShopifyPaymentSessionRequest } from "~/types/shopify-payments";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -20,40 +21,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const st = new StellarTools({ api_key: shopRecord.stellartools_api_key });
 
-  const checkout = await st.checkouts.createDirect(
-    {
-      amount_cents: Math.round(parseFloat(body.amount) * 100),
-      currency_code: body.currency.toUpperCase() as CurrencyCode,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-      redirect_url: new URL(
-        `/payments/return?gid=${encodeURIComponent(body.gid)}&shop=${encodeURIComponent(shop)}`,
-        process.env.SHOPIFY_APP_URL!
-      ).toString(),
-      description: `Order via ${shop}`,
-      metadata: {
-        shopify_payment_gid: body.gid,
-        shop_domain: shop,
-        test: String(body.test),
+  try {
+    const checkout = await st.checkouts.createDirect(
+      {
+        amount_cents: Math.round(parseFloat(body.amount) * 100),
+        currency_code: body.currency.toUpperCase() as CurrencyCode,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        redirect_url: new URL(
+          `/payments/return?gid=${encodeURIComponent(body.gid)}&shop=${encodeURIComponent(shop)}`,
+          getAppUrl()
+        ).toString(),
+        description: `Order via ${shop}`,
+        metadata: {
+          shopify_payment_gid: body.gid,
+          shop_domain: shop,
+          test: String(body.test),
+        },
       },
-    },
-    { idempotencyKey: body.id }
-  );
+      { idempotencyKey: body.id }
+    );
 
-  if (!checkout || "error" in checkout) {
-    return Response.json({ error: (checkout as any)?.error ?? "Failed to create checkout" }, { status: 500 });
+    await createPaymentSession({
+      id: body.id,
+      gid: body.gid,
+      shop,
+      amount: body.amount,
+      currency: body.currency,
+      customerEmail: customerEmail ?? customerPhone ?? null,
+      cancelUrl,
+      stellartoolsCheckoutId: checkout.id,
+    });
+
+    return Response.json({ redirect_url: checkout.payment_url });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
-
-  await createPaymentSession({
-    id: body.id,
-    gid: body.gid,
-    shop,
-    amount: body.amount,
-    currency: body.currency,
-    customerEmail: customerEmail ?? customerPhone ?? null,
-    cancelUrl,
-    stellartoolsCheckoutId: checkout.id,
-  });
-
-  return Response.json({ redirect_url: checkout.payment_url });
 };

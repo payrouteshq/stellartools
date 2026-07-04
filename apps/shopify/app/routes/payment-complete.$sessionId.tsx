@@ -29,9 +29,10 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   }
 
   const st = new StellarTools({ api_key: shopRecord.stellartools_api_key });
-  const checkout = await st.checkouts.retrieve(paymentSession.stellartools_checkout_id!).catch(() => null);
-
-  if (!checkout || "error" in checkout) {
+  let checkout;
+  try {
+    checkout = await st.checkouts.retrieve(paymentSession.stellartools_checkout_id!);
+  } catch {
     const fallback = await rejectPaymentSession(
       paymentSession.shop,
       shopRecord.access_token,

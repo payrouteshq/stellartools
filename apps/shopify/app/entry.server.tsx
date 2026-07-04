@@ -15,6 +15,8 @@ export default function handleRequest(
   remixContext: EntryContext,
   _loadContext: AppLoadContext
 ) {
+  const url = new URL(request.url);
+  console.log(`[remix] ${request.method} ${url.pathname}${url.search}`);
   addDocumentResponseHeaders(request, responseHeaders);
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";

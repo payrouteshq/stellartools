@@ -1,4 +1,5 @@
 import { deleteWebhook, putWebhook, retrieveWebhooks } from "@/actions/webhook";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, updateWebhookSchema } from "@stellartools/core";
@@ -12,8 +13,9 @@ export const GET = apiHandler({
   requiredAppScope: "read:webhooks",
   schema: { params: paramsSchema },
   handler: async ({ params: { webhookId }, auth: { organizationId, environment } }) => {
-    const response = await retrieveWebhooks(organizationId, environment, { id: webhookId });
-    return Result.ok(response);
+    const [webhook] = await retrieveWebhooks(organizationId, environment, { id: webhookId });
+    if (!webhook) return Result.err(new AppError("Webhook not found"));
+    return Result.ok(webhook);
   },
 });
 

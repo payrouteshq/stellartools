@@ -3,8 +3,8 @@ import "server-only";
 import { resolveAuthContext } from "@/actions/apikey";
 import { getStoredResponse, saveIdempotencyResult, tryAcquireLock } from "@/actions/idempotency";
 import { getCorsHeaders } from "@/constant";
-import { processResource } from "@/lib/api-registry";
 import { AuthContext } from "@/types";
+import _ from "lodash";
 import { AppScope } from "@stellartools/app-sdk/schema";
 import { MaybePromise, Result, z as Schema, validateSchema } from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
@@ -14,6 +14,14 @@ import { NextRequest, NextResponse } from "next/server";
  * But it's only used for app installations and we trust the app to not abuse it.
  */
 export type DangerouslyAllowedAppScopes = "write:app-installation" | "read:app-installation";
+
+function toSnakeCase(data: any): any {
+  if (typeof data === "bigint") return Number(data.toString());
+  if (data instanceof Date) return data.toISOString();
+  if (data === null || typeof data !== "object") return data;
+  if (Array.isArray(data)) return data.map(toSnakeCase);
+  return Object.fromEntries(Object.entries(data).map(([k, v]) => [_.snakeCase(k), toSnakeCase(v)]));
+}
 
 export const mcpToolsRegistry = new Map<string, HandlerConfig<any, any, any>>();
 
@@ -147,7 +155,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         return NextResponse.json(errBody, { status: 400, headers: corsHeaders });
       }
 
-      const processedData = processResource(result.value, config.convertToSnakeCase ?? true);
+      const processedData = (config.convertToSnakeCase ?? true) ? toSnakeCase(result.value) : result.value;
 
       if (idempotencyKey && authResult) {
         await saveIdempotencyResult(idempotencyKey, authResult.organizationId, 200, processedData);

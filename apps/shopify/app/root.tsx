@@ -7,7 +7,6 @@ import {
   useLoaderData,
   useRouteError,
 } from "@remix-run/react";
-import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 
 export async function loader() {
@@ -22,14 +21,15 @@ export default function App() {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta name="shopify-api-key" content={apiKey} />
         <link rel="preconnect" href="https://cdn.shopify.com/" />
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+        <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
         <Meta />
         <Links />
       </head>
       <body>
-        <AppProvider isEmbeddedApp apiKey={apiKey}>
-          <Outlet />
-        </AppProvider>
+        <Outlet />
         <ScrollRestoration />
         <Scripts />
       </body>

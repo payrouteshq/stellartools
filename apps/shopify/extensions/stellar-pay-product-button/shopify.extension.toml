@@ -1,4 +1,5 @@
 api_version = "2025-10"
+uid = "c79baa01-f2f6-ffa4-e895-c9dd38378d6d74d5d85d"
 
 # UNSTABLE — demo-only product page button.
 # Delete this extension (extensions/stellar-pay-product-button/) along with

@@ -10,6 +10,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { CurrencyCode, StellarTools } from "@stellartools/core";
 import { createPaymentSession, getShopByDomain } from "~/db.server";
+import { getAppUrl } from "~/env.server";
 import type { ShopifyOffsitePaymentMethod, ShopifyPaymentSessionRequest } from "~/types/shopify-payments";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -35,41 +36,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const st = new StellarTools({ api_key: shopRecord.stellartools_api_key });
   const amountCents = Math.round(parseFloat(body.amount) * 100);
 
-  const checkout = await st.checkouts.createDirect({
-    amount_cents: amountCents,
-    currency_code: body.currency.toUpperCase() as CurrencyCode,
-    customer_email: customerEmail,
-    redirect_url: `${process.env.SHOPIFY_APP_URL}/payment-complete/${body.id}`,
-    description: `Shopify order — ${shop}`,
-    metadata: {
-      payment_session_id: body.gid,
-      payment_session_group: body.group,
-      shop_domain: shop,
-      test: String(body.test),
-      ...(requestId ? { shopify_request_id: requestId } : {}),
-    },
-  }, { idempotencyKey: body.id });
+  try {
+    const checkout = await st.checkouts.createDirect(
+      {
+        amount_cents: amountCents,
+        currency_code: body.currency.toUpperCase() as CurrencyCode,
+        customer_email: customerEmail,
+        redirect_url: `${getAppUrl()}/payment-complete/${body.id}`,
+        description: `Shopify order — ${shop}`,
+        metadata: {
+          payment_session_id: body.gid,
+          payment_session_group: body.group,
+          shop_domain: shop,
+          test: String(body.test),
+          ...(requestId ? { shopify_request_id: requestId } : {}),
+        },
+      },
+      { idempotencyKey: body.id }
+    );
 
-  if ("error" in checkout) {
-    return new Response(JSON.stringify({ error: checkout.error }), {
+    await createPaymentSession({
+      id: body.id,
+      gid: body.gid,
+      shop,
+      amount: body.amount,
+      currency: body.currency,
+      customerEmail: customerEmail ?? customerPhone ?? null,
+      cancelUrl,
+      stellartoolsCheckoutId: checkout.id,
+    });
+
+    return new Response(JSON.stringify({ redirect_url: checkout.payment_url }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  await createPaymentSession({
-    id: body.id,
-    gid: body.gid,
-    shop,
-    amount: body.amount,
-    currency: body.currency,
-    customerEmail: customerEmail ?? customerPhone ?? null,
-    cancelUrl,
-    stellartoolsCheckoutId: checkout.id,
-  });
-
-  return new Response(JSON.stringify({ redirect_url: checkout.payment_url }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
 };

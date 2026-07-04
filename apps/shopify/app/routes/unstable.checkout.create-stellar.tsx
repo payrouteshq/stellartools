@@ -14,6 +14,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { CurrencyCode, StellarTools } from "@stellartools/core";
 import { createUnstableCheckoutRecord, getShopByDomain } from "~/db.server";
+import { getAppUrl } from "~/env.server";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -50,31 +51,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const st = new StellarTools({ api_key: shop.stellartools_api_key });
   const amountCents = Math.round(parseFloat(amount) * 100);
 
-  const checkout = await st.checkouts
-    .createDirect({
+  try {
+    const checkout = await st.checkouts.createDirect({
       amount_cents: amountCents,
       currency_code: currency.toUpperCase() as CurrencyCode,
       customer_email: customer_email ?? undefined,
-      redirect_url: `${process.env.SHOPIFY_APP_URL}/unstable/checkout/return`,
+      redirect_url: `${getAppUrl()}/unstable/checkout/return`,
       description: `[DEMO] Shopify checkout — ${shop_domain}`,
       metadata: {
         shop_domain,
         source: "unstable_checkout_ui_extension",
       },
-    })
-    .catch(() => null);
+    });
 
-  if (!checkout || "error" in checkout) {
-    return json({ error: (checkout as any)?.error ?? "Failed to create checkout" }, 500);
+    await createUnstableCheckoutRecord({
+      shop: shop_domain,
+      amount,
+      currency,
+      customerEmail: customer_email ?? null,
+      stellartoolsCheckoutId: checkout.id,
+    }).catch(() => {});
+
+    return json({ payment_url: checkout.payment_url });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
-
-  await createUnstableCheckoutRecord({
-    shop: shop_domain,
-    amount,
-    currency,
-    customerEmail: customer_email ?? null,
-    stellartoolsCheckoutId: checkout.id,
-  }).catch(() => {});
-
-  return json({ payment_url: checkout.payment_url });
 };

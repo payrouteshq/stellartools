@@ -30,7 +30,7 @@ export const schemaFor = <TInterface>() => {
 
 export const unwrap = <T>(result: Result<T, Error>): T => {
   if (result.isErr()) {
-    throw new Error(result.error?.message ?? "Operation failed");
+    throw result.error;
   }
 
   return result.value!;

@@ -12,7 +12,7 @@ import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
 export class AppInstallationApi {
   constructor(private apiClient: ApiClient) {}
 
-  async retrieveSettings(options?: RequestOptions): Promise<AppInstallationSettings | { error: string }> {
+  async retrieveSettings(options?: RequestOptions): Promise<AppInstallationSettings> {
     return unwrap(await this.apiClient.get(`/app-installation`, undefined, mapOptionsToHeaders(options)));
   }
 
@@ -20,7 +20,7 @@ export class AppInstallationApi {
     settings: AppInstallationSettings,
     status?: AppInstallationStatus,
     options?: RequestOptions
-  ): Promise<Record<string, any> | { error: string }> {
+  ): Promise<Record<string, unknown>> {
     return unwrap(
       await Result.andThenAsync(validateSchema(appInstallationSettingsSchema, settings), async (settings) => {
         return await this.apiClient.put(

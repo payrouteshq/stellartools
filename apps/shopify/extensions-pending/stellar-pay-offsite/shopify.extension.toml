@@ -1,4 +1,5 @@
 api_version = "2025-10"
+uid = "9bf1b18b-381a-ea6b-f6ef-0bca7e00ddb8f41e72fd"
 
 [[extensions]]
 type = "payments_extension"

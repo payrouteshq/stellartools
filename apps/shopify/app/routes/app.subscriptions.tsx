@@ -3,6 +3,7 @@ import { useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-r
 import { StellarTools } from "@stellartools/core";
 import type { Customer, Product, Subscription } from "@stellartools/core";
 import { getCustomerEmailsByShop, getShopByDomain } from "~/db.server";
+import { useEmbeddedPath } from "~/hooks/use-embedded-navigation";
 import { authenticate } from "~/shopify.server";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function Subscriptions() {
   const { configured, rows, stats, error } = useLoaderData<typeof loader>();
+  const settingsPath = useEmbeddedPath("/app/settings");
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -161,7 +163,7 @@ export default function Subscriptions() {
       <s-page heading="Subscriptions">
         <s-banner heading="Connect your StellarTools account" tone="warning">
           Add your StellarTools API key in Settings to see subscriptions.
-          <s-link href="/app/settings" tone="auto">Go to Settings</s-link>
+          <s-link href={settingsPath} tone="auto">Go to Settings</s-link>
         </s-banner>
       </s-page>
     );

@@ -78,7 +78,7 @@ export class SubscriptionApi {
   async cancel(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.post<Subscription>(
+        return await this.apiClient.post<{ success: boolean }>(
           `/subscriptions/${id}/cancel`,
           undefined,
           mapOptionsToHeaders(options)

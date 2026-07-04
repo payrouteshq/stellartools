@@ -1,8 +1,10 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  console.log("[auth] callback", new URL(request.url).pathname);
+  const url = new URL(request.url);
+  console.log("[index] authenticate.admin", url.pathname);
   await authenticate.admin(request);
-  return null;
+  throw redirect(`/app${url.search}`);
 };

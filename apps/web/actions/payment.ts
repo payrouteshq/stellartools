@@ -124,9 +124,13 @@ const paymentActionHandler = async (
       amount: rawAmount,
       cryptoAmount: cryptoAmount,
       status: payment.status,
-      transaction_hash: payment.transactionHash,
-      createdAt: payment.createdAt?.toISOString(),
+      transactionHash: payment.transactionHash ?? "",
+      createdAt: payment.createdAt?.toISOString() ?? new Date().toISOString(),
       metadata: payment.metadata,
+      currencyCode: payment.currencyCode,
+      amountCents: payment.amountCents,
+      selectedAssetCode: payment.selectedAssetCode,
+      selectedAssetIssuer: payment.selectedAssetIssuer ?? "",
     };
 
     if (payment.status === "failed") {

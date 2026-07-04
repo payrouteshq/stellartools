@@ -1,9 +1,10 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { Outlet } from "@remix-run/react";
-import { NavMenu } from "@shopify/app-bridge-react";
+import { AppNavMenu } from "~/components/app-nav-menu";
 import { authenticate } from "~/shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  console.log("[app] authenticate.admin", new URL(request.url).pathname);
   await authenticate.admin(request);
   return null;
 }
@@ -11,15 +12,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function AppLayout() {
   return (
     <>
-      <NavMenu>
-        <a href="/app" rel="home">
-          Dashboard
-        </a>
-        <a href="/app/transactions">Transactions</a>
-        <a href="/app/subscriptions">Subscriptions</a>
-        <a href="/app/products">Products</a>
-        <a href="/app/settings">Settings</a>
-      </NavMenu>
+      <AppNavMenu />
       <Outlet />
     </>
   );

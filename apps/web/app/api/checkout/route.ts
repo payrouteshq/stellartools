@@ -5,6 +5,7 @@ import { retrieveProducts } from "@/actions/product";
 import { getCorsHeaders, subscriptionIntervals } from "@/constant";
 import { AppError } from "@/lib/action-handler";
 import { createOptionsHandler } from "@/lib/api-handler";
+import { toSnakeCase } from "@/lib/utils";
 import { Result, createCheckoutSchema, createDirectCheckoutSchema, validateSchema } from "@stellartools/core";
 import moment from "moment";
 import { NextRequest, NextResponse } from "next/server";
@@ -42,7 +43,7 @@ export const POST = async (req: NextRequest) => {
             processCheckout(d, "direct")
           );
 
-    return result.isOk() ? send({ data: result.value }) : send({ error: result.error.message }, 400);
+    return result.isOk() ? send(toSnakeCase(result.value)) : send({ error: result.error.message }, 400);
 
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });

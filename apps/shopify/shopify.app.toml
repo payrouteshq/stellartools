@@ -1,21 +1,21 @@
 name = "StellarTools Payments"
 client_id = "c0177ec17c6e55668f70ba23d6912900"
-application_url = "https://6eca-41-75-204-57.ngrok-free.app"
+application_url = "https://example.com"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 dev_store_url = "stellartools-testnet.myshopify.com"
 
 [access_scopes]
-scopes = "read_products,read_customers"
+scopes = ""
+
 
 [auth]
 redirect_urls = [
-  "https://6eca-41-75-204-57.ngrok-free.app/auth/callback",
-  "https://6eca-41-75-204-57.ngrok-free.app/auth/shopify/callback",
-  "https://6eca-41-75-204-57.ngrok-free.app/auth/login"
+  "https://example.com/auth/callback",
+  "https://example.com/auth/shopify/callback",
+  "https://example.com/auth/login"
 ]
 
 [webhooks]
@@ -23,10 +23,6 @@ api_version = "2025-10"
 
   [[webhooks.subscriptions]]
   topics = ["app/uninstalled"]
-  uri = "/webhooks"
-
-  [[webhooks.subscriptions]]
-  topics = ["customers/create"]
   uri = "/webhooks"
 
 
