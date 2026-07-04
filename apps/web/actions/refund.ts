@@ -5,6 +5,7 @@ import { resolveOrgContext } from "@/actions/organization";
 import { Network, Refund, refunds } from "@/db";
 import { db } from "@/db";
 import { AppError } from "@/lib/action-handler";
+import { Money } from "@/lib/money";
 import { toSnakeCase } from "@/lib/utils";
 import { EventTrigger, WebhookTrigger } from "@/types";
 import { and, desc, eq } from "drizzle-orm";
@@ -93,7 +94,7 @@ export const postRefund = async (
             data: {
               paymentId,
               refundId,
-              amount: `${amountCents} ${currencyCode}`,
+              amount: Money.formatFiat(amountCents, currencyCode),
               cryptoAmount: `${cryptoAmount} ${selectedAssetCode}`,
               reason,
             },
@@ -118,7 +119,7 @@ export const postRefund = async (
           }) => ({
             object: toSnakeCase({
               id: refundId,
-              amount: `${amountCents} ${currencyCode}`,
+              amount: Money.formatFiat(amountCents, currencyCode),
               cryptoAmount: `${cryptoAmount} ${selectedAssetCode}`,
               paymentId,
               customerId,

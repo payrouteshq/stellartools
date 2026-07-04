@@ -358,7 +358,7 @@ function WebhooksPageContent() {
   const { mutate: toggleWebhookDisabledAction, isPending: isTogglingWebhookDisabled } = useAction(
     async ({ id, isDisabled }: { id: string; isDisabled: boolean }) => {
       if (!org?.token) throw new AppError("No session token");
-      const result = await api.put(`/webhooks/${id}`, { isDisabled }, { "x-session-token": org.token });
+      const result = await api.put(`/webhooks/${id}`, { is_disabled: isDisabled }, { "x-session-token": org.token });
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
@@ -662,7 +662,16 @@ function WebhooksModalContent({
   const { mutate: createWebhookAction, isPending: isCreatingWebhook } = useAction(
     async (data: z.infer<typeof schema>) => {
       if (!orgContext) throw new AppError("No organization context found");
-      const result = await api.post("/webhooks", data, { "x-session-token": orgContext?.token! });
+      const result = await api.post(
+        "/webhooks",
+        {
+          name: data.destinationName,
+          url: data.endpointUrl,
+          description: data.description || undefined,
+          events: data.events,
+        },
+        { "x-session-token": orgContext?.token! }
+      );
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
@@ -670,15 +679,26 @@ function WebhooksModalContent({
       invalidate: ["webhooks"],
       successMsg: "Webhook destination created successfully",
       errorMsg: "Failed to create webhook destination",
+      onSuccess: () => {
+        form?.reset();
+        onSuccess?.();
+      },
     }
   );
 
   const { mutate: updateWebhookAction, isPending: isUpdatingWebhook } = useAction(
     async (data: z.infer<typeof schema>) => {
       if (!orgContext) throw new AppError("No organization context found");
-      const result = await api.put<Webhook>(`/webhooks/${editingWebhook?.id}`, data, {
-        "x-session-token": orgContext?.token!,
-      });
+      const result = await api.put<Webhook>(
+        `/webhooks/${editingWebhook?.id}`,
+        {
+          name: data.destinationName,
+          url: data.endpointUrl,
+          description: data.description || undefined,
+          events: data.events,
+        },
+        { "x-session-token": orgContext?.token! }
+      );
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
@@ -879,4 +899,3 @@ function WebhooksModalContent({
     </div>
   );
 }
-

@@ -11,55 +11,48 @@ import {
   retrieveCheckoutSchema,
   updateCheckoutSchema,
 } from "../schema/checkout";
-import { unwrap, validateSchema } from "../utils";
+import { RequestOptions } from "../types";
+import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
 
 export class CheckoutApi {
   constructor(private apiClient: ApiClient) {}
 
-  /**
-   * Create a standard checkout using a Product ID.
-   * Amount and Asset are resolved automatically from the product.
-   */
-  async create(params: CreateCheckout) {
+  async create(params: CreateCheckout, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(createCheckoutSchema, params), (data) =>
-        this.apiClient.post<Checkout>("checkout?type=product", data)
+        this.apiClient.post<Checkout>("checkout?type=product", data, mapOptionsToHeaders(options))
       )
     );
   }
 
-  /**
-   * Create a dynamic checkout with a specific amount and asset.
-   * Use this for ad-hoc payments or dynamic pricing.
-   */
-  async createDirect(params: CreateDirectCheckout) {
+  async createDirect(params: CreateDirectCheckout, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(createDirectCheckoutSchema, params), (data) =>
-        this.apiClient.post<Checkout>("checkout?type=direct", data)
+        this.apiClient.post<Checkout>("checkout?type=direct", data, mapOptionsToHeaders(options))
       )
     );
   }
 
-  async retrieve(id: string) {
+  async retrieve(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(retrieveCheckoutSchema, { id }), async (id) => {
-        return await this.apiClient.get<Checkout>(`checkout/${id}`);
+        return await this.apiClient.get<Checkout>(`checkout/${id}`, undefined, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async update(id: string, params: UpdateCheckout) {
+  async update(id: string, params: UpdateCheckout, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(updateCheckoutSchema, params), async (data) => {
-        return await this.apiClient.put<Checkout>(`checkout/${id}`, data);
+        return await this.apiClient.put<Checkout>(`checkout/${id}`, data, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async delete(id: string) {
+  async delete(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(retrieveCheckoutSchema, { id }), async (id) => {
-        return await this.apiClient.delete<Checkout>(`checkout/${id}`);
+        return await this.apiClient.delete<Checkout>(`checkout/${id}`, mapOptionsToHeaders(options));
       })
     );
   }

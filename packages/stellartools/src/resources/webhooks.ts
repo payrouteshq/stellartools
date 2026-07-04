@@ -4,9 +4,9 @@ import { z } from "zod";
 
 import { ApiClient } from "../api-client";
 import { SignatureVerificationError } from "../errors";
-import { CreateWebhook, UpdateWebhook, Webhook, createWebhookSchema, updateWebhookSchema } from "../schema/webhooks";
-import { WebhookEvent } from "../schema/webhooks";
-import { unwrap, validateSchema } from "../utils";
+import { CreateWebhook, UpdateWebhook, Webhook, WebhookEvent, createWebhookSchema, updateWebhookSchema } from "../schema/webhooks";
+import { RequestOptions } from "../types";
+import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
 
 export class WebhookSigner {
   constructor() {}
@@ -55,34 +55,34 @@ export class WebhookApi extends WebhookSigner {
     super();
   }
 
-  async create(params: CreateWebhook) {
+  async create(params: CreateWebhook, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(createWebhookSchema, params), async (data) => {
-        return await this.apiClient.post<Webhook>("/webhooks", data);
+        return await this.apiClient.post<Webhook>("/webhooks", data, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async retrieve(id: string) {
+  async retrieve(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.get<Webhook>(`/webhooks/${id}`);
+        return await this.apiClient.get<Webhook>(`/webhooks/${id}`, undefined, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async update(id: string, params: UpdateWebhook) {
+  async update(id: string, params: UpdateWebhook, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(updateWebhookSchema, params), async (data) => {
-        return await this.apiClient.put<Webhook>(`/webhooks/${id}`, data);
+        return await this.apiClient.put<Webhook>(`/webhooks/${id}`, data, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async delete(id: string) {
+  async delete(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.delete<Webhook>(`/webhooks/${id}`);
+        return await this.apiClient.delete<Webhook>(`/webhooks/${id}`, mapOptionsToHeaders(options));
       })
     );
   }

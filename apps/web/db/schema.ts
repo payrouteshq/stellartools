@@ -415,7 +415,7 @@ export const deliveryLogs = pgTable(
   "delivery_log",
   {
     id: text("id").primaryKey(),
-    webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "set null" }),
+    webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
     appInstallationId: text("app_installation_id").references(() => appInstallations.id, { onDelete: "set null" }),
     eventType: text("event_type").notNull(),
@@ -592,6 +592,19 @@ export const appLogs = pgTable("app_log", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+
+export const idempotencyKeys = pgTable("idempotency_key", {
+  id: text("id").primaryKey(), // The key sent by the client
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  requestPath: text("request_path").notNull(),
+  responseStatus: integer("response_status"),
+  responseBody: jsonb("response_body").$type<any>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lockedAt: timestamp("locked_at"), // To prevent race conditions
+});
+
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;
@@ -631,5 +644,6 @@ export type ResolvedSubscription = Subscription & {
   product?: Product | null;
   customerWallet?: CustomerWallet | null;
 };
+
 
 export type { ProductStatus, ProductType };

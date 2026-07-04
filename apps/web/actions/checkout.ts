@@ -310,7 +310,8 @@ export const putCheckoutAndCustomerInternal = safeAction(
       await putCheckout(checkoutId, { customerEmail: data.email, customerPhone: data.phoneNumber }, orgId, environment);
 
       if (data.customerId) {
-        await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber }, orgId, environment);
+        const name = data.email?.split("@")[0] ?? "Guest";
+        await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber, name }, orgId, environment);
       }
     });
   }

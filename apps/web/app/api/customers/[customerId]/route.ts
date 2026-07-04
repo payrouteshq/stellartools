@@ -24,7 +24,22 @@ export const GET = apiHandler({
       auth.environment
     );
 
-    return Result.ok(customer);
+    return Result.ok({
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+      phone: customer.phone ?? undefined,
+      image: customer.image ?? null,
+      metadata: customer.metadata ?? null,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt,
+      wallets: (customer.wallets ?? []).map((w) => ({
+        id: w.id,
+        address: w.address,
+        metadata: w.metadata ?? undefined,
+        createdAt: w.createdAt,
+      })),
+    });
   },
 });
 
@@ -40,7 +55,17 @@ export const PUT = apiHandler({
     const customer = await putCustomer(params.customerId, body, auth.organizationId, auth.environment, {
       ...(source && { source }),
     });
-    return Result.ok(customer);
+    return Result.ok({
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+      phone: customer.phone ?? undefined,
+      image: customer.image ?? null,
+      metadata: customer.metadata ?? null,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt,
+      wallets: [],
+    });
   },
 });
 

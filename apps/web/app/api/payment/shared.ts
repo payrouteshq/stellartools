@@ -26,14 +26,25 @@ export async function resolvePublicPayments(orgId: string, env: Network, filters
   );
 
   const mapped = reconciledPayments.map((p) => {
-    const { customer, wallets, refunds, ...rest } = p;
+    const { customer, wallets, refunds } = p;
 
     return {
-      ...rest,
+      id: p.id,
+      checkoutId: p.checkoutId,
+      customerId: p.customerId,
+      subscriptionId: p.subscriptionId ?? null,
       amount: `${p.cryptoAmount} ${p.selectedAssetCode}`,
-      billing_details: customer ? { email: customer.email, name: customer.name } : null,
-      payment_method_details: wallets ? { id: wallets.id, address: wallets.address } : null,
-      line_items: refunds
+      status: p.status,
+      transactionHash: p.transactionHash,
+      createdAt: p.createdAt,
+      metadata: p.metadata ?? null,
+      currencyCode: p.currencyCode,
+      amountCents: p.amountCents,
+      selectedAssetCode: p.selectedAssetCode,
+      selectedAssetIssuer: p.selectedAssetIssuer ?? "",
+      billingDetails: customer ? { email: customer.email, name: customer.name } : null,
+      paymentMethodDetails: wallets ? { id: wallets.id, address: wallets.address } : null,
+      lineItems: refunds
         ? [
             {
               id: refunds.id,

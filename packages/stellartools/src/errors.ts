@@ -1,7 +1,6 @@
 export class SignatureVerificationError extends Error {
   constructor(message: string) {
-    super();
+    super(message);
     this.name = "SignatureVerificationError";
-    this.message = message;
   }
 }

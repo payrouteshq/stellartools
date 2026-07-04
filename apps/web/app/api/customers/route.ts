@@ -25,7 +25,19 @@ export const POST = apiHandler({
       { source }
     );
 
-    return Result.ok(response);
+    return Result.ok(
+      response.map((c) => ({
+        id: c.id,
+        email: c.email,
+        name: c.name,
+        phone: c.phone ?? undefined,
+        image: c.image ?? null,
+        metadata: c.metadata ?? null,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        wallets: [],
+      }))
+    );
   },
 });
 
@@ -46,6 +58,23 @@ export const GET = apiHandler({
       organizationId,
       environment
     );
-    return Result.ok(customers);
+    return Result.ok(
+      customers.data.map((c) => ({
+        id: c.id,
+        email: c.email,
+        name: c.name,
+        phone: c.phone ?? undefined,
+        image: c.image ?? null,
+        metadata: c.metadata ?? null,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        wallets: (c.wallets ?? []).map((w) => ({
+          id: w.id,
+          address: w.address,
+          metadata: w.metadata ?? undefined,
+          createdAt: w.createdAt,
+        })),
+      }))
+    );
   },
 });

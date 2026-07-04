@@ -221,51 +221,70 @@ export const DataTable = <TData, TValue>({
         )}
       </div>
 
-      <div className="bg-card overflow-hidden rounded-lg border">
-        <Table {...rest}>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow {...row} key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
-                    <div
-                      className={cn(header.column.getCanSort() && "flex cursor-pointer items-center gap-2 select-none")}
-                      onClick={header.column.getToggleSortingHandler()}
+      <div className="bg-card rounded-lg border">
+        <div className="overflow-x-auto">
+          <Table {...rest}>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow {...row} key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                      className={cn(
+                        header.column.id === "actions" &&
+                          "bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]"
+                      )}
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getIsSorted() === "asc" && " ▴"}
-                      {header.column.getIsSorted() === "desc" && " ▾"}
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody {...body}>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={cn(onRowClick && "hover:bg-muted/50 cursor-pointer transition-colors")}
-                  onClick={() => onRowClick?.(row.original)}
-                >
-                  {row.getVisibleCells().map((tanstackCell) => (
-                    <TableCell {...cell} key={tanstackCell.id}>
-                      {flexRender(tanstackCell.column.columnDef.cell, tanstackCell.getContext())}
-                    </TableCell>
+                      <div
+                        className={cn(
+                          header.column.getCanSort() && "flex cursor-pointer items-center gap-2 select-none"
+                        )}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getIsSorted() === "asc" && " ▴"}
+                        {header.column.getIsSorted() === "desc" && " ▾"}
+                      </div>
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={tableColumns.length} className="text-muted-foreground h-24 text-center">
-                  {emptyMessage}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody {...body}>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={cn(onRowClick && "hover:bg-muted/50 cursor-pointer transition-colors")}
+                    onClick={() => onRowClick?.(row.original)}
+                  >
+                    {row.getVisibleCells().map((tanstackCell) => (
+                      <TableCell
+                        {...cell}
+                        key={tanstackCell.id}
+                        className={cn(
+                          cell?.className,
+                          tanstackCell.column.id === "actions" &&
+                            "bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]"
+                        )}
+                      >
+                        {flexRender(tanstackCell.column.columnDef.cell, tanstackCell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={tableColumns.length} className="text-muted-foreground h-24 text-center">
+                    {emptyMessage}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div className="flex items-center justify-between px-2 py-4">
@@ -465,60 +484,65 @@ const DataTableSkeleton = <TData, TValue>({
   return (
     <div className="space-y-4">
       <div className="rounded-md border">
-        <Table {...rest}>
-          <TableHeader>
-            <TableRow {...row}>
-              {enableBulkSelect && (
-                <TableHead style={{ width: 40 }}>
-                  <Skeleton className="h-4 w-4" />
-                </TableHead>
-              )}
-              {columns.map((column, index) => (
-                <TableHead
-                  key={column.id || `col-${index}`}
-                  style={{
-                    width: (column.size as number) !== 150 ? (column.size as number) : undefined,
-                  }}
-                >
-                  <Skeleton className="h-4 w-24" />
-                </TableHead>
-              ))}
-              {actions && actions.length > 0 && (
-                <TableHead style={{ width: 50 }}>
-                  <div />
-                </TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody {...body}>
-            {Array.from({ length: skeletonRowCount }).map((_, rowIndex) => (
-              <TableRow key={`skeleton-row-${rowIndex}`} {...row}>
+        <div className="overflow-x-auto">
+          <Table {...rest}>
+            <TableHeader>
+              <TableRow {...row}>
                 {enableBulkSelect && (
-                  <TableCell>
+                  <TableHead style={{ width: 40 }}>
                     <Skeleton className="h-4 w-4" />
-                  </TableCell>
+                  </TableHead>
                 )}
-                {columns.map((column, colIndex) => (
-                  <TableCell key={column.id || `skeleton-cell-${rowIndex}-${colIndex}`} {...cell}>
-                    <Skeleton
-                      className="h-4"
-                      style={{
-                        width: `${60 + ((rowIndex * 7 + colIndex * 11) % 40)}%`,
-                      }}
-                    />
-                  </TableCell>
+                {columns.map((column, index) => (
+                  <TableHead
+                    key={column.id || `col-${index}`}
+                    style={{
+                      width: (column.size as number) !== 150 ? (column.size as number) : undefined,
+                    }}
+                  >
+                    <Skeleton className="h-4 w-24" />
+                  </TableHead>
                 ))}
                 {actions && actions.length > 0 && (
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <Skeleton className="h-8 w-8 rounded-md" />
-                    </div>
-                  </TableCell>
+                  <TableHead
+                    style={{ width: 50 }}
+                    className="bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]"
+                  >
+                    <div />
+                  </TableHead>
                 )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody {...body}>
+              {Array.from({ length: skeletonRowCount }).map((_, rowIndex) => (
+                <TableRow key={`skeleton-row-${rowIndex}`} {...row}>
+                  {enableBulkSelect && (
+                    <TableCell>
+                      <Skeleton className="h-4 w-4" />
+                    </TableCell>
+                  )}
+                  {columns.map((column, colIndex) => (
+                    <TableCell key={column.id || `skeleton-cell-${rowIndex}-${colIndex}`} {...cell}>
+                      <Skeleton
+                        className="h-4"
+                        style={{
+                          width: `${60 + ((rowIndex * 7 + colIndex * 11) % 40)}%`,
+                        }}
+                      />
+                    </TableCell>
+                  ))}
+                  {actions && actions.length > 0 && (
+                    <TableCell className="bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]">
+                      <div className="flex justify-end">
+                        <Skeleton className="h-8 w-8 rounded-md" />
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">

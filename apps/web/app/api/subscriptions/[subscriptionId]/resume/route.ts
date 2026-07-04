@@ -41,6 +41,21 @@ export const POST = apiHandler({
       environment
     );
 
-    return Result.ok(result);
+    return Result.ok({
+      id: result.id,
+      customerId: result.customerId,
+      productId: result.productId,
+      status: result.status,
+      currentPeriodStart: result.currentPeriodStart,
+      currentPeriodEnd: result.currentPeriodEnd,
+      cancelAtPeriodEnd: result.cancelAtPeriodEnd,
+      canceledAt: result.canceledAt ?? null,
+      pausedAt: result.pausedAt ?? null,
+      failedPaymentCount: null,
+      createdAt: result.createdAt ?? null,
+      updatedAt: result.updatedAt,
+      metadata: result.metadata ?? null,
+      trialDays: result.trialDays ?? null,
+    });
   },
 });

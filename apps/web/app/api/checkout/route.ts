@@ -5,6 +5,7 @@ import { retrieveProducts } from "@/actions/product";
 import { getCorsHeaders, subscriptionIntervals } from "@/constant";
 import { AppError } from "@/lib/action-handler";
 import { createOptionsHandler } from "@/lib/api-handler";
+import { toSnakeCase } from "@/lib/utils";
 import { Result, createCheckoutSchema, createDirectCheckoutSchema, validateSchema } from "@stellartools/core";
 import moment from "moment";
 import { NextRequest, NextResponse } from "next/server";
@@ -42,7 +43,7 @@ export const POST = async (req: NextRequest) => {
             processCheckout(d, "direct")
           );
 
-    return result.isOk() ? send({ data: result.value }) : send({ error: result.error.message }, 400);
+    return result.isOk() ? send(toSnakeCase(result.value)) : send({ error: result.error.message }, 400);
 
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
@@ -101,14 +102,21 @@ export const POST = async (req: NextRequest) => {
       const checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);
 
       return Result.ok({
-        ...checkout,
-        next_action: {
-          type: "redirect_to_url",
-          redirect_to_url: {
-            url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
-            return_url: checkout.redirectUrl,
-          },
-        },
+        id: checkout.id,
+        customerId: checkout.customerId,
+        productId: checkout.productId ?? undefined,
+        amountCents: checkout.amountCents ?? undefined,
+        currencyCode: checkout.currencyCode ?? undefined,
+        description: checkout.description ?? undefined,
+        status: checkout.status,
+        paymentUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
+        expiresAt: checkout.expiresAt,
+        createdAt: checkout.createdAt,
+        updatedAt: checkout.updatedAt,
+        metadata: checkout.metadata ?? {},
+        environment: checkout.environment,
+        redirectUrl: checkout.redirectUrl ?? undefined,
+        subscriptionData: checkout.subscriptionData ?? undefined,
       });
     }
   } catch (error) {

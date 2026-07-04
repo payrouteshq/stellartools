@@ -26,7 +26,7 @@ import { patchJSON } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { MaybeArray } from "@stellartools/core";
 import crypto from "crypto";
-import { SQL, and, desc, eq, gt, inArray } from "drizzle-orm";
+import { SQL, and, desc, eq, gt, inArray, ne, notExists } from "drizzle-orm";
 import moment from "moment";
 
 export const createCustomerImage = async (formData: FormData): Promise<string | undefined> => {
@@ -102,15 +102,18 @@ export const retrieveCustomers = async (
 ): Promise<PaginatedResult<ResolvedCustomer>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  const lookup = Array.isArray(params) ? params : params ? [params] : [];
+  const lookupGroups = Array.isArray(params) ? params : params ? [params] : [];
 
-  const filters = lookup.flatMap((p) => {
-    const conditions = [];
-    if ("id" in p && p.id != null) conditions.push(eq(customersSchema.id, p.id));
-    if ("email" in p && p.email != null) conditions.push(eq(customersSchema.email, p.email));
-    if ("phone" in p && p.phone != null) conditions.push(eq(customersSchema.phone, p.phone));
-    return conditions;
-  });
+  const filters = lookupGroups
+    .map((group) => {
+      const groupConditions = [];
+      if ("id" in group && group.id != null) groupConditions.push(eq(customersSchema.id, group.id));
+      if ("email" in group && group.email != null) groupConditions.push(eq(customersSchema.email, group.email));
+      if ("phone" in group && group.phone != null) groupConditions.push(eq(customersSchema.phone, group.phone));
+
+      return groupConditions.length > 0 ? and(...groupConditions) : null;
+    })
+    .filter((f): f is SQL => f !== null);
 
   if (options?.requireLookUpParams && filters.length < 1) return { data: [], has_more: false };
 
@@ -120,10 +123,10 @@ export const retrieveCustomers = async (
       and(
         eq(c.organizationId, organizationId),
         eq(c.environment, environment),
-        filters.length ? or(...(filters as [(typeof filters)[0], ...typeof filters])) : undefined
+        filters.length > 0 ? or(...filters) : undefined
       ),
     with: options?.withWallets ? { wallets: true } : undefined,
-    limit,
+    limit: limit + 1,
   });
 
   return await paginate(customers, limit);
@@ -163,14 +166,46 @@ export const putCustomer = async (
           and(
             eq(customersSchema.id, id),
             eq(customersSchema.organizationId, organizationId),
-            eq(customersSchema.environment, environment)
+            eq(customersSchema.environment, environment),
+            ...(baseUpdate.email
+              ? [
+                  notExists(
+                    db
+                      .select({ _: eq(customersSchema.id, id) })
+                      .from(customersSchema)
+                      .where(
+                        and(
+                          eq(customersSchema.organizationId, organizationId),
+                          eq(customersSchema.environment, environment),
+                          eq(customersSchema.email, baseUpdate.email),
+                          ne(customersSchema.id, id)
+                        )
+                      )
+                  ),
+                ]
+              : []),
+            ...(baseUpdate.phone
+              ? [
+                  notExists(
+                    db
+                      .select({ _: eq(customersSchema.id, id) })
+                      .from(customersSchema)
+                      .where(
+                        and(
+                          eq(customersSchema.organizationId, organizationId),
+                          eq(customersSchema.environment, environment),
+                          eq(customersSchema.phone, baseUpdate.phone),
+                          ne(customersSchema.id, id)
+                        )
+                      )
+                  ),
+                ]
+              : [])
           )
         )
         .returning();
 
-      if (!customer) throw new AppError("Customer not found");
-
-      return customer;
+      return customer ?? oldCustomer;
     },
     {
       events: [

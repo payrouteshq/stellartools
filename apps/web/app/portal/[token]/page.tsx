@@ -311,7 +311,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
           )}
 
           <Link
-            href="https://stellartools.dev"
+            href={process.env.NEXT_PUBLIC_APP_URL!}
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 text-xs transition-colors"

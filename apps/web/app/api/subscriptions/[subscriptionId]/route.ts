@@ -9,7 +9,7 @@ import {
 } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { computeDiff, toCamelCase, toSnakeCase } from "@/lib/utils";
+import { computeDiff, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, updateSubscriptionSchema } from "@stellartools/core";
 import _ from "lodash";
 
@@ -69,31 +69,66 @@ export const GET = apiHandler({
       retrieveProducts(organizationId, environment, { productId: subscription.productId }),
     ]);
 
-    return Result.ok(
-      toSnakeCase({
-        id: updatedSubscription.id,
-        customerId: updatedSubscription.customerId,
-        productId: updatedSubscription.productId,
-        status: updatedSubscription.status,
-        currentPeriodStart: updatedSubscription.currentPeriodStart,
-        currentPeriodEnd: updatedSubscription.currentPeriodEnd,
-        cancelAtPeriodEnd: updatedSubscription.cancelAtPeriodEnd,
-        metadata: updatedSubscription.metadata,
-        trialDays: updatedSubscription.trialDays,
-        updatedAt: updatedSubscription.updatedAt,
-        createdAt: updatedSubscription.createdAt,
-
-        relatedResources: { product },
-        lastAttempt: lastPayment,
-      })
-    );
+    return Result.ok({
+      id: updatedSubscription.id,
+      customerId: updatedSubscription.customerId,
+      productId: updatedSubscription.productId,
+      status: updatedSubscription.status,
+      currentPeriodStart: updatedSubscription.currentPeriodStart,
+      currentPeriodEnd: updatedSubscription.currentPeriodEnd,
+      cancelAtPeriodEnd: updatedSubscription.cancelAtPeriodEnd,
+      canceledAt: updatedSubscription.canceledAt ?? null,
+      pausedAt: updatedSubscription.pausedAt ?? null,
+      failedPaymentCount: null,
+      createdAt: updatedSubscription.createdAt ?? null,
+      updatedAt: updatedSubscription.updatedAt,
+      metadata: updatedSubscription.metadata ?? null,
+      trialDays: updatedSubscription.trialDays ?? null,
+      relatedResources: {
+        product: product
+          ? {
+              id: product.id,
+              name: product.name,
+              description: product.description ?? undefined,
+              images: product.images ?? [],
+              status: product.status,
+              type: product.type,
+              priceAmountCents: product.priceCents,
+              recurringPeriod: product.recurringPeriod ?? undefined,
+              customDurationMs: product.customDurationMs ?? undefined,
+              createdAt: product.createdAt,
+              updatedAt: product.updatedAt,
+              metadata: product.metadata ?? {},
+              environment: product.environment,
+              unit: product.unit ?? undefined,
+            }
+          : null,
+      },
+      lastAttempt: lastPayment
+        ? {
+            id: lastPayment.id,
+            checkoutId: lastPayment.checkoutId,
+            customerId: lastPayment.customerId,
+            subscriptionId: lastPayment.subscriptionId ?? null,
+            amount: `${lastPayment.cryptoAmount} ${lastPayment.selectedAssetCode}`,
+            status: lastPayment.status,
+            transactionHash: lastPayment.transactionHash,
+            createdAt: lastPayment.createdAt,
+            metadata: lastPayment.metadata ?? null,
+            currencyCode: lastPayment.currencyCode,
+            amountCents: lastPayment.amountCents,
+            selectedAssetCode: lastPayment.selectedAssetCode,
+            selectedAssetIssuer: lastPayment.selectedAssetIssuer ?? "",
+          }
+        : null,
+    });
   },
 });
 
 export const PUT = apiHandler({
   auth: ["session", "apikey", "portal"],
-  schema: { body: updateSubscriptionSchema, params: Schema.object({ id: Schema.string() }) },
-  handler: async ({ body, params: { id }, auth: { organizationId, environment } }) => {
+  schema: { body: updateSubscriptionSchema, params: Schema.object({ subscriptionId: Schema.string() }) },
+  handler: async ({ body, params: { subscriptionId: id }, auth: { organizationId, environment } }) => {
     const { metadata, cancelAtPeriodEnd, productId } = toCamelCase<any>(body);
     const {
       data: [subscription],
@@ -132,6 +167,21 @@ export const PUT = apiHandler({
       environment
     );
 
-    return Result.ok(updatedSubscription);
+    return Result.ok({
+      id: updatedSubscription.id,
+      customerId: updatedSubscription.customerId,
+      productId: updatedSubscription.productId,
+      status: updatedSubscription.status,
+      currentPeriodStart: updatedSubscription.currentPeriodStart,
+      currentPeriodEnd: updatedSubscription.currentPeriodEnd,
+      cancelAtPeriodEnd: updatedSubscription.cancelAtPeriodEnd,
+      canceledAt: updatedSubscription.canceledAt ?? null,
+      pausedAt: updatedSubscription.pausedAt ?? null,
+      failedPaymentCount: null,
+      createdAt: updatedSubscription.createdAt ?? null,
+      updatedAt: updatedSubscription.updatedAt,
+      metadata: updatedSubscription.metadata ?? null,
+      trialDays: updatedSubscription.trialDays ?? null,
+    });
   },
 });

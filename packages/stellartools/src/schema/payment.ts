@@ -49,4 +49,39 @@ export interface Payment {
    * The metadata of the payment.
    */
   metadata: Record<string, unknown> | null;
+
+  /**
+   * The currency code of the payment
+   */
+  currency_code: string;
+
+  /**
+   * The amount of the payment in cents
+   */
+  amount_cents: number;
+
+  /**
+   * The selected asset code of the payment
+   */
+  selected_asset_code: string;
+
+  /**
+   * The selected asset issuer of the payment
+   */
+  selected_asset_issuer: string;
+
+  /**
+   * Snapshot of the customer's billing info at payment time.
+   */
+  billing_details?: { email: string; name: string } | null;
+
+  /**
+   * The Stellar wallet used to make the payment.
+   */
+  payment_method_details?: { id: string; address: string } | null;
+
+  /**
+   * Refunds issued against this payment.
+   */
+  line_items?: Array<{ id: string; amount: string; reason: string | null; status: string }>;
 }
