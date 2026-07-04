@@ -7,7 +7,7 @@ import { PassThrough } from "stream";
 export const OPTIONS = createOptionsHandler();
 
 export const GET = apiHandler({
-  auth: [],
+  auth: null,
   convertToSnakeCase: false,
   handler: async () => {
     const source = path.join(process.cwd(), "../../packages/woocommerce-adapter");
