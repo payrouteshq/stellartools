@@ -55,8 +55,6 @@ const parseContractEvent = (topics: unknown[], data: unknown): SorobanEvent => {
   const topic = String(topics[0] ?? "");
   let payload: Record<string, unknown> = {};
 
-  console.log({ data, topic });
-
   if (Array.isArray(data)) {
     if (topic.includes("sub_pay") && data.length >= 2) {
       payload = { amount: data[0], periodEnd: data[1] };
@@ -70,6 +68,42 @@ const parseContractEvent = (topics: unknown[], data: unknown): SorobanEvent => {
   }
 
   return { topic, success: true, data: payload };
+};
+
+/** Protocol 23+ puts contract events on `result.events.contractEventsXdr`; older ledgers use sorobanMeta. */
+const extractContractEvents = (result: StellarSDK.rpc.Api.GetSuccessfulTransactionResponse): SorobanEvent[] => {
+  const events: SorobanEvent[] = [];
+
+  for (const group of result.events?.contractEventsXdr ?? []) {
+    for (const evt of group) {
+      const v0 = evt.body().v0();
+      events.push(
+        parseContractEvent(
+          v0.topics().map((t) => StellarSDK.scValToNative(t)),
+          StellarSDK.scValToNative(v0.data())
+        )
+      );
+    }
+  }
+  if (events.length) return events;
+
+  if (!result.resultMetaXdr || result.resultMetaXdr.switch() !== 3) return events;
+
+  const sorobanMeta = result.resultMetaXdr.v3().sorobanMeta();
+  for (const event of sorobanMeta?.events() ?? []) {
+    if (event.type().name !== "contract") continue;
+    const v0 = event.body().v0();
+    events.push(
+      parseContractEvent(
+        v0.topics().map((t) => StellarSDK.scValToNative(t)),
+        StellarSDK.scValToNative(v0.data())
+      )
+    );
+  }
+
+  console.dir({ events }, { depth: 100 });
+
+  return events;
 };
 
 const invokeSoroban = async <T = SorobanTxResult>(
@@ -116,31 +150,15 @@ const invokeSoroban = async <T = SorobanTxResult>(
     if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
       throw new AppError(`Transaction failed on-chain: ${response.hash}`);
     }
-
-    const walletAddres =
-      "envelopeXdr" in result && result.envelopeXdr
-        ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
-        : undefined;
-
-    const events: SorobanEvent[] = [];
-    if ("resultMetaXdr" in result && result.resultMetaXdr) {
-      try {
-        const sorobanMeta = result.resultMetaXdr.v3().sorobanMeta();
-        for (const event of sorobanMeta?.events() ?? []) {
-          if (event.type().name !== "contract") continue;
-          const v0 = event.body().v0();
-          events.push(
-            parseContractEvent(
-              v0.topics().map((t) => StellarSDK.scValToNative(t)),
-              StellarSDK.scValToNative(v0.data())
-            )
-          );
-        }
-      } catch (e: unknown) {
-        console.error("Error parsing contract event", { e });
-        // event parsing is best-effort
-      }
+    if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
+      throw new AppError(`Transaction not confirmed: ${result.status}`);
     }
+
+    const walletAddres = result.envelopeXdr
+      ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
+      : undefined;
+
+    const events = extractContractEvents(result);
 
     return { hash: response.hash, sourceWalletAddress: walletAddres, events } as T;
   });

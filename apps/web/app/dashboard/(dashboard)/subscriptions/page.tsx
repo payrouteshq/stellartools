@@ -12,14 +12,19 @@ import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
-import { cn } from "@stellartools/shared-ui";
-import { AppModal, Badge, Button, DataTable } from "@stellartools/shared-ui";
+import { AppModal, Badge, Button, DataTable, cn } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter, SubscriptionRowEsquee, formatPeriod } from "./_shared";
+import {
+  SubscriptionModalContent,
+  SubscriptionModalFooter,
+  SubscriptionRowEsquee,
+  confirmAction,
+  formatPeriod,
+} from "./_shared";
 
 const STATUS_MAP: Record<string, { cls: string; label: string }> = {
   active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
@@ -47,46 +52,28 @@ export default function SubscriptionsPage() {
   const submitRef = React.useRef<(() => void) | null>(null);
   const [footerState, setFooterState] = React.useState({ isPending: false });
 
-  const { mutate: updateSubscription } = useAction(
-    async ({ id, path }: { id: string; path: string }) => {
+  const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
+    async ({
+      id,
+      path,
+      onComplete = () => {},
+    }: {
+      id: string;
+      path: string;
+      onComplete?: () => void | Promise<void>;
+    }) => {
       if (!orgContext?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token },
       });
-      const res = await api.post(`/api/subscriptions/${id}${path}`, {});
+      const res = await api.post(`/subscriptions/${id}${path}`, {});
       if (res.isErr()) throw new AppError(res.error.message);
+      await onComplete();
       return res.value;
     },
     { invalidate: ["subscriptions"] }
   );
-
-  const confirmAction = (
-    opts: {
-      title: string;
-      description: string;
-      confirmLabel: string;
-      destructive?: boolean;
-    },
-    onConfirm: () => void
-  ) => {
-    AppModal.open({
-      title: opts.title,
-      description: opts.description,
-      size: "small",
-      showCloseButton: true,
-      content: null,
-      primaryButton: {
-        children: opts.confirmLabel,
-        variant: opts.destructive ? "destructive" : "default",
-        onClick: () => {
-          onConfirm();
-          AppModal.close();
-        },
-      },
-      secondaryButton: { children: "Cancel" },
-    });
-  };
 
   const { data: subs = [], isLoading } = useOrgQuery(["subscriptions"], async () =>
     retrieveSubscriptions(undefined, undefined, undefined, { withCustomer: true, withProduct: true }).then(
@@ -117,6 +104,7 @@ export default function SubscriptionsPage() {
             currencyCode: s.product?.currencyCode ?? "USD",
             period: s.product?.recurringPeriod,
             customDurationMs: s.product?.customDurationMs,
+            currentPeriodEnd: s.currentPeriodEnd,
             createdAt: s.createdAt,
           })
         ),
@@ -173,6 +161,16 @@ export default function SubscriptionsPage() {
           </div>
         );
       },
+    },
+    {
+      accessorKey: "currentPeriodEnd",
+      header: "Expires",
+      meta: { filterable: true, filterVariant: "date" },
+      cell: ({ row }) => (
+        <div className="text-muted-foreground text-sm">
+          {moment(row.original.currentPeriodEnd).format("D MMM, HH:mm")}
+        </div>
+      ),
     },
     {
       accessorKey: "createdAt",
@@ -252,7 +250,8 @@ export default function SubscriptionsPage() {
                               "The subscription will become active again and billing will resume on the next cycle.",
                             confirmLabel: "Resume",
                           },
-                          () => updateSubscription({ id: r.id, path: "/resume" })
+                          () => updateSubscription({ id: r.id, path: "/resume", onComplete: AppModal.close }),
+                          isUpdatingSubscription
                         ),
                     },
                   ]
@@ -268,7 +267,8 @@ export default function SubscriptionsPage() {
                                 "The subscription will be paused and no further charges will be made until it is resumed.",
                               confirmLabel: "Pause",
                             },
-                            () => updateSubscription({ id: r.id, path: "/pause" })
+                            () => updateSubscription({ id: r.id, path: "/pause", onComplete: AppModal.close }),
+                            isUpdatingSubscription
                           ),
                       },
                     ]
@@ -287,7 +287,8 @@ export default function SubscriptionsPage() {
                             confirmLabel: "Cancel subscription",
                             destructive: true,
                           },
-                          () => updateSubscription({ id: r.id, path: "/cancel" })
+                          () => updateSubscription({ id: r.id, path: "/cancel", onComplete: AppModal.close }),
+                          isUpdatingSubscription
                         ),
                     },
                   ]

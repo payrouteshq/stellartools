@@ -4,7 +4,6 @@ import * as React from "react";
 
 import { retrieveCustomers } from "@/actions/customers";
 import { retrieveProducts } from "@/actions/product";
-import { putSubscription } from "@/actions/subscription";
 import { TIMELINE_ROUTE_MAP } from "@/constant";
 import { ResolvedCustomer } from "@/db/schema";
 import { useAction } from "@/hooks/use-action";
@@ -19,6 +18,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
+  AppModal,
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -49,6 +49,7 @@ export type SubscriptionRowEsquee = {
   currencyCode: string;
   period: string | null | undefined;
   customDurationMs: number | null | undefined;
+  currentPeriodEnd: Date;
   createdAt: Date;
 };
 
@@ -72,6 +73,29 @@ export const formatPeriod = (
   }
   return recurringPeriod;
 };
+
+export function confirmAction(
+  opts: { title: string; description: string; confirmLabel: string; destructive?: boolean },
+  onConfirm: () => void,
+  isPending: boolean
+) {
+  AppModal.open({
+    title: opts.title,
+    description: opts.description,
+    size: "small",
+    showCloseButton: true,
+    content: null,
+    primaryButton: {
+      children: opts.confirmLabel,
+      variant: opts.destructive ? "destructive" : "default",
+      onClick: () => {
+        onConfirm();
+      },
+      disabled: isPending,
+    },
+    secondaryButton: { children: "Cancel" },
+  });
+}
 
 const subscriptionFormSchema = z.object({
   customerId: z.string().min(1, "Select a customer"),

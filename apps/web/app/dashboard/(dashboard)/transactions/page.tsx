@@ -48,7 +48,7 @@ const StatusBadge = ({ status }: { status: PaymentStatus | "refunded" }) => {
       label: "Refunded",
     },
     failed: {
-      className: "bg-destructive/10 text-destructive-foreground border-destructive/20",
+      className: "bg-destructive/50 text-destructive-foreground border-destructive/20",
       icon: XCircle,
       label: "Failed",
     },
@@ -385,7 +385,8 @@ function TransactionsPageContent() {
                   status: (it.refunds?.status === "succeeded" ? "refunded" : it.status) as PaymentStatus,
                   createdAt: it.createdAt,
                   customer: it.customer!,
-                  description: it.checkoutId || it.id,
+                  description:
+                    it.subscriptionId && it.productId ? `Renew ${it.productId}` : (it.checkoutId ?? it.id),
                   refundedDate: it.refunds?.createdAt ?? undefined,
                 }))}
                 enableBulkSelect={true}

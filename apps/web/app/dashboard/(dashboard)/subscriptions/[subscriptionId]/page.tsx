@@ -42,7 +42,7 @@ import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter, formatPeriod } from "../_shared";
+import { SubscriptionModalContent, SubscriptionModalFooter, confirmAction, formatPeriod } from "../_shared";
 
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
@@ -128,22 +128,26 @@ export default function SubscriptionDetailPage() {
     [payments, subscriptionId]
   );
 
-  const isEditMode = !!sub?.id;
-
-  const { mutate: updateSubscription } = useAction(
-    async ({ path, method = "POST" }: { path: string; method?: "POST" | "PUT" }) => {
+  const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
+    async ({ path, onComplete = () => {} }: { path: string; onComplete?: () => void | Promise<void> }) => {
       if (!orgContext?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-        headers: { "x-session-token": orgContext?.token! },
+        headers: { "x-session-token": orgContext.token },
       });
-      const res = await (method === "POST"
-        ? api.post(`/api/subscriptions/${subscriptionId}${path}`, {})
-        : api.put(`/api/subscriptions/${subscriptionId}${path}`, {}));
+      const res = await api.post(`/subscriptions/${subscriptionId}${path}`, {});
       if (res.isErr()) throw new AppError(res.error.message);
+      await onComplete();
       return res.value;
     },
-    { successMsg: `Subscription ${isEditMode ? "updated" : "created"}`, invalidate: ["subscriptions"] }
+    {
+      successMsg: "Subscription updated",
+      invalidate: [
+        ["subscriptions"],
+        ...(sub ? ["subscription-events", sub.customerId] : []),
+        ["subscription-payments", subscriptionId],
+      ],
+    }
   );
 
   // Modal Sync
@@ -242,19 +246,57 @@ export default function SubscriptionDetailPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {["active", "trialing"].includes(s.status) && (
-                    <DropdownMenuItem onClick={() => updateSubscription({ path: "/pause" })}>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Pause subscription",
+                            description:
+                              "The subscription will be paused and no further charges will be made until it is resumed.",
+                            confirmLabel: "Pause",
+                          },
+                          () => updateSubscription({ path: "/pause", onComplete: AppModal.close }),
+                          isUpdatingSubscription
+                        )
+                      }
+                    >
                       <Pause className="mr-2 h-4 w-4" /> Pause
                     </DropdownMenuItem>
                   )}
                   {s.status === "paused" && (
-                    <DropdownMenuItem onClick={() => updateSubscription({ path: "/resume" })}>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Resume subscription",
+                            description:
+                              "The subscription will become active again and billing will resume on the next cycle.",
+                            confirmLabel: "Resume",
+                          },
+                          () => updateSubscription({ path: "/resume", onComplete: AppModal.close }),
+                          isUpdatingSubscription
+                        )
+                      }
+                    >
                       <Play className="mr-2 h-4 w-4" /> Resume
                     </DropdownMenuItem>
                   )}
                   {s.status !== "canceled" && (
                     <DropdownMenuItem
-                      onClick={() => updateSubscription({ path: "/cancel" })}
                       className="text-destructive"
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Cancel subscription",
+                            description:
+                              "This will permanently cancel the subscription. The customer will lose access at the end of the current billing period.",
+                            confirmLabel: "Cancel subscription",
+                            destructive: true,
+                          },
+                          () => updateSubscription({ path: "/cancel", onComplete: AppModal.close }),
+                          isUpdatingSubscription
+                        )
+                      }
                     >
                       <XCircle className="mr-2 h-4 w-4" /> Cancel
                     </DropdownMenuItem>

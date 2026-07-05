@@ -89,7 +89,7 @@ const paymentStatusVariants = {
     icon: Clock,
     label: "Pending",
   },
-  failed: { cls: "bg-destructive text-destructive-foreground border-destructive", icon: XCircle, label: "Failed" },
+  failed: { cls: "bg-destructive/50 text-destructive-foreground border-destructive", icon: XCircle, label: "Failed" },
   refunded: {
     cls: "bg-muted text-muted-foreground border-border",
     icon: XCircle,
@@ -148,9 +148,15 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
     meta: { filterable: true, filterVariant: "number" },
   },
   {
-    accessorKey: "checkoutId",
+    accessorKey: "description",
     header: "Description",
-    cell: ({ row }) => <span className="text-muted-foreground font-mono text-sm">{row.original.checkoutId}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground font-mono text-sm">
+        {row.original.subscriptionId && row.original.productId
+          ? `Renew ${row.original.productId}`
+          : (row.original.checkoutId ?? "")}
+      </span>
+    ),
     meta: { filterable: true, filterVariant: "text" },
   },
   {
@@ -458,7 +464,7 @@ export default function CustomerDetailPage() {
                       },
                     ];
 
-                    if (!row.refunded) {
+                    if (!row.refunded && row.status === "confirmed") {
                       actions.push({
                         label: "Refund Payment",
                         onClick: async (p) => {
