@@ -266,7 +266,7 @@ export interface ParsedTxError {
 const ERROR_MESSAGES: Record<string, string> = {
   // Transaction-level codes
   txBadSeq: "Invalid sequence number — refresh and try again",
-  txBadAuth: "Transaction authentication failed — wrong signer",
+  txBadAuth: "Failed - Please make sure you are in the correct network and try again",
   txInsufficientBalance: "Insufficient XLM balance to cover fees",
   txInsufficientFee: "Fee too low",
   txTooLate: "Transaction expired — it was submitted too late",

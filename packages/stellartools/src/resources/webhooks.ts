@@ -4,7 +4,14 @@ import { z } from "zod";
 
 import { ApiClient } from "../api-client";
 import { SignatureVerificationError } from "../errors";
-import { CreateWebhook, UpdateWebhook, Webhook, WebhookEvent, createWebhookSchema, updateWebhookSchema } from "../schema/webhooks";
+import {
+  CreateWebhook,
+  UpdateWebhook,
+  Webhook,
+  WebhookEvent,
+  createWebhookSchema,
+  updateWebhookSchema,
+} from "../schema/webhooks";
 import { RequestOptions } from "../types";
 import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
 

@@ -1,6 +1,9 @@
 import { deleteCustomer, putCustomer, retrieveCustomers } from "@/actions/customers";
 import { retrieveSubscriptions } from "@/actions/subscription";
-import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
+import {
+  resolveMerchantSecret,
+  cancelSubscription as soroban$cancelSubscription,
+} from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema, updateCustomerSchema } from "@stellartools/core";
@@ -97,10 +100,11 @@ export const DELETE = apiHandler({
 
       if (!customerWallet?.address) continue;
 
-      const cancellationResult = await cancelSorobanSubscription(
+      const merchantSecret = await resolveMerchantSecret(auth.organizationId, auth.environment);
+      const cancellationResult = await soroban$cancelSubscription(
         auth.environment,
+        merchantSecret,
         customerWallet.address,
-        subscription.customerId,
         subscription.productId
       );
 

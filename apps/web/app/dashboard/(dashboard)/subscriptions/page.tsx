@@ -6,9 +6,12 @@ import { retrieveSubscriptions } from "@/actions/subscription";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { subscriptionStatusEnum } from "@/constant/schema.client";
-import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
+import { useAction } from "@/hooks/use-action";
+import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
+import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
+import { ApiClient } from "@stellartools/core";
 import { cn } from "@stellartools/shared-ui";
 import { AppModal, Badge, Button, DataTable } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
@@ -16,7 +19,7 @@ import { Plus } from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter } from "./_shared";
+import { SubscriptionModalContent, SubscriptionModalFooter, SubscriptionRowEsquee, formatPeriod } from "./_shared";
 
 const STATUS_MAP: Record<string, { cls: string; label: string }> = {
   active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
@@ -38,10 +41,52 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function SubscriptionsPage() {
   const router = useRouter();
   const invalidate = useInvalidateOrgQuery();
+  const { data: orgContext } = useOrgContext();
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
   const submitRef = React.useRef<(() => void) | null>(null);
   const [footerState, setFooterState] = React.useState({ isPending: false });
+
+  const { mutate: updateSubscription } = useAction(
+    async ({ id, path }: { id: string; path: string }) => {
+      if (!orgContext?.token) throw new AppError("No session token");
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": orgContext.token },
+      });
+      const res = await api.post(`/api/subscriptions/${id}${path}`, {});
+      if (res.isErr()) throw new AppError(res.error.message);
+      return res.value;
+    },
+    { invalidate: ["subscriptions"] }
+  );
+
+  const confirmAction = (
+    opts: {
+      title: string;
+      description: string;
+      confirmLabel: string;
+      destructive?: boolean;
+    },
+    onConfirm: () => void
+  ) => {
+    AppModal.open({
+      title: opts.title,
+      description: opts.description,
+      size: "small",
+      showCloseButton: true,
+      content: null,
+      primaryButton: {
+        children: opts.confirmLabel,
+        variant: opts.destructive ? "destructive" : "default",
+        onClick: () => {
+          onConfirm();
+          AppModal.close();
+        },
+      },
+      secondaryButton: { children: "Cancel" },
+    });
+  };
 
   const { data: subs = [], isLoading } = useOrgQuery(["subscriptions"], async () =>
     retrieveSubscriptions(undefined, undefined, undefined, { withCustomer: true, withProduct: true }).then(
@@ -61,21 +106,24 @@ export default function SubscriptionsPage() {
     () =>
       subs
         .filter((s) => activeTab === "all" || s.status === activeTab)
-        .map((s) => ({
-          id: s.id,
-          customer: s.customer?.name ?? "—",
-          customerEmail: s.customer?.email,
-          status: s.status,
-          product: s.product?.name,
-          amount: s.product?.priceCents,
-          currencyCode: s.product?.currencyCode ?? "USD",
-          period: s.product?.recurringPeriod,
-          createdAt: s.createdAt,
-        })),
+        .map(
+          (s): SubscriptionRowEsquee => ({
+            id: s.id,
+            customer: s.customer?.name ?? "—",
+            customerEmail: s.customer?.email,
+            status: s.status,
+            product: s.product?.name,
+            amount: s.product?.priceCents,
+            currencyCode: s.product?.currencyCode ?? "USD",
+            period: s.product?.recurringPeriod,
+            customDurationMs: s.product?.customDurationMs,
+            createdAt: s.createdAt,
+          })
+        ),
     [subs, activeTab]
   );
 
-  const columns: ColumnDef<any>[] = [
+  const columns: ColumnDef<SubscriptionRowEsquee>[] = [
     {
       accessorKey: "customerEmail",
       header: "Customer",
@@ -108,14 +156,16 @@ export default function SubscriptionsPage() {
       cell: ({ row }) => {
         const amount = row.original.amount;
         if (amount == null) return <div className="text-muted-foreground text-sm">—</div>;
-        const periodLabel: Record<string, string> = {
-          day: "day",
-          week: "wk",
-          month: "mo",
-          year: "yr",
-          custom: "cycle",
-        };
-        const suffix = row.original.period ? ` / ${periodLabel[row.original.period] ?? row.original.period}` : "";
+        const period = row.original.period;
+        const customMs = row.original.customDurationMs;
+        const periodLabel: Record<string, string> = { day: "day", week: "wk", month: "mo", year: "yr" };
+        let suffix = "";
+        if (period === "custom" && customMs) {
+          const periodStr = formatPeriod(period, customMs);
+          suffix = ` / ${periodStr}`;
+        } else if (period) {
+          suffix = ` / ${periodLabel[period] ?? period}`;
+        }
         return (
           <div className="text-sm">
             {Money.formatFiat(amount, row.original.currencyCode)}
@@ -188,7 +238,61 @@ export default function SubscriptionsPage() {
             columns={columns}
             data={rows}
             isLoading={isLoading}
-            actions={(r) => [{ label: "View details", onClick: () => router.push(`/subscriptions/${r.id}`) }]}
+            onRowClick={(r) => router.push(`/subscriptions/${r.id}`)}
+            actions={(r) => [
+              ...(r.status === "paused"
+                ? [
+                    {
+                      label: "Resume",
+                      onClick: () =>
+                        confirmAction(
+                          {
+                            title: "Resume subscription",
+                            description:
+                              "The subscription will become active again and billing will resume on the next cycle.",
+                            confirmLabel: "Resume",
+                          },
+                          () => updateSubscription({ id: r.id, path: "/resume" })
+                        ),
+                    },
+                  ]
+                : r.status !== "canceled"
+                  ? [
+                      {
+                        label: "Pause",
+                        onClick: () =>
+                          confirmAction(
+                            {
+                              title: "Pause subscription",
+                              description:
+                                "The subscription will be paused and no further charges will be made until it is resumed.",
+                              confirmLabel: "Pause",
+                            },
+                            () => updateSubscription({ id: r.id, path: "/pause" })
+                          ),
+                      },
+                    ]
+                  : []),
+              ...(r.status !== "canceled"
+                ? [
+                    {
+                      label: "Cancel",
+                      variant: "destructive" as const,
+                      onClick: () =>
+                        confirmAction(
+                          {
+                            title: "Cancel subscription",
+                            description:
+                              "This will permanently cancel the subscription. The customer will lose access at the end of the current billing period.",
+                            confirmLabel: "Cancel subscription",
+                            destructive: true,
+                          },
+                          () => updateSubscription({ id: r.id, path: "/cancel" })
+                        ),
+                    },
+                  ]
+                : []),
+            ]}
             columnFilters={columnFilters}
             setColumnFilters={setColumnFilters}
           />

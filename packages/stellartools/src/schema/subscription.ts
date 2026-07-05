@@ -118,7 +118,6 @@ export type ResumeSubscription = Pick<Subscription, "id">;
 export const updateSubscriptionSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   cancel_at_period_end: z.boolean().optional(),
-  product_id: z.string().optional(),
 });
 
 export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;

@@ -1,22 +1,25 @@
+import { retrieveSupportedAssets } from "@/actions/asset";
 import { runAtomic } from "@/actions/event";
-import { postPayment } from "@/actions/payment";
-import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
+import { postPayment, retrievePayments } from "@/actions/payment";
+import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscription";
+import { STELLAR_PRECISION } from "@/constant";
 import {
-  cancelSubscription as cancelSoroban,
-  chargeSubscription as chargeSoroban,
+  resolveMerchantSecret,
+  cancelSubscription as soroban$cancelSubscription,
+  chargeSubscription as soroban$chargeSubscription,
 } from "@/integrations/soroban-contract";
 import { apiHandler } from "@/lib/api-handler";
+import { Money } from "@/lib/money";
 import { Result } from "@stellartools/core";
 
 export const GET = apiHandler({
   auth: ["vercelToken"],
   handler: async () => {
-    const { data: subs } = await retrieveSubscriptions(
-      undefined,
-      undefined,
-      { isDue: true },
-      { withCustomer: true, withProduct: true, withCustomerWallets: true }
-    );
+    const subs = await retrieveDueSubscriptions({
+      withCustomer: true,
+      withProduct: true,
+      withCustomerWallets: true,
+    });
 
     const stats = { processed: 0, succeeded: 0, failed: 0 };
 
@@ -27,60 +30,93 @@ export const GET = apiHandler({
 
       const { priceCents: productPriceCents, currencyCode: productCurrencyCode } = sub.product;
 
-      if (!sub?.customerWallet) continue;
+      if (!sub?.customerWallet?.address) continue;
 
       const walletAddress = sub.customerWallet.address;
-
-      if (!walletAddress) continue;
       stats.processed++;
 
       try {
-        // --- 1. HANDLE CANCELLATIONS ---
         if (sub.cancelAtPeriodEnd) {
-          const res = await cancelSoroban(env, orgId, sub.customerId, productId);
+          const merchantSecret = await resolveMerchantSecret(orgId, env);
+          const res = await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
           if (res.isOk()) {
             await runAtomic(() => putSubscription(subId, { status: "canceled", canceledAt: new Date() }, orgId, env));
             stats.succeeded++;
+          } else {
+            stats.failed++;
           }
           continue;
         }
 
-        // --- 2. EXECUTE ON-CHAIN CHARGE ---
-        const chargeRes = await chargeSoroban(env, orgId, sub.customerId, productId);
+        const { data: priorPayments } = await retrievePayments(orgId, env, { subscriptionId: subId, limit: 1 });
+        const priorPayment = priorPayments[0];
+        const assetCode = priorPayment?.selectedAssetCode ?? "XLM";
+        const [asset] = await retrieveSupportedAssets({ code: assetCode }, env);
+
+        const { cryptoAmount: chargeCryptoAmount, amountRaw: chargeAmountRaw } =
+          await Money.calculateSubscriptionAmount({
+            priceCents: productPriceCents,
+            currencyCode: productCurrencyCode,
+            assetMetadata: asset?.metadata ?? {},
+          });
+
+        const chargeRes = await soroban$chargeSubscription(env, walletAddress, productId, chargeAmountRaw);
+
+        console.dir(chargeRes, { depth: 200 });
 
         if (chargeRes.isErr()) {
-          console.error(`[Cron] Soroban Charge Error for ${subId}:`, chargeRes.error.message);
+          console.error(`[Cron] Soroban charge error for ${subId}:`, chargeRes.error.message);
+
+          await runAtomic(async () => {
+            await putSubscription(subId, { status: "past_due" }, orgId, env);
+            await postPayment(
+              {
+                subscriptionId: subId,
+                checkoutId: null,
+                productId,
+                customerId: sub.customerId,
+                amountCents: productPriceCents,
+                currencyCode: productCurrencyCode,
+                cryptoAmount: chargeCryptoAmount,
+                selectedAssetCode: priorPayment?.selectedAssetCode ?? "XLM",
+                selectedAssetIssuer: priorPayment?.selectedAssetIssuer ?? null,
+                transactionHash: "",
+                status: "failed",
+                metadata: null,
+                failureReason: chargeRes.error.message,
+              },
+              orgId,
+              env,
+              { customerWalletAddress: walletAddress, failErrorMessage: chargeRes.error.message }
+            );
+          });
+
           stats.failed++;
           continue;
         }
 
-        const payEvent = chargeRes.value.events.find((e) => e.topic === "sub_pay");
+        const payEvent = chargeRes.value.events.find((e) => e.topic.includes("sub_pay"));
         if (!payEvent) {
           stats.failed++;
           continue;
         }
 
-        // --- 3. ATOMIC DB SYNC ---
-        await runAtomic(async () => {
-          const status = payEvent.success ? "confirmed" : "failed";
-          // payEvent.data.amount is already a Stellar decimal string (e.g. "50.0000000")
-          const cryptoAmount = String(payEvent.data.amount ?? "");
+        const periodEndSec = Number(payEvent.data.periodEnd);
+        const amountRaw = BigInt(String(payEvent.data.amount ?? 0));
+        const cryptoAmount = (Number(amountRaw) / 10 ** STELLAR_PRECISION).toFixed(STELLAR_PRECISION);
 
-          if (payEvent.success) {
+        await runAtomic(async () => {
+          if (Number.isFinite(periodEndSec)) {
             await putSubscription(
               subId,
               {
                 status: "active",
-                currentPeriodEnd: new Date(payEvent.data.periodEnd as string | number),
+                currentPeriodEnd: new Date(periodEndSec * 1000),
               },
               orgId,
               env
             );
           }
-
-          // Soroban events carry the asset code; fall back to XLM (native subscription token)
-          const assetCode = payEvent.data.assetCode != null ? String(payEvent.data.assetCode) : "XLM";
-          const assetIssuer = payEvent.data.assetIssuer != null ? String(payEvent.data.assetIssuer) : null;
 
           await postPayment(
             {
@@ -91,19 +127,16 @@ export const GET = apiHandler({
               amountCents: productPriceCents,
               currencyCode: productCurrencyCode,
               cryptoAmount,
-              selectedAssetCode: assetCode,
-              selectedAssetIssuer: assetIssuer,
+              selectedAssetCode: priorPayment?.selectedAssetCode ?? "XLM",
+              selectedAssetIssuer: priorPayment?.selectedAssetIssuer ?? null,
               transactionHash: chargeRes.value.hash,
-              status,
+              status: "confirmed",
               metadata: null,
-              failureReason: payEvent.success ? null : "On-chain payment failure",
+              failureReason: null,
             },
             orgId,
             env,
-            {
-              customerWalletAddress: chargeRes.value.sourceWalletAddress,
-              failErrorMessage: payEvent.success ? undefined : "On-chain payment failure",
-            }
+            { customerWalletAddress: walletAddress }
           );
         });
 

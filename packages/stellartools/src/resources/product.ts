@@ -21,9 +21,7 @@ export class ProductApi {
     const query = new URLSearchParams();
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.starting_after) query.set("starting_after", params.starting_after);
-    return unwrap(
-      await this.apiClient.get<Product[]>(`/products?${query}`, undefined, mapOptionsToHeaders(options))
-    );
+    return unwrap(await this.apiClient.get<Product[]>(`/products?${query}`, undefined, mapOptionsToHeaders(options)));
   }
 
   async retrieve(productId: string, options?: RequestOptions) {

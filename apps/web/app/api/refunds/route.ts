@@ -5,7 +5,10 @@ import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } fro
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
-import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
+import {
+  resolveMerchantSecret,
+  cancelSubscription as soroban$cancelSubscription,
+} from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
@@ -100,10 +103,11 @@ export const POST = apiHandler({
 
         if (!subscription) throw new AppError("Subscription not found");
 
-        const cancellationResult = await cancelSorobanSubscription(
+        const merchantSecret = await resolveMerchantSecret(organizationId, environment);
+        const cancellationResult = await soroban$cancelSubscription(
           environment,
+          merchantSecret,
           payment.wallets!.address,
-          subscription.customerId!,
           subscription.productId!
         );
 
@@ -112,6 +116,7 @@ export const POST = apiHandler({
         await putSubscription(
           payment.subscriptionId,
           {
+            status: "canceled",
             canceledAt: new Date(),
             metadata: { ...(subscription.metadata ?? {}), cancelReason: "refund" },
           },

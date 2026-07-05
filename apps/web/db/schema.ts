@@ -592,7 +592,6 @@ export const appLogs = pgTable("app_log", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-
 export const idempotencyKeys = pgTable("idempotency_key", {
   id: text("id").primaryKey(), // The key sent by the client
   organizationId: text("organization_id")
@@ -644,6 +643,5 @@ export type ResolvedSubscription = Subscription & {
   product?: Product | null;
   customerWallet?: CustomerWallet | null;
 };
-
 
 export type { ProductStatus, ProductType };

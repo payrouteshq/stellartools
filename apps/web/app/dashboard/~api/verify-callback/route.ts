@@ -1,5 +1,5 @@
-import { accountValidator } from "@/actions/auth";
 import { postAccount, retrieveAccount } from "@/actions/account";
+import { accountValidator } from "@/actions/auth";
 import { AppError } from "@/lib/action-handler";
 import { Result } from "@stellartools/core";
 import { OAuth2Client } from "google-auth-library";

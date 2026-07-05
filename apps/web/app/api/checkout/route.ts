@@ -2,7 +2,7 @@ import { resolveAuthContext } from "@/actions/apikey";
 import { postCheckout } from "@/actions/checkout";
 import { upsertCustomer } from "@/actions/customers";
 import { retrieveProducts } from "@/actions/product";
-import { getCorsHeaders, subscriptionIntervals } from "@/constant";
+import { getCorsHeaders, subscriptionPeriodMs } from "@/constant";
 import { AppError } from "@/lib/action-handler";
 import { createOptionsHandler } from "@/lib/api-handler";
 import { toSnakeCase } from "@/lib/utils";
@@ -70,15 +70,16 @@ export const POST = async (req: NextRequest) => {
           return Result.err(new AppError("Subscription product does not have a recurring period"));
         }
 
-        const durationDays =
-          product.recurringPeriod === "custom"
-            ? Math.round((product.customDurationMs ?? 0) / 86_400_000)
-            : subscriptionIntervals[product.recurringPeriod as keyof typeof subscriptionIntervals];
+        const durationMs = subscriptionPeriodMs(product.recurringPeriod, product.customDurationMs);
+
+        if (!durationMs && product.type === "subscription") {
+          return Result.err(new AppError("Subscription product has an invalid billing period"));
+        }
 
         subscriptionData = {
-          periodStart: moment().toISOString(),
-          periodEnd: moment().add(durationDays, "days").toISOString(),
-          cancelAtPeriodEnd: false,
+          period_start: moment().toISOString(),
+          period_end: moment().add(durationMs, "milliseconds").toISOString(),
+          cancel_at_period_end: false,
         };
       }
 

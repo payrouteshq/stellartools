@@ -1,5 +1,8 @@
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
-import { resumeSubscription as resumeSorobanSubscription } from "@/integrations/soroban-contract";
+import {
+  resolveMerchantSecret,
+  resumeSubscription as soroban$resumeSubscription,
+} from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
@@ -23,10 +26,11 @@ export const POST = apiHandler({
 
     if (!customerWallet?.address) throw new AppError("Customer wallet not found");
 
-    const resumeResult = await resumeSorobanSubscription(
+    const merchantSecret = await resolveMerchantSecret(organizationId, environment);
+    const resumeResult = await soroban$resumeSubscription(
       environment,
+      merchantSecret,
       customerWallet.address,
-      subscription.customerId,
       subscription.productId
     );
 

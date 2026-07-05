@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark } from "@/components/icon";
 import { useCheckout } from "@/contexts/checkout-context";
@@ -115,9 +116,14 @@ export default function CheckoutUI() {
                 {fiatDisplay ? (
                   <div className="text-3xl font-black tracking-tighter sm:text-4xl">
                     {fiatDisplay}
-                    {checkout.productType === "subscription" && (
-                      <span className="text-muted-foreground ml-1 text-sm font-normal">
-                        / {checkout.recurringPeriod}
+                    {checkout.productType === "subscription" && checkout.recurringPeriod && (
+                      <span className="text-muted-foreground ml-1 text-sm font-normal tracking-normal">
+                        {checkout.recurringPeriod === "custom" && checkout.customDurationMs
+                          ? (() => {
+                              const periodStr = formatPeriod(checkout.recurringPeriod, checkout.customDurationMs);
+                              return `/ ${periodStr}`;
+                            })()
+                          : `/ ${checkout.recurringPeriod}`}
                       </span>
                     )}
                   </div>
@@ -302,14 +308,14 @@ const Checkout = {
   Error: ({ checkoutId, onRetry }: any) => (
     <div className="bg-background animate-in zoom-in-95 flex min-h-screen flex-col items-center justify-center p-6 text-center duration-300">
       <div className="w-full max-w-lg space-y-8">
-        <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-red-100">
+        <div className="bg-destructive/10 mx-auto flex size-20 items-center justify-center rounded-full">
           <AlertCircle className="text-destructive size-10" />
         </div>
         <div className="space-y-2">
           <b className="text-3xl font-bold tracking-tight sm:text-4xl">Payment Failed</b>
           <p className="text-muted-foreground">We couldn&apos;t verify your transaction on the ledger.</p>
         </div>
-        <div className="rounded-2xl border border-red-100 bg-red-50/50 p-6 text-left sm:p-8">
+        <div className="border-destructive/20 bg-destructive/10 rounded-2xl border p-6 text-left sm:p-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground shrink-0 text-xs font-bold tracking-widest uppercase">
               Reference

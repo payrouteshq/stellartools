@@ -6,8 +6,8 @@
 import { redirect } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { StellarTools } from "@stellartools/core";
-import { rejectPaymentSession, resolvePaymentSession } from "~/payments-apps.server";
 import { getPaymentSessionById, getShopByDomain, markPaymentSessionResolved } from "~/db.server";
+import { rejectPaymentSession, resolvePaymentSession } from "~/payments-apps.server";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   const sessionId = params.sessionId!;
@@ -33,21 +33,13 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   try {
     checkout = await st.checkouts.retrieve(paymentSession.stellartools_checkout_id!);
   } catch {
-    const fallback = await rejectPaymentSession(
-      paymentSession.shop,
-      shopRecord.access_token,
-      paymentSession.gid
-    );
+    const fallback = await rejectPaymentSession(paymentSession.shop, shopRecord.access_token, paymentSession.gid);
     return redirect(fallback ?? paymentSession.cancel_url);
   }
 
   if (checkout.status === "completed") {
     await markPaymentSessionResolved(sessionId);
-    const nextUrl = await resolvePaymentSession(
-      paymentSession.shop,
-      shopRecord.access_token,
-      paymentSession.gid
-    );
+    const nextUrl = await resolvePaymentSession(paymentSession.shop, shopRecord.access_token, paymentSession.gid);
     return redirect(nextUrl ?? `https://${paymentSession.shop}/`);
   }
 

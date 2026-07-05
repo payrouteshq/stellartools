@@ -89,7 +89,7 @@ const paymentStatusVariants = {
     icon: Clock,
     label: "Pending",
   },
-  failed: { cls: "bg-red-500/10 text-red-700 border-red-500/20", icon: XCircle, label: "Failed" },
+  failed: { cls: "bg-destructive text-destructive-foreground border-destructive", icon: XCircle, label: "Failed" },
   refunded: {
     cls: "bg-muted text-muted-foreground border-border",
     icon: XCircle,
@@ -682,13 +682,8 @@ function CheckoutModalContent({
       invalidate: [["payments"], ["customer-events", customerId]],
       successMsg: "Checkout created",
       errorMsg: "Failed to create checkout",
-      onSuccess: (data: any) => {
-        const baseUrl =
-          (typeof process.env.NEXT_PUBLIC_CHECKOUT_URL === "string" && process.env.NEXT_PUBLIC_CHECKOUT_URL.trim()) ||
-          (typeof window !== "undefined" ? window.location.origin : "");
-        let checkoutID = data?.data?.id;
-        const url = baseUrl ? `${baseUrl.replace(/\/$/, "")}/${checkoutID}` : checkoutID;
-        setCreatedUrl(url);
+      onSuccess: (data) => {
+        setCreatedUrl(data?.payment_url);
       },
     }
   );

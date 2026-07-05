@@ -83,11 +83,7 @@ const PAYMENTS_APP_CONFIGURE = `
 // ─── Exported helpers ────────────────────────────────────────────────────────
 
 /** Returns the redirectUrl Shopify wants to send the customer to next. */
-export async function resolvePaymentSession(
-  shop: string,
-  accessToken: string,
-  gid: string
-): Promise<string | null> {
+export async function resolvePaymentSession(shop: string, accessToken: string, gid: string): Promise<string | null> {
   const res = await gql(shop, accessToken, PAYMENT_SESSION_RESOLVE, { id: gid });
   const session = (res.data?.paymentSessionResolve as any)?.paymentSession;
   return session?.nextAction?.context?.redirectUrl ?? null;
@@ -107,11 +103,7 @@ export async function rejectPaymentSession(
   return session?.nextAction?.context?.redirectUrl ?? null;
 }
 
-export async function resolveRefundSession(
-  shop: string,
-  accessToken: string,
-  gid: string
-): Promise<void> {
+export async function resolveRefundSession(shop: string, accessToken: string, gid: string): Promise<void> {
   await gql(shop, accessToken, REFUND_SESSION_RESOLVE, { id: gid });
 }
 
@@ -128,10 +120,7 @@ export async function rejectRefundSession(
 }
 
 /** Mark the payment extension as ready to accept payments. Call after merchant saves API key. */
-export async function configurePaymentsApp(
-  shop: string,
-  accessToken: string
-): Promise<void> {
+export async function configurePaymentsApp(shop: string, accessToken: string): Promise<void> {
   await gql(shop, accessToken, PAYMENTS_APP_CONFIGURE, {
     externalHandle: shop,
     ready: true,

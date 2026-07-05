@@ -81,9 +81,7 @@ export interface ShopifyCreditCardPaymentMethod {
   };
 }
 
-export type ShopifyPaymentMethod =
-  | ShopifyOffsitePaymentMethod
-  | ShopifyCreditCardPaymentMethod;
+export type ShopifyPaymentMethod = ShopifyOffsitePaymentMethod | ShopifyCreditCardPaymentMethod;
 
 // ─── Endpoint request bodies ──────────────────────────────────────────────────
 

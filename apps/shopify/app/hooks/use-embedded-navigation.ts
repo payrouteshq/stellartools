@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+
 import { useLocation, useNavigate } from "@remix-run/react";
 
 export function useEmbeddedPath(path: string) {

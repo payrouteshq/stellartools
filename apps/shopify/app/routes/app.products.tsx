@@ -205,11 +205,7 @@ export default function Products() {
                             </s-button>
                           )}
                           {isSynced && (
-                            <s-link
-                              href={`${stellartoolsDashboardUrl}/products`}
-                              tone="auto"
-                              target="_blank"
-                            >
+                            <s-link href={`${stellartoolsDashboardUrl}/products`} tone="auto" target="_blank">
                               View in StellarTools ↗
                             </s-link>
                           )}

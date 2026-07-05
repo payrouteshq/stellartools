@@ -140,7 +140,16 @@ const paymentActionHandler = async (
         type: "payment::failed",
         map: (p) => ({
           customerId: p.customerId,
-          data: { ...basePayload, ...(errorMessage && { error: errorMessage }) },
+          data: {
+            id: p.id,
+            checkoutId: payment.checkoutId!,
+            customerId: payment.customerId!,
+            amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
+            cryptoAmount: cryptoAmount,
+            status: payment.status,
+            transactionHash: payment.transactionHash ?? "",
+            ...(errorMessage && { error: errorMessage }),
+          },
         }),
       });
 
@@ -156,7 +165,17 @@ const paymentActionHandler = async (
         map: (p) => ({
           customerId: p.customerId,
           subscriptionId: p.subscriptionId,
-          data: { ...basePayload, subscriptionId: p.subscriptionId },
+          data: {
+            id: p.id,
+            checkoutId: p.checkoutId,
+            customerId: p.customerId,
+            amount: Money.formatFiat(p.amountCents, p.currencyCode),
+            cryptoAmount: `${p.cryptoAmount} ${p.selectedAssetCode}`,
+            status: p.status,
+            transactionHash: p.transactionHash ?? "",
+            createdAt: p.createdAt?.toISOString() ?? new Date().toISOString(),
+            subscriptionId: p.subscriptionId,
+          },
         }),
       });
 

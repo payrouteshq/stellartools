@@ -1,5 +1,6 @@
 "use server";
 
+import { upsertCustomerWallet } from "@/actions/customers";
 import { paginate, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrievePaymentCount } from "@/actions/payment";
@@ -18,18 +19,18 @@ import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
-import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
 
 export const postSubscriptionsBulk = async (
   params: {
     id: string;
-    customerIds: string[];
+    customerId: string;
     productId: string;
     period: { from: string; to: string };
     cancelAtPeriodEnd: boolean;
     metadata: Record<string, unknown> | null;
     trialDays?: number;
-    priceCents: number;
+    customerWalletAddress?: string;
   },
   orgId?: string,
   env?: Network
@@ -38,19 +39,33 @@ export const postSubscriptionsBulk = async (
 
   return withEvent(
     async () => {
-      const values = params.customerIds.map((cid) => ({
+      let customerWalletId: string | null = null;
+
+      if (params.customerWalletAddress && params.customerId) {
+        customerWalletId = (
+          await upsertCustomerWallet(
+            params.customerId,
+            { walletAddress: params.customerWalletAddress },
+            organizationId,
+            environment
+          )
+        ).id;
+      }
+
+      const values = {
         id: params.id,
-        customerId: cid,
+        customerId: params.customerId,
         productId: params.productId,
         status: "active" as const,
         organizationId,
         environment,
+        customerWalletId: customerWalletId,
         currentPeriodStart: new Date(params.period.from),
         currentPeriodEnd: new Date(params.period.to),
         cancelAtPeriodEnd: params.cancelAtPeriodEnd,
         metadata: params.metadata,
         trialDays: params.trialDays,
-      }));
+      };
 
       return await db.insert(subscriptions).values(values).returning();
     },
@@ -104,6 +119,46 @@ export const postSubscriptionsBulk = async (
   );
 };
 
+export const retrieveDueSubscriptions = async (options?: {
+  withCustomer?: boolean;
+  withProduct?: boolean;
+  withCustomerWallets?: boolean;
+  limit?: number;
+}): Promise<ResolvedSubscription[]> => {
+  const limit = options?.limit ?? 100;
+
+  const rows = await db
+    .select({
+      subscription: subscriptions,
+      ...(options?.withCustomer && { customer: customers }),
+      ...(options?.withProduct && { product: products }),
+      ...(options?.withCustomerWallets && { customerWallets: customerWallets }),
+    })
+    .from(subscriptions)
+    .leftJoin(customers, eq(subscriptions.customerId, customers.id))
+    .leftJoin(products, eq(subscriptions.productId, products.id))
+    .leftJoin(customerWallets, eq(subscriptions.customerWalletId, customerWallets.id))
+    .where(
+      or(
+        and(lt(subscriptions.currentPeriodEnd, new Date()), inArray(subscriptions.status, ["active", "past_due"])),
+        and(
+          eq(subscriptions.cancelAtPeriodEnd, true),
+          lt(subscriptions.currentPeriodEnd, new Date()),
+          isNull(subscriptions.canceledAt)
+        )
+      )
+    )
+    .limit(limit)
+    .orderBy(desc(subscriptions.currentPeriodEnd));
+
+  return rows.map(({ customer, product, customerWallets, subscription }) => ({
+    ...subscription,
+    customer,
+    product,
+    customerWallet: customerWallets ?? null,
+  }));
+};
+
 export const retrieveSubscriptions = async (
   orgId?: string,
   env?: Network,
@@ -111,7 +166,6 @@ export const retrieveSubscriptions = async (
     customerId?: string;
     subscriptionId?: string;
     status?: SubscriptionStatus;
-    isDue?: boolean;
   } & ApiListParams,
   options?: { withCustomer?: boolean; withProduct?: boolean; withCustomerWallets?: boolean }
 ): Promise<PaginatedResult<ResolvedSubscription>> => {
@@ -135,19 +189,7 @@ export const retrieveSubscriptions = async (
         params?.customerId ? eq(subscriptions.customerId, params.customerId) : undefined,
         params?.status ? eq(subscriptions.status, params.status) : undefined,
         eq(subscriptions.organizationId, organizationId),
-        eq(subscriptions.environment, environment),
-        ...(params?.isDue
-          ? [
-              or(
-                and(lt(subscriptions.currentPeriodEnd, new Date()), eq(subscriptions.status, "active")),
-                and(
-                  eq(subscriptions.cancelAtPeriodEnd, true),
-                  lt(subscriptions.currentPeriodEnd, new Date()),
-                  isNull(subscriptions.canceledAt)
-                )
-              ),
-            ]
-          : [])
+        eq(subscriptions.environment, environment)
       )
     )
     .limit(limit)
@@ -159,7 +201,7 @@ export const retrieveSubscriptions = async (
       ...subscription,
       customer,
       product,
-      customerWallets,
+      customerWallet: customerWallets ?? null,
     })),
     limit
   );
@@ -209,7 +251,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
         currentPeriodStart: subscription.currentPeriodStart.toISOString(),
         currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
-        canceledAt: new Date().toISOString(),
+        canceledAt: subscription.canceledAt?.toISOString() ?? null,
         pausedAt: subscription.pausedAt?.toISOString() ?? null,
         createdAt: subscription.createdAt?.toISOString(),
         failedPaymentCount,
@@ -233,7 +275,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
                 pausedAt: oldSubscription.pausedAt?.toISOString() ?? null,
                 updatedAt: oldSubscription.updatedAt?.toISOString(),
               },
-              updatedSubscription
+              { ...updatedSubscription, canceledAt: updatedSubscription.canceledAt ?? undefined }
             )?.previous_attributes,
           }),
         });
@@ -262,7 +304,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
                   pausedAt: oldSubscription.pausedAt?.toISOString() ?? null,
                   updatedAt: oldSubscription.updatedAt?.toISOString(),
                 },
-                updatedSubscription
+                { ...updatedSubscription, canceledAt: updatedSubscription.canceledAt ?? undefined }
               )?.previous_attributes ?? {},
           }),
         });

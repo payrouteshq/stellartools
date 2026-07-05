@@ -13,8 +13,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
     prefix = "/dashboard";
   }
 
-  const apiHosts =
-    process.env.NEXT_PUBLIC_API_URL?.split(",").map((url) => new URL(url.trim()).host) ?? [];
+  const apiHosts = process.env.NEXT_PUBLIC_API_URL?.split(",").map((url) => new URL(url.trim()).host) ?? [];
 
   if (apiHosts.includes(host)) {
     prefix = "/api";

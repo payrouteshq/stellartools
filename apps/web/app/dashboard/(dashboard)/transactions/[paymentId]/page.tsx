@@ -60,7 +60,7 @@ const StatusBadge = ({ status }: { status: Payment["status"] | "refunded" }) => 
       label: "Pending",
     },
     failed: {
-      className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+      className: "bg-destructive text-destructive-foreground border-destructive",
       icon: XCircle,
       label: "Failed",
     },
@@ -438,7 +438,7 @@ export default function TransactionDetailPage() {
                               "gap-1.5 border",
                               refund.status === "succeeded"
                                 ? "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
-                                : "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400"
+                                : "border-destructive bg-destructive/10 text-destructive"
                             )}
                           >
                             {refund.status === "succeeded" ? (

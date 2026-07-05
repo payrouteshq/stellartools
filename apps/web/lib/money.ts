@@ -1,6 +1,11 @@
+import type { AssetMetadata } from "@/db/schema";
+import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import Big from "big.js";
 
 const STELLAR_PRECISION = 7;
+
+const toRawUnits = (decimalAmount: string): bigint =>
+  BigInt(Math.round(Number(decimalAmount) * 10 ** STELLAR_PRECISION));
 
 export const Money = {
   calculateCryptoNeeded: (usdCents: number, assetUsdPrice: number): string => {
@@ -48,5 +53,19 @@ export const Money = {
       " " +
       assetCode.toUpperCase()
     );
+  },
+
+  /** Fiat product price → crypto amount using current rates (subscriptions). */
+  calculateSubscriptionAmount: async (params: {
+    priceCents: number;
+    currencyCode: string;
+    assetMetadata: AssetMetadata;
+  }): Promise<{ cryptoAmount: string; amountRaw: bigint; usdCents: number }> => {
+    const fiatRates = await getFiatRates();
+    const fiatRate = fiatRates[params.currencyCode ?? "USD"] ?? 1;
+    const usdCents = params.priceCents / fiatRate;
+    const assetUsdPrice = await getAssetUsdPrice(params.assetMetadata);
+    const cryptoAmount = Money.calculateCryptoNeeded(usdCents, assetUsdPrice);
+    return { cryptoAmount, amountRaw: toRawUnits(cryptoAmount), usdCents };
   },
 };

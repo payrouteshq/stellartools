@@ -3,10 +3,7 @@ import { retrievePayments } from "@/actions/payment";
 import { retrieveProducts } from "@/actions/product";
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import { Subscription } from "@/db";
-import {
-  cancelSubscription as cancelSorobanSubscription,
-  retrieveSubscription as retrieveSorobanSubscription,
-} from "@/integrations/soroban-contract";
+import { retrieveSubscription as soroban$retrieveSubscription } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { computeDiff, toCamelCase } from "@/lib/utils";
@@ -35,7 +32,7 @@ export const GET = apiHandler({
       return Result.err(new AppError("Customer wallet not found"));
     }
 
-    const onchainSubscription = await retrieveSorobanSubscription(
+    const onchainSubscription = await soroban$retrieveSubscription(
       environment,
       customerWallet.address,
       subscription.productId
@@ -142,19 +139,6 @@ export const PUT = apiHandler({
     const customerWallet = subscription?.customerWallet;
 
     if (!customerWallet?.address) return Result.err(new AppError("Customer wallet not found"));
-
-    let cancellationResult: Awaited<ReturnType<typeof cancelSorobanSubscription>> | null = null;
-
-    if (cancelAtPeriodEnd) {
-      cancellationResult = await cancelSorobanSubscription(
-        environment,
-        customerWallet.address,
-        subscription.customerId,
-        subscription.productId
-      );
-    }
-
-    if (cancellationResult?.isErr()) return Result.err(cancellationResult.error);
 
     const updatedSubscription = await putSubscription(
       id,

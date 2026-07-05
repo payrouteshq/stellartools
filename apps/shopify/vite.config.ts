@@ -1,5 +1,5 @@
 import { vitePlugin as remix } from "@remix-run/dev";
-import { defineConfig, type Plugin, type UserConfig } from "vite";
+import { type Plugin, type UserConfig, defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 function corsForUnstableCheckout(): Plugin {

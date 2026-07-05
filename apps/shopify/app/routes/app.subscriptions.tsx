@@ -20,10 +20,14 @@ function monthlyAmount(product: SubscriptionRow["product"]): number {
   if (!product) return 0;
   const price = product.price_amount_cents / 100;
   switch (product.recurring_period) {
-    case "year": return price / 12;
-    case "week": return price * 4.33;
-    case "day": return price * 30;
-    default: return price; // month or custom
+    case "year":
+      return price / 12;
+    case "week":
+      return price * 4.33;
+    case "day":
+      return price * 30;
+    default:
+      return price; // month or custom
   }
 }
 
@@ -65,9 +69,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // 2. Resolve emails → StellarTools customers (parallel)
   const customerResults = await Promise.all(
-    emails.map((email) =>
-      st.customers.list({ email }).catch(() => [] as Customer[])
-    )
+    emails.map((email) => st.customers.list({ email }).catch(() => [] as Customer[]))
   );
   const customers = customerResults.flat();
 
@@ -78,16 +80,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // 3. Subscriptions for each customer (parallel)
   const subResults = await Promise.all(
     customers.map((c) =>
-      st.subscriptions.list(c.id).then((subs) => subs.map((s) => ({ sub: s, customer: c }))).catch(() => [])
+      st.subscriptions
+        .list(c.id)
+        .then((subs) => subs.map((s) => ({ sub: s, customer: c })))
+        .catch(() => [])
     )
   );
   const subsWithCustomers = subResults.flat();
 
   // 4. Unique products (parallel)
   const uniqueProductIds = [...new Set(subsWithCustomers.map((x) => x.sub.product_id))];
-  const productResults = await Promise.all(
-    uniqueProductIds.map((id) => st.products.retrieve(id).catch(() => null))
-  );
+  const productResults = await Promise.all(uniqueProductIds.map((id) => st.products.retrieve(id).catch(() => null)));
   const productMap = new Map<string, Product>(
     productResults.filter((p): p is Product => p !== null).map((p) => [p.id, p])
   );
@@ -99,7 +102,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       sub,
       customer: { id: customer.id, email: customer.email, name: customer.name },
       product: product
-        ? { id: product.id, name: product.name, price_amount_cents: product.price_amount_cents, recurring_period: product.recurring_period, unit: product.unit }
+        ? {
+            id: product.id,
+            name: product.name,
+            price_amount_cents: product.price_amount_cents,
+            recurring_period: product.recurring_period,
+            unit: product.unit,
+          }
         : null,
     };
   });
@@ -163,7 +172,9 @@ export default function Subscriptions() {
       <s-page heading="Subscriptions">
         <s-banner heading="Connect your StellarTools account" tone="warning">
           Add your StellarTools API key in Settings to see subscriptions.
-          <s-link href={settingsPath} tone="auto">Go to Settings</s-link>
+          <s-link href={settingsPath} tone="auto">
+            Go to Settings
+          </s-link>
         </s-banner>
       </s-page>
     );
@@ -189,11 +200,7 @@ export default function Subscriptions() {
           <s-box padding="base" background="subdued" borderRadius="base">
             <s-stack direction="block" gap="tight">
               <s-text color="subdued">Monthly Recurring Revenue</s-text>
-              <s-heading>
-                {stats.mrr > 0
-                  ? `${stats.mrr.toFixed(2)} ${stats.mrrUnit}`
-                  : "—"}
-              </s-heading>
+              <s-heading>{stats.mrr > 0 ? `${stats.mrr.toFixed(2)} ${stats.mrrUnit}` : "—"}</s-heading>
               <s-text color="subdued">Active subscriptions</s-text>
             </s-stack>
           </s-box>
@@ -214,8 +221,8 @@ export default function Subscriptions() {
       <s-section heading="All Subscriptions">
         {rows.length === 0 ? (
           <s-paragraph tone="subdued">
-            No subscriptions found. Subscriptions appear here once customers subscribe to a StellarTools
-            product that was purchased through this store.
+            No subscriptions found. Subscriptions appear here once customers subscribe to a StellarTools product that
+            was purchased through this store.
           </s-paragraph>
         ) : (
           <s-table variant="auto">
@@ -240,23 +247,17 @@ export default function Subscriptions() {
 
                   <s-table-cell>
                     {product?.name ?? sub.product_id}
-                    {product?.recurring_period && (
-                      <s-text color="subdued"> · {product.recurring_period}</s-text>
-                    )}
+                    {product?.recurring_period && <s-text color="subdued"> · {product.recurring_period}</s-text>}
                   </s-table-cell>
 
                   <s-table-cell>
-                    <s-badge tone={(STATUS_TONE[sub.status] ?? "info") as any}>
-                      {sub.status.replace("_", " ")}
-                    </s-badge>
+                    <s-badge tone={(STATUS_TONE[sub.status] ?? "info") as any}>{sub.status.replace("_", " ")}</s-badge>
                     {sub.failed_payment_count && sub.failed_payment_count > 0 && (
                       <s-text color="critical"> {sub.failed_payment_count} failed</s-text>
                     )}
                   </s-table-cell>
 
-                  <s-table-cell>
-                    {product ? formatAmount(product.price_amount_cents, product.unit) : "—"}
-                  </s-table-cell>
+                  <s-table-cell>{product ? formatAmount(product.price_amount_cents, product.unit) : "—"}</s-table-cell>
 
                   <s-table-cell>{formatDate(sub.current_period_end)}</s-table-cell>
 

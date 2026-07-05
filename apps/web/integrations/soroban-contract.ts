@@ -1,4 +1,7 @@
+import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
+import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Network } from "@/db";
+import { decrypt } from "@/integrations/encryption";
 import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
@@ -36,39 +39,69 @@ const getSorobanConfig = (network: Network) => {
   };
 };
 
+const getKeeperKeypair = () => {
+  const secret = process.env.KEEPER_SECRET;
+  if (!secret) throw new AppError("KEEPER_SECRET is not configured");
+  return StellarSDK.Keypair.fromSecret(secret);
+};
+
+export const resolveMerchantSecret = async (orgId: string, network: Network) => {
+  const { secret } = await retrieveOrganizationIdAndSecret(orgId, network);
+  if (!secret?.encrypted) throw new AppError("Merchant wallet not configured");
+  return decrypt(secret.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
+};
+
+const parseContractEvent = (topics: unknown[], data: unknown): SorobanEvent => {
+  const topic = String(topics[0] ?? "");
+  let payload: Record<string, unknown> = {};
+
+  console.log({ data, topic });
+
+  if (Array.isArray(data)) {
+    if (topic.includes("sub_pay") && data.length >= 2) {
+      payload = { amount: data[0], periodEnd: data[1] };
+    } else {
+      payload = { values: data };
+    }
+  } else if (data && typeof data === "object") {
+    payload = data as Record<string, unknown>;
+  } else if (data !== undefined) {
+    payload = { value: data };
+  }
+
+  return { topic, success: true, data: payload };
+};
+
 const invokeSoroban = async <T = SorobanTxResult>(
   network: Network,
-  publicKey: string,
   operation: StellarSDK.xdr.Operation,
-  options: { readOnly?: boolean } = {}
+  options: { readOnly?: boolean; signerSecret?: string; sourcePublicKey?: string } = {}
 ): Promise<Result<T, AppError>> => {
   return Result.tryPromise(async () => {
     const { server, passphrase } = getSorobanConfig(network);
-    const keypair = StellarSDK.Keypair.fromPublicKey(publicKey);
-    const sourceAccount = await server.getAccount(keypair.publicKey());
+    const keypair = options.signerSecret ? StellarSDK.Keypair.fromSecret(options.signerSecret) : getKeeperKeypair();
+    const sourceKey = options.readOnly ? (options.sourcePublicKey ?? keypair.publicKey()) : keypair.publicKey();
+    const sourceAccount = await server.getAccount(sourceKey);
 
-    let txBuilder = new StellarSDK.TransactionBuilder(sourceAccount, {
+    const tx = new StellarSDK.TransactionBuilder(sourceAccount, {
       fee: StellarSDK.BASE_FEE,
       networkPassphrase: passphrase,
     })
       .addOperation(operation)
-      .setTimeout(30);
+      .setTimeout(30)
+      .build();
 
-    const tx = txBuilder.build();
     const simulation = await server.simulateTransaction(tx);
 
     if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
       throw new AppError(`Simulation failed: ${simulation.error}`);
     }
 
-    // --- READ FLOW ---
     if (options.readOnly) {
       if (!simulation.result) throw new AppError("Simulation returned no result");
-      // Converts ScVal return value to native TS types (e.g. SorobanSubscription)
       return StellarSDK.scValToNative(simulation.result.retval) as T;
     }
 
-    // --- WRITE FLOW ---
     const assembledTx = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
     assembledTx.sign(keypair);
 
@@ -96,18 +129,31 @@ const invokeSoroban = async <T = SorobanTxResult>(
         for (const event of sorobanMeta?.events() ?? []) {
           if (event.type().name !== "contract") continue;
           const v0 = event.body().v0();
-          const topics = v0.topics().map((t) => StellarSDK.scValToNative(t));
-          const data = StellarSDK.scValToNative(v0.data()) as Record<string, unknown>;
-          const topic = typeof topics[0] === "string" ? topics[0] : String(topics[0]);
-          const success = typeof data.success === "boolean" ? data.success : true;
-          events.push({ topic, success, data });
+          events.push(
+            parseContractEvent(
+              v0.topics().map((t) => StellarSDK.scValToNative(t)),
+              StellarSDK.scValToNative(v0.data())
+            )
+          );
         }
-      } catch {
-        // event parsing is best-effort; cron caller checks for expected event by topic
+      } catch (e: unknown) {
+        console.error("Error parsing contract event", { e });
+        // event parsing is best-effort
       }
     }
 
     return { hash: response.hash, sourceWalletAddress: walletAddres, events } as T;
+  });
+};
+
+export const verifySorobanTx = async (network: Network, hash: string) => {
+  return Result.tryPromise(async () => {
+    const { server } = getSorobanConfig(network);
+    const result = await server.getTransaction(hash);
+    if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
+      throw new AppError(`Transaction not successful: ${result.status}`);
+    }
+    return hash;
   });
 };
 
@@ -185,83 +231,97 @@ export const submitSorobanTx = async (network: Network, signedXDR: string) => {
 
 export const startSubscription = async (
   network: Network,
-  publicKey: string,
   params: {
     customerAddress: string;
     merchantAddress: string;
     tokenContractId: string;
     productId: string;
-    amountCents: number;
-    durationSeconds: number;
+    amountRaw: bigint;
+    durationMs: number;
   }
 ) => {
+  const keeper = getKeeperKeypair();
   const { contractId } = getSorobanConfig(network);
-  const contract = new StellarSDK.Contract(contractId);
-
-  const operation = contract.call(
+  const durationSeconds = Math.max(1, Math.round(params.durationMs / 1000));
+  const operation = new StellarSDK.Contract(contractId).call(
     "start",
     StellarSDK.nativeToScVal(params.customerAddress, { type: "address" }),
     StellarSDK.nativeToScVal(params.merchantAddress, { type: "address" }),
     StellarSDK.nativeToScVal(params.tokenContractId, { type: "address" }),
     StellarSDK.nativeToScVal(params.productId, { type: "string" }),
-    StellarSDK.nativeToScVal(params.amountCents, { type: "i128" }),
-    StellarSDK.nativeToScVal(BigInt(params.durationSeconds), { type: "u64" }),
-    StellarSDK.nativeToScVal(publicKey, { type: "address" })
+    StellarSDK.nativeToScVal(params.amountRaw, { type: "i128" }),
+    StellarSDK.nativeToScVal(BigInt(durationSeconds), { type: "u64" }),
+    StellarSDK.nativeToScVal(keeper.publicKey(), { type: "address" })
   );
 
-  return await invokeSoroban(network, publicKey, operation);
+  return await invokeSoroban(network, operation);
 };
 
-export const chargeSubscription = async (network: Network, publicKey: string, customer: string, productId: string) => {
+export const chargeSubscription = async (
+  network: Network,
+  customerAddress: string,
+  productId: string,
+  amountRaw: bigint
+) => {
   const { contractId } = getSorobanConfig(network);
   const operation = new StellarSDK.Contract(contractId).call(
     "charge",
-    StellarSDK.nativeToScVal(customer, { type: "address" }),
-    StellarSDK.nativeToScVal(productId, { type: "string" })
+    StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
+    StellarSDK.nativeToScVal(productId, { type: "string" }),
+    StellarSDK.nativeToScVal(amountRaw, { type: "i128" })
   );
-  return await invokeSoroban(network, publicKey, operation);
+  return await invokeSoroban(network, operation);
 };
 
-export const cancelSubscription = async (network: Network, publicKey: string, customer: string, productId: string) => {
+const merchantLifecycleCall = async (
+  network: Network,
+  merchantSecret: string,
+  method: "pause" | "resume" | "cancel",
+  customerAddress: string,
+  productId: string
+) => {
+  const merchant = StellarSDK.Keypair.fromSecret(merchantSecret);
   const { contractId } = getSorobanConfig(network);
   const operation = new StellarSDK.Contract(contractId).call(
-    "cancel",
-    StellarSDK.nativeToScVal(customer, { type: "address" }),
+    method,
+    StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
     StellarSDK.nativeToScVal(productId, { type: "string" }),
-    StellarSDK.nativeToScVal(publicKey, { type: "address" })
+    StellarSDK.nativeToScVal(merchant.publicKey(), { type: "address" })
   );
-  return await invokeSoroban(network, publicKey, operation);
+  return await invokeSoroban(network, operation, { signerSecret: merchantSecret });
 };
 
-export const pauseSubscription = async (network: Network, publicKey: string, customer: string, productId: string) => {
-  const { contractId } = getSorobanConfig(network);
-  const operation = new StellarSDK.Contract(contractId).call(
-    "pause",
-    StellarSDK.nativeToScVal(customer, { type: "address" }),
-    StellarSDK.nativeToScVal(productId, { type: "string" }),
-    StellarSDK.nativeToScVal(publicKey, { type: "address" })
-  );
-  return await invokeSoroban(network, publicKey, operation);
-};
+export const pauseSubscription = async (
+  network: Network,
+  merchantSecret: string,
+  customerAddress: string,
+  productId: string
+) => merchantLifecycleCall(network, merchantSecret, "pause", customerAddress, productId);
 
-export const resumeSubscription = async (network: Network, publicKey: string, customer: string, productId: string) => {
-  const { contractId } = getSorobanConfig(network);
-  const operation = new StellarSDK.Contract(contractId).call(
-    "resume",
-    StellarSDK.nativeToScVal(customer, { type: "address" }),
-    StellarSDK.nativeToScVal(productId, { type: "string" }),
-    StellarSDK.nativeToScVal(publicKey, { type: "address" })
-  );
-  return await invokeSoroban(network, publicKey, operation);
-};
+export const resumeSubscription = async (
+  network: Network,
+  merchantSecret: string,
+  customerAddress: string,
+  productId: string
+) => merchantLifecycleCall(network, merchantSecret, "resume", customerAddress, productId);
 
-export const retrieveSubscription = async (network: Network, publicKey: string, productId: string) => {
+export const cancelSubscription = async (
+  network: Network,
+  merchantSecret: string,
+  customerAddress: string,
+  productId: string
+) => merchantLifecycleCall(network, merchantSecret, "cancel", customerAddress, productId);
+
+export const retrieveSubscription = async (network: Network, customerAddress: string, productId: string) => {
   const { contractId } = getSorobanConfig(network);
   const operation = new StellarSDK.Contract(contractId).call(
     "get_subscription",
-    StellarSDK.nativeToScVal(publicKey, { type: "address" }),
+    StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
     StellarSDK.nativeToScVal(productId, { type: "string" })
   );
 
-  return await invokeSoroban<SorobanSubscription>(network, publicKey, operation, { readOnly: true });
+  return await invokeSoroban<SorobanSubscription>(network, operation, {
+    readOnly: true,
+    sourcePublicKey: customerAddress,
+  });
 };

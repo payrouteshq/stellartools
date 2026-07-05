@@ -1,6 +1,6 @@
 import { postProduct, retrieveProducts } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { Result, createProductSchema, z as Schema } from "@stellartools/core";
+import { Result, z as Schema, createProductSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 

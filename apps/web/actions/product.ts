@@ -1,11 +1,33 @@
 "use server";
 
 import { resolveOrgContext } from "@/actions/organization";
+import { subscriptionPeriodMs } from "@/constant";
 import { Network, Product, ProductStatus, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId, patchJSON } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
+
+const resolveSubscriptionBilling = (
+  type: Product["type"],
+  recurringPeriod: Product["recurringPeriod"],
+  customDurationMs: Product["customDurationMs"]
+) => {
+  if (type !== "subscription") {
+    return { recurringPeriod: null, customDurationMs: null };
+  }
+
+  if (!recurringPeriod) {
+    throw new AppError("Subscription product requires a recurring period");
+  }
+
+  const ms = subscriptionPeriodMs(recurringPeriod, customDurationMs);
+  if (!ms) {
+    throw new AppError("Subscription product has an invalid billing period");
+  }
+
+  return { recurringPeriod, customDurationMs: ms };
+};
 
 export const createProductImage = async (formData: FormData) => {
   const imageFiles = formData.getAll("images");
@@ -28,10 +50,13 @@ export const postProduct = async (
     throw new AppError("Price must be a positive integer in cents");
   }
 
+  const billing = resolveSubscriptionBilling(params.type, params.recurringPeriod, params.customDurationMs);
+
   const [product] = await db
     .insert(products)
     .values({
       ...params,
+      ...billing,
       id: generateResourceId("prod", organizationId, 16),
       organizationId,
       environment,
@@ -72,11 +97,16 @@ export const putProduct = async (id: string, orgId: string, env: Network, retUpd
   if (!oldProduct) throw new AppError("Product not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
+  const type = baseUpdate.type ?? oldProduct.type;
+  const recurringPeriod = baseUpdate.recurringPeriod ?? oldProduct.recurringPeriod;
+  const customDurationMs = baseUpdate.customDurationMs ?? oldProduct.customDurationMs;
+  const billing = resolveSubscriptionBilling(type, recurringPeriod, customDurationMs);
 
   const [product] = await db
     .update(products)
     .set({
       ...baseUpdate,
+      ...billing,
       updatedAt: new Date(),
       ...(metadataPatch !== undefined ? { metadata: patchJSON(oldProduct.metadata, metadataPatch) } : {}),
     })

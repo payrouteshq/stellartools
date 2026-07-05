@@ -66,7 +66,7 @@ const StatusBadge = ({ status }: { status: PayoutStatus }) => {
       label: "Succeeded",
     },
     failed: {
-      cls: "bg-red-500/10 text-red-700 border-red-500/20",
+      cls: "bg-destructive text-destructive-foreground border-destructive",
       icon: XCircle,
       label: "Failed",
     },

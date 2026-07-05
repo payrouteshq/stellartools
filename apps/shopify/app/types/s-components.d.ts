@@ -1,7 +1,6 @@
 // Shopify Polaris web components (s-*) are globally registered in the Shopify Admin iframe.
 // These declarations make them available as JSX elements in TypeScript.
-
-import type { ReactNode, MouseEventHandler, FormEventHandler } from "react";
+import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 
 type SChildren = { children?: ReactNode };
 type SClick = { onClick?: MouseEventHandler<HTMLElement> };
@@ -16,7 +15,13 @@ declare module "react" {
       "s-section": SBase & { heading?: string; padding?: string };
       "s-stack": SBase & { direction?: "inline" | "block"; gap?: string; alignItems?: string; wrap?: boolean };
       "s-grid": SBase & { gridTemplateColumns?: string; gap?: string };
-      "s-box": SBase & { padding?: string; background?: string; border?: string; borderRadius?: string; minWidth?: string };
+      "s-box": SBase & {
+        padding?: string;
+        background?: string;
+        border?: string;
+        borderRadius?: string;
+        minWidth?: string;
+      };
       "s-divider": SBase & { direction?: string; color?: string };
       "s-query-container": SBase & { containerName?: string };
 
@@ -99,17 +104,51 @@ declare module "react" {
         onChange?: FormEventHandler<HTMLElement>;
         onInput?: FormEventHandler<HTMLElement>;
       };
-      "s-email-field": SBase & { label?: string; name?: string; placeholder?: string; autocomplete?: string; required?: boolean };
-      "s-number-field": SBase & { label?: string; name?: string; min?: number; max?: number; step?: number; inputMode?: string };
+      "s-email-field": SBase & {
+        label?: string;
+        name?: string;
+        placeholder?: string;
+        autocomplete?: string;
+        required?: boolean;
+      };
+      "s-number-field": SBase & {
+        label?: string;
+        name?: string;
+        min?: number;
+        max?: number;
+        step?: number;
+        inputMode?: string;
+      };
       "s-money-field": SBase & { label?: string; name?: string; min?: number; max?: number };
-      "s-search-field": SBase & { label?: string; name?: string; placeholder?: string; labelAccessibilityVisibility?: string };
+      "s-search-field": SBase & {
+        label?: string;
+        name?: string;
+        placeholder?: string;
+        labelAccessibilityVisibility?: string;
+      };
       "s-url-field": SBase & { label?: string; name?: string; placeholder?: string; autocomplete?: string };
       "s-text-area": SBase & { label?: string; name?: string; rows?: number; maxLength?: number };
-      "s-select": SBase & { label?: string; name?: string; placeholder?: string; onChange?: FormEventHandler<HTMLElement> };
+      "s-select": SBase & {
+        label?: string;
+        name?: string;
+        placeholder?: string;
+        onChange?: FormEventHandler<HTMLElement>;
+      };
       "s-option": SBase & { value?: string };
-      "s-checkbox": SBase & { label?: string; name?: string; value?: string; checked?: boolean; defaultChecked?: boolean };
+      "s-checkbox": SBase & {
+        label?: string;
+        name?: string;
+        value?: string;
+        checked?: boolean;
+        defaultChecked?: boolean;
+      };
       "s-switch": SBase & { label?: string; name?: string; checked?: boolean; defaultChecked?: boolean };
-      "s-choice-list": SBase & { label?: string; name?: string; value?: string; onChange?: FormEventHandler<HTMLElement> };
+      "s-choice-list": SBase & {
+        label?: string;
+        name?: string;
+        value?: string;
+        onChange?: FormEventHandler<HTMLElement>;
+      };
       "s-choice": SBase & { value?: string; checked?: boolean; defaultChecked?: boolean };
       "s-color-field": SBase & { label?: string; name?: string; value?: string; alpha?: boolean };
       "s-color-picker": SBase & { name?: string; value?: string; alpha?: boolean };

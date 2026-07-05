@@ -23,6 +23,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CodeBlock,
+  DataTable,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,18 +35,46 @@ import {
   cn,
   toast,
 } from "@stellartools/shared-ui";
+import { ColumnDef } from "@tanstack/react-table";
 import _ from "lodash";
 import { ChevronRight, Copy, ExternalLink, MoreHorizontal, Pause, Play, XCircle } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter } from "../_shared";
+import { SubscriptionModalContent, SubscriptionModalFooter, formatPeriod } from "../_shared";
 
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
 const getExplorerUrl = (h: string, e: string) =>
   `https://stellar.expert/explorer/${e === "live" ? "public" : "testnet"}/tx/${h}`;
+
+type PricingRow = {
+  name: string;
+  period: string;
+  price: string;
+  total: string;
+};
+
+const pricingColumns: ColumnDef<PricingRow>[] = [
+  {
+    accessorKey: "name",
+    header: "Product",
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium">{row.original.name}</div>
+        <div className="text-muted-foreground text-xs">{row.original.period}</div>
+      </div>
+    ),
+  },
+  { accessorKey: "price", header: "Price" },
+  {
+    accessorKey: "qty",
+    header: "Qty",
+    cell: () => <span className="text-muted-foreground">1</span>,
+  },
+  { accessorKey: "total", header: "Total" },
+];
 
 const STATUS_MAP: Record<string, { cls: string; label: string }> = {
   active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
@@ -69,7 +99,9 @@ export default function SubscriptionDetailPage() {
   const { data: orgContext } = useOrgContext();
 
   const { data: allSubs, isLoading } = useOrgQuery(["subscriptions"], async () =>
-    retrieveSubscriptions(undefined, undefined, undefined).then((res) => res.data)
+    retrieveSubscriptions(undefined, undefined, undefined, { withCustomer: true, withProduct: true }).then(
+      (res) => res.data
+    )
   );
   const sub = React.useMemo(() => allSubs?.find((s) => s.id === subscriptionId), [allSubs, subscriptionId]);
 
@@ -187,7 +219,8 @@ export default function SubscriptionDetailPage() {
                 <span>Started {formatDate(s.currentPeriodStart)}</span>
                 <span>&middot;</span>
                 <span>
-                  Next billing {Money.formatFiat(p?.priceCents ?? 0)} on {formatDate(s.currentPeriodEnd)}
+                  Next billing {Money.formatFiat(p?.priceCents ?? 0, p?.currencyCode ?? "USD")} on{" "}
+                  {formatDate(s.currentPeriodEnd)}
                 </span>
                 {s.cancelAtPeriodEnd && (
                   <>
@@ -235,23 +268,21 @@ export default function SubscriptionDetailPage() {
             <div className="space-y-6 lg:col-span-2">
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Pricing</h3>
-                <div className="bg-card divide-y rounded-lg border">
-                  <div className="text-muted-foreground grid grid-cols-4 gap-4 px-4 py-2.5 text-xs font-medium uppercase">
-                    <span>Product</span>
-                    <span>Price</span>
-                    <span className="text-right">Qty</span>
-                    <span className="text-right">Total</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-4 px-4 py-3">
-                    <div>
-                      <div className="font-medium">{p?.name}</div>
-                      <div className="text-muted-foreground text-xs">{Money.formatFiat(p?.priceCents ?? 0)} / mo</div>
-                    </div>
-                    <div className="text-sm">{Money.formatFiat(p?.priceCents ?? 0)}</div>
-                    <div className="text-right text-sm">1</div>
-                    <div className="text-right font-medium">{Money.formatFiat(p?.priceCents ?? 0)} / mo</div>
-                  </div>
-                </div>
+                <DataTable
+                  columns={pricingColumns}
+                  data={
+                    p
+                      ? [
+                          {
+                            name: p.name ?? "—",
+                            period: formatPeriod(p.recurringPeriod, p.customDurationMs),
+                            price: Money.formatFiat(p.priceCents ?? 0, p.currencyCode ?? "USD"),
+                            total: `${Money.formatFiat(p.priceCents ?? 0, p.currencyCode ?? "USD")} / ${formatPeriod(p.recurringPeriod, p.customDurationMs)}`,
+                          },
+                        ]
+                      : []
+                  }
+                />
               </section>
 
               <section className="space-y-3">
@@ -365,19 +396,16 @@ export default function SubscriptionDetailPage() {
                 </div>
               </section>
 
-              {s.metadata && Object.keys(s.metadata).length > 0 && (
-                <section className="space-y-3">
-                  <h3 className="text-lg font-semibold">Metadata</h3>
-                  <div className="bg-card space-y-2 rounded-lg border p-5">
-                    {Object.entries(s.metadata).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span className="font-mono text-xs">{String(v)}</span>
-                      </div>
-                    ))}
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold">Metadata</h3>
+                {s.metadata && Object.keys(s.metadata).length > 0 ? (
+                  <CodeBlock language="json">{JSON.stringify(s.metadata, null, 2)}</CodeBlock>
+                ) : (
+                  <div className="text-muted-foreground rounded-lg border-2 border-dashed p-6 text-center text-xs">
+                    No metadata
                   </div>
-                </section>
-              )}
+                )}
+              </section>
             </aside>
           </div>
         </div>
