@@ -312,7 +312,7 @@ export default function ApiKeysPage() {
                   }
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden md:inline">Create secret key</span>
+                  <span className="hidden md:!inline">Create secret key</span>
                 </Button>
               </div>
 

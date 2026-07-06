@@ -215,11 +215,11 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-2">
                   <Button className="gap-2 shadow-none" variant="outline" onClick={openImportModal}>
                     <CloudUpload className="h-4 w-4" />
-                    <span className="hidden md:inline">Import CSV</span>
+                    <span className="hidden md:!inline">Import CSV</span>
                   </Button>
                   <Button className="gap-2 shadow-none" onClick={openCreateModal}>
                     <Plus className="h-4 w-4" />
-                    <span className="hidden md:inline">Add customer</span>
+                    <span className="hidden md:!inline">Add customer</span>
                   </Button>
                 </div>
               </div>

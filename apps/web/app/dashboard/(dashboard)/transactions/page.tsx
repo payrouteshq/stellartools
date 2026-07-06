@@ -321,7 +321,7 @@ function TransactionsPageContent() {
                   }}
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden md:inline">Create refund</span>
+                  <span className="hidden md:!inline">Create refund</span>
                 </Button>
               </div>
             </div>

@@ -314,7 +314,7 @@ function ProductsPageContent() {
               </div>
               <Button onClick={() => openCreateModal()} className="gap-2 shadow-sm">
                 <Plus className="h-4 w-4" />
-                <span className="hidden md:inline">Create product</span>
+                <span className="hidden md:!inline">Create product</span>
               </Button>
             </div>
 
@@ -336,11 +336,11 @@ function ProductsPageContent() {
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
                   <Download className="h-4 w-4" />
-                  <span className="hidden md:inline">Export</span>
+                  <span className="hidden md:!inline">Export</span>
                 </Button>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Settings className="h-4 w-4" />
-                  <span className="hidden md:inline">Columns</span>
+                  <span className="hidden md:!inline">Columns</span>
                 </Button>
               </div>
             </div>

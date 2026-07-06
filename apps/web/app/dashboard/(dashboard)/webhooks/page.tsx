@@ -529,7 +529,7 @@ function WebhooksPageContent() {
             </div>
             <Button className="gap-2" onClick={openCreateModal}>
               <Plus className="size-4" />
-              <span className="hidden md:inline">Add destination</span>
+              <span className="hidden md:!inline">Add destination</span>
             </Button>
           </header>
 
