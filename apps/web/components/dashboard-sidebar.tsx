@@ -274,7 +274,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton size="lg">
                       <Avatar className="h-8 w-8 rounded-lg">
-                        <AvatarImage src={user?.profile.avatarUrl || ""} />
+                        <AvatarImage className="object-cover" src={user?.profile.avatarUrl || ""} />
                         <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
                       </Avatar>
                       <div className="grid flex-1 text-left text-sm leading-tight">
