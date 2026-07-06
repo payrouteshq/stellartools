@@ -2,6 +2,7 @@ import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Network } from "@/db";
 import { decrypt } from "@/integrations/encryption";
+import { parseError } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
@@ -128,7 +129,8 @@ const invokeSoroban = async <T = SorobanTxResult>(
     const simulation = await server.simulateTransaction(tx);
 
     if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
-      throw new AppError(`Simulation failed: ${simulation.error}`);
+      const parsed = parseError(simulation);
+      throw new AppError(parsed.message);
     }
 
     if (options.readOnly) {
@@ -185,12 +187,12 @@ export const buildSubscriptionApprovalXdr = async (
     const latestLedger = await server.getLatestLedger();
     const expirationLedger = latestLedger.sequence + 2_628_000;
 
-    const contract = new StellarSDK.Contract(params.tokenContractId);
+    const contract = new StellarSDK.Contract(tokenContractId);
     const operation = contract.call(
       "approve",
-      StellarSDK.nativeToScVal(params.customerAddress, { type: "address" }),
+      StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
       StellarSDK.nativeToScVal(contractId, { type: "address" }),
-      StellarSDK.nativeToScVal(params.amount, { type: "i128" }),
+      StellarSDK.nativeToScVal(amount, { type: "i128" }),
       StellarSDK.nativeToScVal(expirationLedger, { type: "u32" })
     );
 
@@ -201,7 +203,9 @@ export const buildSubscriptionApprovalXdr = async (
       .build();
 
     const simulation = await server.simulateTransaction(tx);
-    if (StellarSDK.rpc.Api.isSimulationError(simulation)) throw new AppError(simulation.error);
+    if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
+      throw new AppError(parseError(simulation).message);
+    }
 
     const prepared = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
     const envelope = StellarSDK.xdr.TransactionEnvelope.fromXDR(prepared.toXDR(), "base64");

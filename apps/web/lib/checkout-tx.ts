@@ -11,6 +11,7 @@ import { decrypt } from "@/integrations/encryption";
 import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import {
   buildSubscriptionApprovalXdr as soroban$buildSubscriptionApprovalXdr,
+  retrieveSubscription as soroban$retrieveSubscription,
   startSubscription as soroban$startSubscription,
   verifySorobanTx as soroban$verifySorobanTx,
 } from "@/integrations/soroban-contract";
@@ -20,6 +21,7 @@ import {
   getCustomerAssetIssuers,
   getStellarConfig,
   retrieveAssetContractId,
+  SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
 } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
@@ -232,6 +234,14 @@ export async function finalizeSubscriptionCheckout(
 
     const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
 
+    const existingSub = await soroban$retrieveSubscription(environment, customerAddress, productId);
+    if (existingSub.isOk()) {
+      const status = existingSub.value.status;
+      if (status === "active" || status === "paused") {
+        return { success: false, error: SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE };
+      }
+    }
+
     const startResult = await soroban$startSubscription(environment, {
       customerAddress,
       merchantAddress: merchantPublicKey,
@@ -242,7 +252,7 @@ export async function finalizeSubscriptionCheckout(
     });
 
     if (startResult.isErr()) {
-      return { success: false, error: `Subscription start failed: ${startResult.error.message}` };
+      return { success: false, error: startResult.error.message };
     }
 
     const { hash } = startResult.value;
