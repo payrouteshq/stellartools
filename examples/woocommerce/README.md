@@ -2,6 +2,8 @@
 
 Local WordPress + WooCommerce store with the StellarTools plugin mounted from the repo.
 
+Product Checkout Demo: https://stellartools-production.up.railway.app/product/stellartools-license/
+
 ## Start
 
 From the repo root:
@@ -53,3 +55,5 @@ docker compose -f examples/woocommerce/docker-compose.yml down
 ```
 
 Data is kept in Docker volumes. Add `-v` to wipe everything.
+
+
