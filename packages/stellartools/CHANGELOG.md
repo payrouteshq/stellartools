@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.9
+
+### Patch Changes
+
+- e9eb37a: fix: ui and more improvements
+
 ## 0.0.8
 
 ### Patch Changes

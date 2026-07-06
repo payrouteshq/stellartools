@@ -1,5 +1,13 @@
 # @stellartools/betterauth-adapter
 
+## 0.0.9
+
+### Patch Changes
+
+- e9eb37a: fix: ui and more improvements
+- Updated dependencies [e9eb37a]
+  - @stellartools/core@0.0.9
+
 ## 0.0.8
 
 ### Patch Changes

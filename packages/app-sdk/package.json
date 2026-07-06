@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/app-sdk",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "StellarTools App SDK",
   "main": "dist/index.js",
   "scripts": {
