@@ -29,7 +29,7 @@ export const deliverWebhook = async <TName extends string, TObject>(
     maxRetries: 0,
   });
 
-  const result = await client.postDetailed<Record<string, unknown>>(requestPath, body);
+  const result = await client.postDetailed(requestPath, body);
 
   const duration = Date.now() - startTime;
 
