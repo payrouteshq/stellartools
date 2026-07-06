@@ -33,7 +33,11 @@ export const unwrap = <T>(result: Result<T, Error>): T => {
     throw result.error;
   }
 
-  return result.value!;
+  if (result.value && typeof result.value === "object" && "data" in result.value) {
+    return result.value.data as T;
+  }
+
+  return result.value;
 };
 
 /**

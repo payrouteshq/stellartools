@@ -2,8 +2,7 @@ import { useState } from "react";
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
-import { StellarTools } from "@stellartools/core";
-import type { Payment } from "@stellartools/core";
+import { type Payment, StellarTools } from "@stellartools/core";
 import { getShopByDomain } from "~/db.server";
 import { getClientEnv } from "~/env.server";
 import { useEmbeddedPath } from "~/hooks/use-embedded-navigation";
@@ -17,6 +16,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!shop?.stellartools_api_key) {
     return { payments: [] as Payment[], configured: false, ...getClientEnv() };
   }
+
   const st = new StellarTools({ api_key: shop.stellartools_api_key });
   const payments = await st.payments.list({ limit: 50 }).catch(() => [] as Payment[]);
 

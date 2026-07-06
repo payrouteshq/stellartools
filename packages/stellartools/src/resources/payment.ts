@@ -14,13 +14,13 @@ export class PaymentApi {
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.customer) query.set("customer", params.customer);
     if (params?.starting_after) query.set("starting_after", params.starting_after);
-    return unwrap(await this.apiClient.get<Payment[]>(`/payments?${query}`, undefined, mapOptionsToHeaders(options)));
+    return unwrap(await this.apiClient.get<Payment[]>(`/payment?${query}`, undefined, mapOptionsToHeaders(options)));
   }
 
   async retrieve(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async () => {
-        return await this.apiClient.get<Payment>(`/payments/${id}`, undefined, mapOptionsToHeaders(options));
+        return await this.apiClient.get<Payment>(`/payment/${id}`, undefined, mapOptionsToHeaders(options));
       })
     );
   }
