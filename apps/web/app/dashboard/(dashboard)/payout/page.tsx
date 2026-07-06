@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 const StatusBadge = ({ status }: { status: PayoutStatus }) => {
   const config = {
     pending: {
-      className: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+      className: "bg-destructive/10 text-destructive border-destructive/20",
       icon: Clock,
       label: "Pending",
     },

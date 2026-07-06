@@ -32,10 +32,10 @@ import { sendEmail } from "@/integrations/email";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { generateResourceId, patchJSON, toSnakeCase } from "@/lib/utils";
+import { generateResourceId, toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import moment from "moment";
 
 type PaymentContext = {
@@ -208,7 +208,7 @@ const paymentActionHandler = async (
           }
 
           // Merchant "First Payout" logic
-          const paymentCount = await retrievePaymentCount(organizationId, undefined, { status: "confirmed" });
+          const paymentCount = await retrievePaymentCount(organizationId, environment, { status: "confirmed" });
           console.log("paymentCount", paymentCount);
 
           const emailTemplate = MERCHANT_EMAIL_TEMPLATES[ctx.product?.type as keyof typeof MERCHANT_EMAIL_TEMPLATES];
@@ -383,7 +383,7 @@ export const putPayment = async (id: string, orgId: string, env: Network, params
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldPayment.metadata, metadataPatch) } : {}),
+          ...(metadataPatch !== undefined ? { metadata: { ...(oldPayment.metadata ?? {}), ...metadataPatch } } : {}),
         })
         .where(and(eq(payments.id, id), eq(payments.organizationId, organizationId)))
         .returning()
@@ -396,8 +396,8 @@ export const putPayment = async (id: string, orgId: string, env: Network, params
 
 export const retrievePaymentCount = async (
   organizationId: string,
-  customerId?: string,
-  filter?: { status?: PaymentStatus; subscriptionId?: string }
+  environment: Network,
+  filter?: { status?: PaymentStatus; subscriptionIds?: Array<string>; customerIds?: Array<string> }
 ) => {
   const [{ value: confirmedCount }] = await db
     .select({ value: count() })
@@ -405,9 +405,10 @@ export const retrievePaymentCount = async (
     .where(
       and(
         eq(payments.organizationId, organizationId),
-        customerId ? eq(payments.customerId, customerId) : undefined,
+        eq(payments.environment, environment),
+        filter?.customerIds ? inArray(payments.customerId, filter.customerIds) : undefined,
         filter?.status ? eq(payments.status, filter.status) : undefined,
-        filter?.subscriptionId ? eq(payments.subscriptionId, filter.subscriptionId) : undefined
+        filter?.subscriptionIds ? inArray(payments.subscriptionId, filter.subscriptionIds) : undefined
       )
     );
 

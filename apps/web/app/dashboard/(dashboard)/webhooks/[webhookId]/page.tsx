@@ -49,7 +49,7 @@ const StatusCodeChip = ({ code }: { code?: number }) => {
         "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-xs font-medium tabular-nums",
         ok
           ? "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
-          : "bg-destructive/10 text-destructive border-red-500/20"
+          : "bg-destructive/10 text-destructive border-destructive/20"
       )}
     >
       {code}

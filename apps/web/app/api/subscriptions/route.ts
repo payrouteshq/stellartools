@@ -1,3 +1,4 @@
+import { retrievePaymentCount } from "@/actions/payment";
 import { retrieveSubscriptions } from "@/actions/subscription";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
@@ -11,6 +12,11 @@ export const GET = apiHandler({
   schema: { query: Schema.object({ customer_id: Schema.string() }) },
   handler: async ({ query: { customer_id }, auth: { organizationId, environment } }) => {
     const subscriptions = await retrieveSubscriptions(organizationId, environment, { customerId: customer_id });
+    const failedPayments = await retrievePaymentCount(organizationId, environment, {
+      subscriptionIds: subscriptions.data.map((s) => s.id),
+      status: "failed",
+    });
+
     return Result.ok(
       subscriptions.data.map((s) => ({
         id: s.id,
@@ -22,7 +28,7 @@ export const GET = apiHandler({
         cancelAtPeriodEnd: s.cancelAtPeriodEnd,
         canceledAt: s.canceledAt ?? null,
         pausedAt: s.pausedAt ?? null,
-        failedPaymentCount: null,
+        failedPaymentCount: failedPayments,
         createdAt: s.createdAt ?? null,
         updatedAt: s.updatedAt,
         metadata: s.metadata ?? null,

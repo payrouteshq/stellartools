@@ -20,7 +20,7 @@ import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { computeDiff, generateResourceId, patchJSON } from "@/lib/utils";
+import { computeDiff, generateResourceId } from "@/lib/utils";
 import { CheckoutStatus } from "@stellartools/core";
 import { all } from "better-all";
 import { and, eq, sql } from "drizzle-orm";
@@ -253,7 +253,9 @@ export const putCheckout = async (id: string, params: Partial<Checkout>, orgId?:
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldCheckout.metadata, metadataPatch) } : {}),
+          ...(metadataPatch !== undefined
+            ? { metadata: { ...(oldCheckout.metadata ?? {}), ...metadataPatch } }
+            : {}),
         })
         .where(
           and(

@@ -1,4 +1,4 @@
-import { z as Schema, StellarTools } from "@stellartools/core";
+import { z as Schema, StellarTools, internal$hasSubscriptionAccess } from "@stellartools/core";
 import { UploadThingError, createUploadthing } from "uploadthing/server";
 
 const schema = Schema.object({
@@ -37,7 +37,7 @@ export const shield = (config: ShieldConfig): ((routeConfig: any, options?: any)
 
       // 2. Verify Access directly via the SDK
       const subs = await st.subscriptions.list(customerId);
-      const hasAccess = subs.some((s) => s.product_id === config.productId && s.status === "active");
+      const hasAccess = subs.some((s) => s.product_id === config.productId && internal$hasSubscriptionAccess(s));
 
       if (!hasAccess) {
         throw new UploadThingError({

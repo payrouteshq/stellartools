@@ -22,6 +22,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   Checkbox,
   DateField,
@@ -32,6 +33,7 @@ import {
   Spinner,
   TextField,
   Timeline,
+  cn,
 } from "@stellartools/shared-ui";
 import { Trash2 } from "lucide-react";
 import moment from "moment";
@@ -44,6 +46,7 @@ export type SubscriptionRowEsquee = {
   customer: string;
   customerEmail: string | null | undefined;
   status: string;
+  cancelAtPeriodEnd: boolean;
   product: string | null | undefined;
   amount: number | null | undefined;
   currencyCode: string;
@@ -72,6 +75,52 @@ export const formatPeriod = (
     return `every ${qty} ${unit}${qty !== 1 ? "s" : ""}`;
   }
   return recurringPeriod;
+};
+
+const SUBSCRIPTION_STATUS_MAP: Record<string, { cls: string; label: string }> = {
+  active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
+  trialing: { cls: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "Trialing" },
+  past_due: { cls: "bg-destructive/10 text-destructive border-destructive/20", label: "Past due" },
+  canceled: { cls: "bg-muted text-muted-foreground border-border", label: "Canceled" },
+  paused: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20", label: "Paused" },
+};
+
+export const SubscriptionStatusBadge = ({
+  status,
+  cancelAtPeriodEnd,
+  currentPeriodEnd,
+  canceledAt,
+}: {
+  status: string;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: Date | string | null;
+  canceledAt?: Date | string | null;
+}) => {
+  if (cancelAtPeriodEnd && status !== "canceled" && currentPeriodEnd) {
+    return (
+      <Badge
+        variant="outline"
+        className="gap-1.5 border-destructive/20 bg-destructive/10 text-destructive"
+      >
+        Cancels on {moment(currentPeriodEnd).format("MMM D, YYYY")}
+      </Badge>
+    );
+  }
+
+  if (status === "canceled" && canceledAt) {
+    return (
+      <Badge variant="outline" className="gap-1.5 border-border bg-muted text-muted-foreground">
+        Canceled on {moment(canceledAt).format("MMM D, YYYY")}
+      </Badge>
+    );
+  }
+
+  const cfg = SUBSCRIPTION_STATUS_MAP[status] ?? SUBSCRIPTION_STATUS_MAP.active;
+  return (
+    <Badge variant="outline" className={cn("gap-1.5", cfg.cls)}>
+      {cfg.label}
+    </Badge>
+  );
 };
 
 export function confirmAction(

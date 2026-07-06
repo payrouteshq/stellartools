@@ -140,7 +140,11 @@ export const retrieveDueSubscriptions = async (options?: {
     .leftJoin(customerWallets, eq(subscriptions.customerWalletId, customerWallets.id))
     .where(
       or(
-        and(lt(subscriptions.currentPeriodEnd, new Date()), inArray(subscriptions.status, ["active", "past_due"])),
+        and(
+          lt(subscriptions.currentPeriodEnd, new Date()),
+          inArray(subscriptions.status, ["active", "past_due"]),
+          eq(subscriptions.cancelAtPeriodEnd, false)
+        ),
         and(
           eq(subscriptions.cancelAtPeriodEnd, true),
           lt(subscriptions.currentPeriodEnd, new Date()),
@@ -238,8 +242,8 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
       let webhookTriggers: WebhookTrigger<typeof subscription>[] = [];
       const logId = generateResourceId("wh_evt", organizationId, 52);
 
-      const failedPaymentCount = await retrievePaymentCount(organizationId, undefined, {
-        subscriptionId: subscription.id,
+      const failedPaymentCount = await retrievePaymentCount(organizationId, environment, {
+        subscriptionIds: [subscription.id],
         status: "failed",
       });
 

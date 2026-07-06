@@ -162,8 +162,17 @@ export default function Subscriptions() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  function handleAction(intent: string, id: string) {
-    if (intent === "cancel" && !confirm("Cancel this subscription? This cannot be undone.")) return;
+  function handleAction(intent: string, id: string, periodEnd?: string) {
+    if (
+      intent === "cancel" &&
+      !confirm(
+        periodEnd
+          ? `Cancel this subscription at the end of the billing period (${formatDate(periodEnd)})? The customer keeps access until then.`
+          : "Cancel this subscription at the end of the billing period? The customer keeps access until then."
+      )
+    ) {
+      return;
+    }
     submit({ intent, id }, { method: "POST" });
   }
 
@@ -251,7 +260,11 @@ export default function Subscriptions() {
                   </s-table-cell>
 
                   <s-table-cell>
-                    <s-badge tone={(STATUS_TONE[sub.status] ?? "info") as any}>{sub.status.replace("_", " ")}</s-badge>
+                    <s-badge tone={(STATUS_TONE[sub.status] ?? "info") as any}>
+                      {sub.cancel_at_period_end && sub.status !== "canceled"
+                        ? `cancels on ${formatDate(sub.current_period_end)}`
+                        : sub.status.replace("_", " ")}
+                    </s-badge>
                     {sub.failed_payment_count && sub.failed_payment_count > 0 && (
                       <s-text color="critical"> {sub.failed_payment_count} failed</s-text>
                     )}
@@ -283,12 +296,12 @@ export default function Subscriptions() {
                           Resume
                         </s-button>
                       )}
-                      {sub.status !== "canceled" && (
+                      {sub.status !== "canceled" && !sub.cancel_at_period_end && (
                         <s-button
                           variant="tertiary"
                           tone="critical"
                           loading={isSubmitting}
-                          onClick={() => handleAction("cancel", sub.id)}
+                          onClick={() => handleAction("cancel", sub.id, sub.current_period_end)}
                         >
                           Cancel
                         </s-button>

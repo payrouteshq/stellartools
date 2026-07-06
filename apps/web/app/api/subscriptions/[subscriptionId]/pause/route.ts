@@ -1,3 +1,4 @@
+import { retrievePaymentCount } from "@/actions/payment";
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import { resolveMerchantSecret, pauseSubscription as soroban$pauseSubscription } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
@@ -10,14 +11,23 @@ export const POST = apiHandler({
   auth: ["session", "apikey", "portal"],
   schema: { params: Schema.object({ subscriptionId: Schema.string() }) },
   handler: async ({ params: { subscriptionId }, auth: { organizationId, environment } }) => {
-    const {
-      data: [subscription],
-    } = await retrieveSubscriptions(
-      organizationId,
-      environment,
-      { subscriptionId },
-      { withCustomer: true, withProduct: true, withCustomerWallets: true }
-    );
+    const [
+      {
+        data: [subscription],
+      },
+      failedPaymentCount,
+    ] = await Promise.all([
+      retrieveSubscriptions(
+        organizationId,
+        environment,
+        { subscriptionId },
+        { withCustomer: true, withProduct: true, withCustomerWallets: true }
+      ),
+      retrievePaymentCount(organizationId, environment, {
+        subscriptionIds: [subscriptionId],
+        status: "failed",
+      }),
+    ]);
 
     const customerWallet = subscription?.customerWallet;
 
@@ -50,7 +60,7 @@ export const POST = apiHandler({
       cancelAtPeriodEnd: result.cancelAtPeriodEnd,
       canceledAt: result.canceledAt ?? null,
       pausedAt: result.pausedAt ?? null,
-      failedPaymentCount: null,
+      failedPaymentCount,
       createdAt: result.createdAt ?? null,
       updatedAt: result.updatedAt,
       metadata: result.metadata ?? null,

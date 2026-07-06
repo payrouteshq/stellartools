@@ -5,7 +5,7 @@ import { subscriptionPeriodMs } from "@/constant";
 import { Network, Product, ProductStatus, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
-import { generateResourceId, patchJSON } from "@/lib/utils";
+import { generateResourceId } from "@/lib/utils";
 import { and, eq } from "drizzle-orm";
 
 const resolveSubscriptionBilling = (
@@ -108,7 +108,9 @@ export const putProduct = async (id: string, orgId: string, env: Network, retUpd
       ...baseUpdate,
       ...billing,
       updatedAt: new Date(),
-      ...(metadataPatch !== undefined ? { metadata: patchJSON(oldProduct.metadata, metadataPatch) } : {}),
+      ...(metadataPatch !== undefined
+        ? { metadata: { ...(oldProduct.metadata ?? {}), ...metadataPatch } }
+        : {}),
     })
     .where(and(eq(products.id, id), eq(products.organizationId, organizationId)))
     .returning();

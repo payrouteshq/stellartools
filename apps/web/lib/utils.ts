@@ -183,24 +183,6 @@ export function normalizeTimeSeries<T extends RawDataPoint>(
   return result;
 }
 
-export const patchJSON = <T extends Record<string, any>>(
-  base: T | null | undefined,
-  patch: Partial<T> | null | undefined
-): T => {
-  const result = { ...(base || {}) } as T;
-  if (!patch) return result;
-
-  Object.entries(patch).forEach(([key, value]) => {
-    if (value === null) {
-      delete result[key as keyof T];
-    } else {
-      result[key as keyof T] = value as any;
-    }
-  });
-
-  return result;
-};
-
 export const downloadReceipt = async (Component: React.ReactElement, filename: string) => {
   try {
     const blob = await pdf(Component as unknown as React.ReactElement<DocumentProps>).toBlob();

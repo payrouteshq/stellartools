@@ -22,7 +22,6 @@ import { sendEmail } from "@/integrations/email";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
-import { patchJSON } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { MaybeArray } from "@stellartools/core";
 import crypto from "crypto";
@@ -170,7 +169,9 @@ export const putCustomer = async (
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldCustomer.metadata, metadataPatch) } : {}),
+          ...(metadataPatch !== undefined
+            ? { metadata: { ...(oldCustomer.metadata ?? {}), ...metadataPatch } }
+            : {}),
         })
         .where(
           and(

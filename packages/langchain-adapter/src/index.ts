@@ -1,6 +1,6 @@
 import { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { type Runnable, RunnableLambda } from "@langchain/core/runnables";
-import { z as Schema, StellarTools } from "@stellartools/core";
+import { z as Schema, StellarTools, internal$hasSubscriptionAccess } from "@stellartools/core";
 
 export class ShieldError extends Error {
   constructor(
@@ -42,9 +42,7 @@ export const shield = <TModel extends BaseLanguageModel, TInput = any, TOutput =
     const subs = await st.subscriptions.list(data.customerId);
 
     // 2. Verify the specific product is active
-    const hasAccess = subs.some(
-      (s) => s.product_id === data.productId && (s.status === "active" || s.status === "trialing")
-    );
+    const hasAccess = subs.some((s) => s.product_id === data.productId && internal$hasSubscriptionAccess(s));
 
     if (!hasAccess) {
       throw new ShieldError(data.customerId, data.productId);

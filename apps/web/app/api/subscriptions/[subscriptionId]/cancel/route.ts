@@ -1,8 +1,4 @@
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
-import {
-  resolveMerchantSecret,
-  cancelSubscription as soroban$cancelSubscription,
-} from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
@@ -22,25 +18,32 @@ export const POST = apiHandler({
       { withCustomer: true, withProduct: true, withCustomerWallets: true }
     );
 
-    const customerWallet = subscription?.customerWallet;
+    if (!subscription) throw new AppError("Subscription not found");
+    if (subscription.status === "canceled") throw new AppError("Subscription is already canceled");
+    if (subscription.cancelAtPeriodEnd) throw new AppError("Subscription is already scheduled to cancel");
 
-    if (!customerWallet?.address) throw new AppError("Customer wallet not found");
-
-    const merchantSecret = await resolveMerchantSecret(organizationId, environment);
-    const cancellationResult = await soroban$cancelSubscription(
-      environment,
-      merchantSecret,
-      customerWallet.address,
-      subscription.productId
-    );
-
-    if (cancellationResult.isErr()) return Result.err(cancellationResult.error);
-
-    return await putSubscription(
+    const result = await putSubscription(
       subscriptionId,
-      { status: "canceled", canceledAt: new Date() },
+      { cancelAtPeriodEnd: true },
       organizationId,
       environment
-    ).then((_) => Result.ok({ success: true }));
+    );
+
+    return Result.ok({
+      id: result.id,
+      customerId: result.customerId,
+      productId: result.productId,
+      status: result.status,
+      currentPeriodStart: result.currentPeriodStart,
+      currentPeriodEnd: result.currentPeriodEnd,
+      cancelAtPeriodEnd: result.cancelAtPeriodEnd,
+      canceledAt: result.canceledAt ?? null,
+      pausedAt: result.pausedAt ?? null,
+      failedPaymentCount: null,
+      createdAt: result.createdAt ?? null,
+      updatedAt: result.updatedAt,
+      metadata: result.metadata ?? null,
+      trialDays: result.trialDays ?? null,
+    });
   },
 });

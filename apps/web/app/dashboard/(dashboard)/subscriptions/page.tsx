@@ -12,7 +12,7 @@ import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
-import { AppModal, Badge, Button, DataTable, cn } from "@stellartools/shared-ui";
+import { AppModal, Button, DataTable, cn } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import moment from "moment";
@@ -22,26 +22,10 @@ import {
   SubscriptionModalContent,
   SubscriptionModalFooter,
   SubscriptionRowEsquee,
+  SubscriptionStatusBadge,
   confirmAction,
   formatPeriod,
 } from "./_shared";
-
-const STATUS_MAP: Record<string, { cls: string; label: string }> = {
-  active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
-  trialing: { cls: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "Trialing" },
-  past_due: { cls: "bg-orange-500/10 text-orange-700 border-orange-500/20", label: "Past due" },
-  canceled: { cls: "bg-gray-500/10 text-gray-700 border-gray-500/20", label: "Canceled" },
-  paused: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20", label: "Paused" },
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const cfg = STATUS_MAP[status] ?? STATUS_MAP.active;
-  return (
-    <Badge variant="outline" className={cn("gap-1.5", cfg.cls)}>
-      {cfg.label}
-    </Badge>
-  );
-};
 
 export default function SubscriptionsPage() {
   const router = useRouter();
@@ -99,6 +83,7 @@ export default function SubscriptionsPage() {
             customer: s.customer?.name ?? "—",
             customerEmail: s.customer?.email,
             status: s.status,
+            cancelAtPeriodEnd: s.cancelAtPeriodEnd ?? false,
             product: s.product?.name,
             amount: s.product?.priceCents,
             currencyCode: s.product?.currencyCode ?? "USD",
@@ -131,7 +116,13 @@ export default function SubscriptionsPage() {
         filterVariant: "select",
         filterOptions: Object.values(subscriptionStatusEnum).map((s) => ({ label: moment().format(s), value: s })),
       },
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      cell: ({ row }) => (
+        <SubscriptionStatusBadge
+          status={row.original.status}
+          cancelAtPeriodEnd={row.original.cancelAtPeriodEnd}
+          currentPeriodEnd={row.original.currentPeriodEnd}
+        />
+      ),
     },
     {
       accessorKey: "product",
@@ -255,7 +246,7 @@ export default function SubscriptionsPage() {
                         ),
                     },
                   ]
-                : r.status !== "canceled"
+                : r.status !== "canceled" && !r.cancelAtPeriodEnd
                   ? [
                       {
                         label: "Pause",
@@ -273,7 +264,7 @@ export default function SubscriptionsPage() {
                       },
                     ]
                   : []),
-              ...(r.status !== "canceled"
+              ...(r.status !== "canceled" && !r.cancelAtPeriodEnd
                 ? [
                     {
                       label: "Cancel",
@@ -282,9 +273,8 @@ export default function SubscriptionsPage() {
                         confirmAction(
                           {
                             title: "Cancel subscription",
-                            description:
-                              "This will permanently cancel the subscription. The customer will lose access at the end of the current billing period.",
-                            confirmLabel: "Cancel subscription",
+                            description: `The subscription will cancel at the end of the current billing period (${moment(r.currentPeriodEnd).format("MMM D, YYYY")}). The customer keeps access until then and will not be charged again.`,
+                            confirmLabel: "Cancel at period end",
                             destructive: true,
                           },
                           () => updateSubscription({ id: r.id, path: "/cancel", onComplete: AppModal.close }),

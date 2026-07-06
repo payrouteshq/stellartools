@@ -7,7 +7,7 @@ import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { AppError, safeAction } from "@/lib/action-handler";
-import { generateResourceId, patchJSON } from "@/lib/utils";
+import { generateResourceId } from "@/lib/utils";
 import { AuthContext } from "@/types";
 import { AppContext } from "@stellartools/app-sdk";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stellartools/core";
@@ -71,7 +71,9 @@ export const putApiKey = safeAction(async (id: string, retUpdate: Partial<ApiKey
     .set({
       ...baseUpdate,
       updatedAt: new Date(),
-      ...(metadataPatch !== undefined ? { metadata: patchJSON(oldApiKey.metadata, metadataPatch) } : {}),
+      ...(metadataPatch !== undefined
+        ? { metadata: { ...(oldApiKey.metadata ?? {}), ...metadataPatch } }
+        : {}),
     })
     .where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)))
     .returning()

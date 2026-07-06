@@ -42,7 +42,7 @@ import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter, confirmAction, formatPeriod } from "../_shared";
+import { SubscriptionModalContent, SubscriptionModalFooter, SubscriptionStatusBadge, confirmAction, formatPeriod } from "../_shared";
 
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
@@ -75,23 +75,6 @@ const pricingColumns: ColumnDef<PricingRow>[] = [
   },
   { accessorKey: "total", header: "Total" },
 ];
-
-const STATUS_MAP: Record<string, { cls: string; label: string }> = {
-  active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
-  trialing: { cls: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "Trialing" },
-  past_due: { cls: "bg-orange-500/10 text-orange-700 border-orange-500/20", label: "Past due" },
-  canceled: { cls: "bg-gray-500/10 text-gray-700 border-gray-500/20", label: "Canceled" },
-  paused: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20", label: "Paused" },
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const cfg = STATUS_MAP[status] ?? STATUS_MAP.active;
-  return (
-    <Badge variant="outline" className={cn("gap-1.5", cfg.cls)}>
-      {cfg.label}
-    </Badge>
-  );
-};
 
 export default function SubscriptionDetailPage() {
   const router = useRouter();
@@ -142,6 +125,28 @@ export default function SubscriptionDetailPage() {
     },
     {
       successMsg: "Subscription updated",
+      invalidate: [
+        ["subscriptions"],
+        ...(sub ? ["subscription-events", sub.customerId] : []),
+        ["subscription-payments", subscriptionId],
+      ],
+    }
+  );
+
+  const { mutate: keepSubscription, isPending: isKeepingSubscription } = useAction(
+    async ({ onComplete = () => {} }: { onComplete?: () => void | Promise<void> }) => {
+      if (!orgContext?.token) throw new AppError("No session token");
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": orgContext.token },
+      });
+      const res = await api.put(`/subscriptions/${subscriptionId}`, { cancel_at_period_end: false });
+      if (res.isErr()) throw new AppError(res.error.message);
+      await onComplete();
+      return res.value;
+    },
+    {
+      successMsg: "Scheduled cancellation removed",
       invalidate: [
         ["subscriptions"],
         ...(sub ? ["subscription-events", sub.customerId] : []),
@@ -217,19 +222,22 @@ export default function SubscriptionDetailPage() {
                 <h1 className="text-2xl font-bold">{c?.name ?? c?.email}</h1>
                 <span className="text-muted-foreground text-sm">on</span>
                 <span className="text-lg font-semibold">{p?.name}</span>
-                <StatusBadge status={s.status} />
+                <SubscriptionStatusBadge
+                  status={s.status}
+                  cancelAtPeriodEnd={s.cancelAtPeriodEnd ?? false}
+                  currentPeriodEnd={s.currentPeriodEnd}
+                  canceledAt={s.canceledAt}
+                />
               </div>
               <div className="text-muted-foreground mt-1 flex items-center gap-4 text-sm">
                 <span>Started {formatDate(s.currentPeriodStart)}</span>
-                <span>&middot;</span>
-                <span>
-                  Next billing {Money.formatFiat(p?.priceCents ?? 0, p?.currencyCode ?? "USD")} on{" "}
-                  {formatDate(s.currentPeriodEnd)}
-                </span>
-                {s.cancelAtPeriodEnd && (
+                {!s.cancelAtPeriodEnd && s.status !== "canceled" && (
                   <>
-                    <span className="mx-1">&middot;</span>
-                    <span className="text-destructive font-medium">Cancels at period end</span>
+                    <span>&middot;</span>
+                    <span>
+                      Next billing {Money.formatFiat(p?.priceCents ?? 0, p?.currencyCode ?? "USD")} on{" "}
+                      {formatDate(s.currentPeriodEnd)}
+                    </span>
                   </>
                 )}
               </div>
@@ -245,7 +253,7 @@ export default function SubscriptionDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {["active", "trialing"].includes(s.status) && (
+                  {["active", "trialing"].includes(s.status) && !s.cancelAtPeriodEnd && (
                     <DropdownMenuItem
                       onClick={() =>
                         confirmAction(
@@ -281,16 +289,33 @@ export default function SubscriptionDetailPage() {
                       <Play className="mr-2 h-4 w-4" /> Resume
                     </DropdownMenuItem>
                   )}
-                  {s.status !== "canceled" && (
+                  {s.cancelAtPeriodEnd && s.status !== "canceled" && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Keep subscription",
+                            description:
+                              "Remove the scheduled cancellation? The subscription will renew normally at the end of the current billing period.",
+                            confirmLabel: "Keep subscription",
+                          },
+                          () => keepSubscription({ onComplete: AppModal.close }),
+                          isKeepingSubscription
+                        )
+                      }
+                    >
+                      <Play className="mr-2 h-4 w-4" /> Keep subscription
+                    </DropdownMenuItem>
+                  )}
+                  {s.status !== "canceled" && !s.cancelAtPeriodEnd && (
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() =>
                         confirmAction(
                           {
                             title: "Cancel subscription",
-                            description:
-                              "This will permanently cancel the subscription. The customer will lose access at the end of the current billing period.",
-                            confirmLabel: "Cancel subscription",
+                            description: `The subscription will cancel at the end of the current billing period (${formatDate(s.currentPeriodEnd)}). The customer keeps access until then and will not be charged again.`,
+                            confirmLabel: "Cancel at period end",
                             destructive: true,
                           },
                           () => updateSubscription({ path: "/cancel", onComplete: AppModal.close }),
