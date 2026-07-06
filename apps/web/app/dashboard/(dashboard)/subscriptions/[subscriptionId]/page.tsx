@@ -89,9 +89,9 @@ export default function SubscriptionDetailPage() {
   const sub = React.useMemo(() => allSubs?.find((s) => s.id === subscriptionId), [allSubs, subscriptionId]);
 
   const { data: subEvents, isLoading: loadingEvents } = useOrgQuery(
-    ["subscription-events", sub?.customerId],
+    ["subscription-events", subscriptionId],
     () =>
-      retrieveEvents({ customerId: sub!.customerId }, [
+      retrieveEvents({ subscriptionId }, [
         "subscription::created",
         "subscription::updated",
         "subscription::canceled",
@@ -125,11 +125,7 @@ export default function SubscriptionDetailPage() {
     },
     {
       successMsg: "Subscription updated",
-      invalidate: [
-        ["subscriptions"],
-        ...(sub ? ["subscription-events", sub.customerId] : []),
-        ["subscription-payments", subscriptionId],
-      ],
+      invalidate: [["subscriptions"], ["subscription-events", subscriptionId], ["subscription-payments", subscriptionId]],
     }
   );
 
@@ -147,11 +143,7 @@ export default function SubscriptionDetailPage() {
     },
     {
       successMsg: "Scheduled cancellation removed",
-      invalidate: [
-        ["subscriptions"],
-        ...(sub ? ["subscription-events", sub.customerId] : []),
-        ["subscription-payments", subscriptionId],
-      ],
+      invalidate: [["subscriptions"], ["subscription-events", subscriptionId], ["subscription-payments", subscriptionId]],
     }
   );
 
