@@ -98,10 +98,7 @@ export const SubscriptionStatusBadge = ({
 }) => {
   if (cancelAtPeriodEnd && status !== "canceled" && currentPeriodEnd) {
     return (
-      <Badge
-        variant="outline"
-        className="gap-1.5 border-destructive/20 bg-destructive/10 text-destructive"
-      >
+      <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive gap-1.5">
         Cancels on {moment(currentPeriodEnd).format("MMM D, YYYY")}
       </Badge>
     );
@@ -109,7 +106,7 @@ export const SubscriptionStatusBadge = ({
 
   if (status === "canceled" && canceledAt) {
     return (
-      <Badge variant="outline" className="gap-1.5 border-border bg-muted text-muted-foreground">
+      <Badge variant="outline" className="border-border bg-muted text-muted-foreground gap-1.5">
         Canceled on {moment(canceledAt).format("MMM D, YYYY")}
       </Badge>
     );
@@ -146,10 +143,7 @@ export function confirmAction(
   });
 }
 
-export function openCreateSubscriptionInfoModal(options?: {
-  onPrimaryClick?: () => void;
-  primaryLabel?: string;
-}) {
+export function openCreateSubscriptionInfoModal(options?: { onPrimaryClick?: () => void; primaryLabel?: string }) {
   AppModal.open({
     title: "Create subscription",
     description: "Subscriptions are created through checkout.",

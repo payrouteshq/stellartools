@@ -7,6 +7,7 @@ import { retrieveEvents } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
 import { retrieveProducts } from "@/actions/product";
 import { CustomerModalContent, DeleteCustomerModalContent } from "@/app/dashboard/(dashboard)/customers/_shared";
+import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2, Stellar } from "@/components/icon";
@@ -43,6 +44,7 @@ import {
   SelectField,
   Separator,
   Skeleton,
+  NumberField,
   TableAction,
   TextAreaField,
   TextField,
@@ -576,6 +578,7 @@ const checkoutSchema = z.object({
   productId: z.string().min(1, "Product required"),
   description: z.string().optional(),
   redirectUrl: z.url("Invalid URL").optional().or(z.literal("")),
+  trialDays: z.number().int().min(0).max(365).optional(),
 });
 
 function CheckoutModalFooter({
@@ -631,6 +634,7 @@ function CheckoutModalContent({
       productId: "",
       description: "",
       redirectUrl: "",
+      trialDays: undefined,
     },
   });
 
@@ -652,15 +656,24 @@ function CheckoutModalContent({
             currency: p.currencyCode,
           }).format(p.priceCents / 100);
 
+          const billingPeriod =
+            p.type === "subscription" && p.recurringPeriod
+              ? ` / ${formatPeriod(p.recurringPeriod, p.customDurationMs)}`
+              : "";
+
           return {
             value: p.id,
-            label: `${p.name} - ${price}`,
+            label: `${p.name} - ${price}${billingPeriod}`,
             type: p.type,
             recurringPeriod: p.recurringPeriod,
+            customDurationMs: p.customDurationMs,
           };
         }) ?? []
     );
   }, [productsData]);
+
+  const selectedProductId = form.watch("productId");
+  const selectedProduct = products.find((p) => p.value === selectedProductId);
 
   const { mutate: createCheckoutAction, isPending: isCreatingCheckout } = useAction(
     async (data: z.infer<typeof checkoutSchema>) => {
@@ -677,6 +690,9 @@ function CheckoutModalContent({
         description: data.description,
         redirect_url: data.redirectUrl || undefined,
         metadata: null,
+        ...(data.trialDays && data.trialDays > 0
+          ? { subscription_data: { trial_days: data.trialDays } }
+          : {}),
       });
 
       if (response.isErr()) {
@@ -749,21 +765,48 @@ function CheckoutModalContent({
         </div>
       ) : (
         <form className="space-y-4 py-4">
-          <RHF.Controller
-            control={form.control}
-            name="productId"
-            render={({ field, fieldState: { error } }) => (
-              <SelectField
-                id="productId"
-                label="Product"
-                items={products}
-                value={field.value}
-                onChange={field.onChange}
-                isLoading={isLoadingProducts}
-                error={error?.message}
-              />
+          <div className="flex flex-col gap-2">
+            <RHF.Controller
+              control={form.control}
+              name="productId"
+              render={({ field, fieldState: { error } }) => (
+                <SelectField
+                  id="productId"
+                  label="Product"
+                  items={products}
+                  value={field.value}
+                  onChange={field.onChange}
+                  isLoading={isLoadingProducts}
+                  error={error?.message}
+                />
+              )}
+            />
+
+            {selectedProduct?.type === "subscription" && (
+              <div className="animate-in fade-in slide-in-from-top-1 relative ml-3 flex items-center gap-2 pl-5">
+                <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
+                <span className="text-muted-foreground shrink-0 text-sm font-medium">Free trial</span>
+                <RHF.Controller
+                  control={form.control}
+                  name="trialDays"
+                  render={({ field, fieldState: { error } }) => (
+                    <NumberField
+                      id="trialDays"
+                      value={field.value != null ? String(field.value) : ""}
+                      onChange={(v) => {
+                        const n = v === "" ? undefined : Math.max(0, Number(v) || 0);
+                        field.onChange(n);
+                      }}
+                      placeholder="0"
+                      className="w-24"
+                      error={error?.message}
+                    />
+                  )}
+                />
+                <span className="text-muted-foreground text-sm">days</span>
+              </div>
             )}
-          />
+          </div>
           <RHF.Controller
             control={form.control}
             name="description"
