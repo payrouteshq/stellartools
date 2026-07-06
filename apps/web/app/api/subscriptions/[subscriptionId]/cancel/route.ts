@@ -22,12 +22,7 @@ export const POST = apiHandler({
     if (subscription.status === "canceled") throw new AppError("Subscription is already canceled");
     if (subscription.cancelAtPeriodEnd) throw new AppError("Subscription is already scheduled to cancel");
 
-    const result = await putSubscription(
-      subscriptionId,
-      { cancelAtPeriodEnd: true },
-      organizationId,
-      environment
-    );
+    const result = await putSubscription(subscriptionId, { cancelAtPeriodEnd: true }, organizationId, environment);
 
     return Result.ok({
       id: result.id,

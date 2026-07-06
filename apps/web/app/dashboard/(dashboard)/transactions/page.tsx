@@ -385,8 +385,7 @@ function TransactionsPageContent() {
                   status: (it.refunds?.status === "succeeded" ? "refunded" : it.status) as PaymentStatus,
                   createdAt: it.createdAt,
                   customer: it.customer!,
-                  description:
-                    it.subscriptionId && it.productId ? `Renew ${it.productId}` : (it.checkoutId ?? it.id),
+                  description: it.subscriptionId && it.productId ? `Renew ${it.productId}` : (it.checkoutId ?? it.id),
                   refundedDate: it.refunds?.createdAt ?? undefined,
                 }))}
                 enableBulkSelect={true}

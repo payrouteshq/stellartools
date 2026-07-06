@@ -265,8 +265,7 @@ export interface ParsedTxError {
   message: string;
 }
 
-export const SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE =
-  "You already have an active subscription for this product.";
+export const SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE = "You already have an active subscription for this product.";
 
 const ERROR_MESSAGES: Record<string, string> = {
   // Transaction-level codes

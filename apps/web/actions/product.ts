@@ -108,9 +108,7 @@ export const putProduct = async (id: string, orgId: string, env: Network, retUpd
       ...baseUpdate,
       ...billing,
       updatedAt: new Date(),
-      ...(metadataPatch !== undefined
-        ? { metadata: { ...(oldProduct.metadata ?? {}), ...metadataPatch } }
-        : {}),
+      ...(metadataPatch !== undefined ? { metadata: { ...(oldProduct.metadata ?? {}), ...metadataPatch } } : {}),
     })
     .where(and(eq(products.id, id), eq(products.organizationId, organizationId)))
     .returning();

@@ -41,10 +41,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  NumberField,
   SelectField,
   Separator,
   Skeleton,
-  NumberField,
   TableAction,
   TextAreaField,
   TextField,
@@ -690,9 +690,7 @@ function CheckoutModalContent({
         description: data.description,
         redirect_url: data.redirectUrl || undefined,
         metadata: null,
-        ...(data.trialDays && data.trialDays > 0
-          ? { subscription_data: { trial_days: data.trialDays } }
-          : {}),
+        ...(data.trialDays && data.trialDays > 0 ? { subscription_data: { trial_days: data.trialDays } } : {}),
       });
 
       if (response.isErr()) {

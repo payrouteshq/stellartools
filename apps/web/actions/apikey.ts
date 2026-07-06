@@ -71,9 +71,7 @@ export const putApiKey = safeAction(async (id: string, retUpdate: Partial<ApiKey
     .set({
       ...baseUpdate,
       updatedAt: new Date(),
-      ...(metadataPatch !== undefined
-        ? { metadata: { ...(oldApiKey.metadata ?? {}), ...metadataPatch } }
-        : {}),
+      ...(metadataPatch !== undefined ? { metadata: { ...(oldApiKey.metadata ?? {}), ...metadataPatch } } : {}),
     })
     .where(and(eq(apiKeys.id, id), eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)))
     .returning()

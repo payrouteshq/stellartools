@@ -23,8 +23,8 @@ import type { Column, ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, CloudUpload, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { CustomerModalContent, DeleteCustomerModalContent, ImportCsvModalContent } from "./_shared";
 import { openCreateSubscriptionInfoModal } from "../subscriptions/_shared";
+import { CustomerModalContent, DeleteCustomerModalContent, ImportCsvModalContent } from "./_shared";
 
 function SortableHeader({
   column,

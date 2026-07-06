@@ -42,7 +42,13 @@ import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter, SubscriptionStatusBadge, confirmAction, formatPeriod } from "../_shared";
+import {
+  SubscriptionModalContent,
+  SubscriptionModalFooter,
+  SubscriptionStatusBadge,
+  confirmAction,
+  formatPeriod,
+} from "../_shared";
 
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
@@ -125,7 +131,11 @@ export default function SubscriptionDetailPage() {
     },
     {
       successMsg: "Subscription updated",
-      invalidate: [["subscriptions"], ["subscription-events", subscriptionId], ["subscription-payments", subscriptionId]],
+      invalidate: [
+        ["subscriptions"],
+        ["subscription-events", subscriptionId],
+        ["subscription-payments", subscriptionId],
+      ],
     }
   );
 
@@ -143,7 +153,11 @@ export default function SubscriptionDetailPage() {
     },
     {
       successMsg: "Scheduled cancellation removed",
-      invalidate: [["subscriptions"], ["subscription-events", subscriptionId], ["subscription-payments", subscriptionId]],
+      invalidate: [
+        ["subscriptions"],
+        ["subscription-events", subscriptionId],
+        ["subscription-payments", subscriptionId],
+      ],
     }
   );
 

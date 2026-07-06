@@ -169,9 +169,7 @@ export const putCustomer = async (
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined
-            ? { metadata: { ...(oldCustomer.metadata ?? {}), ...metadataPatch } }
-            : {}),
+          ...(metadataPatch !== undefined ? { metadata: { ...(oldCustomer.metadata ?? {}), ...metadataPatch } } : {}),
         })
         .where(
           and(

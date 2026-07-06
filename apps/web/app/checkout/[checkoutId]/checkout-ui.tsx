@@ -53,6 +53,12 @@ export default function CheckoutUI() {
     ? Money.formatFiat(checkout.finalAmount, checkout.currencyCode ?? "USD")
     : null;
 
+  const trialDays = (checkout?.subscriptionData as { trial_days?: number } | null | undefined)?.trial_days ?? 0;
+  const billingPeriodLabel =
+    checkout?.productType === "subscription" && checkout.recurringPeriod
+      ? formatPeriod(checkout.recurringPeriod, checkout.customDurationMs)
+      : null;
+
   if (isLoading) return <Checkout.Skeleton />;
   if (!checkout) return notFound();
 
@@ -116,17 +122,18 @@ export default function CheckoutUI() {
                     {fiatDisplay}
                     {checkout.productType === "subscription" && checkout.recurringPeriod && (
                       <span className="text-muted-foreground ml-1 text-sm font-normal tracking-normal">
-                        {checkout.recurringPeriod === "custom" && checkout.customDurationMs
-                          ? (() => {
-                              const periodStr = formatPeriod(checkout.recurringPeriod, checkout.customDurationMs);
-                              return `/ ${periodStr}`;
-                            })()
-                          : `/ ${checkout.recurringPeriod}`}
+                        / {billingPeriodLabel}
                       </span>
                     )}
                   </div>
                 ) : (
                   <Skeleton className="h-10 w-48 rounded-md" />
+                )}
+                {trialDays > 0 && (
+                  <p className="text-sm font-medium text-background-foreground/80">
+                    {trialDays}-day free trial
+                    {billingPeriodLabel ? `, then billed every ${billingPeriodLabel.replaceAll("every ", "")}` : ""}
+                  </p>
                 )}
                 {selectedAsset && cryptoAmount && (
                   <p className="text-muted-foreground text-sm">
