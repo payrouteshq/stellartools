@@ -1,5 +1,11 @@
 # @stellartools/shared-ui
 
+## 0.0.10
+
+### Patch Changes
+
+- 83111f5: fix: strip data from core api
+
 ## 0.0.9
 
 ### Patch Changes
