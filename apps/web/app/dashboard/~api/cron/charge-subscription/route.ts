@@ -2,12 +2,13 @@ import { retrieveSupportedAssets } from "@/actions/asset";
 import { runAtomic } from "@/actions/event";
 import { postPayment, retrievePayments } from "@/actions/payment";
 import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscription";
-import { STELLAR_PRECISION } from "@/constant";
+import { STELLAR_PRECISION, subscriptionPeriodMs } from "@/constant";
 import { ResolvedSubscription } from "@/db";
 import {
   resolveMerchantSecret,
   cancelSubscription as soroban$cancelSubscription,
   chargeSubscription as soroban$chargeSubscription,
+  updateSubscriptionPeriod as soroban$updateSubscriptionPeriod,
 } from "@/integrations/soroban-contract";
 import { apiHandler } from "@/lib/api-handler";
 import { Money } from "@/lib/money";
@@ -24,7 +25,8 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     return { status: "error", subId, error: `Customer wallet ${walletAddress} or Product ${productId} not found` };
   }
 
-  const { priceCents, currencyCode } = sub.product;
+  const { priceCents, currencyCode, recurringPeriod, customDurationMs } = sub.product;
+  const billingMs = subscriptionPeriodMs(recurringPeriod, customDurationMs);
 
   try {
     // 1. HANDLE CANCELLATION
@@ -88,7 +90,22 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
 
     const amountRaw = BigInt(String(payEvent.data.amount ?? 0));
     const cryptoAmount = (Number(amountRaw) / 10 ** STELLAR_PRECISION).toFixed(STELLAR_PRECISION);
-    const nextPeriod = new Date(Number(payEvent.data.periodEnd) * 1000);
+
+    let nextPeriod: Date;
+    if (sub.status === "trialing") {
+      if (!billingMs) throw new Error("Invalid subscription billing period");
+      nextPeriod = new Date(Date.now() + billingMs);
+
+      const updateRes = await soroban$updateSubscriptionPeriod(env, {
+        customerAddress: walletAddress,
+        productId,
+        periodDurationMs: billingMs,
+        periodEnd: nextPeriod,
+      });
+      if (updateRes.isErr()) throw new Error(updateRes.error.message);
+    } else {
+      nextPeriod = new Date(Number(payEvent.data.periodEnd) * 1000);
+    }
 
     // 5. UPDATE STATE
     await runAtomic(async () => {

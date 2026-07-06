@@ -6,7 +6,7 @@ import { runAtomic } from "@/actions/event";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayment } from "@/actions/payment";
 import { postSubscriptionsBulk } from "@/actions/subscription";
-import { SENSITIVE_KEY_PREFIX, subscriptionPeriodMs } from "@/constant";
+import { MS_PER_DAY, SENSITIVE_KEY_PREFIX, subscriptionPeriodMs, trialEndAt } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import {
@@ -16,17 +16,18 @@ import {
   verifySorobanTx as soroban$verifySorobanTx,
 } from "@/integrations/soroban-contract";
 import {
+  SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
   buildPreSwapXdr,
   ensureTrustline,
   getCustomerAssetIssuers,
   getStellarConfig,
   retrieveAssetContractId,
-  SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
 } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
+import { SubscriptionData } from "@stellartools/core";
 import Big from "big.js";
 import moment from "moment";
 
@@ -163,8 +164,11 @@ export async function prepareSubscriptionApproval(
     const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
     if (!durationMs) return { error: "Invalid subscription billing period" };
 
+    const trialDays =
+      (checkout.subscriptionData as { trial_days?: number } | null)?.trial_days ??
+      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
     const periodStart = new Date();
-    const periodEnd = new Date(Date.now() + durationMs);
+    const periodEnd = trialDays > 0 ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
 
     const xdrResult = await soroban$buildSubscriptionApprovalXdr(checkout.environment, {
       customerAddress,
@@ -217,6 +221,11 @@ export async function finalizeSubscriptionCheckout(
     const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
     if (!durationMs) return { success: false, error: "Invalid subscription billing period" };
 
+    const trialDays =
+      (checkout.subscriptionData as SubscriptionData | null)?.trial_days ??
+      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
+    const hasTrial = trialDays > 0;
+
     const verifyResult = await soroban$verifySorobanTx(environment, approvalTxHash);
 
     if (verifyResult.isErr()) {
@@ -248,7 +257,7 @@ export async function finalizeSubscriptionCheckout(
       tokenContractId,
       productId,
       amountRaw,
-      durationMs,
+      durationMs: hasTrial ? trialDays * MS_PER_DAY : durationMs,
     });
 
     if (startResult.isErr()) {
@@ -257,7 +266,8 @@ export async function finalizeSubscriptionCheckout(
 
     const { hash } = startResult.value;
     const subscriptionId = generateResourceId("sub", checkout.organizationId, 20);
-    const periodEnd = new Date(Date.now() + durationMs);
+    const periodStart = new Date();
+    const periodEnd = hasTrial ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
 
     await runAtomic(async () => {
       await putCheckout(checkoutId, { status: "completed", updatedAt: new Date() }, organizationId, environment);
@@ -267,9 +277,11 @@ export async function finalizeSubscriptionCheckout(
           id: subscriptionId,
           customerId,
           productId: productId!,
-          period: { from: moment().toISOString(), to: periodEnd.toISOString() },
-          cancelAtPeriodEnd: false,
+          status: hasTrial ? "trialing" : "active",
+          period: { from: periodStart.toISOString(), to: periodEnd.toISOString() },
+          cancelAtPeriodEnd: checkout.subscriptionData?.cancel_at_period_end ?? false,
           metadata: null,
+          trialDays: hasTrial ? trialDays : 0,
           customerWalletAddress: customerAddress,
         },
         organizationId,

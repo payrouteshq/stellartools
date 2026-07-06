@@ -296,6 +296,32 @@ export const chargeSubscription = async (
   return await invokeSoroban(network, operation);
 };
 
+export const updateSubscriptionPeriod = async (
+  network: Network,
+  params: {
+    customerAddress: string;
+    productId: string;
+    periodDurationMs: number;
+    periodEnd: Date;
+  }
+) => {
+  const keeper = getKeeperKeypair();
+  const { contractId } = getSorobanConfig(network);
+  const periodDurationSeconds = Math.max(1, Math.round(params.periodDurationMs / 1000));
+  const periodEndSeconds = BigInt(Math.floor(params.periodEnd.getTime() / 1000));
+  const operation = new StellarSDK.Contract(contractId).call(
+    "update",
+    StellarSDK.nativeToScVal(params.customerAddress, { type: "address" }),
+    StellarSDK.nativeToScVal(params.productId, { type: "string" }),
+    StellarSDK.nativeToScVal("active", { type: "string" }),
+    StellarSDK.nativeToScVal(BigInt(periodDurationSeconds), { type: "u64" }),
+    StellarSDK.nativeToScVal(periodEndSeconds, { type: "u64" }),
+    StellarSDK.nativeToScVal(keeper.publicKey(), { type: "address" })
+  );
+
+  return await invokeSoroban(network, operation);
+};
+
 const merchantLifecycleCall = async (
   network: Network,
   merchantSecret: string,

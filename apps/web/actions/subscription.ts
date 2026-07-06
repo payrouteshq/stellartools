@@ -19,7 +19,7 @@ import { AppError } from "@/lib/action-handler";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
-import { and, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 export const postSubscriptionsBulk = async (
   params: {
@@ -30,12 +30,15 @@ export const postSubscriptionsBulk = async (
     cancelAtPeriodEnd: boolean;
     metadata: Record<string, unknown> | null;
     trialDays?: number;
+    status?: SubscriptionStatus;
     customerWalletAddress?: string;
   },
   orgId?: string,
   env?: Network
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
+  const trialDays = params.trialDays ?? 0;
+  const status = params.status ?? (trialDays > 0 ? "trialing" : "active");
 
   return withEvent(
     async () => {
@@ -56,7 +59,7 @@ export const postSubscriptionsBulk = async (
         id: params.id,
         customerId: params.customerId,
         productId: params.productId,
-        status: "active" as const,
+        status,
         organizationId,
         environment,
         customerWalletId: customerWalletId,
@@ -64,7 +67,7 @@ export const postSubscriptionsBulk = async (
         currentPeriodEnd: new Date(params.period.to),
         cancelAtPeriodEnd: params.cancelAtPeriodEnd,
         metadata: params.metadata,
-        trialDays: params.trialDays,
+        trialDays: trialDays > 0 ? trialDays : 0,
       };
 
       return await db.insert(subscriptions).values(values).returning();
@@ -143,6 +146,12 @@ export const retrieveDueSubscriptions = async (options?: {
         and(
           lt(subscriptions.currentPeriodEnd, new Date()),
           inArray(subscriptions.status, ["active", "past_due"]),
+          eq(subscriptions.cancelAtPeriodEnd, false)
+        ),
+        and(
+          eq(subscriptions.status, "trialing"),
+          gt(subscriptions.trialDays, 0),
+          lt(sql`${subscriptions.createdAt} + (${subscriptions.trialDays} * interval '1 day')`, new Date()),
           eq(subscriptions.cancelAtPeriodEnd, false)
         ),
         and(

@@ -76,11 +76,23 @@ export const POST = async (req: NextRequest) => {
           return Result.err(new AppError("Subscription product has an invalid billing period"));
         }
 
-        subscriptionData = {
-          period_start: moment().toISOString(),
-          period_end: moment().add(durationMs, "milliseconds").toISOString(),
-          cancel_at_period_end: false,
-        };
+        const trialDays = data.subscription_data?.trial_days ?? 0;
+        const periodStart = moment().toISOString();
+        const cancelAtPeriodEnd = data.subscription_data?.cancel_at_period_end ?? false;
+
+        subscriptionData =
+          trialDays > 0
+            ? {
+                period_start: periodStart,
+                period_end: moment().add(trialDays, "days").toISOString(),
+                cancel_at_period_end: cancelAtPeriodEnd,
+                trial_days: trialDays,
+              }
+            : {
+                period_start: periodStart,
+                period_end: moment().add(durationMs, "milliseconds").toISOString(),
+                cancel_at_period_end: cancelAtPeriodEnd,
+              };
       }
 
       const payload = {

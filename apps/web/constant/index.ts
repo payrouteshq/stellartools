@@ -25,6 +25,9 @@ export const subscriptionPeriodMs = (
   return subscriptionIntervals[recurringPeriod] * MS_PER_DAY;
 };
 
+export const trialEndAt = (from: Date, trialDays: number): Date =>
+  new Date(from.getTime() + trialDays * MS_PER_DAY);
+
 export const STELLAR_PRECISION = 7;
 
 const ALLOWED_ORIGIN_PATTERNS = [
