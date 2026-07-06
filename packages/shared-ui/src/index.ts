@@ -15,6 +15,7 @@ export * from "./components/code-block";
 export * from "./components/data-table";
 export * from "./components/date-field";
 export * from "./components/file-upload";
+export * from "./components/field-stack";
 export * from "./components/line-chart";
 export * from "./components/log";
 export * from "./components/markdown";

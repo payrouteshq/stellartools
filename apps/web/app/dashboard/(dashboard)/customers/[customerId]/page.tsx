@@ -41,6 +41,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  EmbeddedFieldRow,
+  FieldStack,
   NumberField,
   SelectField,
   Separator,
@@ -763,7 +765,7 @@ function CheckoutModalContent({
         </div>
       ) : (
         <form className="space-y-4 py-4">
-          <div className="flex flex-col gap-2">
+          <FieldStack>
             <RHF.Controller
               control={form.control}
               name="productId"
@@ -780,31 +782,28 @@ function CheckoutModalContent({
               )}
             />
 
-            {selectedProduct?.type === "subscription" && (
-              <div className="animate-in fade-in slide-in-from-top-1 relative ml-3 flex items-center gap-2 pl-5">
-                <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
-                <span className="text-muted-foreground shrink-0 text-sm font-medium">Free trial</span>
-                <RHF.Controller
-                  control={form.control}
-                  name="trialDays"
-                  render={({ field, fieldState: { error } }) => (
-                    <NumberField
-                      id="trialDays"
-                      value={field.value != null ? String(field.value) : ""}
-                      onChange={(v) => {
-                        const n = v === "" ? undefined : Math.max(0, Number(v) || 0);
-                        field.onChange(n);
-                      }}
-                      placeholder="0"
-                      className="w-24"
-                      error={error?.message}
-                    />
-                  )}
-                />
-                <span className="text-muted-foreground text-sm">days</span>
-              </div>
-            )}
-          </div>
+            <EmbeddedFieldRow when={selectedProduct?.type === "subscription"}>
+              <EmbeddedFieldRow.Label>Free trial</EmbeddedFieldRow.Label>
+              <RHF.Controller
+                control={form.control}
+                name="trialDays"
+                render={({ field, fieldState: { error } }) => (
+                  <NumberField
+                    id="trialDays"
+                    value={field.value != null ? String(field.value) : ""}
+                    onChange={(v) => {
+                      const n = v === "" ? undefined : Math.max(0, Number(v) || 0);
+                      field.onChange(n);
+                    }}
+                    placeholder="0"
+                    className="w-24"
+                    error={error?.message}
+                  />
+                )}
+              />
+              <EmbeddedFieldRow.Suffix>days</EmbeddedFieldRow.Suffix>
+            </EmbeddedFieldRow>
+          </FieldStack>
           <RHF.Controller
             control={form.control}
             name="description"
