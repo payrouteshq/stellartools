@@ -34,7 +34,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 	}
 
 	public function init_form_fields(): void {
-		$webhook_url = rest_url( 'stellartools/v1/webhook' );
+		$webhook_url = stellartools_webhook_url();
 
 		$this->form_fields = [
 

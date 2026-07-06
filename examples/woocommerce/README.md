@@ -33,7 +33,7 @@ WooCommerce → Settings → Payments → StellarTools → Manage
 - StellarTools API URL — `https://api.stellartools.dev` or `http://host.docker.internal:3000` if running the API locally
 - Webhook Signing Secret — from your StellarTools webhook
 
-Register the webhook URL shown in settings (e.g. `http://localhost:8080/wp-json/stellartools/v1/webhook`) in the StellarTools dashboard.
+Register the webhook URL shown in settings (e.g. `http://localhost:8080/index.php?rest_route=/stellartools/v1/webhook`) in the StellarTools dashboard.
 
 For webhooks to reach a local store, expose port 8080 with a tunnel (ngrok, Cloudflare, etc.) and use that public URL in the dashboard.
 

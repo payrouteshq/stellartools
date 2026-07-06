@@ -84,6 +84,12 @@ Fill in the fields highlighted below and save. Checkout amounts use your WooComm
 
 Copy the webhook URL displayed in the settings panel and add it as a new endpoint in the [StellarTools dashboard](https://dashboard.stellartools.dev/webhooks). Enable at minimum the `payment.confirmed` and `payment.failed` events.
 
+The URL uses WordPress plain-permalink REST routing:
+
+```
+https://<your-store-domain>/index.php?rest_route=/stellartools/v1/webhook
+```
+
 ## How it works
 
 Once configured, **Pay with Stellar (Crypto)** appears as a payment option on the WooCommerce checkout page.

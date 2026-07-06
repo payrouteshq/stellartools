@@ -193,7 +193,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     finalAmount,
     currencyCode: product?.currencyCode ?? checkout.currencyCode ?? organizationCurrency ?? "USD",
     productType: product?.type ?? "one_time",
-    productName: product?.name ?? "Payment",
+    productName: product?.name ?? checkout.description ?? "Payment",
     recurringPeriod: product?.recurringPeriod ?? "month",
     customerEmail: customer?.email || checkout.customerEmail,
     customerPhone: customer?.phone || checkout.customerPhone,
@@ -253,9 +253,7 @@ export const putCheckout = async (id: string, params: Partial<Checkout>, orgId?:
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined
-            ? { metadata: { ...(oldCheckout.metadata ?? {}), ...metadataPatch } }
-            : {}),
+          ...(metadataPatch !== undefined ? { metadata: { ...(oldCheckout.metadata ?? {}), ...metadataPatch } } : {}),
         })
         .where(
           and(

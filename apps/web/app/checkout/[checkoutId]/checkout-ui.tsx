@@ -103,9 +103,7 @@ export default function CheckoutUI() {
             <div className="space-y-5 p-6 sm:p-8">
               <div>
                 <p className="text-muted-foreground mb-1 text-[11px] font-bold tracking-widest uppercase">Paying for</p>
-                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  {checkout.productName || "Direct Payment"}
-                </h2>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{checkout.productName}</h2>
               </div>
               {checkout.description && (
                 <p className="text-muted-foreground text-sm leading-relaxed">{checkout.description}</p>

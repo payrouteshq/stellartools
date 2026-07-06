@@ -25,6 +25,6 @@ Requires WordPress 6.0+ and WooCommerce 8.0+.
 
 WooCommerce → Settings → Payments → StellarTools
 
-Set your API key, API URL, and webhook signing secret. Register the webhook URL from the settings page in the StellarTools dashboard.
+Set your API key, API URL, and webhook signing secret. Register the webhook URL from the settings page in the StellarTools dashboard (`/index.php?rest_route=/stellartools/v1/webhook`).
 
 See the docs for screenshots and field-by-field setup: https://docs.stellartools.dev/integrations/woocommerce
