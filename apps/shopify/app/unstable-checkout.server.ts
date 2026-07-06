@@ -25,18 +25,21 @@ export async function createStellarCheckout(body: CreateStellarCheckoutBody) {
   const amountCents = Math.round(parseFloat(amount) * 100);
 
   try {
-    const checkout = await st.checkouts.createDirect({
-      amount_cents: amountCents,
-      currency_code: currency.toUpperCase() as CurrencyCode,
-      customer_email: customer_email ?? undefined,
-      redirect_url: `${getAppUrl()}/unstable/checkout/return`,
-      description: `[DEMO] Shopify checkout`,
-      metadata: {
-        platform: "shopify",
-        shop_domain,
-        source: "unstable_checkout_ui_extension",
+    const checkout = await st.checkouts.createDirect(
+      {
+        amount_cents: amountCents,
+        currency_code: currency.toUpperCase() as CurrencyCode,
+        customer_email: customer_email ?? undefined,
+        redirect_url: `${getAppUrl()}/unstable/checkout/return`,
+        description: `[DEMO] Shopify checkout`,
+        metadata: {
+          platform: "shopify",
+          shop_domain,
+          source: "unstable_checkout_ui_extension",
+        },
       },
-    });
+      { idempotencyKey: `shopify_${shop_domain}_${amountCents}_${currency.toLowerCase()}_${customer_email ?? ""}` }
+    );
 
     await createUnstableCheckoutRecord({
       shop: shop_domain,
