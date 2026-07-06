@@ -1,5 +1,11 @@
 # @stellartools/app-sdk
 
+## 0.0.8
+
+### Patch Changes
+
+- 38c33e3: chore: remove app installations from resource type
+
 ## 0.0.7
 
 ### Patch Changes
