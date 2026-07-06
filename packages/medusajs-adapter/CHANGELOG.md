@@ -1,5 +1,13 @@
 # @stellartools/medusajs-adapter
 
+## 0.0.8
+
+### Patch Changes
+
+- 34e20d1: chore: remove app installations from resource type
+- Updated dependencies [34e20d1]
+  - @stellartools/core@0.0.8
+
 ## 0.0.7
 
 ### Patch Changes
