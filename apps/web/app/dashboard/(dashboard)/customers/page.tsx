@@ -211,15 +211,15 @@ export default function CustomersPage() {
           <div className="flex flex-col gap-6 p-6">
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold">Customers</h1>
+                <h1 className="text-2xl font-bold md:text-3xl">Customers</h1>
                 <div className="flex items-center gap-2">
                   <Button className="gap-2 shadow-none" variant="outline" onClick={openImportModal}>
                     <CloudUpload className="h-4 w-4" />
-                    Import CSV
+                    <span className="hidden md:inline">Import CSV</span>
                   </Button>
                   <Button className="gap-2 shadow-none" onClick={openCreateModal}>
                     <Plus className="h-4 w-4" />
-                    Add customer
+                    <span className="hidden md:inline">Add customer</span>
                   </Button>
                 </div>
               </div>

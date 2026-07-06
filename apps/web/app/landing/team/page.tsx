@@ -45,7 +45,7 @@ const team = [
 
 export default function TeamPage() {
   return (
-    <div className="force-light bg-background flex min-h-screen flex-col">
+    <div className="bg-background flex min-h-screen flex-col">
       <Header />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-24">

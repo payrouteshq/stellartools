@@ -30,8 +30,9 @@ export async function createStellarCheckout(body: CreateStellarCheckoutBody) {
       currency_code: currency.toUpperCase() as CurrencyCode,
       customer_email: customer_email ?? undefined,
       redirect_url: `${getAppUrl()}/unstable/checkout/return`,
-      description: `[DEMO] Shopify checkout — ${shop_domain}`,
+      description: `[DEMO] Shopify checkout`,
       metadata: {
+        platform: "shopify",
         shop_domain,
         source: "unstable_checkout_ui_extension",
       },

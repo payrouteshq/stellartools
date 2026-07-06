@@ -44,7 +44,7 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
   return (
     <DashboardSidebar>
       <DashboardSidebarInset>
-        <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+        <div className="w-full flex-1 px-5 py-8">
           <Breadcrumb className="mb-8">
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -79,7 +79,7 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
                 </div>
               )}
               <div className="min-w-0 space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">{app.name}</h1>
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{app.name}</h1>
                 <p className="text-muted-foreground max-w-xl text-base leading-relaxed">{app.tagline}</p>
               </div>
             </div>

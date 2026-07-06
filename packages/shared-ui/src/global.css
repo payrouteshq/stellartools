@@ -287,3 +287,17 @@
     color: inherit !important;
   }
 }
+
+/*
+* https://github.com/StackExchange/Stacks/pull/383/files
+*/
+@supports (-webkit-overflow-scrolling: touch) {
+  /* styles for supported browsers */
+  input {
+    font-size: 17px !important;
+    padding: 0.36em 0.55em;
+  }
+  input::-webkit-input-placeholder {
+    line-height: normal !important;
+  }
+}

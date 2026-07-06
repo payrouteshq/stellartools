@@ -4,7 +4,7 @@ import { Header } from "@/components/navbar";
 
 export default function PricingPage() {
   return (
-    <div className="force-light bg-background flex min-h-screen flex-col">
+    <div className="bg-background flex min-h-screen flex-col">
       <Header />
 
       <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-24 text-center">

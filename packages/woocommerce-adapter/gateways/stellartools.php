@@ -308,35 +308,24 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			return false;
 		}
 
-		// Format: t={unix_timestamp},v1={hmac_sha256_hex}
-		$parts     = explode( ',', $signature, 2 );
-		$timestamp = null;
-		$received  = null;
+		try {
+			$parts     = explode( ',', $signature );
+			$timestamp = (int) explode( '=', $parts[0] )[1];
+			$received  = explode( '=', $parts[1] )[1];
 
-		foreach ( $parts as $part ) {
-			$kv = explode( '=', $part, 2 );
-			if ( 2 !== count( $kv ) ) {
+			$now = time();
+
+			if ( abs( $now - $timestamp ) > 300 ) {
 				return false;
 			}
-			if ( 't' === $kv[0] ) {
-				$timestamp = (int) $kv[1];
-			} elseif ( 'v1' === $kv[0] ) {
-				$received = $kv[1];
-			}
-		}
 
-		if ( null === $timestamp || null === $received ) {
+			$signed_payload = $timestamp . '.' . $raw_body;
+			$expected       = hash_hmac( 'sha256', $signed_payload, $this->webhook_secret );
+
+			return hash_equals( $expected, $received );
+		} catch ( \Throwable $e ) {
 			return false;
 		}
-
-		if ( abs( time() - $timestamp ) > 300 ) {
-			$this->log( 'Webhook rejected: timestamp outside tolerance window.' );
-			return false;
-		}
-
-		$expected = hash_hmac( 'sha256', $timestamp . '.' . $raw_body, $this->webhook_secret );
-
-		return hash_equals( $expected, $received );
 	}
 
 	private function api_request( string $url, array $body = [] ) {
@@ -350,6 +339,9 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 				'Content-Type' => 'application/json',
 				'x-api-key'    => $this->api_key,
 				'User-Agent'   => 'StellarTools-WooCommerce/1.0',
+				'Idempotency-Key' => isset( $body['order_id'], $body['customer_email'] )
+					? 'wc_' . $body['order_id'] . '_' . md5( strtolower( trim( $body['customer_email'] ) ) )
+					: md5( wp_json_encode( $body ) ),
 			],
 			'body'        => wp_json_encode( $body ),
 		] );

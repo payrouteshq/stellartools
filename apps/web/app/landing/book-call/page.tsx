@@ -37,7 +37,7 @@ export default function BookCallPage() {
   });
 
   return (
-    <div className="force-light bg-background flex min-h-screen flex-col">
+    <div className="bg-background flex min-h-screen flex-col">
       <Header />
 
       <div className="mx-auto flex max-w-md flex-1 flex-col justify-center px-6 py-20">

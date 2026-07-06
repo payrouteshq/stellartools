@@ -355,7 +355,7 @@ export default function ProductDetailPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
+                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{product.name}</h1>
                     <Badge
                       variant="outline"
                       className={

@@ -8,7 +8,7 @@ import { VideoSection } from "@/components/video-section";
 
 export default function Home() {
   return (
-    <div className="force-light bg-background min-h-screen">
+    <div className="bg-background min-h-screen">
       <Header />
       <HeroSection />
       <VideoSection />

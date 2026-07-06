@@ -96,56 +96,104 @@ export function PluginLauncher() {
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
       if (!activePlugin?.app.baseUrl) return;
-
       if (new URL(activePlugin.app.baseUrl).origin !== event.origin) return;
-
       if (event.data.type === "stellar:data-changed") {
-        // Refresh EVERYTHING in the dashboard.
-        // Tables, stats, and headers will update to reflect the App's changes.
         queryClient.invalidateQueries();
-        // Regenerate the app token so the iframe reloads with up-to-date settings.
         setTokenRefreshKey((k) => k + 1);
       }
     };
-
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, [activePlugin?.app.baseUrl, queryClient]);
 
-  const portal = (
+  const drawerContent = (
     <>
-      <Separator
-        orientation="vertical"
-        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-35 h-full"
-      />
-
-      <div className="fixed top-1/2 -right-3 z-40 flex -translate-y-1/2 items-center gap-3 pr-3 font-sans">
-        <div className="flex flex-col items-end gap-2.5">
-          {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
-          {installations?.map((installation) => {
-            const isActive = activePlugin?.app.id === installation.app.id && isOpen;
-
-            return (
-              <Button
-                key={installation.app.id}
-                onClick={() => (isActive ? setIsOpen(false) : handleSelectApp(installation.app.id))}
-                title={installation.app.name}
-                className={cn(
-                  "border-border bg-background relative size-8 cursor-pointer overflow-hidden rounded-none border p-0 shadow-sm transition-shadow hover:shadow-md",
-                  isActive && "ring-primary shadow-md ring-2"
-                )}
-              >
+      <div className="bg-muted/30 shrink-0 border-b">
+        <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+          <div className="flex min-w-0 items-center gap-3">
+            {activePlugin?.app.iconUrl ? (
+              <div className="border-border bg-background relative h-9 w-9 shrink-0 overflow-hidden rounded-none border shadow-sm">
                 <Image
-                  src={installation.app.iconUrl as string}
-                  alt={`${installation.app.name} on StellarTools`}
+                  src={activePlugin.app.iconUrl}
+                  alt=""
                   fill
                   className="rounded-sm object-cover"
+                  draggable={false}
                   unoptimized
                 />
-              </Button>
-            );
-          })}
+              </div>
+            ) : null}
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
+                {activePlugin?.app.name ?? "Installed app"}
+              </p>
+              <p className="text-foreground truncate text-sm font-semibold tracking-tight">Integration</p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground size-10 shrink-0"
+            onClick={() => setIsOpen(false)}
+          >
+            <XIcon className="size-5" />
+          </Button>
+        </div>
+      </div>
 
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {appToken && src ? (
+          <iframe
+            src={src}
+            className="w-full border-none transition-all duration-200"
+            style={{ height: `100%` }}
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin bg-background w-full border-none"
+          />
+        ) : (
+          <div className="bg-muted/60 m-4 h-48 animate-pulse rounded-md border border-dashed" />
+        )}
+      </div>
+    </>
+  );
+
+  const renderAppIcons = (isActiveFn: (id: string) => boolean) =>
+    installations?.map((installation) => {
+      const active = isActiveFn(installation.app.id);
+      return (
+        <Button
+          key={installation.app.id}
+          onClick={() => (active ? setIsOpen(false) : handleSelectApp(installation.app.id))}
+          title={installation.app.name}
+          className={cn(
+            "border-border bg-background relative size-8 cursor-pointer overflow-hidden rounded-none border p-0 shadow-sm transition-shadow hover:shadow-md",
+            active && "ring-primary shadow-md ring-2"
+          )}
+        >
+          <Image
+            src={installation.app.iconUrl as string}
+            alt={`${installation.app.name} on StellarTools`}
+            fill
+            className="rounded-sm object-cover"
+            unoptimized
+          />
+        </Button>
+      );
+    });
+
+  const portal = (
+    <>
+      {/* Desktop: vertical separator */}
+      <Separator
+        orientation="vertical"
+        className="bg-border/70 pointer-events-none fixed inset-y-0 right-9 z-35 hidden h-full md:block"
+      />
+
+      {/* Desktop: right-side vertical icon strip */}
+      <div className="fixed top-1/2 -right-3 z-40 hidden -translate-y-1/2 items-center gap-3 pr-3 font-sans md:flex">
+        <div className="flex flex-col items-end gap-2.5">
+          {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
+          {renderAppIcons((id) => activePlugin?.app.id === id && isOpen)}
           <Button
             type="button"
             size="icon"
@@ -158,68 +206,62 @@ export function PluginLauncher() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            key="plugin-drawer"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
-            transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="bg-background border-border/80 fixed inset-y-0 right-12 z-40 flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
-            role="complementary"
-            aria-label={activePlugin?.app.name ?? "Installed app"}
+      {/* Mobile: bottom icon bar */}
+      <div className="md:hidden">
+        <div className="bg-background fixed inset-x-0 bottom-0 z-40 flex h-12 items-center justify-center gap-2.5 border-t px-4">
+          {isLoadingInstalledApps && <Spinner size={16} />}
+          {renderAppIcons((id) => activePlugin?.app.id === id && isOpen)}
+          <Button
+            type="button"
+            size="icon"
+            title="Browse marketplace"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 size-8 rounded-full border shadow-sm transition-shadow hover:shadow-md"
+            onClick={() => router.push(`/marketplace`)}
           >
-            <div className="bg-muted/30 shrink-0 border-b">
-              <div className="bg-primary h-0.5 w-full" />
-              <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-                <div className="flex min-w-0 items-center gap-3">
-                  {activePlugin?.app.iconUrl ? (
-                    <div className="border-border bg-background relative h-9 w-9 shrink-0 overflow-hidden rounded-none border shadow-sm">
-                      <Image
-                        src={activePlugin.app.iconUrl}
-                        alt=""
-                        fill
-                        className="rounded-sm object-cover"
-                        draggable={false}
-                        unoptimized
-                      />
-                    </div>
-                  ) : null}
-                  <div className="min-w-0">
-                    <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-                      {activePlugin?.app.name ?? "Installed app"}
-                    </p>
-                    <p className="text-foreground truncate text-sm font-semibold tracking-tight">Integration</p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground size-10 shrink-0"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <XIcon className="size-5" />
-                </Button>
-              </div>
-            </div>
+            <PlusIcon className="size-4" />
+          </Button>
+        </div>
+      </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {appToken && src ? (
-                <iframe
-                  src={src}
-                  className="w-full border-none transition-all duration-200"
-                  style={{ height: `100%` }}
-                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin bg-background w-full border-none"
-                />
-              ) : (
-                <div className="bg-muted/60 m-4 h-48 animate-pulse rounded-md border border-dashed" />
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Desktop drawer: slides in from right */}
+      <div className="hidden md:block">
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              key="plugin-drawer-desktop"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="bg-background border-border/80 fixed inset-y-0 right-12 z-40 flex h-full w-[min(32rem,calc(100vw-3rem))] flex-col border-l font-sans shadow-2xl"
+              role="complementary"
+              aria-label={activePlugin?.app.name ?? "Installed app"}
+            >
+              {drawerContent}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Mobile drawer: bottom sheet, slides up */}
+      <div className="md:hidden">
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              key="plugin-drawer-mobile"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%", transition: { type: "tween", ease: "easeIn", duration: 0.18 } }}
+              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              className="bg-background border-border/80 fixed inset-x-5 bottom-12 z-40 flex h-[70vh] flex-col rounded-t-2xl border border-b-0 font-sans shadow-2xl"
+              role="complementary"
+              aria-label={activePlugin?.app.name ?? "Installed app"}
+            >
+              {drawerContent}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </>
   );
 

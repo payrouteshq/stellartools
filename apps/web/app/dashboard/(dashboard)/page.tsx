@@ -111,9 +111,9 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-8 p-6 md:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-foreground text-2xl font-bold tracking-tight md:text-3xl">Overview</h1>
+                <h1 className="text-foreground text-xl font-bold tracking-tight md:text-3xl">Overview</h1>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <SelectField
                   id="period-select"
                   value={period}

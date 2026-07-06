@@ -524,11 +524,12 @@ function WebhooksPageContent() {
         <div className="mx-auto flex w-full flex-col gap-8 p-6">
           <header className="flex items-start justify-between">
             <div className="grid gap-1">
-              <h1 className="text-3xl font-bold tracking-tight">Event destinations</h1>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Event destinations</h1>
               <p className="text-muted-foreground">Stream Stellar events to your webhooks and cloud services.</p>
             </div>
             <Button className="gap-2" onClick={openCreateModal}>
-              <Plus className="size-4" /> Add destination
+              <Plus className="size-4" />
+              <span className="hidden md:inline">Add destination</span>
             </Button>
           </header>
 

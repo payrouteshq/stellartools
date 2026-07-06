@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!currentOrg) redirect(`/select-organization?next=${url}`);
 
   return (
-    <div className="mr-12">
+    <div className="md:mr-12">
       {children}
       <MainnetReadinessModal />
       <PluginLauncher />

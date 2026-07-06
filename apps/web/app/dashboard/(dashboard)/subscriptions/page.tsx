@@ -176,9 +176,10 @@ export default function SubscriptionsPage() {
       <DashboardSidebarInset>
         <div className="flex flex-col gap-6 p-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Subscriptions</h1>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Subscriptions</h1>
             <Button className="gap-2" onClick={openModal}>
-              <Plus className="h-4 w-4" /> Create subscription
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline">Create subscription</span>
             </Button>
           </div>
 

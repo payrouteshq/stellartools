@@ -39,15 +39,6 @@ function CyclingWord() {
 export function HeroSection() {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-28 pb-20 text-center">
-      <Link
-        href={GITHUB_URL}
-        target="_blank"
-        className="border-border text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium no-underline transition-colors"
-      >
-        <GitHub className="size-3.5" />
-        Open source
-      </Link>
-
       <p className="text-muted-foreground mb-5 text-[11px] font-semibold tracking-[1.6px] uppercase">
         A Payroutes company.
       </p>

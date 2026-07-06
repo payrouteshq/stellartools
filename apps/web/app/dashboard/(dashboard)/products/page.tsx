@@ -309,11 +309,12 @@ function ProductsPageContent() {
           <div className="flex flex-col gap-8 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Product catalog</h1>
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Product catalog</h1>
                 <p className="text-muted-foreground mt-1.5 text-sm">Manage and organize your product offerings</p>
               </div>
               <Button onClick={() => openCreateModal()} className="gap-2 shadow-sm">
-                <Plus className="h-4 w-4" /> Create product
+                <Plus className="h-4 w-4" />
+                <span className="hidden md:inline">Create product</span>
               </Button>
             </div>
 
@@ -334,10 +335,12 @@ function ProductsPageContent() {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="gap-2">
-                  <Download className="h-4 w-4" /> Export
+                  <Download className="h-4 w-4" />
+                  <span className="hidden md:inline">Export</span>
                 </Button>
                 <Button variant="outline" size="sm" className="gap-2">
-                  <Settings className="h-4 w-4" /> Columns
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden md:inline">Columns</span>
                 </Button>
               </div>
             </div>

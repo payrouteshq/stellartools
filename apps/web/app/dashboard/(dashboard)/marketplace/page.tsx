@@ -12,10 +12,10 @@ export default async function MarketplacePage() {
   return (
     <DashboardSidebar>
       <DashboardSidebarInset>
-        <div className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-6 py-8">
+        <div className="w-full flex-1 space-y-8 px-5 py-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">Marketplace</h1>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Marketplace</h1>
               <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
                 Connect the tools your team already uses directly to your StellarTools data. These integrations are
                 actively being built — browse what&apos;s coming and get notified at launch.

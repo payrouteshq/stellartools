@@ -274,7 +274,7 @@ export default function ApiKeysPage() {
 
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">API keys</h1>
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">API keys</h1>
               </div>
               <Link
                 target="_blank"
@@ -312,7 +312,7 @@ export default function ApiKeysPage() {
                   }
                 >
                   <Plus className="h-4 w-4" />
-                  Create secret key
+                  <span className="hidden md:inline">Create secret key</span>
                 </Button>
               </div>
 
