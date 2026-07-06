@@ -42,7 +42,6 @@ export const APP_CONFIG = {
   webhooks: { label: "Webhooks", events: [] as const },
   assets: { label: "Assets", events: [] as const },
   api_keys: { label: "API Keys", events: [] as const },
-  app_installation: { label: "App Installation", events: [] as const },
 } as const;
 
 export type AppResource = keyof typeof APP_CONFIG;
