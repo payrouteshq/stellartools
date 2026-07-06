@@ -177,9 +177,10 @@ export const verifySorobanTx = async (network: Network, hash: string) => {
 
 export const buildSubscriptionApprovalXdr = async (
   network: Network,
-  params: { customerAddress: string; tokenContractId: string; amount: bigint }
+  params: { customerAddress: string; tokenContractId: string; amount: bigint; timeoutSeconds: number }
 ) => {
   return Result.tryPromise(async () => {
+    const { customerAddress, tokenContractId, amount, timeoutSeconds } = params;
     const { server, passphrase, contractId } = getSorobanConfig(network);
     const latestLedger = await server.getLatestLedger();
     const expirationLedger = latestLedger.sequence + 2_628_000;
@@ -196,7 +197,7 @@ export const buildSubscriptionApprovalXdr = async (
     const source = await server.getAccount(params.customerAddress);
     const tx = new StellarSDK.TransactionBuilder(source, { fee: StellarSDK.BASE_FEE, networkPassphrase: passphrase })
       .addOperation(operation)
-      .setTimeout(300)
+      .setTimeout(timeoutSeconds)
       .build();
 
     const simulation = await server.simulateTransaction(tx);

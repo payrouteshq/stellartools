@@ -28,6 +28,17 @@ import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/s
 import Big from "big.js";
 import moment from "moment";
 
+/** Stellar max transaction lifetime (7 days). */
+const STELLAR_MAX_TX_TIMEOUT_SEC = 604_800;
+
+const MIN_CHECKOUT_TX_TIMEOUT_SEC = 120;
+
+function checkoutTxTimeoutSeconds(expiresAt: Date): number {
+  const remainingSec = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
+  if (remainingSec <= 0) throw new AppError("Checkout has expired");
+  return Math.min(Math.max(remainingSec, MIN_CHECKOUT_TX_TIMEOUT_SEC), STELLAR_MAX_TX_TIMEOUT_SEC);
+}
+
 export type OneTimePaymentParams = {
   checkoutId: string;
   customerPublicKey: string;
@@ -41,6 +52,9 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
 
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
   if (!checkout) return { error: "Checkout not found" };
+  if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+
+  const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
   const pub = await retrieveCheckoutPublicData(checkoutId);
   const fiatRate = pub?.fiatRates?.[checkout.currencyCode] ?? 1;
@@ -70,7 +84,7 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
 
   builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
 
-  return builder.addMemo(Memo.text(checkoutId)).setTimeout(30).build().toXDR();
+  return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };
 
 export async function prepareSubscriptionApproval(
@@ -85,8 +99,11 @@ export async function prepareSubscriptionApproval(
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
     if (!checkout) throw new AppError("Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
     if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
     if (!selectedAssetCode) return { error: "No payment asset selected" };
+
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
     const canonicalIssuer = selectedAssetIssuer;
     if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
@@ -136,6 +153,7 @@ export async function prepareSubscriptionApproval(
           neededStellarAmount,
           sendMax,
           network: checkout.environment,
+          timeoutSeconds: txTimeout,
         });
       }
     }
@@ -150,6 +168,7 @@ export async function prepareSubscriptionApproval(
       customerAddress,
       tokenContractId,
       amount: totalAllowance,
+      timeoutSeconds: txTimeout,
     });
 
     if (xdrResult.isErr()) return { error: xdrResult.error.message };
@@ -208,7 +227,8 @@ export async function finalizeSubscriptionCheckout(
       currencyCode: checkout.currencyCode ?? "USD",
       assetMetadata: asset?.metadata ?? {},
     });
-    if (amountRaw <= BigInt(0)) return { success: false, error: `Unable to price subscription in ${selectedAssetCode}` };
+    if (amountRaw <= BigInt(0))
+      return { success: false, error: `Unable to price subscription in ${selectedAssetCode}` };
 
     const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
 

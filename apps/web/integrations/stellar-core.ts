@@ -183,6 +183,7 @@ export const buildPreSwapXdr = async (params: {
   neededStellarAmount: string;
   sendMax: string;
   network: Network;
+  timeoutSeconds: number;
 }): Promise<string> => {
   const {
     customerPublicKey,
@@ -193,6 +194,7 @@ export const buildPreSwapXdr = async (params: {
     neededStellarAmount,
     sendMax,
     network,
+    timeoutSeconds,
   } = params;
   const { server, passphrase } = getStellarConfig(network);
   const account = await server.loadAccount(customerPublicKey);
@@ -218,7 +220,7 @@ export const buildPreSwapXdr = async (params: {
         path: [],
       })
     )
-    .setTimeout(30)
+    .setTimeout(timeoutSeconds)
     .build();
 
   return tx.toXDR();
