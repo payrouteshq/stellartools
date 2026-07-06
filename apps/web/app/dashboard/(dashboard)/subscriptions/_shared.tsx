@@ -146,6 +146,36 @@ export function confirmAction(
   });
 }
 
+export function openCreateSubscriptionInfoModal(options?: {
+  onPrimaryClick?: () => void;
+  primaryLabel?: string;
+}) {
+  AppModal.open({
+    title: "Create subscription",
+    description: "Subscriptions are created through checkout.",
+    size: "small",
+    showCloseButton: true,
+    content: (
+      <div className="text-muted-foreground space-y-3 text-sm">
+        <p>To start a subscription:</p>
+        <ol className="list-decimal space-y-1.5 pl-4">
+          <li>Create a recurring product in Products.</li>
+          <li>Open a customer and create a checkout for that product.</li>
+        </ol>
+        <p>The subscription is created automatically when the customer pays.</p>
+      </div>
+    ),
+    primaryButton: {
+      children: options?.primaryLabel ?? "Go to products",
+      onClick: () => {
+        AppModal.close();
+        options?.onPrimaryClick?.();
+      },
+    },
+    secondaryButton: { children: "Close" },
+  });
+}
+
 const subscriptionFormSchema = z.object({
   customerId: z.string().min(1, "Select a customer"),
   productId: z.string().min(1, "Select an item"),
@@ -629,14 +659,14 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
   );
 }
 
-export function SubscriptionModalFooter({ onClose, submitRef, isPending }: any) {
+export function SubscriptionModalFooter({ onClose, submitRef, isPending, isEditMode }: any) {
   return (
     <div className="flex w-full justify-end gap-3">
       <Button variant="outline" onClick={onClose} disabled={isPending}>
         Cancel
       </Button>
       <Button onClick={() => submitRef.current?.()} isLoading={isPending}>
-        Save Subscription
+        {isEditMode ? "Save changes" : "Save subscription"}
       </Button>
     </div>
   );

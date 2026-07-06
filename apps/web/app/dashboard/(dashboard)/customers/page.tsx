@@ -24,6 +24,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, CloudUpload, Plus } from "lucide-react
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { CustomerModalContent, DeleteCustomerModalContent, ImportCsvModalContent } from "./_shared";
+import { openCreateSubscriptionInfoModal } from "../subscriptions/_shared";
 
 function SortableHeader({
   column,
@@ -191,9 +192,11 @@ export default function CustomersPage() {
     },
     {
       label: "Create subscription",
-      onClick: (customer) => {
-        console.log("Create subscription for:", customer);
-      },
+      onClick: (customer) =>
+        openCreateSubscriptionInfoModal({
+          primaryLabel: "Create checkout",
+          onPrimaryClick: () => router.push(`/customers/${customer.id}`),
+        }),
     },
     {
       label: "Delete customer",

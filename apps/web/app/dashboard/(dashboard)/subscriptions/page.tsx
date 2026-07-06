@@ -7,7 +7,7 @@ import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { subscriptionStatusEnum } from "@/constant/schema.client";
 import { useAction } from "@/hooks/use-action";
-import { useInvalidateOrgQuery, useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
@@ -19,22 +19,18 @@ import moment from "moment";
 import { useRouter } from "next/navigation";
 
 import {
-  SubscriptionModalContent,
-  SubscriptionModalFooter,
   SubscriptionRowEsquee,
   SubscriptionStatusBadge,
   confirmAction,
   formatPeriod,
+  openCreateSubscriptionInfoModal,
 } from "./_shared";
 
 export default function SubscriptionsPage() {
   const router = useRouter();
-  const invalidate = useInvalidateOrgQuery();
   const { data: orgContext } = useOrgContext();
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
-  const submitRef = React.useRef<(() => void) | null>(null);
-  const [footerState, setFooterState] = React.useState({ isPending: false });
 
   const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
     async ({
@@ -173,25 +169,7 @@ export default function SubscriptionsPage() {
     },
   ];
 
-  const openModal = () =>
-    AppModal.open({
-      title: "Create subscription",
-      size: "full",
-      showCloseButton: true,
-      content: (
-        <SubscriptionModalContent
-          onSuccess={() => {
-            invalidate(["subscriptions"]);
-            AppModal.close();
-          }}
-          setSubmitRef={submitRef}
-          onFooterChange={setFooterState}
-        />
-      ),
-      footer: (
-        <SubscriptionModalFooter onClose={AppModal.close} submitRef={submitRef} isPending={footerState.isPending} />
-      ),
-    });
+  const openModal = () => openCreateSubscriptionInfoModal({ onPrimaryClick: () => router.push("/products") });
 
   return (
     <DashboardSidebar>
