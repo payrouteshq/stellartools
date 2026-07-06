@@ -1,8 +1,18 @@
 import { putPayment, retrievePayments } from "@/actions/payment";
 import { Network } from "@/db";
 import { retrieveTransaction } from "@/integrations/stellar-core";
+import { ApiListParams } from "@/types";
 
-export async function resolvePublicPayments(orgId: string, env: Network, filters: any) {
+export async function resolvePublicPayments(
+  orgId: string,
+  env: Network,
+  filters?: {
+    customerId?: string;
+    paymentId?: string;
+    subscriptionId?: string;
+    publicAccess?: boolean;
+  } & ApiListParams
+) {
   const { data: rawPayments, has_more } = await retrievePayments(orgId, env, filters, {
     withCustomer: true,
     withWallets: true,
