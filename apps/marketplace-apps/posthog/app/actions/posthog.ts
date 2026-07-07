@@ -1,6 +1,6 @@
 "use server";
 
-import { deleteCohort as dbDeleteCohort, upsertCohort, Cohort, FilterOp } from "@/app/actions/db";
+import { Cohort, FilterOp, deleteCohort as dbDeleteCohort, upsertCohort } from "@/app/actions/db";
 import { Primitive, StellarTools } from "@stellartools/core";
 
 export type PostHogProject = { id: number; name: string };
@@ -87,14 +87,16 @@ export async function validateAndConnect(
   const posthogHost = new URL(valid.url).origin;
 
   const st = new StellarTools({ api_key: appToken });
-  const result = await st.appInstallations.updateSettings({
-    posthogProjectToken: projectApiKey,
-    posthogPersonalApiKey: personalApiKey,
-    posthogProjectId: projectId,
-    posthogHost,
-  });
+  const result = await st.appInstallations
+    .updateSettings({
+      posthogProjectToken: projectApiKey,
+      posthogPersonalApiKey: personalApiKey,
+      posthogProjectId: projectId,
+      posthogHost,
+    })
+    .catch((error) => error.message);
 
-  return result?.error ?? true;
+  return result ?? true;
 }
 
 export async function logout(appToken: string): Promise<void> {
@@ -148,4 +150,3 @@ export async function deleteCohort(id: string, posthogCohortId: string | null, s
   }
   await dbDeleteCohort(id);
 }
-

@@ -40,8 +40,6 @@ export const validateApiKeyAndConnect = async (
     .catch((error) => error.message);
 
   return result ?? true;
-
-  return true;
 };
 
 export const updateSettings = async (appToken: string, patch: Record<string, Primitive>): Promise<void> => {
