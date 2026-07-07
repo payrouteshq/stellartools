@@ -1,0 +1,16 @@
+api_version = "2025-10"
+uid = "c79baa01-f2f6-ffa4-e895-c9dd38378d6d74d5d85d"
+
+# UNSTABLE — demo-only product page button.
+# Delete this extension (extensions/stellar-pay-product-button/) along with
+# unstable.checkout.create-stellar.tsx and unstable.checkout.return.tsx
+# once Shopify grants Payments Partner access.
+#
+# This is a Theme App Extension — works on ALL Shopify plans (no Plus required).
+# Merchants add the "Stellar Pay Button" block to their product section via the
+# theme editor (Online Store → Themes → Customize → product page → add app block).
+
+[[extensions]]
+type = "theme"
+name = "Stellar Pay Button"
+handle = "stellar-pay-product-button"

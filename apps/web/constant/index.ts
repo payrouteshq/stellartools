@@ -1,4 +1,31 @@
-export const subscriptionIntervals = { day: 1, week: 7, month: 30, year: 365 };
+import { RecurringPeriod } from "@stellartools/core";
+
+type ExplicitSubscriptionPeriod = Exclude<RecurringPeriod, "custom">;
+
+export const subscriptionIntervals: Record<ExplicitSubscriptionPeriod, number> = {
+  day: 1,
+  week: 7,
+  month: 30,
+  year: 365,
+};
+
+export const MS_PER_DAY = 86_400_000;
+
+export const subscriptionPeriodMs = (
+  recurringPeriod: RecurringPeriod | null | undefined,
+  customDurationMs?: number | null
+): number | null => {
+  if (!recurringPeriod) return null;
+
+  if (recurringPeriod === "custom") {
+    if (!customDurationMs || customDurationMs <= 0) return null;
+    return customDurationMs;
+  }
+
+  return subscriptionIntervals[recurringPeriod] * MS_PER_DAY;
+};
+
+export const trialEndAt = (from: Date, trialDays: number): Date => new Date(from.getTime() + trialDays * MS_PER_DAY);
 
 export const STELLAR_PRECISION = 7;
 

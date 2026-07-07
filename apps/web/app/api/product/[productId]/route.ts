@@ -1,4 +1,5 @@
-import { deleteProduct, putProduct } from "@/actions/product";
+import { deleteProduct, putProduct, retrieveProducts } from "@/actions/product";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, updateProductSchema } from "@stellartools/core";
@@ -6,6 +7,33 @@ import { Result, z as Schema, updateProductSchema } from "@stellartools/core";
 export const OPTIONS = createOptionsHandler();
 
 const paramsSchema = Schema.object({ productId: Schema.string() });
+
+export const GET = apiHandler({
+  auth: ["session", "apikey", "app"],
+  requiredAppScope: "read:products",
+  schema: { params: paramsSchema },
+  mcp: { name: "get_product", description: "Get a product by ID" },
+  handler: async ({ params: { productId }, auth: { organizationId, environment } }) => {
+    const [product] = await retrieveProducts(organizationId, environment, { productId });
+    if (!product) return Result.err(new AppError("Product not found"));
+    return Result.ok({
+      id: product.id,
+      name: product.name,
+      description: product.description ?? undefined,
+      images: product.images ?? [],
+      status: product.status,
+      type: product.type,
+      priceAmountCents: product.priceCents,
+      recurringPeriod: product.recurringPeriod ?? undefined,
+      customDurationMs: product.customDurationMs ?? undefined,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      metadata: product.metadata ?? {},
+      environment: product.environment,
+      unit: product.unit ?? undefined,
+    });
+  },
+});
 
 export const PUT = apiHandler({
   auth: ["session", "apikey"],
@@ -24,7 +52,22 @@ export const PUT = apiHandler({
         ...(body?.metadata && { metadata: body.metadata }),
       })
     );
-    return Result.ok(product);
+    return Result.ok({
+      id: product.id,
+      name: product.name,
+      description: product.description ?? undefined,
+      images: product.images ?? [],
+      status: product.status,
+      type: product.type,
+      priceAmountCents: product.priceCents,
+      recurringPeriod: product.recurringPeriod ?? undefined,
+      customDurationMs: product.customDurationMs ?? undefined,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      metadata: product.metadata ?? {},
+      environment: product.environment,
+      unit: product.unit ?? undefined,
+    });
   },
 });
 

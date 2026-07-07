@@ -1,15 +1,22 @@
 "use server";
 
+import { retrieveSupportedAssets } from "@/actions/asset";
 import { putCheckout, retrieveCheckoutAndCustomer, retrieveCheckoutPublicData } from "@/actions/checkout";
 import { runAtomic } from "@/actions/event";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayment } from "@/actions/payment";
 import { postSubscriptionsBulk } from "@/actions/subscription";
-import { SENSITIVE_KEY_PREFIX, STELLAR_PRECISION, subscriptionIntervals } from "@/constant";
+import { MS_PER_DAY, SENSITIVE_KEY_PREFIX, subscriptionPeriodMs, trialEndAt } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
-import { buildSubscriptionApprovalXdr, startSubscription, submitSorobanTx } from "@/integrations/soroban-contract";
 import {
+  buildSubscriptionApprovalXdr as soroban$buildSubscriptionApprovalXdr,
+  retrieveSubscription as soroban$retrieveSubscription,
+  startSubscription as soroban$startSubscription,
+  verifySorobanTx as soroban$verifySorobanTx,
+} from "@/integrations/soroban-contract";
+import {
+  SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
   buildPreSwapXdr,
   ensureTrustline,
   getCustomerAssetIssuers,
@@ -20,11 +27,20 @@ import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
+import { SubscriptionData } from "@stellartools/core";
 import Big from "big.js";
 import moment from "moment";
 
-const toRawUnits = (decimalAmount: string): bigint =>
-  BigInt(Math.round(Number(decimalAmount) * 10 ** STELLAR_PRECISION));
+/** Stellar max transaction lifetime (7 days). */
+const STELLAR_MAX_TX_TIMEOUT_SEC = 604_800;
+
+const MIN_CHECKOUT_TX_TIMEOUT_SEC = 120;
+
+function checkoutTxTimeoutSeconds(expiresAt: Date): number {
+  const remainingSec = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
+  if (remainingSec <= 0) throw new AppError("Checkout has expired");
+  return Math.min(Math.max(remainingSec, MIN_CHECKOUT_TX_TIMEOUT_SEC), STELLAR_MAX_TX_TIMEOUT_SEC);
+}
 
 export type OneTimePaymentParams = {
   checkoutId: string;
@@ -39,6 +55,9 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
 
   const checkout = await retrieveCheckoutAndCustomer(checkoutId);
   if (!checkout) return { error: "Checkout not found" };
+  if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+
+  const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
   const pub = await retrieveCheckoutPublicData(checkoutId);
   const fiatRate = pub?.fiatRates?.[checkout.currencyCode] ?? 1;
@@ -55,8 +74,6 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const asset = sendAssetCode === "XLM" ? Asset.native() : new Asset(sendAssetCode, sendAssetIssuer!);
   const builder = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase });
 
-  // For non-native payments, ensure the merchant's wallet has a trustline for
-  // the exact asset the customer is sending before the payment can land there.
   if (sendAssetIssuer) {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
     if (!orgSecret) throw new AppError("Merchant wallet not configured");
@@ -70,15 +87,9 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
 
   builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
 
-  return builder.addMemo(Memo.text(checkoutId)).setTimeout(30).build().toXDR();
+  return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };
 
-// ── Subscription ─────────────────────────────────────────────────────────────
-
-/**
- * Builds a prepared Soroban `approve` transaction XDR for the customer to sign.
- * Also returns a pre-swap XDR if the customer doesn't hold the canonical token yet.
- */
 export async function prepareSubscriptionApproval(
   checkoutId: string,
   customerAddress: string,
@@ -91,8 +102,11 @@ export async function prepareSubscriptionApproval(
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
     if (!checkout) throw new AppError("Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
     if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
     if (!selectedAssetCode) return { error: "No payment asset selected" };
+
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
     const canonicalIssuer = selectedAssetIssuer;
     if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
@@ -103,10 +117,15 @@ export async function prepareSubscriptionApproval(
     const fiatRate = fiatRates[checkout.currencyCode ?? "USD"] ?? 1;
     const finalAmountUsdCents = checkout.finalAmount / fiatRate;
 
-    const assetUsdPrice = await getAssetUsdPrice({ coingeckoId: selectedAssetCode.toLowerCase() });
-    const cryptoAmount = Money.calculateCryptoNeeded(finalAmountUsdCents, assetUsdPrice);
+    const [asset] = await retrieveSupportedAssets({ code: selectedAssetCode }, checkout.environment);
+    const { amountRaw } = await Money.calculateSubscriptionAmount({
+      priceCents: checkout.finalAmount,
+      currencyCode: checkout.currencyCode ?? "USD",
+      assetMetadata: asset?.metadata ?? {},
+    });
+    if (amountRaw <= BigInt(0)) return { error: `Unable to price subscription in ${selectedAssetCode}` };
+
     const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents);
-    const amountRaw = toRawUnits(cryptoAmount);
     const totalAllowance = amountRaw * BigInt(200);
 
     const tokenContractId = await retrieveAssetContractId(
@@ -137,25 +156,25 @@ export async function prepareSubscriptionApproval(
           neededStellarAmount,
           sendMax,
           network: checkout.environment,
+          timeoutSeconds: txTimeout,
         });
       }
     }
 
-    let durationDays: number = 0;
+    const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
+    if (!durationMs) return { error: "Invalid subscription billing period" };
 
-    if (checkout.recurringPeriod == "custom") {
-      durationDays = checkout.customDurationMs ? Math.round(checkout.customDurationMs / 864e5) : 0;
-    } else {
-      durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
-    }
-
+    const trialDays =
+      (checkout.subscriptionData as { trial_days?: number } | null)?.trial_days ??
+      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
     const periodStart = new Date();
-    const periodEnd = new Date(Date.now() + durationDays * 864e5);
+    const periodEnd = trialDays > 0 ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
 
-    const xdrResult = await buildSubscriptionApprovalXdr(checkout.environment, {
+    const xdrResult = await soroban$buildSubscriptionApprovalXdr(checkout.environment, {
       customerAddress,
       tokenContractId,
       amount: totalAllowance,
+      timeoutSeconds: txTimeout,
     });
 
     if (xdrResult.isErr()) return { error: xdrResult.error.message };
@@ -172,115 +191,127 @@ export async function prepareSubscriptionApproval(
   }
 }
 
-/**
- * Submits the customer-signed approval tx, calls `start` on the subscription engine,
- * then records the payment + subscription and marks the checkout complete.
- */
 export async function finalizeSubscriptionCheckout(
   checkoutId: string,
-  signedApprovalXDR: string,
+  approvalTxHash: string,
   customerAddress: string,
   selectedAssetCode: string,
   selectedAssetIssuer: string
 ): Promise<{ success: boolean; error?: string }> {
-  const checkout = await retrieveCheckoutAndCustomer(checkoutId);
-  if (!checkout) throw new AppError("Checkout not found");
+  try {
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    if (!checkout) throw new AppError("Checkout not found");
 
-  const {
-    status,
-    productType,
-    productId,
-    merchantPublicKey,
-    organizationId,
-    environment,
-    customerId,
-    subscriptionData,
-  } = checkout;
+    const { status, productType, productId, merchantPublicKey, organizationId, environment, customerId } = checkout;
 
-  if (status !== "open") return { success: false, error: "Checkout is not open" };
-  if (productType !== "subscription") return { success: false, error: "Not a subscription checkout" };
-  if (!selectedAssetCode || !productId || !merchantPublicKey || !customerId) {
-    return { success: false, error: "Missing required checkout data" };
+    if (status !== "open") return { success: false, error: "Checkout is not open" };
+    if (productType !== "subscription") return { success: false, error: "Not a subscription checkout" };
+    if (!selectedAssetCode || !productId || !merchantPublicKey || !customerId) {
+      console.error("Missing required checkout data", {
+        status,
+        productType,
+        productId,
+        merchantPublicKey,
+        customerId,
+      });
+
+      return { success: false, error: "Missing required checkout data" };
+    }
+
+    const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
+    if (!durationMs) return { success: false, error: "Invalid subscription billing period" };
+
+    const trialDays =
+      (checkout.subscriptionData as SubscriptionData | null)?.trial_days ??
+      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
+    const hasTrial = trialDays > 0;
+
+    const verifyResult = await soroban$verifySorobanTx(environment, approvalTxHash);
+
+    if (verifyResult.isErr()) {
+      return { success: false, error: `Approval not confirmed: ${verifyResult.error.message}` };
+    }
+
+    const [asset] = await retrieveSupportedAssets({ code: selectedAssetCode }, environment);
+    const { cryptoAmount, amountRaw } = await Money.calculateSubscriptionAmount({
+      priceCents: checkout.finalAmount,
+      currencyCode: checkout.currencyCode ?? "USD",
+      assetMetadata: asset?.metadata ?? {},
+    });
+    if (amountRaw <= BigInt(0))
+      return { success: false, error: `Unable to price subscription in ${selectedAssetCode}` };
+
+    const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
+
+    const existingSub = await soroban$retrieveSubscription(environment, customerAddress, productId);
+    if (existingSub.isOk()) {
+      const status = existingSub.value.status;
+      if (status === "active" || status === "paused") {
+        return { success: false, error: SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE };
+      }
+    }
+
+    const startResult = await soroban$startSubscription(environment, {
+      customerAddress,
+      merchantAddress: merchantPublicKey,
+      tokenContractId,
+      productId,
+      amountRaw,
+      durationMs: hasTrial ? trialDays * MS_PER_DAY : durationMs,
+    });
+
+    if (startResult.isErr()) {
+      return { success: false, error: startResult.error.message };
+    }
+
+    const { hash } = startResult.value;
+    const subscriptionId = generateResourceId("sub", checkout.organizationId, 20);
+    const periodStart = new Date();
+    const periodEnd = hasTrial ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
+
+    await runAtomic(async () => {
+      await putCheckout(checkoutId, { status: "completed", updatedAt: new Date() }, organizationId, environment);
+
+      await postSubscriptionsBulk(
+        {
+          id: subscriptionId,
+          customerId,
+          productId: productId!,
+          status: hasTrial ? "trialing" : "active",
+          period: { from: periodStart.toISOString(), to: periodEnd.toISOString() },
+          cancelAtPeriodEnd: checkout.subscriptionData?.cancel_at_period_end ?? false,
+          metadata: null,
+          trialDays: hasTrial ? trialDays : 0,
+          customerWalletAddress: customerAddress,
+        },
+        organizationId,
+        environment
+      );
+
+      await postPayment(
+        {
+          customerId: checkout.customerId,
+          checkoutId,
+          productId: checkout.productId ?? null,
+          amountCents: checkout.finalAmount,
+          currencyCode: checkout.currencyCode ?? "USD",
+          cryptoAmount,
+          selectedAssetCode,
+          selectedAssetIssuer,
+          transactionHash: hash,
+          status: "confirmed",
+          metadata: null,
+          subscriptionId,
+          failureReason: null,
+        },
+        organizationId,
+        environment,
+        { customerWalletAddress: customerAddress }
+      );
+    });
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message ?? "Failed to finalize subscription" };
   }
-  if (!subscriptionData?.period_start || !subscriptionData?.period_end) {
-    return { success: false, error: "Period data missing — call prepareSubscriptionApproval first" };
-  }
-
-  const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
-
-  let durationDays: number = 0;
-
-  if (checkout.recurringPeriod == "custom") {
-    durationDays = checkout.customDurationMs ? Math.round(checkout.customDurationMs / 864e5) : 0;
-  } else {
-    durationDays = subscriptionIntervals[checkout.recurringPeriod as keyof typeof subscriptionIntervals] ?? 30;
-  }
-
-  const approvalResult = await submitSorobanTx(checkout.environment, signedApprovalXDR);
-  if (approvalResult.isErr()) {
-    return { success: false, error: `Approval failed: ${approvalResult.error.message}` };
-  }
-
-  const startResult = await startSubscription(checkout.environment, process.env.KEEPER_SECRET!, {
-    customerAddress,
-    merchantAddress: merchantPublicKey,
-    tokenContractId,
-    productId,
-    amountCents: checkout.finalAmount,
-    durationSeconds: durationDays * 86400,
-  });
-
-  if (startResult.isErr()) {
-    return { success: false, error: `Subscription start failed: ${startResult.error.message}` };
-  }
-
-  const { hash } = startResult.value;
-  const subscriptionId = generateResourceId("sub", checkout.organizationId, 20);
-
-  const fiatRates = await getFiatRates();
-  const fiatRate = fiatRates[checkout.currencyCode ?? "USD"] ?? 1;
-  const finalAmountUsdCents = checkout.finalAmount / fiatRate;
-  const assetUsdPrice = await getAssetUsdPrice({ coingeckoId: selectedAssetCode.toLowerCase() });
-  const cryptoAmount = Money.calculateCryptoNeeded(finalAmountUsdCents, assetUsdPrice);
-
-  await runAtomic(async () => {
-    await putCheckout(checkoutId, { status: "completed", updatedAt: new Date() }, organizationId, environment);
-
-    await postSubscriptionsBulk(
-      {
-        id: subscriptionId,
-        customerIds: [customerId],
-        productId: productId!,
-        priceCents: checkout.finalAmount,
-        period: { from: moment().toISOString(), to: moment().add(durationDays, "days").toISOString() },
-        cancelAtPeriodEnd: false,
-        metadata: null,
-      },
-      organizationId,
-      environment
-    );
-
-    await postPayment(
-      {
-        customerId: checkout.customerId,
-        checkoutId,
-        productId: checkout.productId ?? null,
-        amountCents: checkout.finalAmount,
-        currencyCode: checkout.currencyCode ?? "USD",
-        cryptoAmount,
-        selectedAssetCode,
-        selectedAssetIssuer,
-        transactionHash: hash,
-        status: "confirmed",
-        metadata: null,
-        subscriptionId,
-        failureReason: null,
-      },
-      organizationId,
-      environment,
-      { customerWalletAddress: customerAddress }
-    );
-  });
-
-  return { success: true };
 }

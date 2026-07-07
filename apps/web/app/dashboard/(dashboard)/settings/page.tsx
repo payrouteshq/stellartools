@@ -36,7 +36,6 @@ import {
   FileUpload,
   type FileWithPreview,
   InputOTP,
-  Separator,
   InputOTPGroup,
   InputOTPSlot,
   PhoneNumber,
@@ -44,6 +43,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Separator,
   Skeleton,
   Spinner,
   Switch,
@@ -60,16 +60,8 @@ import {
   useFilePreview,
 } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Calendar,
-  Check,
-  ChevronRight,
-  ChevronsUpDown,
-  Copy,
-  ExternalLink,
-  RotateCcw,
-} from "lucide-react";
 import countryToCurrency from "country-to-currency";
+import { Calendar, Check, ChevronRight, ChevronsUpDown, Copy, ExternalLink, RotateCcw } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -252,14 +244,14 @@ const ProfileTabContent = ({ user }: { user: User }) => {
           <Separator />
 
           <div className="flex items-start justify-between gap-6">
-            <div className="space-y-0.5 min-w-0">
+            <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-semibold">Two-Factor Authentication</p>
               <p className="text-muted-foreground text-xs">
                 Add an extra layer of security by requiring a verification code from your authenticator app on each
                 sign-in.
               </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex shrink-0 items-center gap-3">
               {isTwoFactorEnabled && (
                 <Button
                   type="button"
@@ -303,7 +295,16 @@ for (const [country, currency] of Object.entries(countryToCurrency)) {
   if (!currencyToCountry[currency]) currencyToCountry[currency] = country;
 }
 // Override shared currencies with the most recognisable country
-Object.assign(currencyToCountry, { USD: "US", EUR: "EU", GBP: "GB", AUD: "AU", CAD: "CA", CHF: "CH", JPY: "JP", CNY: "CN" });
+Object.assign(currencyToCountry, {
+  USD: "US",
+  EUR: "EU",
+  GBP: "GB",
+  AUD: "AU",
+  CAD: "CA",
+  CHF: "CH",
+  JPY: "JP",
+  CNY: "CN",
+});
 
 const getCurrencyFlag = (currencyCode: string): string => {
   const country = currencyToCountry[currencyCode];
@@ -475,7 +476,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
             <Separator />
 
             <div className="flex items-center justify-between gap-6">
-              <div className="space-y-0.5 min-w-0">
+              <div className="min-w-0 space-y-0.5">
                 <p className="text-sm font-semibold">Display currency</p>
                 <p className="text-muted-foreground text-xs">
                   Used across your dashboard and shown to customers at checkout.
@@ -491,7 +492,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                     <Popover open={currencyOpen} onOpenChange={setCurrencyOpen}>
                       <PopoverTrigger asChild>
                         {isLoadingCurrencies ? (
-                          <Skeleton className="h-9 w-48 rounded-lg shrink-0" />
+                          <Skeleton className="h-9 w-48 shrink-0 rounded-lg" />
                         ) : (
                           <Button
                             type="button"
@@ -500,7 +501,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                             aria-expanded={currencyOpen}
                             className="h-9 w-52 shrink-0 justify-between gap-2 font-normal shadow-none"
                           >
-                            {flag && <span className="text-base leading-none shrink-0">{flag}</span>}
+                            {flag && <span className="shrink-0 text-base leading-none">{flag}</span>}
                             <span className="flex-1 truncate text-left">
                               {selected ? `${selected.name} (${selected.code})` : "Select currency"}
                             </span>
@@ -525,7 +526,9 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                                       setCurrencyOpen(false);
                                     }}
                                   >
-                                    {itemFlag && <span className="text-base leading-none shrink-0 mr-1">{itemFlag}</span>}
+                                    {itemFlag && (
+                                      <span className="mr-1 shrink-0 text-base leading-none">{itemFlag}</span>
+                                    )}
                                     <span className={cn("flex-1 truncate", field.value === item.code && "font-medium")}>
                                       {item.name} ({item.code})
                                     </span>
@@ -546,7 +549,7 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
             <Separator />
 
             <div className="flex items-start justify-between gap-6">
-              <div className="space-y-0.5 min-w-0">
+              <div className="min-w-0 space-y-0.5">
                 <p className="text-sm font-semibold">Receipt emails</p>
                 <p className="text-muted-foreground text-xs">
                   StellarTools sends payment receipts to customers and first-payment alerts to you. Turn this off if a
@@ -725,7 +728,6 @@ const $2faModal = ({
     </form>
   );
 };
-
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useCookieState("settings_tab", "profile");

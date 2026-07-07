@@ -9,6 +9,7 @@ import { ResolvedCustomer } from "@/db/schema";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
+import { Money } from "@/lib/money";
 import { truncate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
@@ -17,9 +18,11 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
+  AppModal,
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   Checkbox,
   DateField,
@@ -30,12 +33,142 @@ import {
   Spinner,
   TextField,
   Timeline,
+  cn,
 } from "@stellartools/shared-ui";
 import { Trash2 } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
+
+export type SubscriptionRowEsquee = {
+  id: string;
+  customer: string;
+  customerEmail: string | null | undefined;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+  product: string | null | undefined;
+  amount: number | null | undefined;
+  currencyCode: string;
+  period: string | null | undefined;
+  customDurationMs: number | null | undefined;
+  currentPeriodEnd: Date;
+  createdAt: Date;
+};
+
+export const formatPeriod = (
+  recurringPeriod: string | null | undefined,
+  customDurationMs: number | null | undefined
+): string => {
+  if (!recurringPeriod) return "";
+  if (recurringPeriod === "custom" && customDurationMs) {
+    const MS_MONTH = 2592000000,
+      MS_WEEK = 604800000,
+      MS_DAY = 86400000;
+    const qty =
+      customDurationMs % MS_MONTH === 0
+        ? customDurationMs / MS_MONTH
+        : customDurationMs % MS_WEEK === 0
+          ? customDurationMs / MS_WEEK
+          : Math.round(customDurationMs / MS_DAY);
+    const unit = customDurationMs % MS_MONTH === 0 ? "month" : customDurationMs % MS_WEEK === 0 ? "week" : "day";
+    return `every ${qty} ${unit}${qty !== 1 ? "s" : ""}`;
+  }
+  return recurringPeriod;
+};
+
+const SUBSCRIPTION_STATUS_MAP: Record<string, { cls: string; label: string }> = {
+  active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
+  trialing: { cls: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "Trialing" },
+  past_due: { cls: "bg-destructive/10 text-destructive border-destructive/20", label: "Past due" },
+  canceled: { cls: "bg-muted text-muted-foreground border-border", label: "Canceled" },
+  paused: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20", label: "Paused" },
+};
+
+export const SubscriptionStatusBadge = ({
+  status,
+  cancelAtPeriodEnd,
+  currentPeriodEnd,
+  canceledAt,
+}: {
+  status: string;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: Date | string | null;
+  canceledAt?: Date | string | null;
+}) => {
+  if (cancelAtPeriodEnd && status !== "canceled" && currentPeriodEnd) {
+    return (
+      <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive gap-1.5">
+        Cancels on {moment(currentPeriodEnd).format("MMM D, YYYY")}
+      </Badge>
+    );
+  }
+
+  if (status === "canceled" && canceledAt) {
+    return (
+      <Badge variant="outline" className="border-border bg-muted text-muted-foreground gap-1.5">
+        Canceled on {moment(canceledAt).format("MMM D, YYYY")}
+      </Badge>
+    );
+  }
+
+  const cfg = SUBSCRIPTION_STATUS_MAP[status] ?? SUBSCRIPTION_STATUS_MAP.active;
+  return (
+    <Badge variant="outline" className={cn("gap-1.5", cfg.cls)}>
+      {cfg.label}
+    </Badge>
+  );
+};
+
+export function confirmAction(
+  opts: { title: string; description: string; confirmLabel: string; destructive?: boolean },
+  onConfirm: () => void,
+  isPending: boolean
+) {
+  AppModal.open({
+    title: opts.title,
+    description: opts.description,
+    size: "small",
+    showCloseButton: true,
+    content: null,
+    primaryButton: {
+      children: opts.confirmLabel,
+      variant: opts.destructive ? "destructive" : "default",
+      onClick: () => {
+        onConfirm();
+      },
+      disabled: isPending,
+    },
+    secondaryButton: { children: "Cancel" },
+  });
+}
+
+export function openCreateSubscriptionInfoModal(options?: { onPrimaryClick?: () => void; primaryLabel?: string }) {
+  AppModal.open({
+    title: "Create subscription",
+    description: "Subscriptions are created through checkout.",
+    size: "small",
+    showCloseButton: true,
+    content: (
+      <div className="text-muted-foreground space-y-3 text-sm">
+        <p>To start a subscription:</p>
+        <ol className="list-decimal space-y-1.5 pl-4">
+          <li>Create a recurring product in Products.</li>
+          <li>Open a customer and create a checkout for that product.</li>
+        </ol>
+        <p>The subscription is created automatically when the customer pays.</p>
+      </div>
+    ),
+    primaryButton: {
+      children: options?.primaryLabel ?? "Go to products",
+      onClick: () => {
+        AppModal.close();
+        options?.onPrimaryClick?.();
+      },
+    },
+    secondaryButton: { children: "Close" },
+  });
+}
 
 const subscriptionFormSchema = z.object({
   customerId: z.string().min(1, "Select a customer"),
@@ -188,23 +321,25 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
       if (!org) throw new AppError("No organization context");
 
       const api = new ApiClient({
-        baseUrl: process.env.NEXT_PUBLIC_APP_URL!,
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token! },
       });
       const metadata = Object.fromEntries(data.metadata.filter((m) => m.key).map((m) => [m.key, m.value]));
 
       const payload = {
-        customerIds: [data.customerId],
-        productId: data.productId,
-        billStarting: trialEnabled ? data.trialEndDate : new Date(),
-        trialDays: trialEnabled ? moment(data.trialEndDate).diff(moment(), "days") + 1 : 0,
-        cancelAtPeriodEnd: data.cancelAtPeriodEnd,
+        customer_id: data.customerId,
+        product_id: data.productId,
+        trial_days: trialEnabled ? moment(data.trialEndDate).diff(moment(), "days") + 1 : 0,
+        cancel_at_period_end: data.cancelAtPeriodEnd,
         metadata: Object.keys(metadata).length ? metadata : null,
       };
 
       const res = isEditMode
-        ? await api.put(`/api/subscriptions/${editingSubscription.id}`, payload)
-        : await api.post("/api/subscriptions", payload);
+        ? await api.put(`/subscriptions/${editingSubscription.id}`, {
+            ...(Object.keys(metadata).length ? { metadata } : {}),
+            ...(data.cancelAtPeriodEnd && { cancel_at_period_end: data.cancelAtPeriodEnd }),
+          })
+        : await api.post("/subscriptions", payload);
 
       if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
@@ -225,106 +360,139 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
       <div className="space-y-6 lg:col-span-4">
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Customer</h3>
-          <RHF.Controller
-            name="customerId"
-            control={form.control}
-            render={({ field, fieldState: { error } }) => (
-              <ResourceField
-                isLoading={isLoadingCustomers}
-                items={customers?.data ?? []}
-                value={selectedCustomer || null}
-                onChange={(c) => field.onChange(c?.id ?? "")}
-                getItemTitle={(c) => c.name || c.email || ""}
-                searchFilter={(c, q) =>
-                  (c.name?.toLowerCase().includes(q.toLowerCase()) ||
-                    c.email?.toLowerCase().includes(q.toLowerCase())) ??
-                  false
-                }
-                error={error?.message}
-                renderSearchItem={(c) => (
-                  <div className="min-w-0 flex-1 p-2.5">
-                    <p className="truncate text-[13px] font-semibold">{c.name}</p>
-                    <p className="text-muted-foreground truncate text-[11px]">{c.email}</p>
-                  </div>
-                )}
-                renderSummary={(c) => (
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage className="object-cover" src={c.image ?? undefined} />
-                      <AvatarFallback>{(c.name || c.email || "?")[0].toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">{c.name}</p>
-                      <p className="text-muted-foreground text-xs">{c.email}</p>
+          {isEditMode ? (
+            <div className="bg-muted/40 border-border flex items-center gap-3 rounded-lg border px-4 py-3 opacity-70">
+              <Avatar>
+                <AvatarImage className="object-cover" src={selectedCustomer?.image ?? undefined} />
+                <AvatarFallback>
+                  {((editingSubscription?.customerName || editingSubscription?.customerEmail) ?? "?")[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm font-semibold">{editingSubscription?.customerName ?? selectedCustomer?.name}</p>
+                <p className="text-muted-foreground text-xs">
+                  {editingSubscription?.customerEmail ?? selectedCustomer?.email}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <RHF.Controller
+              name="customerId"
+              control={form.control}
+              render={({ field, fieldState: { error } }) => (
+                <ResourceField
+                  isLoading={isLoadingCustomers}
+                  items={customers?.data ?? []}
+                  value={selectedCustomer || null}
+                  onChange={(c) => field.onChange(c?.id ?? "")}
+                  getItemTitle={(c) => c.name || c.email || ""}
+                  searchFilter={(c, q) =>
+                    (c.name?.toLowerCase().includes(q.toLowerCase()) ||
+                      c.email?.toLowerCase().includes(q.toLowerCase())) ??
+                    false
+                  }
+                  error={error?.message}
+                  renderSearchItem={(c) => (
+                    <div className="min-w-0 flex-1 p-2.5">
+                      <p className="truncate text-[13px] font-semibold">{c.name}</p>
+                      <p className="text-muted-foreground truncate text-[11px]">{c.email}</p>
                     </div>
-                  </div>
-                )}
-                renderDetail={(c, h) => <CustomerDetail c={c} {...h} />}
-              />
-            )}
-          />
+                  )}
+                  renderSummary={(c) => (
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage className="object-cover" src={c.image ?? undefined} />
+                        <AvatarFallback>{(c.name || c.email || "?")[0].toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold">{c.name}</p>
+                        <p className="text-muted-foreground text-xs">{c.email}</p>
+                      </div>
+                    </div>
+                  )}
+                  renderDetail={(c, h) => <CustomerDetail c={c} {...h} />}
+                />
+              )}
+            />
+          )}
         </section>
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Items</h3>
-          <RHF.Controller
-            name="productId"
-            control={form.control}
-            render={({ field, fieldState: { error } }) => (
-              <ResourceField
-                isLoading={isLoadingProducts}
-                items={products.filter((p) => p.type === "subscription")}
-                value={selectedProduct || null}
-                onChange={(p) => field.onChange(p?.id ?? "")}
-                getItemTitle={(p) => p.name}
-                searchFilter={(p, q) => p.name.toLowerCase().includes(q.toLowerCase())}
-                error={error?.message}
-                renderSearchItem={(p) => (
-                  <div className="p-2.5">
-                    <p className="text-[13px] font-semibold">{p.name}</p>
-                    <p className="text-muted-foreground text-[11px]">
-                      $${p.priceCents.toFixed(2)} / {p.recurringPeriod}
-                    </p>
-                  </div>
-                )}
-                renderSummary={(p) => (
-                  <div>
-                    <p className="text-sm font-semibold">{p.name}</p>
-                    <p className="text-muted-foreground text-xs">
-                      $${p.priceCents.toFixed(2)} / {p.recurringPeriod}
-                    </p>
-                  </div>
-                )}
-                renderDetail={(p, h) => (
-                  <div className="space-y-4 pt-2">
-                    {h.picker}
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                          Price
-                        </Label>
-                        <p className="text-[13px]">$${p.priceCents.toFixed(2)}</p>
+          {isEditMode ? (
+            <div className="bg-muted/40 border-border rounded-lg border px-4 py-3 opacity-70">
+              <p className="text-sm font-semibold">{editingSubscription?.productName ?? selectedProduct?.name}</p>
+              {selectedProduct && (
+                <p className="text-muted-foreground text-xs">
+                  {Money.formatFiat(selectedProduct.priceCents, selectedProduct.currencyCode ?? "USD")} /{" "}
+                  {formatPeriod(selectedProduct.recurringPeriod, selectedProduct.customDurationMs)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <RHF.Controller
+              name="productId"
+              control={form.control}
+              render={({ field, fieldState: { error } }) => (
+                <ResourceField
+                  isLoading={isLoadingProducts}
+                  items={products.filter((p) => p.type === "subscription")}
+                  value={selectedProduct || null}
+                  onChange={(p) => field.onChange(p?.id ?? "")}
+                  getItemTitle={(p) => p.name}
+                  searchFilter={(p, q) => p.name.toLowerCase().includes(q.toLowerCase())}
+                  error={error?.message}
+                  renderSearchItem={(p) => (
+                    <div className="p-2.5">
+                      <p className="text-[13px] font-semibold">{p.name}</p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {Money.formatFiat(p.priceCents, p.currencyCode ?? "USD")} /{" "}
+                        {formatPeriod(p.recurringPeriod, p.customDurationMs)}
+                      </p>
+                    </div>
+                  )}
+                  renderSummary={(p) => (
+                    <div>
+                      <p className="text-sm font-semibold">{p.name}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {Money.formatFiat(p.priceCents, p.currencyCode ?? "USD")} /{" "}
+                        {formatPeriod(p.recurringPeriod, p.customDurationMs)}
+                      </p>
+                    </div>
+                  )}
+                  renderDetail={(p, h) => (
+                    <div className="space-y-4 pt-2">
+                      {h.picker}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                            Price
+                          </Label>
+                          <p className="text-[13px]">{Money.formatFiat(p.priceCents, p.currencyCode ?? "USD")}</p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+                            Billing
+                          </Label>
+                          <p className="text-[13px] capitalize">
+                            {formatPeriod(p.recurringPeriod, p.customDurationMs)}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
-                          Billing
-                        </Label>
-                        <p className="text-[13px] capitalize">{p.recurringPeriod}</p>
+                      <div className="flex justify-between border-t pt-3">
+                        <Button type="button" variant="ghost" size="sm" onClick={h.remove} className="text-destructive">
+                          Remove
+                        </Button>
+                        <Button type="button" size="sm" onClick={h.close}>
+                          Confirm
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex justify-between border-t pt-3">
-                      <Button type="button" variant="ghost" size="sm" onClick={h.remove} className="text-destructive">
-                        Remove
-                      </Button>
-                      <Button type="button" size="sm" onClick={h.close}>
-                        Confirm
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              />
-            )}
-          />
+                  )}
+                />
+              )}
+            />
+          )}
         </section>
 
         <Accordion type="multiple" defaultValue={["options"]}>
@@ -393,33 +561,37 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
                 </div>
               )}
 
-              <div className="flex items-start gap-2.5">
-                <Checkbox id="trial" checked={trialEnabled} onCheckedChange={(v) => setTrialEnabled(!!v)} />
-                <div className="space-y-1">
-                  <Label htmlFor="trial">Trial period</Label>
-                  <p className="text-muted-foreground text-sm">Free access period.</p>
-                </div>
-              </div>
-
-              {trialEnabled && (
-                <div className="space-y-4 pl-6">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-sm">{moment().format("MMM D")}</span>
-                    <span className="text-muted-foreground">→</span>
-                    <RHF.Controller
-                      name="trialEndDate"
-                      control={form.control}
-                      render={({ field }) => (
-                        <DateField
-                          id={field.name}
-                          value={field.value}
-                          onChange={field.onChange}
-                          calendarDisabled={{ before: new Date() }}
-                        />
-                      )}
-                    />
+              {!isEditMode && (
+                <>
+                  <div className="flex items-start gap-2.5">
+                    <Checkbox id="trial" checked={trialEnabled} onCheckedChange={(v) => setTrialEnabled(!!v)} />
+                    <div className="space-y-1">
+                      <Label htmlFor="trial">Trial period</Label>
+                      <p className="text-muted-foreground text-sm">Free access period.</p>
+                    </div>
                   </div>
-                </div>
+
+                  {trialEnabled && (
+                    <div className="space-y-4 pl-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-sm">{moment().format("MMM D")}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <RHF.Controller
+                          name="trialEndDate"
+                          control={form.control}
+                          render={({ field }) => (
+                            <DateField
+                              id={field.name}
+                              value={field.value}
+                              onChange={field.onChange}
+                              calendarDisabled={{ before: new Date() }}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="space-y-2">
@@ -481,14 +653,14 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
   );
 }
 
-export function SubscriptionModalFooter({ onClose, submitRef, isPending }: any) {
+export function SubscriptionModalFooter({ onClose, submitRef, isPending, isEditMode }: any) {
   return (
     <div className="flex w-full justify-end gap-3">
       <Button variant="outline" onClick={onClose} disabled={isPending}>
         Cancel
       </Button>
       <Button onClick={() => submitRef.current?.()} isLoading={isPending}>
-        Save Subscription
+        {isEditMode ? "Save changes" : "Save subscription"}
       </Button>
     </div>
   );

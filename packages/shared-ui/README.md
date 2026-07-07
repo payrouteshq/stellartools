@@ -25,7 +25,7 @@ pnpm type-check         # run tsc --noEmit
 
 ## What's included
 
-**Custom blocks** — `AppModal`, `AreaChart`, `Checklist`, `CircularProgress`, `CodeBlock`, `DataTable`, `DateField`, `FileUpload`, `LineChart`, `Log`, `Markdown`, `NumberField`, `OptionFlow`, `PhoneNumberField`, `ResourceField`, `SelectInput`, `SelectField`, `Spinner`, `TagInput`, `TextField`, `Time`, `Timeline`
+**Custom blocks** — `AppModal`, `AreaChart`, `Checklist`, `CircularProgress`, `CodeBlock`, `DataTable`, `DateField`, `EmbeddedFieldRow`, `FieldStack`, `FileUpload`, `LineChart`, `Log`, `Markdown`, `NumberField`, `OptionFlow`, `PhoneNumberField`, `ResourceField`, `SelectInput`, `SelectField`, `Spinner`, `TagInput`, `TextField`, `Time`, `Timeline`
 
 **UI primitives** — `Accordion`, `AlertDialog`, `Avatar`, `Badge`, `Breadcrumb`, `Button`, `Calendar`, `Card`, `Checkbox`, `Collapsible`, `Command`, `Dialog`, `Drawer`, `DropdownMenu`, `Input`, `InputGroup`, `InputOtp`, `Label`, `NavigationMenu`, `Popover`, `RadioGroup`, `ScrollArea`, `Select`, `Separator`, `Sheet`, `Sidebar`, `Skeleton`, `Slider`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast`, `Tooltip`
 

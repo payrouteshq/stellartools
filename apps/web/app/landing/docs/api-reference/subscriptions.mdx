@@ -115,7 +115,7 @@ curl -X PUT https://api.stellartools.dev/subscriptions/sub_01jx... \
 ### Body
 
 <ParamField body="cancel_at_period_end" type="boolean">
-  Set to `true` to schedule cancellation at the end of the current period.
+  Set to `true` to schedule cancellation at the end of the current period, or `false` to undo a scheduled cancellation.
 </ParamField>
 
 <ParamField body="metadata" type="object">
@@ -132,14 +132,16 @@ curl -X PUT https://api.stellartools.dev/subscriptions/sub_01jx... \
 
 `POST /subscriptions/{id}/cancel`
 
-Cancels immediately on-chain and sets `cancel_at_period_end` to `true`.
+Schedules the subscription to cancel at the end of the current billing period. The customer keeps access until `current_period_end`; no further renewals are charged. On-chain cancellation happens automatically when the period ends.
 
 ```bash
 curl -X POST https://api.stellartools.dev/subscriptions/sub_01jx.../cancel \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
-Returns `{ "success": true }`.
+Returns the updated subscription object with `cancel_at_period_end: true` and `status` still `active`.
+
+To undo a scheduled cancellation before the period ends, use `PUT /subscriptions/{id}` with `{ "cancel_at_period_end": false }`.
 
 ---
 

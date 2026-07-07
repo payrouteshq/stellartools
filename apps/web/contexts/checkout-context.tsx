@@ -169,6 +169,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
         )
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] }),
+    onError: (e) => toast.error(e.message || "Failed to save your details"),
   });
 
   const handleWalletPay = async () => {
@@ -201,14 +202,15 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
         const res = await wallet.signAndSubmit(new Transaction(prep.xdr, network));
         if (res?.status === "SUCCESS") {
-          await finalizeSubscriptionCheckout(
+          const result = await finalizeSubscriptionCheckout(
             checkoutId,
             res.txHash!,
             wallet.walletAddress,
             selectedAsset.code,
-            selectedAsset.canonicalIssuer!
+            selectedAsset.canonicalIssuer ?? ""
           );
-          toast.success("Subscription Active!");
+          if (!result.success) throw new AppError(result.error ?? "Subscription failed");
+          toast.success("You're all set!");
         } else {
           const reason = res?.message ?? "Subscription failed";
           toast.error(reason);

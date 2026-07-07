@@ -48,7 +48,7 @@ const StatusBadge = ({ status }: { status: PaymentStatus | "refunded" }) => {
       label: "Refunded",
     },
     failed: {
-      className: "bg-destructive/10 text-destructive-foreground border-destructive/20",
+      className: "bg-destructive/50 text-destructive-foreground border-destructive/20",
       icon: XCircle,
       label: "Failed",
     },
@@ -311,7 +311,7 @@ function TransactionsPageContent() {
           <div className="flex flex-col gap-8 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Transactions</h1>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -321,7 +321,7 @@ function TransactionsPageContent() {
                   }}
                 >
                   <Plus className="h-4 w-4" />
-                  Create refund
+                  <span className="hidden md:!inline">Create refund</span>
                 </Button>
               </div>
             </div>
@@ -385,7 +385,7 @@ function TransactionsPageContent() {
                   status: (it.refunds?.status === "succeeded" ? "refunded" : it.status) as PaymentStatus,
                   createdAt: it.createdAt,
                   customer: it.customer!,
-                  description: it.checkoutId || it.id,
+                  description: it.subscriptionId && it.productId ? `Renew ${it.productId}` : (it.checkoutId ?? it.id),
                   refundedDate: it.refunds?.createdAt ?? undefined,
                 }))}
                 enableBulkSelect={true}

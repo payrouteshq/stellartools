@@ -1,5 +1,23 @@
 # @stellartools/core
 
+## 0.0.9
+
+### Patch Changes
+
+- e9eb37a: fix: ui and more improvements
+
+## 0.0.8
+
+### Patch Changes
+
+- 34e20d1: chore: remove app installations from resource type
+
+## 0.0.7
+
+### Patch Changes
+
+- 71ddc45: chore: various improvements
+
 ## 0.0.6
 
 ### Patch Changes

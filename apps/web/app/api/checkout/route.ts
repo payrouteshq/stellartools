@@ -2,9 +2,10 @@ import { resolveAuthContext } from "@/actions/apikey";
 import { postCheckout } from "@/actions/checkout";
 import { upsertCustomer } from "@/actions/customers";
 import { retrieveProducts } from "@/actions/product";
-import { getCorsHeaders, subscriptionIntervals } from "@/constant";
+import { getCorsHeaders, subscriptionPeriodMs } from "@/constant";
 import { AppError } from "@/lib/action-handler";
 import { createOptionsHandler } from "@/lib/api-handler";
+import { toSnakeCase } from "@/lib/utils";
 import { Result, createCheckoutSchema, createDirectCheckoutSchema, validateSchema } from "@stellartools/core";
 import moment from "moment";
 import { NextRequest, NextResponse } from "next/server";
@@ -42,7 +43,7 @@ export const POST = async (req: NextRequest) => {
             processCheckout(d, "direct")
           );
 
-    return result.isOk() ? send({ data: result.value }) : send({ error: result.error.message }, 400);
+    return result.isOk() ? send(toSnakeCase(result.value)) : send({ error: result.error.message }, 400);
 
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
@@ -69,16 +70,29 @@ export const POST = async (req: NextRequest) => {
           return Result.err(new AppError("Subscription product does not have a recurring period"));
         }
 
-        const durationDays =
-          product.recurringPeriod === "custom"
-            ? Math.round((product.customDurationMs ?? 0) / 86_400_000)
-            : subscriptionIntervals[product.recurringPeriod as keyof typeof subscriptionIntervals];
+        const durationMs = subscriptionPeriodMs(product.recurringPeriod, product.customDurationMs);
 
-        subscriptionData = {
-          periodStart: moment().toISOString(),
-          periodEnd: moment().add(durationDays, "days").toISOString(),
-          cancelAtPeriodEnd: false,
-        };
+        if (!durationMs && product.type === "subscription") {
+          return Result.err(new AppError("Subscription product has an invalid billing period"));
+        }
+
+        const trialDays = data.subscription_data?.trial_days ?? 0;
+        const periodStart = moment().toISOString();
+        const cancelAtPeriodEnd = data.subscription_data?.cancel_at_period_end ?? false;
+
+        subscriptionData =
+          trialDays > 0
+            ? {
+                period_start: periodStart,
+                period_end: moment().add(trialDays, "days").toISOString(),
+                cancel_at_period_end: cancelAtPeriodEnd,
+                trial_days: trialDays,
+              }
+            : {
+                period_start: periodStart,
+                period_end: moment().add(durationMs, "milliseconds").toISOString(),
+                cancel_at_period_end: cancelAtPeriodEnd,
+              };
       }
 
       const payload = {
@@ -101,14 +115,21 @@ export const POST = async (req: NextRequest) => {
       const checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);
 
       return Result.ok({
-        ...checkout,
-        next_action: {
-          type: "redirect_to_url",
-          redirect_to_url: {
-            url: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
-            return_url: checkout.redirectUrl,
-          },
-        },
+        id: checkout.id,
+        customerId: checkout.customerId,
+        productId: checkout.productId ?? undefined,
+        amountCents: checkout.amountCents ?? undefined,
+        currencyCode: checkout.currencyCode ?? undefined,
+        description: checkout.description ?? undefined,
+        status: checkout.status,
+        paymentUrl: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/${checkout.id}`,
+        expiresAt: checkout.expiresAt,
+        createdAt: checkout.createdAt,
+        updatedAt: checkout.updatedAt,
+        metadata: checkout.metadata ?? {},
+        environment: checkout.environment,
+        redirectUrl: checkout.redirectUrl ?? undefined,
+        subscriptionData: checkout.subscriptionData ?? undefined,
       });
     }
   } catch (error) {

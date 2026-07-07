@@ -5,7 +5,6 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 
 	private string $api_key;
 	private string $webhook_secret;
-	private string $currency_code;
 	private string $api_base_url;
 	private bool   $debug_mode;
 
@@ -17,14 +16,13 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$this->method_description = 'Accept fast, low-cost cross-border payments via StellarTools hosted checkout.';
 		$this->supports           = [ 'products' ];
 
-		$this->init_form_fields();
 		$this->init_settings();
+		$this->init_form_fields();
 
 		$this->title          = $this->get_option( 'title' );
 		$this->description    = $this->get_option( 'description' );
 		$this->api_key        = $this->get_option( 'api_key', '' );
 		$this->webhook_secret = $this->get_option( 'webhook_secret', '' );
-		$this->currency_code     = $this->get_option( 'currency_code', 'USD' );
 		$this->api_base_url   = untrailingslashit( $this->get_option( 'api_base_url', 'https://api.stellartools.dev' ) );
 		$this->debug_mode     = 'yes' === $this->get_option( 'debug_mode', 'no' );
 		$this->enabled        = $this->get_option( 'enabled' );
@@ -35,67 +33,8 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		);
 	}
 
-	private function get_supported_currencies(): array {
-		$transient_key = 'stellartools_supported_currencies_' . md5( $this->api_key );
-		$cached        = get_transient( $transient_key );
-
-		if ( false !== $cached && is_array( $cached ) ) {
-			return $cached;
-		}
-
-		$fallback = [
-			'USD' => 'USD',
-			'EUR' => 'EUR',
-			'GBP' => 'GBP',
-		];
-
-		if ( empty( $this->api_key ) || empty( $this->api_base_url ) ) {
-			return $fallback;
-		}
-
-		$response = wp_remote_get(
-			$this->api_base_url . '/currencies',
-			[
-				'timeout'     => 10,
-				'httpversion' => '1.1',
-				'headers'     => [
-					'x-api-key'  => $this->api_key,
-					'User-Agent' => 'StellarTools-WooCommerce/1.0',
-				],
-			]
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return $fallback;
-		}
-
-		$http_code = wp_remote_retrieve_response_code( $response );
-		$body      = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( 200 !== $http_code || ! is_array( $body['data'] ?? null ) ) {
-			return $fallback;
-		}
-
-		$options = [];
-		foreach ( $body['data'] as $code ) {
-			$code = sanitize_text_field( (string) $code );
-			if ( $code ) {
-				$options[ $code ] = $code;
-			}
-		}
-
-		if ( empty( $options ) ) {
-			return $fallback;
-		}
-
-		set_transient( $transient_key, $options, 5 * MINUTE_IN_SECONDS );
-
-		return $options;
-	}
-
 	public function init_form_fields(): void {
-		$webhook_url    = rest_url( 'stellartools/v1/webhook' );
-		$currency_opts  = $this->get_supported_currencies();
+		$webhook_url = stellartools_webhook_url();
 
 		$this->form_fields = [
 
@@ -109,7 +48,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			'title' => [
 				'title'    => 'Payment Method Title',
 				'type'     => 'text',
-				'default'  => 'Pay with StellarTools',
+				'default'  => 'Pay with Stellar',
 				'desc_tip' => 'Label the customer sees on the checkout page.',
 			],
 
@@ -122,7 +61,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			'api_key' => [
 				'title'             => 'API Key',
 				'type'              => 'password',
-				'description'       => 'Find your API key in the <a href="https://dashboard.stellartools.dev/api-keys" target="_blank">StellarTools dashboard</a>. Test keys begin with <code>sk_test_</code>; live keys begin with <code>sk_live_</code>.',
+				'description'       => 'Find your API key in the <a href="https://dashboard.stellartools.dev/api-keys" target="_blank">StellarTools dashboard</a>.',
 				'default'           => '',
 				'custom_attributes' => [ 'required' => 'required', 'autocomplete' => 'off' ],
 			],
@@ -145,14 +84,6 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 				),
 				'default'           => '',
 				'custom_attributes' => [ 'required' => 'required', 'autocomplete' => 'off' ],
-			],
-
-			'currency_code' => [
-				'title'    => 'Payment Currency',
-				'type'     => 'select',
-				'desc_tip' => 'The fiat currency customers will pay in.',
-				'default'  => 'USD',
-				'options'  => $currency_opts,
 			],
 
 			'order_status_on_payment' => [
@@ -196,7 +127,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 
 		$body = [
 			'amount_cents'  => (int) round( (float) $order->get_total() * 100 ),
-			'currency_code' => $this->currency_code,
+			'currency_code' => $order->get_currency(),
 			'redirect_url'  => $this->get_return_url( $order ),
 			'description'   => "Order #{$order->get_order_number()}",
 			'metadata'      => [
@@ -207,16 +138,21 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 
 		$billing_email = $order->get_billing_email();
 		$billing_phone = $order->get_billing_phone();
-		$billing_name  = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+		$first_name    = $order->get_billing_first_name();
+		$last_name     = $order->get_billing_last_name();
+
+		if ( $first_name ) {
+			$body['metadata']['billing_first_name'] = $first_name;
+		}
+		if ( $last_name ) {
+			$body['metadata']['billing_last_name'] = $last_name;
+		}
 
 		if ( $billing_email ) {
 			$body['customer_email'] = $billing_email;
 		}
 		if ( $billing_phone ) {
 			$body['customer_phone'] = $billing_phone;
-		}
-		if ( $billing_name ) {
-			$body['customer_name'] = $billing_name;
 		}
 
 		$response = $this->api_request( $this->api_base_url . '/checkout?type=direct', $body );
@@ -233,16 +169,15 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$result    = json_decode( $body_raw, true );
 
 		if ( 200 !== $http_code || ! is_array( $result ) ) {
-			$error_msg = isset( $result['error'] ) ? (string) $result['error'] : "HTTP {$http_code}";
+			$error_msg = is_array( $result ) && isset( $result['error'] ) ? (string) $result['error'] : "HTTP {$http_code}";
 			$this->log( "API error ({$http_code}): {$error_msg} | body: {$body_raw}" );
 			wc_add_notice( 'Payment could not be initiated. Please try again.', 'error' );
 			$order->update_status( 'failed', "StellarTools error: {$error_msg}" );
 			return [ 'result' => 'failure' ];
 		}
 
-		$checkout_data = $result['data'] ?? null;
-		$checkout_id   = $checkout_data['id'] ?? null;
-		$redirect_url  = $checkout_data['next_action']['redirect_to_url']['url'] ?? $checkout_data['payment_url'] ?? null;
+		$checkout_id  = $result['id'] ?? null;
+		$redirect_url = $result['payment_url'] ?? null;
 
 		if ( ! $checkout_id || ! $redirect_url ) {
 			$this->log( 'Unexpected API response shape: ' . $body_raw );
@@ -279,6 +214,10 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			return [ 'status' => 400, 'body' => [ 'error' => 'Invalid payload' ] ];
 		}
 
+		if ( ! $event_type ) {
+			$event_type = sanitize_text_field( $payload['type'] ?? '' );
+		}
+
 		if ( 'payment.confirmed' === $event_type ) {
 			$this->handle_payment_confirmed( $payload );
 		} elseif ( 'payment.failed' === $event_type ) {
@@ -299,7 +238,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			return;
 		}
 
-		$obj              = $payload['data']['data']['object'] ?? [];
+		$obj = $this->webhook_object( $payload );
 		$payment_id       = sanitize_text_field( $obj['id'] ?? '' );
 		$transaction_hash = sanitize_text_field( $obj['transaction_hash'] ?? '' );
 		$amount_paid      = sanitize_text_field( (string) ( $obj['amount'] ?? '' ) );
@@ -328,8 +267,13 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 		$this->log( "Order #{$order->get_id()} marked failed via payment.failed." );
 	}
 
+	private function webhook_object( array $payload ): array {
+		$obj = $payload['data']['object'] ?? [];
+		return is_array( $obj ) ? $obj : [];
+	}
+
 	private function resolve_order_from_payload( array $payload ): ?WC_Order {
-		$obj = $payload['data']['data']['object'] ?? [];
+		$obj = $this->webhook_object( $payload );
 
 		$order_id = $obj['metadata']['wc_order_id'] ?? null;
 		if ( $order_id ) {
@@ -364,35 +308,24 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			return false;
 		}
 
-		// Format: t={unix_timestamp},v1={hmac_sha256_hex}
-		$parts     = explode( ',', $signature, 2 );
-		$timestamp = null;
-		$received  = null;
+		try {
+			$parts     = explode( ',', $signature );
+			$timestamp = (int) explode( '=', $parts[0] )[1];
+			$received  = explode( '=', $parts[1] )[1];
 
-		foreach ( $parts as $part ) {
-			$kv = explode( '=', $part, 2 );
-			if ( 2 !== count( $kv ) ) {
+			$now = time();
+
+			if ( abs( $now - $timestamp ) > 300 ) {
 				return false;
 			}
-			if ( 't' === $kv[0] ) {
-				$timestamp = (int) $kv[1];
-			} elseif ( 'v1' === $kv[0] ) {
-				$received = $kv[1];
-			}
-		}
 
-		if ( null === $timestamp || null === $received ) {
+			$signed_payload = $timestamp . '.' . $raw_body;
+			$expected       = hash_hmac( 'sha256', $signed_payload, $this->webhook_secret );
+
+			return hash_equals( $expected, $received );
+		} catch ( \Throwable $e ) {
 			return false;
 		}
-
-		if ( abs( time() - $timestamp ) > 300 ) {
-			$this->log( 'Webhook rejected: timestamp outside tolerance window.' );
-			return false;
-		}
-
-		$expected = hash_hmac( 'sha256', $timestamp . '.' . $raw_body, $this->webhook_secret );
-
-		return hash_equals( $expected, $received );
 	}
 
 	private function api_request( string $url, array $body = [] ) {
@@ -406,6 +339,9 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 				'Content-Type' => 'application/json',
 				'x-api-key'    => $this->api_key,
 				'User-Agent'   => 'StellarTools-WooCommerce/1.0',
+				'Idempotency-Key' => isset( $body['order_id'], $body['customer_email'] )
+					? 'wc_' . $body['order_id'] . '_' . md5( strtolower( trim( $body['customer_email'] ) ) )
+					: md5( wp_json_encode( $body ) ),
 			],
 			'body'        => wp_json_encode( $body ),
 		] );

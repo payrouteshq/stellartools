@@ -12,7 +12,8 @@ import {
   listCustomersSchema,
   updateCustomerSchema,
 } from "../schema/customer";
-import { unwrap, validateSchema } from "../utils";
+import { RequestOptions } from "../types";
+import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
 
 export class CustomerApi {
   private apiClient: ApiClient;
@@ -23,42 +24,46 @@ export class CustomerApi {
     this.portal = new CustomerPortalApi(apiClient);
   }
 
-  async create(params: CreateCustomer) {
+  async create(params: CreateCustomer, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(createCustomerSchema, params), async (data) => {
-        return await this.apiClient.post<Customer>("/customers", [data]);
+        return await this.apiClient.post<Customer>("/customers", [data], mapOptionsToHeaders(options));
       })
     );
   }
 
-  async list(params?: ListCustomers) {
+  async list(params?: ListCustomers, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(listCustomersSchema.optional(), params), async (data) => {
-        return await this.apiClient.get<Array<Customer>>(`/customers?${new URLSearchParams(data).toString()}`);
+        return await this.apiClient.get<Array<Customer>>(
+          `/customers?${new URLSearchParams(data).toString()}`,
+          undefined,
+          mapOptionsToHeaders(options)
+        );
       })
     );
   }
 
-  async retrieve(id: string) {
+  async retrieve(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.get<Customer>(`/customers/${id}`);
+        return await this.apiClient.get<Customer>(`/customers/${id}`, undefined, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async update(id: string, params: UpdateCustomer) {
+  async update(id: string, params: UpdateCustomer, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(updateCustomerSchema, params), async (data) => {
-        return await this.apiClient.put<Customer>(`/customers/${id}`, data);
+        return await this.apiClient.put<Customer>(`/customers/${id}`, data, mapOptionsToHeaders(options));
       })
     );
   }
 
-  async delete(id: string) {
+  async delete(id: string, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.delete<Customer>(`/customers/${id}`);
+        return await this.apiClient.delete<Customer>(`/customers/${id}`, mapOptionsToHeaders(options));
       })
     );
   }
@@ -67,7 +72,13 @@ export class CustomerApi {
 export class CustomerPortalApi {
   constructor(private apiClient: ApiClient) {}
 
-  async create(customerId: string): Promise<CustomerPortal> {
-    return unwrap(await this.apiClient.post<CustomerPortal>(`/customers/${customerId}/portal`));
+  async create(customerId: string, options?: RequestOptions): Promise<CustomerPortal> {
+    return unwrap(
+      await this.apiClient.post<CustomerPortal>(
+        `/customers/${customerId}/portal`,
+        undefined,
+        mapOptionsToHeaders(options)
+      )
+    );
   }
 }

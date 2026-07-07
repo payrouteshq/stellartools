@@ -142,7 +142,7 @@ export function InvoiceUI({ resolvedPayment }: InvoiceUIProps) {
       </div>
 
       <a
-        href="https://stellartools.dev"
+        href={process.env.NEXT_PUBLIC_APP_URL!}
         target="_blank"
         rel="noopener noreferrer"
         className="text-muted-foreground hover:text-foreground mt-8 flex items-center gap-1.5 text-sm transition-colors"

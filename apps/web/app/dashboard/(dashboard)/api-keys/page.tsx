@@ -130,7 +130,7 @@ export default function ApiKeysPage() {
             variant="outline"
             className={
               isRevoked
-                ? "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400"
+                ? "border-destructive bg-destructive/10 text-destructive"
                 : "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400"
             }
           >
@@ -274,7 +274,7 @@ export default function ApiKeysPage() {
 
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">API keys</h1>
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">API keys</h1>
               </div>
               <Link
                 target="_blank"
@@ -312,7 +312,7 @@ export default function ApiKeysPage() {
                   }
                 >
                   <Plus className="h-4 w-4" />
-                  Create secret key
+                  <span className="hidden md:!inline">Create secret key</span>
                 </Button>
               </div>
 
@@ -471,15 +471,9 @@ function ApiKeyModalContent({
             Copy your API key now — you won't be able to see it again.
           </p>
           <div className="border-border bg-muted/50 flex min-w-0 items-center gap-2 rounded-md border px-3 py-2">
-            <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm whitespace-nowrap">
-              {createdApiKey}
-            </code>
+            <code className="min-w-0 flex-1 overflow-x-auto font-mono text-sm whitespace-nowrap">{createdApiKey}</code>
             <Button type="button" variant="ghost" size="icon" onClick={handleCopyKey} className="h-8 w-8 shrink-0">
-              {copied ? (
-                <CheckMark2 width={16} height={16} className="text-green-600" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
+              {copied ? <CheckMark2 width={16} height={16} className="text-green-600" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
         </div>

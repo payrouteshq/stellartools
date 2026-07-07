@@ -1,5 +1,35 @@
 # @stellartools/app-sdk
 
+## 0.0.10
+
+### Patch Changes
+
+- 83111f5: fix: strip data from core api
+
+## 0.0.9
+
+### Patch Changes
+
+- e9eb37a: fix: ui and more improvements
+- Updated dependencies [e9eb37a]
+  - @stellartools/core@0.0.9
+
+## 0.0.8
+
+### Patch Changes
+
+- 34e20d1: chore: remove app installations from resource type
+- Updated dependencies [34e20d1]
+  - @stellartools/core@0.0.8
+
+## 0.0.7
+
+### Patch Changes
+
+- 71ddc45: chore: various improvements
+- Updated dependencies [71ddc45]
+  - @stellartools/core@0.0.7
+
 ## 0.0.6
 
 ### Patch Changes

@@ -346,6 +346,7 @@ function WebhooksPageContent() {
     select: (data) => {
       return data.map((webhook) => ({
         ...webhook,
+        is_disabled: webhook.isDisabled,
         eventCount: webhook.events.length,
         eventsFrom: "account" as const,
         activity: normalizeTimeSeries(webhook.hourlyActivity ?? [], 24, "hour"),
@@ -358,7 +359,7 @@ function WebhooksPageContent() {
   const { mutate: toggleWebhookDisabledAction, isPending: isTogglingWebhookDisabled } = useAction(
     async ({ id, isDisabled }: { id: string; isDisabled: boolean }) => {
       if (!org?.token) throw new AppError("No session token");
-      const result = await api.put(`/webhooks/${id}`, { isDisabled }, { "x-session-token": org.token });
+      const result = await api.put(`/webhooks/${id}`, { is_disabled: isDisabled }, { "x-session-token": org.token });
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
@@ -523,11 +524,12 @@ function WebhooksPageContent() {
         <div className="mx-auto flex w-full flex-col gap-8 p-6">
           <header className="flex items-start justify-between">
             <div className="grid gap-1">
-              <h1 className="text-3xl font-bold tracking-tight">Event destinations</h1>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Event destinations</h1>
               <p className="text-muted-foreground">Stream Stellar events to your webhooks and cloud services.</p>
             </div>
             <Button className="gap-2" onClick={openCreateModal}>
-              <Plus className="size-4" /> Add destination
+              <Plus className="size-4" />
+              <span className="hidden md:!inline">Add destination</span>
             </Button>
           </header>
 
@@ -662,7 +664,16 @@ function WebhooksModalContent({
   const { mutate: createWebhookAction, isPending: isCreatingWebhook } = useAction(
     async (data: z.infer<typeof schema>) => {
       if (!orgContext) throw new AppError("No organization context found");
-      const result = await api.post("/webhooks", data, { "x-session-token": orgContext?.token! });
+      const result = await api.post(
+        "/webhooks",
+        {
+          name: data.destinationName,
+          url: data.endpointUrl,
+          description: data.description || undefined,
+          events: data.events,
+        },
+        { "x-session-token": orgContext?.token! }
+      );
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
@@ -670,15 +681,26 @@ function WebhooksModalContent({
       invalidate: ["webhooks"],
       successMsg: "Webhook destination created successfully",
       errorMsg: "Failed to create webhook destination",
+      onSuccess: () => {
+        form?.reset();
+        onSuccess?.();
+      },
     }
   );
 
   const { mutate: updateWebhookAction, isPending: isUpdatingWebhook } = useAction(
     async (data: z.infer<typeof schema>) => {
       if (!orgContext) throw new AppError("No organization context found");
-      const result = await api.put<Webhook>(`/webhooks/${editingWebhook?.id}`, data, {
-        "x-session-token": orgContext?.token!,
-      });
+      const result = await api.put<Webhook>(
+        `/webhooks/${editingWebhook?.id}`,
+        {
+          name: data.destinationName,
+          url: data.endpointUrl,
+          description: data.description || undefined,
+          events: data.events,
+        },
+        { "x-session-token": orgContext?.token! }
+      );
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },
@@ -879,4 +901,3 @@ function WebhooksModalContent({
     </div>
   );
 }
-

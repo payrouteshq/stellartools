@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/shared-ui",
-  "version": "0.0.6",
+  "version": "0.0.10",
   "private": true,
   "scripts": {
     "prepare": "tsup --no-dts && tailwindcss -i ./src/global.css -o ./dist/output.css --minify",

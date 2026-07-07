@@ -1,6 +1,9 @@
 import { deleteCustomer, putCustomer, retrieveCustomers } from "@/actions/customers";
 import { retrieveSubscriptions } from "@/actions/subscription";
-import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
+import {
+  resolveMerchantSecret,
+  cancelSubscription as soroban$cancelSubscription,
+} from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema, updateCustomerSchema } from "@stellartools/core";
@@ -24,7 +27,22 @@ export const GET = apiHandler({
       auth.environment
     );
 
-    return Result.ok(customer);
+    return Result.ok({
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+      phone: customer.phone ?? undefined,
+      image: customer.image ?? null,
+      metadata: customer.metadata ?? null,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt,
+      wallets: (customer.wallets ?? []).map((w) => ({
+        id: w.id,
+        address: w.address,
+        metadata: w.metadata ?? undefined,
+        createdAt: w.createdAt,
+      })),
+    });
   },
 });
 
@@ -40,7 +58,17 @@ export const PUT = apiHandler({
     const customer = await putCustomer(params.customerId, body, auth.organizationId, auth.environment, {
       ...(source && { source }),
     });
-    return Result.ok(customer);
+    return Result.ok({
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+      phone: customer.phone ?? undefined,
+      image: customer.image ?? null,
+      metadata: customer.metadata ?? null,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt,
+      wallets: [],
+    });
   },
 });
 
@@ -72,10 +100,11 @@ export const DELETE = apiHandler({
 
       if (!customerWallet?.address) continue;
 
-      const cancellationResult = await cancelSorobanSubscription(
+      const merchantSecret = await resolveMerchantSecret(auth.organizationId, auth.environment);
+      const cancellationResult = await soroban$cancelSubscription(
         auth.environment,
+        merchantSecret,
         customerWallet.address,
-        subscription.customerId,
         subscription.productId
       );
 

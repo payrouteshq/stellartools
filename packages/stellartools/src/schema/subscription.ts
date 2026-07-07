@@ -118,7 +118,13 @@ export type ResumeSubscription = Pick<Subscription, "id">;
 export const updateSubscriptionSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   cancel_at_period_end: z.boolean().optional(),
-  product_id: z.string().optional(),
 });
 
 export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
+
+/** Whether a subscription currently grants product access. */
+export const internal$hasSubscriptionAccess = (sub: Pick<Subscription, "status" | "current_period_end">): boolean => {
+  if (sub.status === "active" || sub.status === "trialing" || sub.status === "paused") return true;
+  if (sub.status === "canceled" && Date.now() < new Date(sub.current_period_end).getTime()) return true;
+  return false;
+};

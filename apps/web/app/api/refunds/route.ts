@@ -3,14 +3,19 @@ import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
 import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } from "@/actions/subscription";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
+import { charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
-import { cancelSubscription as cancelSorobanSubscription } from "@/integrations/soroban-contract";
+import {
+  resolveMerchantSecret,
+  cancelSubscription as soroban$cancelSubscription,
+} from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
+import { and, eq } from "drizzle-orm";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -33,6 +38,20 @@ export const POST = apiHandler({
 
     if (!secret) throw new AppError("Merchant keys not configured, please contact support");
 
+    // Look up the platform fee charged for this payment so we can deduct it from the refund.
+    // The merchant already paid the fee on the way in — they can only return what they kept.
+    const [platformCharge] = await db
+      .select()
+      .from(charges)
+      .where(and(eq(charges.paymentId, payment_id), eq(charges.status, "succeeded")))
+      .limit(1);
+
+    const feeCrypto = platformCharge ? Number(platformCharge.cryptoAmount) : 0;
+    const feeAmountCents = platformCharge ? platformCharge.amountCents : 0;
+
+    const refundCryptoAmount = (Number(payment.cryptoAmount) - feeCrypto).toFixed(7);
+    const refundAmountCents = payment.amountCents - feeAmountCents;
+
     const refundId = generateResourceId("rf", payment_id, 15);
     const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 
@@ -45,7 +64,7 @@ export const POST = apiHandler({
       payment.wallets!.address,
       payment.selectedAssetCode,
       payment.selectedAssetIssuer!,
-      String(payment.cryptoAmount),
+      refundCryptoAmount,
       environment,
       refundId
     );
@@ -58,11 +77,11 @@ export const POST = apiHandler({
         status: res.isOk() ? "succeeded" : "failed",
         receiverWalletAddress: wallet_address ?? payment.wallets!.address,
         customerId: payment.customerId,
-        cryptoAmount: payment.cryptoAmount,
+        cryptoAmount: refundCryptoAmount,
         selectedAssetCode: payment.selectedAssetCode,
         selectedAssetIssuer: payment.selectedAssetIssuer,
         transactionHash: res.isOk() ? res.value?.hash : null,
-        amountCents: payment.amountCents,
+        amountCents: refundAmountCents,
         currencyCode: payment.currencyCode,
         metadata: metadata,
       },
@@ -84,10 +103,11 @@ export const POST = apiHandler({
 
         if (!subscription) throw new AppError("Subscription not found");
 
-        const cancellationResult = await cancelSorobanSubscription(
+        const merchantSecret = await resolveMerchantSecret(organizationId, environment);
+        const cancellationResult = await soroban$cancelSubscription(
           environment,
+          merchantSecret,
           payment.wallets!.address,
-          subscription.customerId!,
           subscription.productId!
         );
 
@@ -96,6 +116,7 @@ export const POST = apiHandler({
         await putSubscription(
           payment.subscriptionId,
           {
+            status: "canceled",
             canceledAt: new Date(),
             metadata: { ...(subscription.metadata ?? {}), cancelReason: "refund" },
           },
@@ -107,6 +128,16 @@ export const POST = apiHandler({
 
     waitUntil(runSidedEffects());
 
-    return Result.ok(refund);
+    return Result.ok({
+      id: refund.id,
+      payment_id: refund.paymentId,
+      customer_id: refund.customerId,
+      amount: `${refund.cryptoAmount} ${refund.selectedAssetCode}`,
+      status: refund.status,
+      reason: refund.reason ?? null,
+      receiver_wallet_address: refund.receiverWalletAddress,
+      metadata: refund.metadata ?? {},
+      created_at: refund.createdAt,
+    });
   },
 });

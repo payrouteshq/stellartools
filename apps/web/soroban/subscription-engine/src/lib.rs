@@ -37,6 +37,13 @@ fn require_not_canceled(e: &Env, sub: &Subscription) {
     }
 }
 
+fn require_customer_or_merchant(sub: &Subscription, caller: &Address) {
+    caller.require_auth();
+    if caller != &sub.customer && caller != &sub.merchant {
+        panic!("unauthorized caller");
+    }
+}
+
 fn require_allowed_status(e: &Env, s: &String) {
     let ok = s == &status_active(e) || s == &status_paused(e) || s == &status_canceled(e);
     if !ok {
@@ -101,8 +108,13 @@ impl SubscriptionEngine {
     }
 
     /// Called by backend/cron when the billing period ends.
+    /// `amount` is computed off-chain from current fiat/crypto rates each cycle.
     /// Panics on insufficient funds — period_end is NOT advanced on failure.
-    pub fn charge(e: Env, customer: Address, product_id: String) {
+    pub fn charge(e: Env, customer: Address, product_id: String, amount: i128) {
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
         let key = (customer.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
@@ -117,23 +129,23 @@ impl SubscriptionEngine {
             &e.current_contract_address(),
             &sub.customer,
             &sub.merchant,
-            &sub.amount,
+            &amount,
         );
 
+        sub.amount = amount;
         sub.period_end += sub.period_duration;
         e.storage().persistent().set(&key, &sub);
         e.events().publish(
             (symbol_short!("sub_pay"), customer, product_id),
-            (sub.amount, sub.period_end),
+            (amount, sub.period_end),
         );
     }
 
     pub fn pause(e: Env, customer: Address, product_id: String, caller: Address) {
-        caller.require_auth();
-
         let key = (customer.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
+        require_customer_or_merchant(&sub, &caller);
         require_active(&e, &sub);
 
         sub.status = status_paused(&e);
@@ -145,11 +157,10 @@ impl SubscriptionEngine {
     /// If the paused period already expired, resets period_end from now so the
     /// customer gets a full cycle without immediately triggering charge.
     pub fn resume(e: Env, customer: Address, product_id: String, caller: Address) {
-        caller.require_auth();
-
         let key = (customer.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
+        require_customer_or_merchant(&sub, &caller);
         require_paused(&e, &sub);
 
         let now = e.ledger().timestamp();
@@ -164,11 +175,10 @@ impl SubscriptionEngine {
     }
 
     pub fn cancel(e: Env, customer: Address, product_id: String, caller: Address) {
-        caller.require_auth();
-
         let key = (customer.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
+        require_customer_or_merchant(&sub, &caller);
         require_not_canceled(&e, &sub);
 
         sub.status = status_canceled(&e);

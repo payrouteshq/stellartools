@@ -19,8 +19,10 @@ export class ApiClient {
   private api: KyInstance;
 
   constructor(config: ApiClientConfig) {
+    const baseUrl = config.baseUrl.split(",")[0]?.trim() || config.baseUrl;
+
     this.api = ky.create({
-      prefixUrl: config.baseUrl,
+      prefixUrl: baseUrl,
       headers: {
         ...config.headers,
       },
@@ -139,6 +141,11 @@ export class ApiClient {
     });
   };
 
-  postDetailed = <T>(url: string, body?: any) =>
-    this.requestDetailed<T>(() => this.api.post(this.formatPath(url), { body }));
+  postDetailed = <T>(url: string, body?: string) =>
+    this.requestDetailed<T>(() =>
+      this.api.post(this.formatPath(url), {
+        body,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
 }

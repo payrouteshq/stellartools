@@ -20,7 +20,7 @@ import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { computeDiff, generateResourceId, patchJSON } from "@/lib/utils";
+import { computeDiff, generateResourceId } from "@/lib/utils";
 import { CheckoutStatus } from "@stellartools/core";
 import { all } from "better-all";
 import { and, eq, sql } from "drizzle-orm";
@@ -191,9 +191,9 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     ...checkout,
     merchantPublicKey,
     finalAmount,
-    currencyCode: product?.currencyCode ?? organizationCurrency ?? "USD",
+    currencyCode: product?.currencyCode ?? checkout.currencyCode ?? organizationCurrency ?? "USD",
     productType: product?.type ?? "one_time",
-    productName: product?.name ?? "Payment",
+    productName: product?.name ?? checkout.description ?? "Payment",
     recurringPeriod: product?.recurringPeriod ?? "month",
     customerEmail: customer?.email || checkout.customerEmail,
     customerPhone: customer?.phone || checkout.customerPhone,
@@ -253,7 +253,7 @@ export const putCheckout = async (id: string, params: Partial<Checkout>, orgId?:
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldCheckout.metadata, metadataPatch) } : {}),
+          ...(metadataPatch !== undefined ? { metadata: { ...(oldCheckout.metadata ?? {}), ...metadataPatch } } : {}),
         })
         .where(
           and(
@@ -310,7 +310,8 @@ export const putCheckoutAndCustomerInternal = safeAction(
       await putCheckout(checkoutId, { customerEmail: data.email, customerPhone: data.phoneNumber }, orgId, environment);
 
       if (data.customerId) {
-        await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber }, orgId, environment);
+        const name = data.email?.split("@")[0] ?? "Guest";
+        await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber, name }, orgId, environment);
       }
     });
   }

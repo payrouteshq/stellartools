@@ -3,6 +3,7 @@ import z from "zod";
 
 import { ApiClient } from "./api-client";
 import { AppInstallationApi } from "./resources/app-installation";
+import { BalanceApi } from "./resources/balance";
 import { CheckoutApi } from "./resources/checkout";
 import { CustomerApi } from "./resources/customer";
 import { PaymentApi } from "./resources/payment";
@@ -26,6 +27,7 @@ export class StellarTools {
   public payments: PaymentApi;
   public products: ProductApi;
   public subscriptions: SubscriptionApi;
+  public balance: BalanceApi;
 
   constructor(config: StellarToolsConfig) {
     const { error, data } = stellarToolsConfigSchema.safeParse(config);
@@ -59,14 +61,16 @@ export class StellarTools {
     this.subscriptions = new SubscriptionApi(apiClient);
     this.webhooks = new WebhookApi(apiClient);
     this.appInstallations = new AppInstallationApi(apiClient);
+    this.balance = new BalanceApi(apiClient);
   }
 }
 
 export * from "./types";
 export { WebhookSigner } from "./resources/webhooks";
+export type { Balance } from "./resources/balance";
 export { ApiClient };
 export { Result };
-export { schemaFor, validateSchema, chunk, parseJSON, stringifyObjectFields } from "./utils";
+export { schemaFor, validateSchema, parseJSON, stringifyObjectFields } from "./utils";
 export { raceAsyncIterator, batchProcess } from "./promisify";
 export { z };
 export * from "./schema/customer";
@@ -80,3 +84,4 @@ export * from "./schema/subscription";
 export * from "./schema/webhooks";
 export * from "./schema/app-installation";
 export * from "./jwt";
+export { SignatureVerificationError } from "./errors";

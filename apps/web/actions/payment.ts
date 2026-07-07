@@ -31,10 +31,11 @@ import { MerchantSubscriptionStartedEmail } from "@/emails/merchant-subscription
 import { sendEmail } from "@/integrations/email";
 import { verifyPaymentByPagingToken } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
-import { generateResourceId, patchJSON, toSnakeCase } from "@/lib/utils";
+import { Money } from "@/lib/money";
+import { generateResourceId, toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
 import { all } from "better-all";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import moment from "moment";
 
 type PaymentContext = {
@@ -83,7 +84,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
       productName: ctx.product.name || ctx.checkout.description || "Payment",
-      amount: `${p.amountCents} ${p.selectedAssetCode}`,
+      amount: Money.formatFiat(p.amountCents, p.currencyCode),
       assetCode: p.selectedAssetCode,
       transactionHash: p.transactionHash,
     }),
@@ -93,7 +94,7 @@ const MERCHANT_EMAIL_TEMPLATES = {
     component: MerchantSubscriptionStartedEmail({
       organizationName: ctx.org.name,
       organizationLogo: ctx.org.logoUrl,
-      amount: `${p.amountCents} ${p.selectedAssetCode}`,
+      amount: Money.formatFiat(p.amountCents, p.currencyCode),
       assetCode: p.selectedAssetCode,
       currentPeriodEnd: moment(ctx.checkout.subscriptionData?.period_end).format("MMMM DD, YYYY [at] h:mm A"),
       productName: ctx.product.name || ctx.checkout.description || "Payment",
@@ -114,19 +115,22 @@ const paymentActionHandler = async (
     const webhooks: WebhookTrigger<typeof payment>[] = [];
     const sideEffects: (() => Promise<void>)[] = [];
 
-    const rawAmount = `${payment.amountCents} ${payment.currencyCode}`;
     const cryptoAmount = `${payment.cryptoAmount} ${payment.selectedAssetCode}`;
 
     const basePayload = {
       id: payment.id,
       checkoutId: payment.checkoutId!,
       customerId: payment.customerId!,
-      amount: rawAmount,
+      amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
       cryptoAmount: cryptoAmount,
       status: payment.status,
-      transaction_hash: payment.transactionHash,
-      createdAt: payment.createdAt?.toISOString(),
+      transactionHash: payment.transactionHash ?? "",
+      createdAt: payment.createdAt?.toISOString() ?? new Date().toISOString(),
       metadata: payment.metadata,
+      currencyCode: payment.currencyCode,
+      amountCents: payment.amountCents,
+      selectedAssetCode: payment.selectedAssetCode,
+      selectedAssetIssuer: payment.selectedAssetIssuer ?? "",
     };
 
     if (payment.status === "failed") {
@@ -136,7 +140,16 @@ const paymentActionHandler = async (
         type: "payment::failed",
         map: (p) => ({
           customerId: p.customerId,
-          data: { ...basePayload, ...(errorMessage && { error: errorMessage }) },
+          data: {
+            id: p.id,
+            checkoutId: payment.checkoutId!,
+            customerId: payment.customerId!,
+            amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
+            cryptoAmount: cryptoAmount,
+            status: payment.status,
+            transactionHash: payment.transactionHash ?? "",
+            ...(errorMessage && { error: errorMessage }),
+          },
         }),
       });
 
@@ -152,7 +165,17 @@ const paymentActionHandler = async (
         map: (p) => ({
           customerId: p.customerId,
           subscriptionId: p.subscriptionId,
-          data: { ...basePayload, subscriptionId: p.subscriptionId },
+          data: {
+            id: p.id,
+            checkoutId: p.checkoutId,
+            customerId: p.customerId,
+            amount: Money.formatFiat(p.amountCents, p.currencyCode),
+            cryptoAmount: `${p.cryptoAmount} ${p.selectedAssetCode}`,
+            status: p.status,
+            transactionHash: p.transactionHash ?? "",
+            createdAt: p.createdAt?.toISOString() ?? new Date().toISOString(),
+            subscriptionId: p.subscriptionId,
+          },
         }),
       });
 
@@ -175,7 +198,7 @@ const paymentActionHandler = async (
               "Payment Confirmed",
               CustomerPaymentReceiptEmail({
                 customerName: ctx.customer.name,
-                amount: rawAmount,
+                amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
                 reference: payment.id,
                 date: moment().format("MMMM DD, YYYY [at] h:mm A"),
                 organizationName: ctx.org.name,
@@ -185,7 +208,7 @@ const paymentActionHandler = async (
           }
 
           // Merchant "First Payout" logic
-          const paymentCount = await retrievePaymentCount(organizationId, undefined, { status: "confirmed" });
+          const paymentCount = await retrievePaymentCount(organizationId, environment, { status: "confirmed" });
           console.log("paymentCount", paymentCount);
 
           const emailTemplate = MERCHANT_EMAIL_TEMPLATES[ctx.product?.type as keyof typeof MERCHANT_EMAIL_TEMPLATES];
@@ -360,7 +383,7 @@ export const putPayment = async (id: string, orgId: string, env: Network, params
         .set({
           ...baseUpdate,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined ? { metadata: patchJSON(oldPayment.metadata, metadataPatch) } : {}),
+          ...(metadataPatch !== undefined ? { metadata: { ...(oldPayment.metadata ?? {}), ...metadataPatch } } : {}),
         })
         .where(and(eq(payments.id, id), eq(payments.organizationId, organizationId)))
         .returning()
@@ -373,8 +396,8 @@ export const putPayment = async (id: string, orgId: string, env: Network, params
 
 export const retrievePaymentCount = async (
   organizationId: string,
-  customerId?: string,
-  filter?: { status?: PaymentStatus; subscriptionId?: string }
+  environment: Network,
+  filter?: { status?: PaymentStatus; subscriptionIds?: Array<string>; customerIds?: Array<string> }
 ) => {
   const [{ value: confirmedCount }] = await db
     .select({ value: count() })
@@ -382,9 +405,10 @@ export const retrievePaymentCount = async (
     .where(
       and(
         eq(payments.organizationId, organizationId),
-        customerId ? eq(payments.customerId, customerId) : undefined,
+        eq(payments.environment, environment),
+        filter?.customerIds ? inArray(payments.customerId, filter.customerIds) : undefined,
         filter?.status ? eq(payments.status, filter.status) : undefined,
-        filter?.subscriptionId ? eq(payments.subscriptionId, filter.subscriptionId) : undefined
+        filter?.subscriptionIds ? inArray(payments.subscriptionId, filter.subscriptionIds) : undefined
       )
     );
 

@@ -61,7 +61,7 @@ curl https://api.stellartools.dev/customers/cus_01jx.../access/prod_01jx... \
       Present when `type` is `"subscription"`. The subscription that is active.
     </ResponseField>
     <ResponseField name="status" type="string">
-      Present when `type` is `"subscription"`. The subscription status (`active` or `trialing`).
+      Present when `type` is `"subscription"`. The subscription status (`active`, `trialing`, or `paused`). Subscriptions scheduled to cancel remain `active` until `current_period_end`.
     </ResponseField>
     <ResponseField name="payment_id" type="string">
       Present when `type` is `"one_time"`. The confirmed payment that granted access.

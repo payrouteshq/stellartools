@@ -7,6 +7,7 @@ import { retrieveEvents } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
 import { retrieveProducts } from "@/actions/product";
 import { CustomerModalContent, DeleteCustomerModalContent } from "@/app/dashboard/(dashboard)/customers/_shared";
+import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2, Stellar } from "@/components/icon";
@@ -40,6 +41,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  EmbeddedFieldRow,
+  FieldStack,
+  NumberField,
   SelectField,
   Separator,
   Skeleton,
@@ -89,7 +93,7 @@ const paymentStatusVariants = {
     icon: Clock,
     label: "Pending",
   },
-  failed: { cls: "bg-red-500/10 text-red-700 border-red-500/20", icon: XCircle, label: "Failed" },
+  failed: { cls: "bg-destructive/50 text-destructive-foreground border-destructive", icon: XCircle, label: "Failed" },
   refunded: {
     cls: "bg-muted text-muted-foreground border-border",
     icon: XCircle,
@@ -148,9 +152,15 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
     meta: { filterable: true, filterVariant: "number" },
   },
   {
-    accessorKey: "checkoutId",
+    accessorKey: "description",
     header: "Description",
-    cell: ({ row }) => <span className="text-muted-foreground font-mono text-sm">{row.original.checkoutId}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground font-mono text-sm">
+        {row.original.subscriptionId && row.original.productId
+          ? `Renew ${row.original.productId}`
+          : (row.original.checkoutId ?? "")}
+      </span>
+    ),
     meta: { filterable: true, filterVariant: "text" },
   },
   {
@@ -458,7 +468,7 @@ export default function CustomerDetailPage() {
                       },
                     ];
 
-                    if (!row.refunded) {
+                    if (!row.refunded && row.status === "confirmed") {
                       actions.push({
                         label: "Refund Payment",
                         onClick: async (p) => {
@@ -570,6 +580,7 @@ const checkoutSchema = z.object({
   productId: z.string().min(1, "Product required"),
   description: z.string().optional(),
   redirectUrl: z.url("Invalid URL").optional().or(z.literal("")),
+  trialDays: z.number().int().min(0).max(365).optional(),
 });
 
 function CheckoutModalFooter({
@@ -625,6 +636,7 @@ function CheckoutModalContent({
       productId: "",
       description: "",
       redirectUrl: "",
+      trialDays: undefined,
     },
   });
 
@@ -646,15 +658,24 @@ function CheckoutModalContent({
             currency: p.currencyCode,
           }).format(p.priceCents / 100);
 
+          const billingPeriod =
+            p.type === "subscription" && p.recurringPeriod
+              ? ` / ${formatPeriod(p.recurringPeriod, p.customDurationMs)}`
+              : "";
+
           return {
             value: p.id,
-            label: `${p.name} - ${price}`,
+            label: `${p.name} - ${price}${billingPeriod}`,
             type: p.type,
             recurringPeriod: p.recurringPeriod,
+            customDurationMs: p.customDurationMs,
           };
         }) ?? []
     );
   }, [productsData]);
+
+  const selectedProductId = form.watch("productId");
+  const selectedProduct = products.find((p) => p.value === selectedProductId);
 
   const { mutate: createCheckoutAction, isPending: isCreatingCheckout } = useAction(
     async (data: z.infer<typeof checkoutSchema>) => {
@@ -671,6 +692,7 @@ function CheckoutModalContent({
         description: data.description,
         redirect_url: data.redirectUrl || undefined,
         metadata: null,
+        ...(data.trialDays && data.trialDays > 0 ? { subscription_data: { trial_days: data.trialDays } } : {}),
       });
 
       if (response.isErr()) {
@@ -682,13 +704,8 @@ function CheckoutModalContent({
       invalidate: [["payments"], ["customer-events", customerId]],
       successMsg: "Checkout created",
       errorMsg: "Failed to create checkout",
-      onSuccess: (data: any) => {
-        const baseUrl =
-          (typeof process.env.NEXT_PUBLIC_CHECKOUT_URL === "string" && process.env.NEXT_PUBLIC_CHECKOUT_URL.trim()) ||
-          (typeof window !== "undefined" ? window.location.origin : "");
-        let checkoutID = data?.data?.id;
-        const url = baseUrl ? `${baseUrl.replace(/\/$/, "")}/${checkoutID}` : checkoutID;
-        setCreatedUrl(url);
+      onSuccess: (data) => {
+        setCreatedUrl(data?.payment_url);
       },
     }
   );
@@ -748,21 +765,45 @@ function CheckoutModalContent({
         </div>
       ) : (
         <form className="space-y-4 py-4">
-          <RHF.Controller
-            control={form.control}
-            name="productId"
-            render={({ field, fieldState: { error } }) => (
-              <SelectField
-                id="productId"
-                label="Product"
-                items={products}
-                value={field.value}
-                onChange={field.onChange}
-                isLoading={isLoadingProducts}
-                error={error?.message}
+          <FieldStack>
+            <RHF.Controller
+              control={form.control}
+              name="productId"
+              render={({ field, fieldState: { error } }) => (
+                <SelectField
+                  id="productId"
+                  label="Product"
+                  items={products}
+                  value={field.value}
+                  onChange={field.onChange}
+                  isLoading={isLoadingProducts}
+                  error={error?.message}
+                />
+              )}
+            />
+
+            <EmbeddedFieldRow when={selectedProduct?.type === "subscription"}>
+              <EmbeddedFieldRow.Label>Free trial</EmbeddedFieldRow.Label>
+              <RHF.Controller
+                control={form.control}
+                name="trialDays"
+                render={({ field, fieldState: { error } }) => (
+                  <NumberField
+                    id="trialDays"
+                    value={field.value != null ? String(field.value) : ""}
+                    onChange={(v) => {
+                      const n = v === "" ? undefined : Math.max(0, Number(v) || 0);
+                      field.onChange(n);
+                    }}
+                    placeholder="0"
+                    className="w-24"
+                    error={error?.message}
+                  />
+                )}
               />
-            )}
-          />
+              <EmbeddedFieldRow.Suffix>days</EmbeddedFieldRow.Suffix>
+            </EmbeddedFieldRow>
+          </FieldStack>
           <RHF.Controller
             control={form.control}
             name="description"

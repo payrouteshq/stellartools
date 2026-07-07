@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/core",
-  "version": "0.0.6",
+  "version": "0.0.9",
   "description": "Core SDK for Stellar Tools API",
   "main": "dist/index.js",
   "scripts": {

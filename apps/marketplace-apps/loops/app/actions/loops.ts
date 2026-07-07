@@ -14,11 +14,13 @@ export const validateApiKeyAndConnect = async (apiKey: string, appToken: string)
     return "Invalid API key";
   }
 
-  const result = await new StellarTools({ api_key: appToken }).appInstallations.updateSettings({
-    loopsApiKey: apiKey,
-  });
+  const result = await new StellarTools({ api_key: appToken }).appInstallations
+    .updateSettings({
+      loopsApiKey: apiKey,
+    })
+    .catch((error) => error.message);
 
-  return result?.error ?? true;
+  return result ?? true;
 };
 
 export const logout = async (appToken: string): Promise<void> => {

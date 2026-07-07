@@ -19,6 +19,10 @@
 
 ---
 
+<p align="center">
+  <img src="apps/web/public/images/dashboard.png" alt="StellarTools Dashboard" width="100%" />
+</p>
+
 ## What is Stellar Tools?
 
 Stellar Tools is an OSS payment platform that lets developers accept and manage payments using the Stellar network. It gives merchants and developers Stripe like primitives such as customer managements, subscriptions via Soroban contracts, checkouts, webhooks, and payouts in both fiat and crypto
@@ -54,7 +58,7 @@ stellar-tools/
     ├── langchain-adapter/
     ├── medusajs-adapter/
     ├── uploadthing-adapter/
-    └── wordpress-adapter/
+    └── woocommerce-adapter/
 ```
 
 ## Getting Started

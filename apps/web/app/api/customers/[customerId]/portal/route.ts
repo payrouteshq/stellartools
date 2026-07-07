@@ -11,6 +11,6 @@ export const POST = apiHandler({
   schema: { params: paramsSchema },
   handler: async ({ params: { customerId }, auth: { organizationId, environment } }) => {
     const { session, url } = await createCustomerPortalSession(customerId, organizationId, environment);
-    return Result.ok({ url, token: session.token, expiresAt: session.expiresAt });
+    return Result.ok({ url, expiresAt: session.expiresAt });
   },
 });

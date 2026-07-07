@@ -14,6 +14,13 @@ import { SQL, and, desc, eq, inArray } from "drizzle-orm";
 import _ from "lodash";
 import { AsyncLocalStorage } from "node:async_hooks";
 
+function buildWebhookData<T>(mapped: { object: T; previous_attributes?: Partial<T> }) {
+  return {
+    object: mapped.object,
+    ...(mapped.previous_attributes ? { previous_attributes: mapped.previous_attributes } : {}),
+  };
+}
+
 const effectBuffer = new AsyncLocalStorage<Array<() => Promise<void>>>();
 
 export async function withEvent<T>(
@@ -39,7 +46,12 @@ export async function withEvent<T>(
         : [];
 
       const subscribers =
-        triggers.length > 0 ? await retrieveWebhooks(orgId, env, { events: triggers.map((t) => t.event) }) : [];
+        triggers.length > 0
+          ? await retrieveWebhooks(orgId, env, {
+              events: triggers.map((t) => t.event),
+              isDisabled: false,
+            })
+          : [];
 
       // 2. DISCOVER INSTALLED APPS (Plugins)
       // Logic: If an action emits "customer::created", find apps with "read:customers" scope.
@@ -79,12 +91,13 @@ export async function withEvent<T>(
           const targets = subscribers.filter((s) => s.events.includes(trigger.event));
           if (targets.length === 0) return;
 
+          const mapped = trigger.map(result);
           const envelope: WebhookEventBase<string, any> = {
             id: deliveryLogId!,
             type: trigger.event,
             created: new Date().toISOString(),
             livemode: env === "mainnet",
-            data: { object: trigger.map(result) },
+            data: buildWebhookData(mapped),
           };
 
           deliveries.push(triggerWebhooks(targets, trigger.event, [envelope], deliveryLogId!));
@@ -104,12 +117,13 @@ export async function withEvent<T>(
           installedApps.forEach(({ app, app_installation }) => {
             const appLogId = generateResourceId("wh_evt", orgId, 52);
 
+            const mapped = trigger.map(result);
             const envelope: WebhookEventBase<string, any> = {
               id: appLogId,
               type: trigger.event,
               created: new Date().toISOString(),
               livemode: env === "mainnet",
-              data: { object: trigger.map(result) },
+              data: buildWebhookData(mapped),
             };
 
             deliveries.push(

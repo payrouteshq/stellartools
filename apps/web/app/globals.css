@@ -73,8 +73,6 @@
   }
 }
 
-/* Override dark variant to exclude .force-light elements */
-@custom-variant dark (&:is(.dark *):not(:is(.force-light, .force-light *)));
 
 @layer base {
   h1,
@@ -96,50 +94,25 @@
   }
 }
 
-/* Force light-mode CSS variables regardless of html.dark on <html>. */
-.force-light {
-  color-scheme: light;
-  --background: #f6f7f8;
-  --foreground: #0f0f0f;
-  --card: #ffffff;
-  --card-foreground: #0f0f0f;
-  --popover: #ffffff;
-  --popover-foreground: #0f0f0f;
-  --primary: #fdda24;
-  --primary-foreground: #0f0f0f;
-  --secondary: #b7ace8;
-  --secondary-foreground: #0f0f0f;
-  --muted: #d6d2c4;
-  --muted-foreground: #5a5750;
-  --accent: #d6d2c4;
-  --accent-foreground: #0f0f0f;
-  --destructive: #ef4444;
-  --destructive-foreground: #f6f7f8;
-  --border: #d6d2c4;
-  --input: #d6d2c4;
-  --ring: #fdda24;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0f0f0f;
-  --sidebar-primary: #fdda24;
-  --sidebar-primary-foreground: #0f0f0f;
-  --sidebar-accent: #d6d2c4;
-  --sidebar-accent-foreground: #0f0f0f;
-  --sidebar-border: #d6d2c4;
-  --sidebar-ring: #fdda24;
-  --stellar-wallet-background: #f6f7f8;
-  --stellar-wallet-background-secondary: #edeae0;
-  --stellar-wallet-foreground-strong: #0f0f0f;
-  --stellar-wallet-foreground: #0f0f0f;
-  --stellar-wallet-foreground-secondary: #5a5750;
-  --stellar-wallet-lighter: #ffffff;
-  --stellar-wallet-light: #edeae0;
-  --stellar-wallet-light-gray: #9ca3af;
-  --stellar-wallet-gray: #5a5750;
-  --stellar-wallet-border: #d6d2c4;
-}
 
 @layer utilities {
   .scrollbar-sidebar {
     @apply scrollbar-track-sidebar scrollbar-thumb-sidebar-border scrollbar-hover:scrollbar-thumb-sidebar-primary scrollbar-active:scrollbar-thumb-sidebar-ring scrollbar-thin;
   }
 }
+
+
+/*
+* https://github.com/StackExchange/Stacks/pull/383/files
+*/
+@supports (-webkit-overflow-scrolling: touch) {
+  /* styles for supported browsers */
+  input {
+    font-size: 17px !important;
+    padding: 0.36em 0.55em;
+  }
+  input::-webkit-input-placeholder {
+    line-height: normal !important;
+  }
+}
+

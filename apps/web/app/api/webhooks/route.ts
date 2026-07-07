@@ -22,6 +22,16 @@ export const POST = apiHandler({
 
     const response = await postWebhook(organizationId, environment, webhookPayload);
 
-    return Result.ok(response);
+    return Result.ok({
+      id: response.id,
+      url: response.url,
+      secret: response.secret,
+      events: response.events,
+      name: response.name,
+      description: response.description ?? undefined,
+      isDisabled: response.isDisabled,
+      createdAt: response.createdAt,
+      updatedAt: response.updatedAt,
+    });
   },
 });

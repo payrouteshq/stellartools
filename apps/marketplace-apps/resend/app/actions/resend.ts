@@ -35,9 +35,11 @@ export const validateApiKeyAndConnect = async (
 
   const st = new StellarTools({ api_key: appToken });
 
-  const result = await st.appInstallations.updateSettings({ resendApiKey: apiKey, fromEmail });
+  const result = await st.appInstallations
+    .updateSettings({ resendApiKey: apiKey, fromEmail })
+    .catch((error) => error.message);
 
-  if (result?.error) return result.error;
+  return result ?? true;
 
   return true;
 };

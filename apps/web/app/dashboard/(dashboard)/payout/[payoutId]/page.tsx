@@ -56,7 +56,7 @@ const getExplorerUrl = (hash: string, env?: string) =>
 const StatusBadge = ({ status }: { status: PayoutStatus }) => {
   const config = {
     pending: {
-      cls: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+      cls: "bg-destructive/10 text-destructive border-destructive/20",
       icon: Clock,
       label: "Pending",
     },
@@ -66,7 +66,7 @@ const StatusBadge = ({ status }: { status: PayoutStatus }) => {
       label: "Succeeded",
     },
     failed: {
-      cls: "bg-red-500/10 text-red-700 border-red-500/20",
+      cls: "bg-destructive text-destructive-foreground border-destructive",
       icon: XCircle,
       label: "Failed",
     },

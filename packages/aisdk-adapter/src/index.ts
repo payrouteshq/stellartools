@@ -1,4 +1,4 @@
-import { z as Schema, StellarTools } from "@stellartools/core";
+import { z as Schema, StellarTools, internal$hasSubscriptionAccess } from "@stellartools/core";
 import { type LanguageModel, type LanguageModelMiddleware, wrapLanguageModel } from "ai";
 
 export class ShieldError extends Error {
@@ -33,9 +33,7 @@ const createShieldMiddleware = (config: ShieldConfig): LanguageModelMiddleware =
     // We check for active subscriptions for this specific product.
     // If no active subscription is found, we block the request.
     const subs = await st.subscriptions.list(data.customerId);
-    const hasAccess = subs.some(
-      (s) => s.product_id === data.productId && (s.status === "active" || s.status === "trialing")
-    );
+    const hasAccess = subs.some((s) => s.product_id === data.productId && internal$hasSubscriptionAccess(s));
 
     if (!hasAccess) {
       throw new ShieldError(data.customerId, data.productId);

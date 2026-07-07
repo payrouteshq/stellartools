@@ -15,9 +15,11 @@ export const GET = apiHandler({
   mcp: { name: "get_payments", description: "Get payments" },
   schema: { query: querySchema },
   handler: async ({ query, auth }) => {
+    const { customer, limit, starting_after } = query;
     const results = await resolvePublicPayments(auth.organizationId, auth.environment, {
-      customerId: query.customer,
-      ...query,
+      customerId: customer,
+      limit,
+      starting_after,
     });
 
     return Result.ok(results);

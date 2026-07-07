@@ -6,7 +6,7 @@ import { Account, accounts, db, organizations } from "@/db";
 import { getCookie } from "@/integrations/cookie-manager";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
-import { verifyJwt } from "@stellartools/core";
+import { STELLARTOOLS_ID, verifyJwt } from "@stellartools/core";
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -32,12 +32,7 @@ export const retrieveAccount = async (payload: AccountLookup): Promise<Account |
   if ("accessToken" in payload) {
     const accessToken = await getCookie("accessToken");
     if (!accessToken) return null;
-    const { accountId } = verifyJwt<{ accountId: string }>(
-      accessToken,
-      process.env.JWT_SECRET!,
-      process.env.JWT_ISSUER!,
-      process.env.JWT_AUDIENCE!
-    );
+    const { accountId } = verifyJwt<{ accountId: string }>(accessToken, process.env.JWT_SECRET!, STELLARTOOLS_ID);
     return await retrieveAccount({ id: accountId });
   }
 

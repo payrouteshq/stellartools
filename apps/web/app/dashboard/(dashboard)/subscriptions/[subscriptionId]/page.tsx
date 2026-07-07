@@ -23,6 +23,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CodeBlock,
+  DataTable,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,35 +35,52 @@ import {
   cn,
   toast,
 } from "@stellartools/shared-ui";
+import { ColumnDef } from "@tanstack/react-table";
 import _ from "lodash";
 import { ChevronRight, Copy, ExternalLink, MoreHorizontal, Pause, Play, XCircle } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { SubscriptionModalContent, SubscriptionModalFooter } from "../_shared";
+import {
+  SubscriptionModalContent,
+  SubscriptionModalFooter,
+  SubscriptionStatusBadge,
+  confirmAction,
+  formatPeriod,
+} from "../_shared";
 
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
 const getExplorerUrl = (h: string, e: string) =>
   `https://stellar.expert/explorer/${e === "live" ? "public" : "testnet"}/tx/${h}`;
 
-const STATUS_MAP: Record<string, { cls: string; label: string }> = {
-  active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
-  trialing: { cls: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "Trialing" },
-  past_due: { cls: "bg-orange-500/10 text-orange-700 border-orange-500/20", label: "Past due" },
-  canceled: { cls: "bg-gray-500/10 text-gray-700 border-gray-500/20", label: "Canceled" },
-  paused: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20", label: "Paused" },
+type PricingRow = {
+  name: string;
+  period: string;
+  price: string;
+  total: string;
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const cfg = STATUS_MAP[status] ?? STATUS_MAP.active;
-  return (
-    <Badge variant="outline" className={cn("gap-1.5", cfg.cls)}>
-      {cfg.label}
-    </Badge>
-  );
-};
+const pricingColumns: ColumnDef<PricingRow>[] = [
+  {
+    accessorKey: "name",
+    header: "Product",
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium">{row.original.name}</div>
+        <div className="text-muted-foreground text-xs">{row.original.period}</div>
+      </div>
+    ),
+  },
+  { accessorKey: "price", header: "Price" },
+  {
+    accessorKey: "qty",
+    header: "Qty",
+    cell: () => <span className="text-muted-foreground">1</span>,
+  },
+  { accessorKey: "total", header: "Total" },
+];
 
 export default function SubscriptionDetailPage() {
   const router = useRouter();
@@ -69,14 +88,16 @@ export default function SubscriptionDetailPage() {
   const { data: orgContext } = useOrgContext();
 
   const { data: allSubs, isLoading } = useOrgQuery(["subscriptions"], async () =>
-    retrieveSubscriptions(undefined, undefined, undefined).then((res) => res.data)
+    retrieveSubscriptions(undefined, undefined, undefined, { withCustomer: true, withProduct: true }).then(
+      (res) => res.data
+    )
   );
   const sub = React.useMemo(() => allSubs?.find((s) => s.id === subscriptionId), [allSubs, subscriptionId]);
 
   const { data: subEvents, isLoading: loadingEvents } = useOrgQuery(
-    ["subscription-events", sub?.customerId],
+    ["subscription-events", subscriptionId],
     () =>
-      retrieveEvents({ customerId: sub!.customerId }, [
+      retrieveEvents({ subscriptionId }, [
         "subscription::created",
         "subscription::updated",
         "subscription::canceled",
@@ -96,22 +117,48 @@ export default function SubscriptionDetailPage() {
     [payments, subscriptionId]
   );
 
-  const isEditMode = !!sub?.id;
-
-  const { mutate: updateSubscription } = useAction(
-    async ({ path, method = "POST" }: { path: string; method?: "POST" | "PUT" }) => {
+  const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
+    async ({ path, onComplete = () => {} }: { path: string; onComplete?: () => void | Promise<void> }) => {
       if (!orgContext?.token) throw new AppError("No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-        headers: { "x-session-token": orgContext?.token! },
+        headers: { "x-session-token": orgContext.token },
       });
-      const res = await (method === "POST"
-        ? api.post(`/api/subscriptions/${subscriptionId}${path}`, {})
-        : api.put(`/api/subscriptions/${subscriptionId}${path}`, {}));
+      const res = await api.post(`/subscriptions/${subscriptionId}${path}`, {});
       if (res.isErr()) throw new AppError(res.error.message);
+      await onComplete();
       return res.value;
     },
-    { successMsg: `Subscription ${isEditMode ? "updated" : "created"}`, invalidate: ["subscriptions"] }
+    {
+      successMsg: "Subscription updated",
+      invalidate: [
+        ["subscriptions"],
+        ["subscription-events", subscriptionId],
+        ["subscription-payments", subscriptionId],
+      ],
+    }
+  );
+
+  const { mutate: keepSubscription, isPending: isKeepingSubscription } = useAction(
+    async ({ onComplete = () => {} }: { onComplete?: () => void | Promise<void> }) => {
+      if (!orgContext?.token) throw new AppError("No session token");
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": orgContext.token },
+      });
+      const res = await api.put(`/subscriptions/${subscriptionId}`, { cancel_at_period_end: false });
+      if (res.isErr()) throw new AppError(res.error.message);
+      await onComplete();
+      return res.value;
+    },
+    {
+      successMsg: "Scheduled cancellation removed",
+      invalidate: [
+        ["subscriptions"],
+        ["subscription-events", subscriptionId],
+        ["subscription-payments", subscriptionId],
+      ],
+    }
   );
 
   // Modal Sync
@@ -181,18 +228,22 @@ export default function SubscriptionDetailPage() {
                 <h1 className="text-2xl font-bold">{c?.name ?? c?.email}</h1>
                 <span className="text-muted-foreground text-sm">on</span>
                 <span className="text-lg font-semibold">{p?.name}</span>
-                <StatusBadge status={s.status} />
+                <SubscriptionStatusBadge
+                  status={s.status}
+                  cancelAtPeriodEnd={s.cancelAtPeriodEnd ?? false}
+                  currentPeriodEnd={s.currentPeriodEnd}
+                  canceledAt={s.canceledAt}
+                />
               </div>
               <div className="text-muted-foreground mt-1 flex items-center gap-4 text-sm">
                 <span>Started {formatDate(s.currentPeriodStart)}</span>
-                <span>&middot;</span>
-                <span>
-                  Next billing {Money.formatFiat(p?.priceCents ?? 0)} on {formatDate(s.currentPeriodEnd)}
-                </span>
-                {s.cancelAtPeriodEnd && (
+                {!s.cancelAtPeriodEnd && s.status !== "canceled" && (
                   <>
-                    <span className="mx-1">&middot;</span>
-                    <span className="text-destructive font-medium">Cancels at period end</span>
+                    <span>&middot;</span>
+                    <span>
+                      Next billing {Money.formatFiat(p?.priceCents ?? 0, p?.currencyCode ?? "USD")} on{" "}
+                      {formatDate(s.currentPeriodEnd)}
+                    </span>
                   </>
                 )}
               </div>
@@ -208,20 +259,75 @@ export default function SubscriptionDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {["active", "trialing"].includes(s.status) && (
-                    <DropdownMenuItem onClick={() => updateSubscription({ path: "/pause" })}>
+                  {["active", "trialing"].includes(s.status) && !s.cancelAtPeriodEnd && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Pause subscription",
+                            description:
+                              "The subscription will be paused and no further charges will be made until it is resumed.",
+                            confirmLabel: "Pause",
+                          },
+                          () => updateSubscription({ path: "/pause", onComplete: AppModal.close }),
+                          isUpdatingSubscription
+                        )
+                      }
+                    >
                       <Pause className="mr-2 h-4 w-4" /> Pause
                     </DropdownMenuItem>
                   )}
                   {s.status === "paused" && (
-                    <DropdownMenuItem onClick={() => updateSubscription({ path: "/resume" })}>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Resume subscription",
+                            description:
+                              "The subscription will become active again and billing will resume on the next cycle.",
+                            confirmLabel: "Resume",
+                          },
+                          () => updateSubscription({ path: "/resume", onComplete: AppModal.close }),
+                          isUpdatingSubscription
+                        )
+                      }
+                    >
                       <Play className="mr-2 h-4 w-4" /> Resume
                     </DropdownMenuItem>
                   )}
-                  {s.status !== "canceled" && (
+                  {s.cancelAtPeriodEnd && s.status !== "canceled" && (
                     <DropdownMenuItem
-                      onClick={() => updateSubscription({ path: "/cancel" })}
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Keep subscription",
+                            description:
+                              "Remove the scheduled cancellation? The subscription will renew normally at the end of the current billing period.",
+                            confirmLabel: "Keep subscription",
+                          },
+                          () => keepSubscription({ onComplete: AppModal.close }),
+                          isKeepingSubscription
+                        )
+                      }
+                    >
+                      <Play className="mr-2 h-4 w-4" /> Keep subscription
+                    </DropdownMenuItem>
+                  )}
+                  {s.status !== "canceled" && !s.cancelAtPeriodEnd && (
+                    <DropdownMenuItem
                       className="text-destructive"
+                      onClick={() =>
+                        confirmAction(
+                          {
+                            title: "Cancel subscription",
+                            description: `The subscription will cancel at the end of the current billing period (${formatDate(s.currentPeriodEnd)}). The customer keeps access until then and will not be charged again.`,
+                            confirmLabel: "Cancel at period end",
+                            destructive: true,
+                          },
+                          () => updateSubscription({ path: "/cancel", onComplete: AppModal.close }),
+                          isUpdatingSubscription
+                        )
+                      }
                     >
                       <XCircle className="mr-2 h-4 w-4" /> Cancel
                     </DropdownMenuItem>
@@ -235,23 +341,21 @@ export default function SubscriptionDetailPage() {
             <div className="space-y-6 lg:col-span-2">
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Pricing</h3>
-                <div className="bg-card divide-y rounded-lg border">
-                  <div className="text-muted-foreground grid grid-cols-4 gap-4 px-4 py-2.5 text-xs font-medium uppercase">
-                    <span>Product</span>
-                    <span>Price</span>
-                    <span className="text-right">Qty</span>
-                    <span className="text-right">Total</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-4 px-4 py-3">
-                    <div>
-                      <div className="font-medium">{p?.name}</div>
-                      <div className="text-muted-foreground text-xs">{Money.formatFiat(p?.priceCents ?? 0)} / mo</div>
-                    </div>
-                    <div className="text-sm">{Money.formatFiat(p?.priceCents ?? 0)}</div>
-                    <div className="text-right text-sm">1</div>
-                    <div className="text-right font-medium">{Money.formatFiat(p?.priceCents ?? 0)} / mo</div>
-                  </div>
-                </div>
+                <DataTable
+                  columns={pricingColumns}
+                  data={
+                    p
+                      ? [
+                          {
+                            name: p.name ?? "—",
+                            period: formatPeriod(p.recurringPeriod, p.customDurationMs),
+                            price: Money.formatFiat(p.priceCents ?? 0, p.currencyCode ?? "USD"),
+                            total: `${Money.formatFiat(p.priceCents ?? 0, p.currencyCode ?? "USD")} / ${formatPeriod(p.recurringPeriod, p.customDurationMs)}`,
+                          },
+                        ]
+                      : []
+                  }
+                />
               </section>
 
               <section className="space-y-3">
@@ -365,19 +469,16 @@ export default function SubscriptionDetailPage() {
                 </div>
               </section>
 
-              {s.metadata && Object.keys(s.metadata).length > 0 && (
-                <section className="space-y-3">
-                  <h3 className="text-lg font-semibold">Metadata</h3>
-                  <div className="bg-card space-y-2 rounded-lg border p-5">
-                    {Object.entries(s.metadata).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span className="font-mono text-xs">{String(v)}</span>
-                      </div>
-                    ))}
+              <section className="space-y-3">
+                <h3 className="text-lg font-semibold">Metadata</h3>
+                {s.metadata && Object.keys(s.metadata).length > 0 ? (
+                  <CodeBlock language="json">{JSON.stringify(s.metadata, null, 2)}</CodeBlock>
+                ) : (
+                  <div className="text-muted-foreground rounded-lg border-2 border-dashed p-6 text-center text-xs">
+                    No metadata
                   </div>
-                </section>
-              )}
+                )}
+              </section>
             </aside>
           </div>
         </div>

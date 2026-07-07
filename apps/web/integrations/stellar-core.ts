@@ -183,6 +183,7 @@ export const buildPreSwapXdr = async (params: {
   neededStellarAmount: string;
   sendMax: string;
   network: Network;
+  timeoutSeconds: number;
 }): Promise<string> => {
   const {
     customerPublicKey,
@@ -193,6 +194,7 @@ export const buildPreSwapXdr = async (params: {
     neededStellarAmount,
     sendMax,
     network,
+    timeoutSeconds,
   } = params;
   const { server, passphrase } = getStellarConfig(network);
   const account = await server.loadAccount(customerPublicKey);
@@ -218,7 +220,7 @@ export const buildPreSwapXdr = async (params: {
         path: [],
       })
     )
-    .setTimeout(30)
+    .setTimeout(timeoutSeconds)
     .build();
 
   return tx.toXDR();
@@ -263,10 +265,12 @@ export interface ParsedTxError {
   message: string;
 }
 
+export const SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE = "You already have an active subscription for this product.";
+
 const ERROR_MESSAGES: Record<string, string> = {
   // Transaction-level codes
   txBadSeq: "Invalid sequence number — refresh and try again",
-  txBadAuth: "Transaction authentication failed — wrong signer",
+  txBadAuth: "Failed - Please make sure you are in the correct network and try again",
   txInsufficientBalance: "Insufficient XLM balance to cover fees",
   txInsufficientFee: "Fee too low",
   txTooLate: "Transaction expired — it was submitted too late",
@@ -306,6 +310,64 @@ const ERROR_MESSAGES: Record<string, string> = {
   paymentNoIssuer: "Asset issuer not found",
   paymentNotAuthorized: "Destination account is not authorized for this asset",
 };
+
+/** Subscription contract panic strings and Soroban simulation fn+trap pairs. */
+const SOROBAN_CONTRACT_MESSAGES: Record<string, string> = {
+  "subscription already exists": SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
+  "subscription not found": "No subscription found for this product.",
+  "subscription is not active": "This subscription is not active.",
+  "subscription is not paused": "This subscription is not paused.",
+  "subscription is already canceled": "This subscription is already canceled.",
+  "amount must be positive": "Subscription amount must be greater than zero.",
+  "duration must be positive": "Subscription billing period is invalid.",
+  "billing period has not ended": "The current billing period has not ended yet.",
+  "unauthorized caller": "This wallet is not allowed to perform that action.",
+  "invalid status": "Invalid subscription status.",
+};
+
+const SOROBAN_SIMULATION_MESSAGES: Record<string, string> = {
+  "start:UnreachableCodeReached":
+    "The first subscription payment could not be completed. Check your wallet balance and try again.",
+  "charge:UnreachableCodeReached":
+    "The subscription renewal payment could not be completed. Check your wallet balance and allowance.",
+  "approve:UnreachableCodeReached": "Token approval failed. Check your wallet balance and try again.",
+};
+
+function extractSimulationFn(raw: string): string | undefined {
+  const match = raw.match(/fn_call,[^,\]]+,\s*(\w+)\]/);
+  return match?.[1];
+}
+
+export function parseSorobanSimulationError(
+  simulation: StellarSDK.rpc.Api.SimulateTransactionErrorResponse
+): ParsedTxError {
+  const raw = simulation.error ?? "";
+
+  for (const [needle, message] of Object.entries(SOROBAN_CONTRACT_MESSAGES)) {
+    if (raw.includes(needle)) {
+      return { code: needle.replace(/\s+/g, "_"), message };
+    }
+  }
+
+  const fn = extractSimulationFn(raw);
+  const trap = raw.match(/VM call trapped:\s*([^",\]]+)/)?.[1]?.trim();
+
+  if (fn && trap) {
+    const key = `${fn}:${trap}`;
+    if (SOROBAN_SIMULATION_MESSAGES[key]) {
+      return { code: key, message: SOROBAN_SIMULATION_MESSAGES[key] };
+    }
+  }
+
+  if (raw.includes("HostError") || raw.includes("Simulation failed")) {
+    return {
+      code: "sorobanSimulationFailed",
+      message: "Something went wrong with the on-chain subscription call. Please try again.",
+    };
+  }
+
+  return { code: "simulationError", message: "Simulation failed. Please try again." };
+}
 
 function humanize(code: string): string {
   return ERROR_MESSAGES[code] ?? code.replace(/([A-Z])/g, " $1").trim();
@@ -372,9 +434,7 @@ export function parseError(
 
     // Simulation error — has an "id" field and a string .error
     if ("id" in errorResponse) {
-      const raw = errorResponse.error ?? "Simulation failed";
-      console.log("[parseError] simulation error:", raw);
-      return { code: "simulationError", message: raw };
+      return parseSorobanSimulationError(errorResponse);
     }
   } catch (e) {
     console.error("[parseError] Failed to parse error response:", e, errorResponse);

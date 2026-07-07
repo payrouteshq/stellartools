@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 const StatusBadge = ({ status }: { status: PayoutStatus }) => {
   const config = {
     pending: {
-      className: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+      className: "bg-destructive/10 text-destructive border-destructive/20",
       icon: Clock,
       label: "Pending",
     },
@@ -32,7 +32,7 @@ const StatusBadge = ({ status }: { status: PayoutStatus }) => {
       label: "Succeeded",
     },
     failed: {
-      className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+      className: "bg-destructive text-destructive-foreground border-destructive",
       icon: XCircle,
       label: "Failed",
     },
@@ -137,7 +137,7 @@ export default function PayoutPage() {
       <DashboardSidebarInset>
         <div className="flex flex-col gap-6 p-6">
           <div>
-            <h1 className="text-3xl font-bold">Payout</h1>
+            <h1 className="text-2xl font-bold md:text-3xl">Payout</h1>
             <p className="text-muted-foreground text-sm">Withdraw your earnings to a wallet or bank account</p>
           </div>
 

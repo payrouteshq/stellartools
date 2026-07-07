@@ -1,0 +1,35 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "3d59b345cbb6e75ba7c6cf0e1cb3b0ea"
+name = "Stellar Payments"
+application_url = "https://shopify.dev/apps/default-app-home"
+embedded = true
+handle = "stellartools-payments"
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
+dev_store_url = "stellartools-testnet.myshopify.com"
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks"
+  topics = [ "app/uninstalled" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = ""
+
+[auth]
+redirect_urls = [
+  "https://shopify.dev/apps/default-app-home/auth/callback",
+  "https://shopify.dev/apps/default-app-home/auth/shopify/callback",
+  "https://shopify.dev/apps/default-app-home/auth/login",
+]
+
+[app_proxy]
+url = "/proxy"
+subpath = "stellartools"
+prefix = "apps"

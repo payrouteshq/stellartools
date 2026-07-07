@@ -54,3 +54,15 @@ export type Snakize<T> = T extends Date
     : T extends object
       ? { [K in keyof T as SnakizeKey<string & K>]: Snakize<T[K]> }
       : T;
+
+export interface RequestOptions {
+  /**
+   * A unique string that allows you to safely retry requests without performing the same operation twice.
+   */
+  idempotencyKey?: string;
+
+  /**
+   * Additional headers to include in the request.
+   */
+  headers?: Record<string, string>;
+}

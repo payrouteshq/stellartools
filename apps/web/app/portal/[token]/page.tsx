@@ -36,8 +36,8 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
     async ({ path, subscriptionId }: { path: string; subscriptionId: string; successMessage: string }) => {
       setActionId(subscriptionId);
       const api = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL!, headers: {} });
-      const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, {
-        headers: { "x-portal-token": token },
+      const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, undefined, {
+        "x-portal-token": token,
       });
       if (response.isErr()) throw new AppError(response.error.message);
       return response.value;
@@ -47,6 +47,26 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
       onError: () => setActionId(null),
       invalidate: [["customer-portal", token]],
       successMsg: (_, args) => args.successMessage,
+    }
+  );
+
+  const { mutate: keepSubscription } = useAction(
+    async (subscriptionId: string) => {
+      setActionId(subscriptionId);
+      const api = new ApiClient({ baseUrl: process.env.NEXT_PUBLIC_API_URL!, headers: {} });
+      const response = await api.put(
+        `/subscriptions/${subscriptionId}`,
+        { cancel_at_period_end: false },
+        { "x-portal-token": token }
+      );
+      if (response.isErr()) throw new AppError(response.error.message);
+      return response.value;
+    },
+    {
+      onSuccess: () => setActionId(null),
+      onError: () => setActionId(null),
+      invalidate: [["customer-portal", token]],
+      successMsg: "Subscription will renew as normal",
     }
   );
 
@@ -60,13 +80,13 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
     { invalidate: [["customer-portal", token]], successMsg: "Wallet removed", errorMsg: "Failed to remove wallet" }
   );
 
-  const handleCancel = (subscriptionId: string) => {
+  const handleCancel = (subscriptionId: string, periodEnd: Date) => {
     AppModal.open({
       title: "Cancel subscription",
       description: "Cancel this subscription at the end of the current period?",
       content: (
         <p className="text-muted-foreground text-sm">
-          You will keep access until the end of your current billing period.
+          You will keep access until {moment(periodEnd).format("MMMM D, YYYY")}. You will not be charged again.
         </p>
       ),
       size: "small",
@@ -77,7 +97,11 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
         variant: "destructive",
         onClick: () => {
           AppModal.close();
-          makeSubscriptionMutation({ path: "cancel", subscriptionId, successMessage: "Subscription canceled" });
+          makeSubscriptionMutation({
+            path: "cancel",
+            subscriptionId,
+            successMessage: `Subscription will cancel on ${moment(periodEnd).format("MMM D, YYYY")}`,
+          });
         },
       },
     });
@@ -154,7 +178,9 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                     <p className="text-foreground font-medium">{sub.productName ?? "Subscription"}</p>
                     <div className="flex flex-wrap items-center gap-2">
                       {sub.cancelAtPeriodEnd ? (
-                        <Badge variant="outline">Canceling</Badge>
+                        <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
+                          Cancels on {moment(sub.currentPeriodEnd).format("MMM D, YYYY")}
+                        </Badge>
                       ) : sub.status === "paused" ? (
                         <Badge variant="secondary">Paused</Badge>
                       ) : sub.status === "trialing" ? (
@@ -165,7 +191,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                     </div>
                     <p className="text-muted-foreground text-sm">
                       {sub.cancelAtPeriodEnd
-                        ? `Cancels ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`
+                        ? "No further charges will be made."
                         : sub.status === "paused"
                           ? "Paused — no charges until resumed"
                           : `Renews ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`}
@@ -176,7 +202,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                       </p>
                     )}
                   </div>
-                  {!sub.cancelAtPeriodEnd && (
+                  {!sub.cancelAtPeriodEnd ? (
                     <div className="flex shrink-0 items-center gap-2">
                       {sub.status === "paused" ? (
                         <Button
@@ -208,11 +234,20 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                         variant="outline"
                         size="sm"
                         disabled={actionId === sub.id}
-                        onClick={() => handleCancel(sub.id)}
+                        onClick={() => handleCancel(sub.id, sub.currentPeriodEnd)}
                       >
                         Cancel subscription
                       </Button>
                     </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={actionId === sub.id}
+                      onClick={() => keepSubscription(sub.id)}
+                    >
+                      {actionId === sub.id ? "Updating…" : "Don't cancel"}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -311,7 +346,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
           )}
 
           <Link
-            href="https://stellartools.dev"
+            href={process.env.NEXT_PUBLIC_APP_URL!}
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 text-xs transition-colors"

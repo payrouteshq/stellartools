@@ -15,6 +15,8 @@ import {
   Card,
   CardContent,
   Checkbox,
+  EmbeddedFieldRow,
+  FieldStack,
   FileUpload,
   type FileWithPreview,
   Label,
@@ -486,7 +488,7 @@ export function ProductsModalContent({
               Learn more about products
             </a>
 
-            <div className="space-y-3">
+            <FieldStack className="gap-3">
               <div className="flex items-start gap-2">
                 <RHF.Controller
                   control={form.control}
@@ -540,42 +542,39 @@ export function ProductsModalContent({
                 )}
               </div>
 
-              {watched.type === "subscription" && watched.recurringPeriod === "custom" && (
-                <div className="animate-in fade-in slide-in-from-top-1 relative ml-3 flex items-center gap-2 pl-5">
-                  <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
-                  <span className="text-muted-foreground shrink-0 text-sm font-medium">Every</span>
-                  <NumberField
-                    id="custom-duration-qty"
-                    value={String(customQty)}
-                    onChange={(v) => {
-                      const n = Math.max(1, Number(v) || 1);
-                      setCustomQty(n);
-                      form.setValue("customDurationMs", n * MS_PER[customUnit], { shouldValidate: true });
-                    }}
-                    placeholder="1"
-                    className="w-24"
-                    error={form.formState.errors.customDurationMs?.message}
-                    disabled={isEditMode}
-                  />
-                  <SelectField
-                    id="custom-duration-unit"
-                    value={customUnit}
-                    onChange={(v) => {
-                      const u = v as DurationUnit;
-                      setCustomUnit(u);
-                      form.setValue("customDurationMs", customQty * MS_PER[u], { shouldValidate: true });
-                    }}
-                    items={[
-                      { value: "day", label: "days" },
-                      { value: "week", label: "weeks" },
-                      { value: "month", label: "months" },
-                    ]}
-                    triggerClassName="h-9 w-28"
-                    disabled={isEditMode}
-                  />
-                </div>
-              )}
-            </div>
+              <EmbeddedFieldRow when={watched.type === "subscription" && watched.recurringPeriod === "custom"}>
+                <EmbeddedFieldRow.Label>Every</EmbeddedFieldRow.Label>
+                <NumberField
+                  id="custom-duration-qty"
+                  value={String(customQty)}
+                  onChange={(v) => {
+                    const n = Math.max(1, Number(v) || 1);
+                    setCustomQty(n);
+                    form.setValue("customDurationMs", n * MS_PER[customUnit], { shouldValidate: true });
+                  }}
+                  placeholder="1"
+                  className="w-24"
+                  error={form.formState.errors.customDurationMs?.message}
+                  disabled={isEditMode}
+                />
+                <SelectField
+                  id="custom-duration-unit"
+                  value={customUnit}
+                  onChange={(v) => {
+                    const u = v as DurationUnit;
+                    setCustomUnit(u);
+                    form.setValue("customDurationMs", customQty * MS_PER[u], { shouldValidate: true });
+                  }}
+                  items={[
+                    { value: "day", label: "days" },
+                    { value: "week", label: "weeks" },
+                    { value: "month", label: "months" },
+                  ]}
+                  triggerClassName="h-9 w-28"
+                  disabled={isEditMode}
+                />
+              </EmbeddedFieldRow>
+            </FieldStack>
           </div>
         </div>
 

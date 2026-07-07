@@ -23,6 +23,11 @@ export type SubscriptionData = {
    * Whether to cancel the subscription at the end of the current period.
    */
   cancel_at_period_end?: boolean;
+
+  /**
+   * Number of free trial days before the first charge.
+   */
+  trial_days?: number;
 };
 
 export interface Checkout {
@@ -107,6 +112,7 @@ export const subscriptionDataSchema = schemaFor<SubscriptionData>()(
     period_start: z.string(),
     period_end: z.string(),
     cancel_at_period_end: z.boolean().default(false).optional(),
+    trial_days: z.number().int().nonnegative().optional(),
   })
 );
 
@@ -141,6 +147,7 @@ const baseCreateSchema = z.object({
 
 export const createCheckoutSchema = baseCreateSchema.extend({
   product_id: z.string().min(1, "Product ID is required"),
+  subscription_data: subscriptionDataSchema.partial().optional(),
 });
 
 export const currencyCodeSchema = z

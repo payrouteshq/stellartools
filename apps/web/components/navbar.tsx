@@ -101,7 +101,7 @@ export function Header() {
       </div>
 
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
-        <DialogContent className="force-light inset-0! top-0! left-0! m-0! flex h-screen! w-screen! max-w-none! translate-x-0! translate-y-0! flex-col gap-0 rounded-none border-none p-0">
+        <DialogContent className="inset-0! top-0! left-0! m-0! flex h-screen! w-screen! max-w-none! translate-x-0! translate-y-0! flex-col gap-0 rounded-none border-none p-0">
           <DialogTitle className="sr-only">Navigation menu</DialogTitle>
 
           <nav className="flex flex-1 flex-col justify-center gap-1 px-8">

@@ -16,7 +16,6 @@ import {
   Text,
 } from "@react-email/components";
 
-
 interface EmailLayoutProps {
   preview: string;
   organizationName: string;
@@ -24,12 +23,10 @@ interface EmailLayoutProps {
   children: React.ReactNode;
 }
 
-
 export const emailFonts = {
   sans: ["DM Sans", "sans-serif"],
   serif: ["Instrument Serif", "serif"],
 } as const;
-
 
 export const emailColors = {
   primary: "#fdda24",
@@ -41,7 +38,6 @@ export const emailColors = {
   "muted-foreground": "#5a5750",
   border: "#d6d2c4",
 } as const;
-
 
 export function EmailLayout({ preview, organizationName, organizationLogo, children }: EmailLayoutProps) {
   return (
@@ -148,9 +144,8 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
                         verticalAlign: "middle",
                       }}
                     >
-                      Powered by{" "}
-                      <span style={{ color: "#0f0f0f", fontWeight: 600 }}>StellarTools</span>
-                      {" "}— Stellar Payments Infrastructure
+                      Powered by <span style={{ color: "#0f0f0f", fontWeight: 600 }}>StellarTools</span> — Stellar
+                      Payments Infrastructure
                     </Text>
                   </div>
                 </Column>
@@ -160,6 +155,5 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
         </Body>
       </Tailwind>
     </Html>
-
   );
 }

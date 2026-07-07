@@ -127,7 +127,10 @@ export function generateResourceId(
     throw new AppError("Invalid arguments: baseSignature, prefix, and length (> 0) are required");
   }
 
-  const hash = crypto.createHash(hashAlgorithm, { outputLength: 3 }).update(baseSignature).digest();
+  const hash =
+    hashAlgorithm === "sha256"
+      ? crypto.createHash("sha256").update(baseSignature).digest().subarray(0, 3)
+      : crypto.createHash(hashAlgorithm, { outputLength: 3 }).update(baseSignature).digest();
 
   let signature = "";
   let value = (hash[0] << 16) | (hash[1] << 8) | hash[2];
@@ -179,24 +182,6 @@ export function normalizeTimeSeries<T extends RawDataPoint>(
 
   return result;
 }
-
-export const patchJSON = <T extends Record<string, any>>(
-  base: T | null | undefined,
-  patch: Partial<T> | null | undefined
-): T => {
-  const result = { ...(base || {}) } as T;
-  if (!patch) return result;
-
-  Object.entries(patch).forEach(([key, value]) => {
-    if (value === null) {
-      delete result[key as keyof T];
-    } else {
-      result[key as keyof T] = value as any;
-    }
-  });
-
-  return result;
-};
 
 export const downloadReceipt = async (Component: React.ReactElement, filename: string) => {
   try {

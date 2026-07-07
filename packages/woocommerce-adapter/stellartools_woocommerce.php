@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: StellarTools
- * Description: WooCommerce payment gateway for StellarTools.
+ * Description: WooCommerce payment gateway for the Stellar Blockchain.
  * Version:     1.2.0
  * Author:      Prince Ajuzie
  * 
@@ -14,6 +14,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Webhook URL for the StellarTools REST endpoint (plain permalinks).
+ *
+ * @return string e.g. https://store.example/index.php?rest_route=/stellartools/v1/webhook
+ */
+function stellartools_webhook_url(): string {
+	return home_url( '/index.php?rest_route=/stellartools/v1/webhook' );
+}
 
 add_action( 'before_woocommerce_init', function () {
 	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
