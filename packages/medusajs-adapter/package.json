@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/medusajs-adapter",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Stellar Tools MedusaJS Adapter",
   "main": "dist/index.js",
   "scripts": {
