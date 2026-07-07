@@ -103,4 +103,4 @@ All reports will be promptly addressed, and you'll be credited accordingly.
 
 ## License
 
-MIT License. Copyright 2025 PayKit.
+MIT License. Copyright 2026 Payroutes.
