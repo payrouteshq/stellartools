@@ -45,7 +45,15 @@ const apiKeySchema = z.object({
 type ApiKeyFormData = z.infer<typeof apiKeySchema>;
 
 export default function ApiKeysPage() {
-  const { data: apiKeys = [], isLoading } = useOrgQuery(["apiKeys"], () => retrieveApiKeys());
+  const {
+    data: apiKeys,
+    isLoading,
+    pageIndex,
+    pageSize,
+    hasNextPage,
+    hasPreviousPage,
+    setPageIndex,
+  } = useOrgQuery(["apiKeys"], (params) => retrieveApiKeys(params), { pagination: true });
   const { handleCopy } = useCopy();
 
   const { mutate: deleteApiKeyAction, isPending: isDeletingApiKey } = useAction(deleteApiKey, {
@@ -312,17 +320,24 @@ export default function ApiKeysPage() {
                   }
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden md:!inline">Create secret key</span>
+                  <span className="hidden md:inline!">Create secret key</span>
                 </Button>
               </div>
 
               <DataTable
                 columns={columns}
-                data={apiKeys}
+                data={apiKeys ?? []}
                 actions={actions}
                 isLoading={isLoading}
                 columnFilters={columnFilters}
                 setColumnFilters={setColumnFilters}
+                pagination={{
+                  pageIndex,
+                  pageSize,
+                  hasNextPage,
+                  hasPreviousPage,
+                  onPageChange: setPageIndex,
+                }}
               />
             </div>
           </div>

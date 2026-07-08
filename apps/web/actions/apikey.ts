@@ -8,11 +8,12 @@ import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
-import { AuthContext } from "@/types";
+import { ApiListParams, AuthContext } from "@/types";
 import { AppContext } from "@stellartools/app-sdk";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stellartools/core";
 import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
+import { paginate } from "./event";
 
 export const postApiKey = safeAction(
   async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
@@ -36,13 +37,19 @@ export const postApiKey = safeAction(
   }
 );
 
-export const retrieveApiKeys = async (orgId?: string, env?: Network) => {
+export const retrieveApiKeys = async (params?: ApiListParams, orgId?: string, env?: Network) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
+
+  const limit = params?.limit ?? 10;
+  const offset = params?.starting_after ? parseInt(params.starting_after, 10) : 0;
 
   return await db
     .select()
     .from(apiKeys)
-    .where(and(eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)));
+    .where(and(eq(apiKeys.organizationId, organizationId), eq(apiKeys.environment, environment)))
+    .limit(limit + 1)
+    .offset(offset)
+    .then((apiKeys) => paginate(apiKeys, limit));
 };
 
 export const retrieveApiKey = async (id: string, orgId?: string, env?: Network) => {

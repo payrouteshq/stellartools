@@ -22,7 +22,6 @@ import {
   Button,
   CodeBlock,
   Log,
-  LogDetailItem,
   LogDetailSection,
   UnderlineTabs,
   UnderlineTabsList,
@@ -144,13 +143,22 @@ export default function DeliveryLogPage() {
   const [statusFilter, setStatusFilter] = useCookieState("webhook_status_filter", "all");
 
   const {
+    pageIndex,
+    pageSize,
+    hasNextPage,
+    hasPreviousPage,
+    setPageIndex,
     data: deliveryLogs,
     isLoading: isLoadingWebhookDeliveryLogs,
     refetch: refetchWebhookDeliveryLogs,
   } = useOrgQuery(
     ["deliveryLogs", webhookId],
-    () => retrieveWebhookDeliveryLogs(webhookId, undefined, undefined, { appInstallationId: undefined }),
+    (params) =>
+      retrieveWebhookDeliveryLogs(webhookId, undefined, undefined, { appInstallationId: undefined, ...params }).then(
+        (res) => res.data
+      ),
     {
+      pagination: true,
       enabled: !!webhookId,
       select: (data) => {
         return data.map((log) => ({
@@ -396,6 +404,13 @@ export default function DeliveryLogPage() {
                 className="h-full"
                 isLoading={isLoadingWebhookDeliveryLogs}
                 defaultSelected={eventId ? (filteredLogs[0] as any | undefined) : undefined}
+                pagination={{
+                  pageIndex,
+                  pageSize,
+                  hasNextPage,
+                  hasPreviousPage,
+                  onPageChange: setPageIndex,
+                }}
               />
             </div>
           </div>

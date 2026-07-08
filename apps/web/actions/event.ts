@@ -3,7 +3,7 @@
 import { retrieveAppInstallations } from "@/actions/app";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrieveWebhooks, triggerWebhooks } from "@/actions/webhook";
-import { Event, Network, db, events, rawDb, txContext } from "@/db";
+import { Event, Network, Webhook, db, events, rawDb, txContext } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
@@ -45,13 +45,16 @@ export async function withEvent<T>(
           : [webhookConfig.triggers]
         : [];
 
-      const subscribers =
-        triggers.length > 0
-          ? await retrieveWebhooks(orgId, env, {
-              events: triggers.map((t) => t.event),
-              isDisabled: false,
-            })
-          : [];
+      let subscribers: Webhook[] = [];
+
+      if (triggers.length > 0) {
+        const { data } = await retrieveWebhooks(orgId, env, {
+          events: triggers.map((t) => t.event),
+          isDisabled: false,
+          limit: 100,
+        });
+        subscribers = data;
+      }
 
       // 2. DISCOVER INSTALLED APPS (Plugins)
       // Logic: If an action emits "customer::created", find apps with "read:customers" scope.

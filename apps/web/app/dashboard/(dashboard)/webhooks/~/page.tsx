@@ -5,7 +5,11 @@ import { AmbiguityGuard } from "@/components/ambiguity-guard";
 import { useOrgQuery } from "@/hooks/use-org-query";
 
 export default function WebhookSelectorPage() {
-  const { data: webhooks = [], isLoading } = useOrgQuery(["webhooks"], () => retrieveWebhooks());
+  const { data: webhooks = [], isLoading } = useOrgQuery(
+    ["webhooks"],
+    (params) => retrieveWebhooks(undefined, undefined, params),
+    { pagination: true }
+  );
 
   const columns = [
     { accessorKey: "name", header: "WEBHOOK NAME" },

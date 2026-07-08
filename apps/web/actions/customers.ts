@@ -25,7 +25,7 @@ import { computeDiff, generateResourceId } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { MaybeArray } from "@stellartools/core";
 import crypto from "crypto";
-import { SQL, and, desc, eq, gt, inArray, ne, notExists, sql } from "drizzle-orm";
+import { SQL, and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import moment from "moment";
 
 export const createCustomerImage = async (formData: FormData): Promise<string | undefined> => {
@@ -127,6 +127,8 @@ export const retrieveCustomers = async (
   if (options?.requireLookUpParams && filters.length < 1) return { data: [], has_more: false };
 
   const limit = params?.limit ?? 10;
+  const offset = params?.starting_after ? parseInt(params.starting_after, 10) : 0;
+
   const customers = await db.query.customers.findMany({
     where: (c, { and, or }) =>
       and(
@@ -135,7 +137,9 @@ export const retrieveCustomers = async (
         filters.length > 0 ? or(...filters) : undefined
       ),
     with: options?.withWallets ? { wallets: true } : undefined,
+    orderBy: (c, { desc }) => [desc(c.createdAt)],
     limit: limit + 1,
+    offset,
   });
 
   return await paginate(customers, limit);
@@ -165,53 +169,23 @@ export const putCustomer = async (
   return withEvent(
     async () => {
       const [customer] = await db
-        .update(customersSchema)
-        .set({
+        .insert(customersSchema)
+        .values({
           ...baseUpdate,
+          id,
+          organizationId,
+          environment,
           updatedAt: new Date(),
-          ...(metadataPatch !== undefined ? { metadata: { ...(oldCustomer.metadata ?? {}), ...metadataPatch } } : {}),
+          metadata: metadataPatch ? { ...(oldCustomer.metadata ?? {}), ...metadataPatch } : oldCustomer.metadata,
         })
-        .where(
-          and(
-            eq(customersSchema.id, id),
-            eq(customersSchema.organizationId, organizationId),
-            eq(customersSchema.environment, environment),
-            ...(baseUpdate.email
-              ? [
-                  notExists(
-                    db
-                      .select({ _: eq(customersSchema.id, id) })
-                      .from(customersSchema)
-                      .where(
-                        and(
-                          eq(customersSchema.organizationId, organizationId),
-                          eq(customersSchema.environment, environment),
-                          eq(customersSchema.email, baseUpdate.email),
-                          ne(customersSchema.id, id)
-                        )
-                      )
-                  ),
-                ]
-              : []),
-            ...(baseUpdate.phone
-              ? [
-                  notExists(
-                    db
-                      .select({ _: eq(customersSchema.id, id) })
-                      .from(customersSchema)
-                      .where(
-                        and(
-                          eq(customersSchema.organizationId, organizationId),
-                          eq(customersSchema.environment, environment),
-                          eq(customersSchema.phone, baseUpdate.phone),
-                          ne(customersSchema.id, id)
-                        )
-                      )
-                  ),
-                ]
-              : [])
-          )
-        )
+        .onConflictDoUpdate({
+          target: [customersSchema.id],
+          set: {
+            ...baseUpdate,
+            updatedAt: new Date(),
+            metadata: metadataPatch ? sql`"customer"."metadata" || ${metadataPatch}` : undefined,
+          },
+        })
         .returning();
 
       return customer ?? oldCustomer;

@@ -205,9 +205,9 @@ export const retrieveSubscriptions = async (
         eq(subscriptions.environment, environment)
       )
     )
-    .limit(limit)
     .orderBy(desc(subscriptions.createdAt))
-    .offset(params?.starting_after ? parseInt(params.starting_after) : 0);
+    .limit(limit + 1)
+    .offset(params?.starting_after ? parseInt(params.starting_after, 10) : 0);
 
   return await paginate(
     rows.map(({ customer, product, customerWallets, subscription }) => ({

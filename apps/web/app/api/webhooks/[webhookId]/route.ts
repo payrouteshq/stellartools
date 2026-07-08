@@ -13,7 +13,9 @@ export const GET = apiHandler({
   requiredAppScope: "read:webhooks",
   schema: { params: paramsSchema },
   handler: async ({ params: { webhookId }, auth: { organizationId, environment } }) => {
-    const [webhook] = await retrieveWebhooks(organizationId, environment, { id: webhookId });
+    const {
+      data: [webhook],
+    } = await retrieveWebhooks(organizationId, environment, { id: webhookId });
     if (!webhook) return Result.err(new AppError("Webhook not found"));
     return Result.ok({
       id: webhook.id,

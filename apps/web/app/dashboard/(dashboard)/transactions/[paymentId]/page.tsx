@@ -219,17 +219,17 @@ export default function TransactionDetailPage() {
 
   const { data, isLoading, refetch } = useOrgQuery(
     ["payment", paymentId],
-    () =>
+    (params) =>
       retrievePayments(
         undefined,
         undefined,
-        { paymentId },
+        { paymentId, ...params },
         { withCustomer: true, withWallets: true, withRefunds: true }
       ),
-    { enabled: !!paymentId }
+    { enabled: !!paymentId, pagination: true }
   );
 
-  const payment = data?.data[0] ?? null;
+  const payment = data?.[0] ?? null;
   const customer = payment?.customer ?? null;
   const refund = payment?.refunds ?? null;
 

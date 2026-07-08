@@ -62,7 +62,9 @@ export const POST = async (req: NextRequest) => {
       let subscriptionData = null;
 
       if ("product_id" in data) {
-        const [product] = await retrieveProducts(auth.organizationId, auth.environment, data.product_id);
+        const {
+          data: [product],
+        } = await retrieveProducts(auth.organizationId, auth.environment, { productId: data.product_id });
 
         if (!product) return Result.err(new AppError(`Product Not Found ${data.product_id}`));
 

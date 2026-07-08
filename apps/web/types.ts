@@ -1,7 +1,7 @@
 import { Network } from "@/constant/schema.client";
 import { computeDiff } from "@/lib/utils";
 import { AppScope, EventType } from "@stellartools/app-sdk/schema";
-import { MaybeArray, WebhookEventType, WebhookObject } from "@stellartools/core";
+import { MaybeArray, z as Schema, WebhookEventType, WebhookObject } from "@stellartools/core";
 
 export type EventDataDiff = { $changes?: ReturnType<typeof computeDiff> };
 
@@ -49,11 +49,13 @@ export type AuthContext = {
   apiKeyId?: string; // Only present if type === "apikey"
 };
 
-export type ApiListParams = {
-  limit?: number;
-  starting_after?: string;
-  ending_before?: string;
-};
+export const apiListParamsSchema = Schema.object({
+  limit: Schema.number().optional(),
+  starting_after: Schema.string().optional(),
+  ending_before: Schema.string().optional(),
+});
+
+export type ApiListParams = Schema.infer<typeof apiListParamsSchema>;
 
 export type PaginatedResult<T> = {
   data: T[];
@@ -71,5 +73,3 @@ export type ApiList<T> = {
   has_more: boolean;
   url: string;
 };
-
-// -- INTERNAL

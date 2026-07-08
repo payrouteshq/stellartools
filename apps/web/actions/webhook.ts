@@ -1,6 +1,7 @@
 "use server";
 
 import { retrieveAppInstallations } from "@/actions/app";
+import { paginate } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { DeliveryLog, Network, Webhook, db, deliveryLogs, webhooks } from "@/db";
 import { deliverToApp } from "@/integrations/app-delivery";
@@ -8,6 +9,7 @@ import { deliverWebhook } from "@/integrations/webhook-delivery";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { generateResourceId } from "@/lib/utils";
+import { ApiListParams, PaginatedResult } from "@/types";
 import { WebhookEventBase, WebhookEventType } from "@stellartools/core";
 import { SQL, and, desc, eq, isNull, sql } from "drizzle-orm";
 
@@ -83,9 +85,12 @@ export const getWebhooksWithAnalytics = async (orgId?: string, env?: Network) =>
 export const retrieveWebhooks = async (
   orgId?: string,
   env?: Network,
-  params?: { id?: string; isDisabled?: boolean; events?: WebhookEventType[] }
-) => {
+  params?: { id?: string; isDisabled?: boolean; events?: WebhookEventType[] } & ApiListParams
+): Promise<PaginatedResult<Webhook>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
+
+  const limit = params?.limit ?? 10;
+  const startingAfter = params?.starting_after ?? undefined;
 
   let webhooksResult = await db
     .select()
@@ -97,15 +102,17 @@ export const retrieveWebhooks = async (
         ...(params?.id ? [eq(webhooks.id, params.id)] : []),
         ...(params?.isDisabled !== undefined ? [eq(webhooks.isDisabled, params.isDisabled)] : [])
       )
-    );
+    )
+    .limit(limit + 1)
+    .offset(startingAfter ? parseInt(startingAfter, 10) : 0);
 
   if (params?.events) {
     webhooksResult = webhooksResult.filter((w) => w.events.some((e) => params?.events?.includes(e)));
   }
 
-  if (!webhooksResult.length) return [];
+  if (!webhooksResult.length) return { data: [], has_more: false };
 
-  return webhooksResult;
+  return await paginate(webhooksResult, limit);
 };
 
 export const putWebhook = async (id: string, data: Partial<Webhook>, orgId?: string, env?: Network) => {
@@ -161,7 +168,7 @@ export const retrieveDeliveryLogs = async (
   webhookId: string,
   orgId?: string,
   env?: Network,
-  params?: { appInstallationId?: string }
+  params?: { appInstallationId?: string } & ApiListParams
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
@@ -176,13 +183,18 @@ export const retrieveDeliveryLogs = async (
     whereClause.push(eq(deliveryLogs.organizationId, organizationId));
   }
 
+  const limit = params?.limit ?? 10;
+  const startingAfter = params?.starting_after ?? undefined;
+
   const deliveryLogsResult = await db
     .select()
     .from(deliveryLogs)
     .where(and(eq(deliveryLogs.webhookId, webhookId), eq(deliveryLogs.environment, environment), ...whereClause))
-    .orderBy(desc(deliveryLogs.createdAt));
+    .orderBy(desc(deliveryLogs.createdAt))
+    .limit(limit + 1)
+    .offset(startingAfter ? parseInt(startingAfter, 10) : 0);
 
-  return deliveryLogsResult;
+  return await paginate(deliveryLogsResult, limit);
 };
 
 export const retrieveDeliveryLog = async (
@@ -314,7 +326,9 @@ export const resendDeliveryLog = safeAction(
     env?: Network
   ) => {
     if ("webhookId" in scope) {
-      const [webhook] = await retrieveWebhooks(orgId, env, { id: scope.webhookId });
+      const {
+        data: [webhook],
+      } = await retrieveWebhooks(orgId, env, { id: scope.webhookId });
       const normalizedPayload = normalizeResendPayload(payload, eventType);
       const logId = generateResourceId("wh_evt", scope.webhookId!, 52);
       return deliverWebhook(webhook, eventType, normalizedPayload, logId);

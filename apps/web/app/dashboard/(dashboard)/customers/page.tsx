@@ -140,7 +140,15 @@ export default function CustomersPage() {
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
   const invalidate = useInvalidateOrgQuery();
 
-  const { data: customers, isLoading: isLoadingCustomers } = useOrgQuery(["customers"], () => retrieveCustomers());
+  const {
+    data: customers,
+    isLoading: isLoadingCustomers,
+    pageIndex,
+    pageSize,
+    hasNextPage,
+    hasPreviousPage,
+    setPageIndex,
+  } = useOrgQuery(["customers"], (params) => retrieveCustomers(params, { withWallets: true }), { pagination: true });
 
   const openCreateModal = React.useCallback(() => {
     AppModal.open({
@@ -215,11 +223,11 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-2">
                   <Button className="gap-2 shadow-none" variant="outline" onClick={openImportModal}>
                     <CloudUpload className="h-4 w-4" />
-                    <span className="hidden md:!inline">Import CSV</span>
+                    <span className="hidden md:inline!">Import CSV</span>
                   </Button>
                   <Button className="gap-2 shadow-none" onClick={openCreateModal}>
                     <Plus className="h-4 w-4" />
-                    <span className="hidden md:!inline">Add customer</span>
+                    <span className="hidden md:inline!">Add customer</span>
                   </Button>
                 </div>
               </div>
@@ -244,13 +252,20 @@ export default function CustomersPage() {
 
             <DataTable
               columns={columns}
-              data={customers?.data ?? []}
+              data={customers ?? []}
               enableBulkSelect={true}
               actions={tableActions}
               onRowClick={handleRowClick}
               isLoading={isLoadingCustomers}
               columnFilters={columnFilters}
               setColumnFilters={setColumnFilters}
+              pagination={{
+                pageIndex,
+                pageSize,
+                hasNextPage,
+                hasPreviousPage,
+                onPageChange: setPageIndex,
+              }}
             />
           </div>
         </DashboardSidebarInset>

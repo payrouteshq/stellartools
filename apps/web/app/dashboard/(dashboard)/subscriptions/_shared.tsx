@@ -286,8 +286,10 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
   );
 
   const { data: customers, isPending: isLoadingCustomers } = useOrgQuery(["customers"], retrieveCustomers);
-  const { data: products = [], isPending: isLoadingProducts } = useOrgQuery(["products"], () =>
-    retrieveProducts(undefined, undefined, { status: "active" })
+  const { data: products = [], isPending: isLoadingProducts } = useOrgQuery(
+    ["products"],
+    () => retrieveProducts(undefined, undefined, { status: "active" }),
+    { pagination: { pageSize: 100 } }
   );
 
   const watch = form.watch();

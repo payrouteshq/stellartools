@@ -5,6 +5,7 @@ import * as React from "react";
 import { retrieveEvents } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
 import { retrieveSubscriptions } from "@/actions/subscription";
+import { ResolvedPayment } from "@/db";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { TIMELINE_ROUTE_MAP } from "@/constant";
@@ -82,6 +83,58 @@ const pricingColumns: ColumnDef<PricingRow>[] = [
   { accessorKey: "total", header: "Total" },
 ];
 
+const invoiceColumns = (environment: string): ColumnDef<ResolvedPayment>[] => [
+  {
+    id: "amount",
+    header: "Amount",
+    cell: ({ row }) => (
+      <div className="text-sm font-medium">
+        {Money.formatFiat(row.original.amountCents, row.original.currencyCode ?? "USD")}
+      </div>
+    ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => (
+      <Badge
+        variant="outline"
+        className={cn(
+          "text-[10px] tracking-tighter uppercase",
+          row.original.status === "confirmed" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
+        )}
+      >
+        {row.original.status === "confirmed" ? "Paid" : row.original.status}
+      </Badge>
+    ),
+  },
+  {
+    id: "customer",
+    header: "Customer",
+    cell: ({ row }) => <div className="text-muted-foreground truncate text-xs">{row.original.customer?.email}</div>,
+  },
+  {
+    id: "created",
+    header: "Created",
+    cell: ({ row }) => (
+      <div className="text-muted-foreground text-xs">{moment(row.original.createdAt).format("D MMM, HH:mm")}</div>
+    ),
+  },
+  {
+    id: "tx",
+    header: () => <span className="block text-right">Tx</span>,
+    cell: ({ row }) => (
+      <div className="text-right">
+        {row.original.transactionHash && (
+          <a href={getExplorerUrl(row.original.transactionHash, environment)} target="_blank" className="text-primary">
+            <ExternalLink className="inline h-3 w-3" />
+          </a>
+        )}
+      </div>
+    ),
+  },
+];
+
 export default function SubscriptionDetailPage() {
   const router = useRouter();
   const { subscriptionId } = useParams() as { subscriptionId: string };
@@ -106,15 +159,18 @@ export default function SubscriptionDetailPage() {
     { enabled: !!sub }
   );
 
-  const { data: payments = [], isLoading: loadingPayments } = useOrgQuery(
+  const {
+    data: subscriptionPayments = [],
+    isLoading: loadingPayments,
+    pageIndex: paymentsPageIndex,
+    pageSize: paymentsPageSize,
+    hasNextPage: paymentsHasNextPage,
+    hasPreviousPage: paymentsHasPreviousPage,
+    setPageIndex: setPaymentsPageIndex,
+  } = useOrgQuery(
     ["subscription-payments", subscriptionId],
-    () => retrievePayments(undefined, undefined, { customerId: sub!.customerId }).then((res) => res.data),
-    { enabled: !!sub }
-  );
-
-  const subscriptionPayments = React.useMemo(
-    () => payments.filter((p) => p.subscriptionId === subscriptionId),
-    [payments, subscriptionId]
+    (params) => retrievePayments(undefined, undefined, { subscriptionId, ...params }, { withCustomer: true }),
+    { enabled: !!subscriptionId, pagination: true }
   );
 
   const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
@@ -360,58 +416,20 @@ export default function SubscriptionDetailPage() {
 
               <section className="space-y-3">
                 <h3 className="text-lg font-semibold">Invoices</h3>
-                <div className="bg-card overflow-hidden rounded-lg border">
-                  {loadingPayments ? (
-                    <div className="flex justify-center p-10">
-                      <Spinner size={25} />
-                    </div>
-                  ) : subscriptionPayments.length === 0 ? (
-                    <div className="text-muted-foreground p-6 text-center text-sm">No payments yet</div>
-                  ) : (
-                    <div className="divide-y">
-                      <div className="text-muted-foreground bg-muted/20 grid grid-cols-5 gap-4 px-4 py-2.5 text-xs font-medium uppercase">
-                        <span>Amount</span>
-                        <span>Status</span>
-                        <span>Customer</span>
-                        <span>Created</span>
-                        <span className="text-right">Tx</span>
-                      </div>
-                      {subscriptionPayments.map((p) => (
-                        <div key={p.id} className="hover:bg-muted/50 grid grid-cols-5 items-center gap-4 px-4 py-3">
-                          <div className="text-sm font-medium">
-                            {Money.formatFiat(p.amountCents, p.currencyCode ?? "USD")}
-                          </div>
-                          <div>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] tracking-tighter uppercase",
-                                p.status === "confirmed" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
-                              )}
-                            >
-                              {p.status === "confirmed" ? "Paid" : p.status}
-                            </Badge>
-                          </div>
-                          <div className="text-muted-foreground truncate text-xs">{c?.email}</div>
-                          <div className="text-muted-foreground text-xs">
-                            {moment(p.createdAt).format("D MMM, HH:mm")}
-                          </div>
-                          <div className="text-right">
-                            {p.transactionHash && (
-                              <a
-                                href={getExplorerUrl(p.transactionHash, s.environment)}
-                                target="_blank"
-                                className="text-primary"
-                              >
-                                <ExternalLink className="inline h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <DataTable
+                  columns={invoiceColumns(s.environment)}
+                  data={subscriptionPayments}
+                  isLoading={loadingPayments}
+                  withFilterPill={false}
+                  emptyMessage="No payments yet"
+                  pagination={{
+                    pageIndex: paymentsPageIndex,
+                    pageSize: paymentsPageSize,
+                    hasNextPage: paymentsHasNextPage,
+                    hasPreviousPage: paymentsHasPreviousPage,
+                    onPageChange: setPaymentsPageIndex,
+                  }}
+                />
               </section>
 
               <section className="space-y-3">

@@ -40,6 +40,14 @@ export interface TableAction<TData> {
   when?: (row: TData) => boolean;
 }
 
+export type DataTablePagination = {
+  pageIndex: number;
+  pageSize: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  onPageChange: (pageIndex: number) => void;
+};
+
 interface DataTableProps<TData, TValue>
   extends
     React.ComponentProps<typeof Table>,
@@ -59,6 +67,7 @@ interface DataTableProps<TData, TValue>
   withFilterPill?: boolean;
   columnFilters?: ColumnFiltersState;
   setColumnFilters?: (filters: ColumnFiltersState) => void;
+  pagination?: DataTablePagination;
 }
 
 export const DataTable = <TData, TValue>({
@@ -73,6 +82,7 @@ export const DataTable = <TData, TValue>({
   withFilterPill = true,
   columnFilters: externalFilters,
   setColumnFilters: setExternalFilters,
+  pagination,
   ...mixProps
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -171,7 +181,12 @@ export const DataTable = <TData, TValue>({
   const table = useReactTable({
     data,
     columns: tableColumns,
-    state: { sorting, rowSelection, columnFilters },
+    state: {
+      sorting,
+      rowSelection,
+      columnFilters,
+      ...(pagination && { pagination: { pageIndex: pagination.pageIndex, pageSize: pagination.pageSize } }),
+    },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     onColumnFiltersChange: (updaterOrValue: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
@@ -180,7 +195,9 @@ export const DataTable = <TData, TValue>({
     },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    ...(pagination
+      ? { manualPagination: true, pageCount: -1 }
+      : { getPaginationRowModel: getPaginationRowModel() }),
     getSortedRowModel: getSortedRowModel(),
   });
 
@@ -192,6 +209,11 @@ export const DataTable = <TData, TValue>({
   const moreFilterColumns = allFilterableColumns.slice(5);
 
   if (isLoading) return <DataTableSkeleton columns={columns} enableBulkSelect={enableBulkSelect} actions={_Actions} />;
+
+  const canPreviousPage = pagination ? pagination.hasPreviousPage : table.getCanPreviousPage();
+  const canNextPage = pagination ? pagination.hasNextPage : table.getCanNextPage();
+  const itemCount = pagination ? data.length : table.getFilteredRowModel().rows.length;
+  const pageLabel = pagination ? ` · Page ${pagination.pageIndex + 1}` : "";
 
   return (
     <div {...container} className={cn("space-y-4", container?.className)}>
@@ -288,14 +310,18 @@ export const DataTable = <TData, TValue>({
       </div>
 
       <div className="flex items-center justify-between px-2 py-4">
-        <div className="text-muted-foreground text-xs font-medium">{table.getFilteredRowModel().rows.length} items</div>
+        <div className="text-muted-foreground text-xs font-medium">
+          {itemCount} items{pageLabel}
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             className="h-8 text-xs font-bold"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() =>
+              pagination ? pagination.onPageChange(pagination.pageIndex - 1) : table.previousPage()
+            }
+            disabled={!canPreviousPage}
           >
             Previous
           </Button>
@@ -303,8 +329,8 @@ export const DataTable = <TData, TValue>({
             variant="outline"
             size="sm"
             className="h-8 text-xs font-bold"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => (pagination ? pagination.onPageChange(pagination.pageIndex + 1) : table.nextPage())}
+            disabled={!canNextPage}
           >
             Next
           </Button>

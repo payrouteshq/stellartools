@@ -58,7 +58,13 @@ export const GET = apiHandler({
       });
     }
 
-    const [lastPayment, [product], failedPaymentCount] = await Promise.all([
+    const [
+      lastPayment,
+      {
+        data: [product],
+      },
+      failedPaymentCount,
+    ] = await Promise.all([
       retrievePayments(organizationId, environment, {
         subscriptionId,
         limit: 1,

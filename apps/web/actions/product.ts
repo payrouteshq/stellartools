@@ -6,7 +6,10 @@ import { Network, Product, ProductStatus, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
+import { ApiListParams, PaginatedResult } from "@/types";
 import { and, eq } from "drizzle-orm";
+
+import { paginate } from "./event";
 
 const resolveSubscriptionBilling = (
   type: Product["type"],
@@ -69,9 +72,12 @@ export const postProduct = async (
 export const retrieveProducts = async (
   orgId?: string,
   env?: Network,
-  filters: { productId?: string; status?: ProductStatus } = {}
-) => {
+  filters: { productId?: string; status?: ProductStatus } & ApiListParams = {}
+): Promise<PaginatedResult<Product>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
+
+  const limit = filters?.limit ?? 10;
+  const offset = filters?.starting_after ? parseInt(filters.starting_after, 10) : 0;
 
   const productsList = await db
     .select()
@@ -83,16 +89,20 @@ export const retrieveProducts = async (
         ...(filters.productId ? [eq(products.id, filters.productId)] : []),
         ...(filters.status ? [eq(products.status, filters.status)] : [])
       )
-    );
+    )
+    .limit(limit + 1)
+    .offset(offset);
 
-  return productsList;
+  return await paginate(productsList, limit);
 };
 
 export const putProduct = async (id: string, orgId: string, env: Network, retUpdate: Partial<Product>) => {
-  const [{ organizationId }, [oldProduct]] = await Promise.all([
-    resolveOrgContext(orgId, env),
-    retrieveProducts(orgId, env, { productId: id }),
-  ]);
+  const [
+    { organizationId },
+    {
+      data: [oldProduct],
+    },
+  ] = await Promise.all([resolveOrgContext(orgId, env), retrieveProducts(orgId, env, { productId: id })]);
 
   if (!oldProduct) throw new AppError("Product not found");
 

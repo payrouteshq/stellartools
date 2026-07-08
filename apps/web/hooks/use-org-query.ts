@@ -1,61 +1,99 @@
 "use client";
 
+import * as React from "react";
+
 import { getCurrentOrganization } from "@/actions/organization";
-import { QueryKey, UseQueryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiListParams, PaginatedResult } from "@/types";
+import { type QueryKey, type UseQueryOptions, keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+
+const DEFAULT_PAGE_SIZE = 10;
 
 type OrgQueryKey = [string, ...any[]];
 
+type Pagination = true | { pageSize?: number };
+
 export function useOrgContext() {
-  const { data: orgContext, isLoading: isLoadingOrgContext } = useQuery({
+  return useQuery({
     queryKey: ["org-context"],
     queryFn: () => getCurrentOrganization(),
     staleTime: Infinity,
     retry: 1,
   });
-
-  return { data: orgContext, isLoading: isLoadingOrgContext };
 }
 
-export function useOrgQuery<TQueryFnData = unknown, TError = Error, TData = TQueryFnData>(
+// Type utility to handle the three states:
+// 1. Paginated & Not Transformed -> return U[]
+// 2. Paginated & Transformed -> return TTransformed
+// 3. Not Paginated -> return TData
+type ResolvedData<TQueryFnData, TTransformed, TPag> = TPag extends Pagination
+  ? TQueryFnData extends TTransformed // This checks if TTransformed is the default (i.e., no select used)
+    ? TQueryFnData extends PaginatedResult<infer U>
+      ? U[]
+      : TTransformed
+    : TTransformed
+  : TTransformed;
+
+export function useOrgQuery<
+  TQueryFnData,
+  TError = Error,
+  TTransformed = TQueryFnData, // This is the output of the select function
+  const TPag extends Pagination | undefined = undefined,
+>(
   baseQueryKey: OrgQueryKey,
-  queryFn: () => Promise<TQueryFnData>,
-  options?: Omit<UseQueryOptions<TQueryFnData, TError, TData, QueryKey>, "queryKey" | "queryFn">
+  queryFn: (params?: ApiListParams) => Promise<TQueryFnData>,
+  options?: Omit<UseQueryOptions<TQueryFnData, TError, TTransformed>, "queryKey" | "queryFn"> & { pagination?: TPag }
 ) {
-  const { data: orgContext, isLoading: isLoadingOrgContext } = useOrgContext();
+  const { pagination, ...queryOptions } = options ?? {};
+  const { data: org, isLoading: contextLoading } = useOrgContext();
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const pageSize = typeof pagination === "object" ? (pagination.pageSize ?? DEFAULT_PAGE_SIZE) : DEFAULT_PAGE_SIZE;
 
-  const organizationId = orgContext?.id;
-  const environment = orgContext?.environment;
+  const listParams = React.useMemo(
+    () => ({
+      limit: pageSize,
+      ...(pageIndex > 0 ? { starting_after: String(pageIndex * pageSize) } : {}),
+    }),
+    [pageIndex, pageSize]
+  );
 
-  // Construct query key with org context
-  const queryKey: QueryKey =
-    organizationId && environment ? [...baseQueryKey, organizationId, environment] : baseQueryKey;
+  const queryKey: QueryKey = [
+    ...baseQueryKey,
+    ...(pagination ? [pageIndex, pageSize] : []),
+    org?.id,
+    org?.environment,
+  ].filter(Boolean);
 
-  const result = useQuery<TQueryFnData, TError, TData>({
+  const result = useQuery({
+    ...queryOptions,
     queryKey,
-    queryFn,
-    enabled: !isLoadingOrgContext && !!organizationId && !!environment && (options?.enabled ?? true),
-    ...options,
+    queryFn: () => queryFn(pagination ? listParams : undefined),
+    enabled: !contextLoading && !!org?.id && (queryOptions.enabled ?? true),
+    placeholderData: pagination ? keepPreviousData : queryOptions.placeholderData,
   });
 
-  // Combine loading states
+  const data = (
+    pagination && !options?.select ? (result.data as PaginatedResult<any> | undefined)?.data : result.data
+  ) as ResolvedData<TQueryFnData, TTransformed, TPag> | undefined;
+
   return {
     ...result,
-    isLoading: isLoadingOrgContext || result.isLoading,
-    isPending: isLoadingOrgContext || result.isPending,
+    data,
+    pageIndex,
+    pageSize,
+    setPageIndex,
+    hasNextPage: pagination ? !!(result.data as PaginatedResult<any> | undefined)?.has_more : false,
+    hasPreviousPage: pagination ? pageIndex > 0 : false,
+    isLoading: contextLoading || result.isLoading,
+    isPending: contextLoading || result.isPending,
   };
 }
 
 export function useInvalidateOrgQuery() {
   const queryClient = useQueryClient();
-  const { data: orgContext } = useOrgContext();
+  const { data: org } = useOrgContext();
 
-  return (baseQueryKey: OrgQueryKey) => {
-    const organizationId = orgContext?.id;
-    const environment = orgContext?.environment;
-
-    const queryKey: QueryKey =
-      organizationId && environment ? [...baseQueryKey, organizationId, environment] : baseQueryKey;
-
-    return queryClient.invalidateQueries({ queryKey });
-  };
+  return (baseQueryKey: OrgQueryKey) =>
+    queryClient.invalidateQueries({
+      queryKey: [...baseQueryKey, org?.id, org?.environment].filter(Boolean),
+    });
 }

@@ -163,10 +163,8 @@ export default function ProductDetailPage() {
   });
   const isProductModalOpenRef = React.useRef(false);
 
-  const { data: product, isLoading } = useOrgQuery(
-    ["products", productId],
-    () => retrieveProducts(undefined, undefined, { productId }),
-    { select: (data) => data[0] ?? null }
+  const { data: product, isLoading } = useOrgQuery(["products", productId], () =>
+    retrieveProducts(undefined, undefined, { productId, limit: 1 }).then(({ data: [product] }) => product)
   );
 
   const isSubscription = product?.type === "subscription";

@@ -14,7 +14,10 @@ export const GET = apiHandler({
   schema: { params: paramsSchema },
   mcp: { name: "get_product", description: "Get a product by ID" },
   handler: async ({ params: { productId }, auth: { organizationId, environment } }) => {
-    const [product] = await retrieveProducts(organizationId, environment, { productId });
+    const product = await retrieveProducts(organizationId, environment, { productId }).then(
+      ({ data: [product] }) => product
+    );
+
     if (!product) return Result.err(new AppError("Product not found"));
     return Result.ok({
       id: product.id,

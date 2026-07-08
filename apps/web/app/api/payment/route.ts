@@ -1,25 +1,21 @@
 import { apiHandler } from "@/lib/api-handler";
+import { apiListParamsSchema } from "@/types";
 import { Result, z as Schema } from "@stellartools/core";
 
 import { resolvePublicPayments } from "./shared";
-
-const querySchema = Schema.object({
-  customer: Schema.string().optional(),
-  limit: Schema.coerce.number().default(10),
-  starting_after: Schema.string().optional(),
-});
 
 export const GET = apiHandler({
   auth: ["apikey", "app"],
   requiredAppScope: "read:payments",
   mcp: { name: "get_payments", description: "Get payments" },
-  schema: { query: querySchema },
+  schema: { query: apiListParamsSchema.extend({ customer: Schema.string().optional() }) },
   handler: async ({ query, auth }) => {
-    const { customer, limit, starting_after } = query;
+    const { customer, limit, starting_after, ending_before } = query;
     const results = await resolvePublicPayments(auth.organizationId, auth.environment, {
       customerId: customer,
       limit,
       starting_after,
+      ending_before,
     });
 
     return Result.ok(results);

@@ -70,7 +70,7 @@ async function loadPaymentContext(
     async product() {
       const productId = (await this.$.checkout)?.productId ?? undefined;
       if (!productId) return undefined;
-      return retrieveProducts(organizationId, environment, { productId }).then(([res]) => res);
+      return retrieveProducts(organizationId, environment, { productId }).then(({ data: [product] }) => product);
     },
   });
 
@@ -348,8 +348,8 @@ export const retrievePayments = async (
       )
     )
     .orderBy(desc(payments.createdAt))
-    .limit(limit)
-    .offset(params?.starting_after ? parseInt(params.starting_after) : 0);
+    .limit(limit + 1)
+    .offset(params?.starting_after ? parseInt(params.starting_after, 10) : 0);
 
   return await paginate(
     rows.map(({ customer, payment, hasRefund, wallets, refunds, org }) => ({

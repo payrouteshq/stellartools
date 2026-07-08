@@ -1,5 +1,6 @@
 import { postCustomers, retrieveCustomers } from "@/actions/customers";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { apiListParamsSchema } from "@/types";
 import { Result, z as Schema, createCustomerSchema, listCustomersSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
@@ -46,13 +47,16 @@ export const GET = apiHandler({
   requiredAppScope: "read:customers",
   mcp: { name: "get_customers", description: "Get all customers for an organization" },
   schema: {
-    query: listCustomersSchema.optional(),
+    query: apiListParamsSchema.extend(listCustomersSchema.optional()),
   },
   handler: async ({ query, auth: { organizationId, environment } }) => {
     const customers = await retrieveCustomers(
       {
         ...(query && "email" in query ? { email: query.email } : {}),
         ...(query && "phone" in query ? { phone: query.phone } : {}),
+        ...(query.limit && { limit: query.limit }),
+        ...(query.starting_after && { starting_after: query.starting_after }),
+        ...(query.ending_before && { ending_before: query.ending_before }),
       },
       { withWallets: true },
       organizationId,

@@ -202,10 +202,19 @@ export default function CustomerDetailPage() {
   const [refundModalFooterProps, setRefundModalFooterProps] = React.useState({ isPending: false });
   const isRefundModalOpenRef = React.useRef(false);
   const invalidate = useInvalidateOrgQuery();
-  const { data: payments, isLoading: isLoadingPayments } = useOrgQuery(["payments", customerId], () =>
-    retrievePayments(undefined, undefined, { customerId: customerId }, { withRefunds: true, withWallets: true }).then(
-      (res) => res.data
-    )
+  const {
+    data: payments,
+    isLoading: isLoadingPayments,
+    pageIndex: paymentsPageIndex,
+    pageSize: paymentsPageSize,
+    hasNextPage: paymentsHasNextPage,
+    hasPreviousPage: paymentsHasPreviousPage,
+    setPageIndex: setPaymentsPageIndex,
+  } = useOrgQuery(
+    ["payments", customerId],
+    (params) =>
+      retrievePayments(undefined, undefined, { customerId, ...params }, { withRefunds: true, withWallets: true }),
+    { pagination: true, enabled: !!customerId }
   );
   const { data: customer, isLoading: customerLoading } = useOrgQuery(["customer", customerId], () =>
     retrieveCustomers({ id: customerId }, { withWallets: true, requireLookUpParams: true }).then(({ data: [c] }) => c)
@@ -481,6 +490,13 @@ export default function CustomerDetailPage() {
 
                     return actions;
                   }}
+                  pagination={{
+                    pageIndex: paymentsPageIndex,
+                    pageSize: paymentsPageSize,
+                    hasNextPage: paymentsHasNextPage,
+                    hasPreviousPage: paymentsHasPreviousPage,
+                    onPageChange: setPaymentsPageIndex,
+                  }}
                 />
               </section>
 
@@ -646,7 +662,9 @@ function CheckoutModalContent({
     form.reset();
   };
 
-  const { data: productsData, isLoading: isLoadingProducts } = useOrgQuery(["products"], () => retrieveProducts());
+  const { data: productsData, isLoading: isLoadingProducts } = useOrgQuery(["products"], () => retrieveProducts(), {
+    pagination: { pageSize: 100 },
+  });
 
   const products = React.useMemo(() => {
     return (

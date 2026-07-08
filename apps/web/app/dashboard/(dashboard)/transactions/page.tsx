@@ -232,12 +232,23 @@ function TransactionsPageContent() {
     });
   }, []);
 
-  const { data: payments, isLoading } = useOrgQuery(["payments"], () =>
-    retrievePayments(undefined, undefined, undefined, {
-      withRefunds: true,
-      withCustomer: true,
-      withWallets: true,
-    }).then((res) => res.data)
+  const {
+    data: payments,
+    isLoading,
+    pageIndex,
+    pageSize,
+    hasNextPage,
+    hasPreviousPage,
+    setPageIndex,
+  } = useOrgQuery(
+    ["payments"],
+    (params) =>
+      retrievePayments(undefined, undefined, params, {
+        withRefunds: true,
+        withCustomer: true,
+        withWallets: true,
+      }),
+    { pagination: true }
   );
 
   const stats = React.useMemo(() => {
@@ -321,7 +332,7 @@ function TransactionsPageContent() {
                   }}
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden md:!inline">Create refund</span>
+                  <span className="hidden md:inline!">Create refund</span>
                 </Button>
               </div>
             </div>
@@ -393,6 +404,13 @@ function TransactionsPageContent() {
                 isLoading={isLoading}
                 columnFilters={columnFilters}
                 setColumnFilters={setColumnFilters}
+                pagination={{
+                  pageIndex,
+                  pageSize,
+                  hasNextPage,
+                  hasPreviousPage,
+                  onPageChange: setPageIndex,
+                }}
               />
             </div>
           </div>

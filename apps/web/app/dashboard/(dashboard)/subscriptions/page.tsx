@@ -55,10 +55,18 @@ export default function SubscriptionsPage() {
     { invalidate: ["subscriptions"] }
   );
 
-  const { data: subs = [], isLoading } = useOrgQuery(["subscriptions"], async () =>
-    retrieveSubscriptions(undefined, undefined, undefined, { withCustomer: true, withProduct: true }).then(
-      (res) => res.data
-    )
+  const {
+    data: subs = [],
+    isLoading,
+    pageIndex,
+    pageSize,
+    hasNextPage,
+    hasPreviousPage,
+    setPageIndex,
+  } = useOrgQuery(
+    ["subscriptions"],
+    (params) => retrieveSubscriptions(undefined, undefined, params, { withCustomer: true, withProduct: true }),
+    { pagination: true }
   );
 
   const stats = React.useMemo(() => {
@@ -179,7 +187,7 @@ export default function SubscriptionsPage() {
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Subscriptions</h1>
             <Button className="gap-2" onClick={openModal}>
               <Plus className="h-4 w-4" />
-              <span className="hidden md:!inline">Create subscription</span>
+              <span className="hidden md:inline!">Create subscription</span>
             </Button>
           </div>
 
@@ -265,6 +273,13 @@ export default function SubscriptionsPage() {
             ]}
             columnFilters={columnFilters}
             setColumnFilters={setColumnFilters}
+            pagination={{
+              pageIndex,
+              pageSize,
+              hasNextPage,
+              hasPreviousPage,
+              onPageChange: setPageIndex,
+            }}
           />
         </div>
       </DashboardSidebarInset>
