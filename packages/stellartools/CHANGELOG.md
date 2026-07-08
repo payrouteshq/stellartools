@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.10
+
+### Patch Changes
+
+- 9562830: chore(ui): improve data table components and more
+
 ## 0.0.9
 
 ### Patch Changes
