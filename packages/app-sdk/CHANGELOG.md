@@ -1,5 +1,13 @@
 # @stellartools/app-sdk
 
+## 0.0.11
+
+### Patch Changes
+
+- 9562830: chore(ui): improve data table components and more
+- Updated dependencies [9562830]
+  - @stellartools/core@0.0.10
+
 ## 0.0.10
 
 ### Patch Changes
