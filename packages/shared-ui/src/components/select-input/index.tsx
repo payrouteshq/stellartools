@@ -50,6 +50,9 @@ export interface SelectInputProps extends MixinProps<"popoverContent", React.Com
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  inputGroupClassName?: string;
+  optionTriggerClassName?: string;
+  inputClassName?: string;
   optionsDisabled?: boolean;
 }
 
@@ -68,6 +71,9 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
       disabled,
       placeholder = "Select option...",
       className,
+      inputGroupClassName,
+      optionTriggerClassName,
+      inputClassName,
       optionsDisabled,
       ...mixProps
     },
@@ -141,9 +147,11 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
 
         <InputGroup
           className={cn(
-            "border-input relative mt-2 flex h-10 w-full rounded-md border bg-transparent text-sm transition-all",
+            "border-input relative flex w-full rounded-md border bg-transparent text-sm transition-all",
+            label ? "mt-2" : "mt-0",
             "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-            error && "border-destructive ring-destructive/20"
+            error && "border-destructive ring-destructive/20",
+            inputGroupClassName
           )}
         >
           <Popover open={open} onOpenChange={setOpen} modal={false}>
@@ -153,15 +161,21 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
                 role="combobox"
                 aria-expanded={open}
                 disabled={disabled || isLoading || options.length === 0}
-                className="border-input hover:bg-accent hover:text-accent-foreground flex h-full min-w-[100px] justify-start gap-2 rounded-r-none border-r bg-transparent px-3 shadow-none"
+                className={cn(
+                  "border-input hover:bg-accent hover:text-accent-foreground flex h-full min-w-[100px] items-center rounded-r-none border-r bg-transparent px-3 py-0 shadow-none",
+                  mode === "currency" && "min-w-[72px] px-2",
+                  optionTriggerClassName
+                )}
               >
                 {isLoading ? (
                   <Spinner strokeColor="text-muted-foreground" size={18} />
                 ) : (
-                  <>
-                    <span className="truncate font-medium">{value.option || "Select"}</span>
-                    <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-50" />
-                  </>
+                  <span className="inline-flex w-full min-w-0 items-center justify-between gap-1">
+                    <span className={cn("truncate leading-none font-medium", mode === "currency" && "text-xs")}>
+                      {value.option || "Select"}
+                    </span>
+                    <ChevronsUpDown className={cn("shrink-0 opacity-50", mode === "currency" ? "size-3" : "size-4")} />
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -209,7 +223,10 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
             value={displayAmount}
             onChange={handleAmountChange}
             disabled={disabled}
-            className="no-autofill-bg flex-1 border-0 bg-transparent px-3 py-1 text-sm shadow-none focus-visible:ring-0"
+            className={cn(
+              "no-autofill-bg flex-1 border-0 bg-transparent px-3 py-0 text-sm shadow-none focus-visible:ring-0",
+              inputClassName
+            )}
             aria-invalid={!!error}
           />
         </InputGroup>

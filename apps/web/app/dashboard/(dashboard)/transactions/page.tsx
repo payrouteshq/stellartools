@@ -17,6 +17,7 @@ import { useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { Money } from "@/lib/money";
 import { truncate } from "@/lib/utils";
+import { CURRENCY_CODES } from "@stellartools/core";
 import {
   AppModal,
   Badge,
@@ -106,11 +107,16 @@ const CopyWalletAddress = ({ address }: { address: string }) => {
 
 // --- Table Columns ---
 
+const currencyFilterOptions = CURRENCY_CODES.map((code) => ({
+  value: code,
+  label: code,
+}));
+
 const columns: ColumnDef<TransactionEsquee>[] = [
   {
-    accessorKey: "amount",
+    accessorKey: "amountCents",
     header: "Amount",
-    meta: { filterable: true, filterVariant: "number" },
+    meta: { filterable: true, filterVariant: "currency", filterOptions: currencyFilterOptions },
     cell: ({ row }) => {
       const transaction = row.original;
       return <div className="font-semibold">{Money.formatFiat(transaction.amountCents, transaction.currencyCode)}</div>;
@@ -133,7 +139,8 @@ const columns: ColumnDef<TransactionEsquee>[] = [
     },
   },
   {
-    accessorKey: "customer",
+    accessorFn: (row) => row.customer?.email ?? "",
+    id: "customer",
     header: "Customer",
     meta: { filterable: true, filterVariant: "text" },
     cell: ({ row }) => {
@@ -166,7 +173,7 @@ const columns: ColumnDef<TransactionEsquee>[] = [
     header: "Status",
     meta: {
       filterable: true,
-      filterVariant: "select",
+      filterVariant: "multiselect",
       filterOptions: [...paymentStatusEnum, "refunded"].map((status) => ({
         label: status.charAt(0).toUpperCase() + status.slice(1),
         value: status,
@@ -392,15 +399,20 @@ function TransactionsPageContent() {
                 data={filteredTransactions.map((it) => ({
                   id: it.id,
                   amountCents: it.amountCents,
+                  amount: it.amountCents,
                   currencyCode: it.currencyCode,
+                  paymentMethod: it.wallets?.address ?? "",
                   status: (it.refunds?.status === "succeeded" ? "refunded" : it.status) as PaymentStatus,
                   createdAt: it.createdAt,
+                  date: it.createdAt,
                   customer: it.customer!,
                   description: it.subscriptionId && it.productId ? `Renew ${it.productId}` : (it.checkoutId ?? it.id),
                   refundedDate: it.refunds?.createdAt ?? undefined,
+                  walletAddress: it.wallets?.address,
                 }))}
                 enableBulkSelect={true}
                 actions={tableActions}
+                onRowClick={(row) => router.push(`/transactions/${row.id}`)}
                 isLoading={isLoading}
                 columnFilters={columnFilters}
                 setColumnFilters={setColumnFilters}

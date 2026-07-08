@@ -20,7 +20,7 @@ import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ApiClient, Checkout } from "@stellartools/core";
+import { ApiClient, CURRENCY_CODES, Checkout } from "@stellartools/core";
 import {
   AppModal,
   Avatar,
@@ -142,6 +142,11 @@ const DetailRow = ({ label, value, action, mono }: any) => (
 
 // --- Table Config ---
 
+const currencyFilterOptions = CURRENCY_CODES.map((code) => ({
+  value: code,
+  label: code,
+}));
+
 const paymentColumns: ColumnDef<ResolvedPayment>[] = [
   {
     accessorKey: "amount",
@@ -149,7 +154,7 @@ const paymentColumns: ColumnDef<ResolvedPayment>[] = [
     cell: ({ row }) => (
       <span className="font-medium">{Money.formatFiat(row.original.amountCents ?? 0, row.original.currencyCode)}</span>
     ),
-    meta: { filterable: true, filterVariant: "number" },
+    meta: { filterable: true, filterVariant: "currency", filterLabel: "Amount", filterOptions: currencyFilterOptions },
   },
   {
     accessorKey: "description",

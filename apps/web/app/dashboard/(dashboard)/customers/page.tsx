@@ -85,7 +85,7 @@ const columns: ColumnDef<ResolvedCustomer>[] = [
     accessorKey: "phone",
     header: "Phone",
     cell: ({ row }) => <div className="text-muted-foreground">{row.original.phone}</div>,
-    meta: { filterable: true, filterVariant: "number" },
+    meta: { filterable: true, filterVariant: "phone" },
   },
   {
     accessorKey: "walletAddress",

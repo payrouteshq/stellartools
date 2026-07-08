@@ -30,6 +30,7 @@ export interface SelectFieldProps
   items: Array<{ value: string; label: string; disabled?: boolean; icon?: React.ReactNode }>;
   isLoading?: boolean;
   placeholder?: string;
+  className?: string;
 }
 
 export const SelectField = ({
@@ -42,6 +43,7 @@ export const SelectField = ({
   helpText,
   isLoading = false,
   placeholder = "Select...",
+  className,
   ...mixProps
 }: SelectFieldProps) => {
   const {
@@ -54,7 +56,7 @@ export const SelectField = ({
   } = splitProps(mixProps, "label", "error", "helpText", "trigger", "triggerValue");
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", className)}>
       {label && (
         <Label {...labelProps} htmlFor={id}>
           {label}
@@ -69,7 +71,11 @@ export const SelectField = ({
 
       <Select {...rest} value={value} onValueChange={(v) => onChange(v)}>
         <SelectTrigger {...triggerProps} aria-invalid={!!error} className={cn("w-full", triggerProps?.className)}>
-          {isLoading ? <Spinner size={25} /> : <SelectValue {...triggerValueProps} placeholder={placeholder} />}
+          {isLoading ? (
+            <Spinner size={25} />
+          ) : (
+            <SelectValue {...triggerValueProps} placeholder={triggerValueProps?.placeholder ?? placeholder} />
+          )}
         </SelectTrigger>
 
         <SelectContent>

@@ -14,6 +14,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useOrgQuery } from "@/hooks/use-org-query";
 import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { Money } from "@/lib/money";
+import { CURRENCY_CODES } from "@stellartools/core";
 import {
   AppModal,
   Avatar,
@@ -120,6 +121,11 @@ const staticColumns: ColumnDef<ProductEsque>[] = [
   },
 ];
 
+const currencyFilterOptions = CURRENCY_CODES.map((code) => ({
+  value: code,
+  label: code,
+}));
+
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -159,7 +165,12 @@ function ProductsPageContent() {
           );
         },
         sortingFn: (rowA, rowB) => rowA.original.createdAt.getTime() - rowB.original.createdAt.getTime(),
-        meta: { filterable: true, filterVariant: "number" },
+        meta: {
+          filterable: true,
+          filterVariant: "currency",
+          filterLabel: "Pricing",
+          filterOptions: currencyFilterOptions,
+        },
       },
       staticColumns[1],
     ],

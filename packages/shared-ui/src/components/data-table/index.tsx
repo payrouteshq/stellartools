@@ -3,9 +3,9 @@
 import * as React from "react";
 
 import {
-  Column,
   ColumnDef,
   ColumnFiltersState,
+  FilterFn,
   RowSelectionState,
   SortingState,
   flexRender,
@@ -16,22 +16,16 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import _ from "lodash";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
-import moment from "moment";
+import { MoreHorizontal } from "lucide-react";
 
 import { MixinProps, splitProps } from "../../lib/mixin";
 import { cn } from "../../lib/utils";
 import { Button } from "../../ui/button";
 import { Checkbox } from "../../ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../ui/dropdown-menu";
-import { Input } from "../../ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Skeleton } from "../../ui/skeleton";
-import { Switch } from "../../ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table";
-import { DateField } from "../date-field";
-import { NumberField } from "../number-field";
-import { SelectField } from "../select-field";
+import { DataTableFilterPill } from "./filter-pill";
 
 export interface TableAction<TData> {
   label: string | ((row: TData) => string);
@@ -46,6 +40,109 @@ export type DataTablePagination = {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   onPageChange: (pageIndex: number) => void;
+};
+
+export type DataTableFilterOption = { label: string; value: string | boolean };
+
+export type DataTableFilterMeta = {
+  filterLabel?: string;
+  filterable?: boolean;
+  filterVariant?: "text" | "number" | "select" | "multiselect" | "currency" | "date" | "boolean" | "phone";
+  filterOptions?: DataTableFilterOption[];
+  /** When `filterVariant` is `currency`, set to `code` for a currency-code-only picker. Defaults to `amount`. */
+  filterCurrencyMode?: "amount" | "code";
+};
+
+export type NumberFilterOperator = "eq" | "between" | "gt" | "lt";
+
+export type NumberFilterValue = {
+  operator: NumberFilterOperator;
+  value?: number;
+  min?: number;
+  max?: number;
+};
+
+export type CurrencyFilterValue = NumberFilterValue & {
+  currency: string;
+};
+// ─── Constants & Types ───────────────────────────────────────────────────────
+
+const STICKY_ACTIONS_CLASS = "bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]";
+
+// ─── Filter Functions ────────────────────────────────────────────────────────
+
+const numberRangeFilterFn: FilterFn<any> = (row, columnId, filterValue: NumberFilterValue) => {
+  if (!filterValue || typeof filterValue !== "object") return true;
+  const val = Number(row.getValue(columnId));
+  if (Number.isNaN(val)) return false;
+
+  const { operator, value, min, max } = filterValue;
+  switch (operator) {
+    case "eq":
+      return val === value;
+    case "gt":
+      return val > (value ?? -Infinity);
+    case "lt":
+      return val < (value ?? Infinity);
+    case "between":
+      return val >= (min ?? -Infinity) && val <= (max ?? Infinity);
+    default:
+      return true;
+  }
+};
+
+const currencyAmountFilterFn: FilterFn<any> = (row, columnId, filterValue: CurrencyFilterValue) => {
+  const { currency, ...range } = filterValue || {};
+  const { currencyCode } = row.original as { currencyCode?: string };
+  if (currency && currencyCode !== currency) return false;
+  return numberRangeFilterFn(row, columnId, range, () => undefined);
+};
+
+const multiselectFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+  if (!Array.isArray(filterValue) || filterValue.length === 0) return true;
+  return filterValue.includes(String(row.getValue(columnId)));
+};
+
+const textFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+  if (filterValue === undefined || filterValue === "") return true;
+  return String(row.getValue(columnId) ?? "")
+    .toLowerCase()
+    .includes(String(filterValue).toLowerCase());
+};
+
+const selectFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+  if (filterValue === undefined || filterValue === "") return true;
+  return String(row.getValue(columnId)) === String(filterValue);
+};
+
+export const parseFilterDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return undefined;
+};
+
+const isSameCalendarDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+const dateFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+  const filterDate = parseFilterDate(filterValue);
+  if (!filterDate) return true;
+  const cellDate = parseFilterDate(row.getValue(columnId));
+  if (!cellDate) return false;
+  return isSameCalendarDay(cellDate, filterDate);
+};
+
+const phoneDigits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
+
+const phoneFilterFn: FilterFn<any> = (row, columnId, filterValue) => {
+  if (!filterValue) return true;
+  const filterDigits = phoneDigits(filterValue);
+  if (!filterDigits) return true;
+  return phoneDigits(row.getValue(columnId)).includes(filterDigits);
 };
 
 interface DataTableProps<TData, TValue>
@@ -69,6 +166,8 @@ interface DataTableProps<TData, TValue>
   setColumnFilters?: (filters: ColumnFiltersState) => void;
   pagination?: DataTablePagination;
 }
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export const DataTable = <TData, TValue>({
   columns,
@@ -97,85 +196,94 @@ export const DataTable = <TData, TValue>({
     "row",
     "checkbox",
     "body",
-    "head",
     "cell",
     "container"
   );
 
   const tableColumns = React.useMemo(() => {
-    let cols = [...columns];
+    const processedCols = columns.map((col) => {
+      const meta = col.meta as DataTableFilterMeta | undefined;
+      if (col.filterFn || !meta?.filterVariant) return col;
+
+      // Map variants to functions
+      const fnMap: Partial<Record<string, FilterFn<any>>> = {
+        text: textFilterFn,
+        number: numberRangeFilterFn,
+        select: selectFilterFn,
+        multiselect: multiselectFilterFn,
+        date: dateFilterFn,
+        phone: phoneFilterFn,
+        currency:
+          meta.filterCurrencyMode === "code"
+            ? (r, id, v) => !v || String(r.getValue(id)) === String(v)
+            : currencyAmountFilterFn,
+      };
+
+      const filterFn = fnMap[meta.filterVariant];
+      return filterFn ? { ...col, filterFn } : col;
+    });
+
     if (enableBulkSelect) {
-      cols = [
-        {
-          id: "select",
-          header: ({ table }) => (
-            <Checkbox
-              {...checkbox}
-              checked={table.getIsAllPageRowsSelected()}
-              onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
-              aria-label="Select all"
-              className={cn(checkbox?.className, "translate-y-[2px] cursor-pointer")}
-            />
-          ),
-          cell: ({ row }) => (
-            <Checkbox
-              {...checkbox}
-              checked={row.getIsSelected()}
-              onCheckedChange={(v) => row.toggleSelected(!!v)}
-              onClick={(e) => e.stopPropagation()}
-              aria-label="Select row"
-              className={cn(checkbox?.className, "translate-y-[2px] cursor-pointer")}
-            />
-          ),
-          enableSorting: false,
-          size: 40,
-        },
-        ...cols,
-      ];
+      processedCols.unshift({
+        id: "select",
+        size: 40,
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected()}
+            onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+            className={cn(checkbox?.className, "translate-y-[2px] cursor-pointer")}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(v) => row.toggleSelected(!!v)}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(checkbox?.className, "translate-y-[2px] cursor-pointer")}
+          />
+        ),
+      });
     }
 
     if (_Actions) {
-      cols = [
-        ...cols,
-        {
-          id: "actions",
-          header: () => <div />,
-          cell: ({ row }) => {
-            const rowActions = typeof _Actions === "function" ? _Actions(row.original) : _Actions;
-            const filteredActions = rowActions.filter((a) => a.when === undefined || a.when(row.original));
-            if (filteredActions.length === 0) return null;
-            return (
-              <div className="flex justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" className="size-8" onClick={(e) => e.stopPropagation()}>
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {filteredActions.map((action, i) => (
-                      <DropdownMenuItem
-                        key={i}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          action.onClick(row.original);
-                        }}
-                        className={cn("py-1", action.variant === "destructive" && "text-destructive")}
-                      >
-                        {typeof action.label === "function" ? action.label(row.original) : action.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            );
-          },
-          enableSorting: false,
-          size: 50,
+      processedCols.push({
+        id: "actions",
+        size: 50,
+        header: () => null,
+        cell: ({ row }) => {
+          const rowActions = (typeof _Actions === "function" ? _Actions(row.original) : _Actions).filter(
+            (a) => !a.when || a.when(row.original)
+          );
+          if (!rowActions.length) return null;
+          return (
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" className="size-8" onClick={(e) => e.stopPropagation()}>
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {rowActions.map((a, i) => (
+                    <DropdownMenuItem
+                      key={i}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        a.onClick(row.original);
+                      }}
+                      className={cn("py-1", a.variant === "destructive" && "text-destructive")}
+                    >
+                      {typeof a.label === "function" ? a.label(row.original) : a.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
         },
-      ];
+      });
     }
-    return cols;
+    return processedCols;
   }, [columns, enableBulkSelect, _Actions]);
 
   const table = useReactTable({
@@ -189,84 +297,50 @@ export const DataTable = <TData, TValue>({
     },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: (updaterOrValue: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
-      const nextValue = typeof updaterOrValue === "function" ? updaterOrValue(columnFilters) : updaterOrValue;
-      onColumnFiltersChange(nextValue);
-    },
+    onColumnFiltersChange: (updater) =>
+      onColumnFiltersChange(typeof updater === "function" ? updater(columnFilters) : updater),
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    ...(pagination
-      ? { manualPagination: true, pageCount: -1 }
-      : { getPaginationRowModel: getPaginationRowModel() }),
     getSortedRowModel: getSortedRowModel(),
+    ...(pagination ? { manualPagination: true, pageCount: -1 } : { getPaginationRowModel: getPaginationRowModel() }),
   });
 
-  const allFilterableColumns = table
-    .getAllColumns()
-    .filter((col) => col.getCanFilter() && (col?.columnDef?.meta as any)?.filterable == true);
-
-  const visibleFilterColumns = allFilterableColumns.slice(0, 5);
-  const moreFilterColumns = allFilterableColumns.slice(5);
+  const filterableCols = table.getAllColumns().filter((col) => (col.columnDef.meta as any)?.filterable);
 
   if (isLoading) return <DataTableSkeleton columns={columns} enableBulkSelect={enableBulkSelect} actions={_Actions} />;
 
-  const canPreviousPage = pagination ? pagination.hasPreviousPage : table.getCanPreviousPage();
-  const canNextPage = pagination ? pagination.hasNextPage : table.getCanNextPage();
-  const itemCount = pagination ? data.length : table.getFilteredRowModel().rows.length;
-  const pageLabel = pagination ? ` · Page ${pagination.pageIndex + 1}` : "";
+  // Derived Pagination State
+  const { canPrev, canNext, totalItems, label } = {
+    canPrev: pagination ? pagination.hasPreviousPage : table.getCanPreviousPage(),
+    canNext: pagination ? pagination.hasNextPage : table.getCanNextPage(),
+    totalItems: pagination ? data.length : table.getFilteredRowModel().rows.length,
+    label: pagination ? ` · Page ${pagination.pageIndex + 1}` : "",
+  };
 
   return (
     <div {...container} className={cn("space-y-4", container?.className)}>
       <div className="flex flex-wrap items-center gap-2 px-1">
-        {withFilterPill && visibleFilterColumns.map((column) => <FilterPill key={column.id} column={column} />)}
-
-        {moreFilterColumns.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 rounded-full border border-dashed px-3 text-xs font-medium"
-              >
-                <Plus className="mr-1 size-3" />
-                More filters
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-48 p-1">
-              <div className="flex flex-col">
-                {moreFilterColumns.map((column) => (
-                  <FilterPill key={column.id} column={column} isDropdownItem />
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+        {withFilterPill && filterableCols.map((col) => <DataTableFilterPill key={col.id} column={col} />)}
       </div>
 
       <div className="bg-card rounded-lg border">
         <div className="overflow-x-auto">
           <Table {...rest}>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow {...row} key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow {...row} key={hg.id}>
+                  {hg.headers.map((h) => (
                     <TableHead
-                      key={header.id}
-                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                      className={cn(
-                        header.column.id === "actions" &&
-                          "bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]"
-                      )}
+                      key={h.id}
+                      style={{ width: h.getSize() !== 150 ? h.getSize() : undefined }}
+                      className={cn(h.column.id === "actions" && STICKY_ACTIONS_CLASS)}
                     >
                       <div
-                        className={cn(
-                          header.column.getCanSort() && "flex cursor-pointer items-center gap-2 select-none"
-                        )}
-                        onClick={header.column.getToggleSortingHandler()}
+                        className={cn(h.column.getCanSort() && "flex cursor-pointer items-center gap-2 select-none")}
+                        onClick={h.column.getToggleSortingHandler()}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getIsSorted() === "asc" && " ▴"}
-                        {header.column.getIsSorted() === "desc" && " ▾"}
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                        {h.column.getIsSorted() && (h.column.getIsSorted() === "asc" ? " ▴" : " ▾")}
                       </div>
                     </TableHead>
                   ))}
@@ -274,25 +348,21 @@ export const DataTable = <TData, TValue>({
               ))}
             </TableHeader>
             <TableBody {...body}>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((r) => (
                   <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
+                    key={r.id}
+                    data-state={r.getIsSelected() && "selected"}
                     className={cn(onRowClick && "hover:bg-muted/50 cursor-pointer transition-colors")}
-                    onClick={() => onRowClick?.(row.original)}
+                    onClick={() => onRowClick?.(r.original)}
                   >
-                    {row.getVisibleCells().map((tanstackCell) => (
+                    {r.getVisibleCells().map((c) => (
                       <TableCell
                         {...cell}
-                        key={tanstackCell.id}
-                        className={cn(
-                          cell?.className,
-                          tanstackCell.column.id === "actions" &&
-                            "bg-card sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))]"
-                        )}
+                        key={c.id}
+                        className={cn(cell?.className, c.column.id === "actions" && STICKY_ACTIONS_CLASS)}
                       >
-                        {flexRender(tanstackCell.column.columnDef.cell, tanstackCell.getContext())}
+                        {flexRender(c.column.columnDef.cell, c.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -311,17 +381,15 @@ export const DataTable = <TData, TValue>({
 
       <div className="flex items-center justify-between px-2 py-4">
         <div className="text-muted-foreground text-xs font-medium">
-          {itemCount} items{pageLabel}
+          {totalItems} items{label}
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             className="h-8 text-xs font-bold"
-            onClick={() =>
-              pagination ? pagination.onPageChange(pagination.pageIndex - 1) : table.previousPage()
-            }
-            disabled={!canPreviousPage}
+            onClick={() => (pagination ? pagination.onPageChange(pagination.pageIndex - 1) : table.previousPage())}
+            disabled={!canPrev}
           >
             Previous
           </Button>
@@ -330,171 +398,13 @@ export const DataTable = <TData, TValue>({
             size="sm"
             className="h-8 text-xs font-bold"
             onClick={() => (pagination ? pagination.onPageChange(pagination.pageIndex + 1) : table.nextPage())}
-            disabled={!canNextPage}
+            disabled={!canNext}
           >
             Next
           </Button>
         </div>
       </div>
     </div>
-  );
-};
-
-const FilterPill = <TData, TValue>({
-  column,
-  isDropdownItem,
-}: {
-  column: Column<TData, TValue>;
-  isDropdownItem?: boolean;
-}) => {
-  const [tempValue, setTempValue] = React.useState<string | number | boolean | undefined>(
-    (column.getFilterValue() as string) ?? ""
-  );
-
-  const [open, setOpen] = React.useState(false);
-
-  const filterValue = column.getFilterValue();
-  const { filterVariant = "text", filterOptions = [] } = (column.columnDef.meta ?? {}) as any;
-  const label = typeof column.columnDef.header === "string" ? column.columnDef.header : column.id;
-
-  const displayValue = React.useMemo(() => {
-    if (filterValue === undefined || filterValue === "") return null;
-    if (filterVariant === "date") {
-      if (filterValue instanceof Date) return moment(filterValue).format("MMM DD, YYYY");
-      if (typeof filterValue === "object" && (filterValue as any).from) {
-        const { from, to } = filterValue as any;
-        return `${moment(from).format("MMM DD")} - ${to ? moment(to).format("MMM DD") : "..."}`;
-      }
-    }
-    if (filterVariant === "boolean") return filterValue ? "Yes" : "No";
-    if (filterVariant === "select")
-      return filterOptions.find((o: any) => o.value === filterValue)?.label || filterValue;
-    return String(filterValue);
-  }, [filterValue, filterVariant, filterOptions]);
-
-  const handleApply = () => {
-    column.setFilterValue(tempValue);
-    setOpen(false);
-  };
-
-  const handleClear = (e: React.MouseEvent) => {
-    if (!filterValue) return;
-    e.stopPropagation();
-    setTempValue("");
-    column.setFilterValue(undefined);
-  };
-
-  if (isDropdownItem) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="hover:bg-muted flex w-full items-center rounded-sm px-2 py-1.5 text-left text-xs"
-      >
-        <Plus className="mr-2 size-3 opacity-50" />
-        {label}
-      </button>
-    );
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          className={cn(
-            "flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium transition-all",
-            filterValue
-              ? "bg-secondary/50 border-primary/20 text-primary ring-primary/20 ring-1"
-              : "bg-background border-border text-muted-foreground hover:bg-muted"
-          )}
-        >
-          <svg
-            onClick={handleClear}
-            aria-hidden="true"
-            width="12"
-            height="12"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-            xmlns="http://www.w3.org/2000/svg"
-            className={cn("text-foreground cursor-pointer", filterValue ? "text-primary rotate-45" : "")}
-          >
-            <path d="M8.75 4.25a.75.75 0 0 0-1.5 0v3h-3a.75.75 0 0 0 0 1.5h3v3a.75.75 0 0 0 1.5 0v-3h3a.75.75 0 0 0 0-1.5h-3v-3Z"></path>
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M16 8a8 8 0 0 1-8 8 8 8 0 0 1-8-8 8 8 0 0 1 8-8c4.43 0 8 3.581 8 8Zm-1.5 0A6.5 6.5 0 0 1 8 14.5 6.5 6.5 0 0 1 1.5 8 6.5 6.5 0 0 1 8 1.5c3.6 0 6.5 2.908 6.5 6.5Z"
-            ></path>
-          </svg>
-
-          <span>{_.capitalize(label)}</span>
-          {displayValue && (
-            <>
-              <span className="mx-0.5 opacity-30">|</span>
-              <span className="text-foreground max-w-[120px] truncate">{displayValue}</span>
-            </>
-          )}
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent align="start" className="w-72 p-4 shadow-xl">
-        <div className="space-y-4">
-          <b className="text-foreground text-xs font-bold tracking-wider uppercase">Filter by: {label}</b>
-
-          <div className="mt-2 min-h-[40px]">
-            {filterVariant === "text" && (
-              <div className="relative">
-                <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-                <Input
-                  value={(tempValue as string) ?? ""}
-                  onChange={(e) => setTempValue(e.target.value)}
-                  placeholder={`Search ${label}...`}
-                  className="h-9 pl-8 text-xs"
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {filterVariant === "number" && (
-              <NumberField
-                id={`filter-${column.id}`}
-                value={tempValue as number}
-                onChange={(val) => setTempValue(val)}
-                placeholder="Enter number..."
-                allowDecimal
-              />
-            )}
-
-            {filterVariant === "select" && (
-              <SelectField
-                id={`filter-${column.id}`}
-                items={filterOptions}
-                value={(tempValue as string) ?? ""}
-                onChange={(val) => setTempValue(val)}
-                placeholder={`Select`}
-              />
-            )}
-
-            {filterVariant === "date" && (
-              <DateField
-                id={`filter-${column.id}`}
-                value={tempValue as any}
-                onChange={(val) => setTempValue(val as any)}
-              />
-            )}
-
-            {filterVariant === "boolean" && (
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <span className="text-sm font-medium">{label}</span>
-                <Switch checked={!!filterValue} onCheckedChange={(checked) => column.setFilterValue(checked)} />
-              </div>
-            )}
-          </div>
-
-          <Button className="bg-primary hover:bg-primary/90 h-8 w-full text-xs font-bold" onClick={handleApply}>
-            Apply
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 };
 
