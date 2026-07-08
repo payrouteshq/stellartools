@@ -7,7 +7,7 @@ import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { paginate } from "./event";
 
@@ -91,7 +91,8 @@ export const retrieveProducts = async (
       )
     )
     .limit(limit + 1)
-    .offset(offset);
+    .offset(offset)
+    .orderBy(desc(products.createdAt));
 
   return await paginate(productsList, limit);
 };
