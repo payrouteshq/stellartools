@@ -316,13 +316,13 @@ export const getCurrentUser = async () => {
   if (!authRecord) return null;
 
   if (authRecord.isRevoked || new Date() > authRecord.expiresAt) {
-    await deleteCookies(["accessToken", "refreshToken"]);
+    await deleteCookies(["accessToken", "refreshToken", "selectedOrg"]);
     return null;
   }
 
   const account = await retrieveAccount({ id: payload.accountId });
   if (!account) {
-    await deleteCookies(["accessToken", "refreshToken"]);
+    await deleteCookies(["accessToken", "refreshToken", "selectedOrg"]);
     return null;
   }
 
