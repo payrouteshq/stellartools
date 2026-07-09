@@ -1,80 +1,171 @@
+import * as React from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "../../ui/badge";
 import { DataTable, type TableAction } from "./index";
 
-type Person = {
+// Assuming Money util is accessible
+
+// ─── Mock Data ───────────────────────────────────────────────────────────────
+
+type Transaction = {
   id: string;
-  name: string;
+  customer: string;
   email: string;
-  role: string;
-  status: "active" | "inactive";
+  phone: string;
+  amountCents: number;
+  currencyCode: string;
+  status: "confirmed" | "pending" | "failed";
+  active: boolean;
+  createdAt: Date;
+  itemsCount: number;
 };
 
-const sampleData: Person[] = [
-  { id: "1", name: "Alice Chen", email: "alice@example.com", role: "Admin", status: "active" },
-  { id: "2", name: "Bob Smith", email: "bob@example.com", role: "Developer", status: "active" },
-  { id: "3", name: "Carol Jones", email: "carol@example.com", role: "Designer", status: "inactive" },
-  { id: "4", name: "David Lee", email: "david@example.com", role: "Developer", status: "active" },
-  { id: "5", name: "Eve Wilson", email: "eve@example.com", role: "Viewer", status: "active" },
+const sampleTransactions: Transaction[] = [
+  {
+    id: "pay_1",
+    customer: "Alice Chen",
+    email: "alice@ironkey.dev",
+    phone: "+17085550101",
+    amountCents: 5000,
+    currencyCode: "USD",
+    status: "confirmed",
+    active: true,
+    createdAt: new Date("2024-07-01T10:00:00"),
+    itemsCount: 3,
+  },
+  {
+    id: "pay_2",
+    customer: "Bob Smith",
+    email: "bob@stellar.org",
+    phone: "+2348031234567",
+    amountCents: 12550,
+    currencyCode: "EUR",
+    status: "pending",
+    active: true,
+    createdAt: new Date("2024-07-05T14:30:00"),
+    itemsCount: 1,
+  },
+  {
+    id: "pay_3",
+    customer: "Carol Jones",
+    email: "carol@crypto.com",
+    phone: "+442071234567",
+    amountCents: 7500,
+    currencyCode: "USD",
+    status: "failed",
+    active: false,
+    createdAt: new Date("2024-07-08T09:15:00"),
+    itemsCount: 12,
+  },
+  {
+    id: "pay_4",
+    customer: "David Lee",
+    email: "david@payout.sh",
+    phone: "+12125550199",
+    amountCents: 200000,
+    currencyCode: "NGN",
+    status: "confirmed",
+    active: true,
+    createdAt: new Date("2024-07-08T16:45:00"),
+    itemsCount: 2,
+  },
+  {
+    id: "pay_5",
+    customer: "Eve Wilson",
+    email: "eve@labs.io",
+    phone: "+14155550123",
+    amountCents: 0,
+    currencyCode: "USD",
+    status: "pending",
+    active: false,
+    createdAt: new Date("2024-07-10T11:20:00"),
+    itemsCount: 0,
+  },
 ];
 
-const columns: ColumnDef<Person>[] = [
+// ─── Column Definitions ──────────────────────────────────────────────────────
+
+const columns: ColumnDef<Transaction>[] = [
   {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-    enableSorting: true,
+    accessorKey: "customer",
+    header: "Customer",
+    meta: { filterable: true, filterVariant: "text" },
   },
   {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => <span className="text-muted-foreground text-sm">{row.original.email}</span>,
-    enableSorting: true,
+    accessorKey: "amountCents",
+    header: "Amount",
+    cell: ({ row }) =>
+      new Intl.NumberFormat("en-US", { style: "currency", currency: row.original.currencyCode }).format(
+        row.original.amountCents / 100
+      ),
+    meta: {
+      filterable: true,
+      filterVariant: "currency",
+      filterOptions: [
+        { label: "USD ($)", value: "USD" },
+        { label: "EUR (€)", value: "EUR" },
+        { label: "NGN (₦)", value: "NGN" },
+      ],
+    },
   },
   {
-    accessorKey: "role",
-    header: "Role",
-    cell: ({ row }) => row.original.role,
-    enableSorting: true,
+    accessorKey: "phone",
+    header: "Phone",
+    meta: { filterable: true, filterVariant: "phone" },
   },
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <Badge variant={row.original.status === "active" ? "default" : "secondary"} className="capitalize">
-        {row.original.status}
-      </Badge>
+      <Badge variant={row.original.status === "confirmed" ? "default" : "secondary"}>{row.original.status}</Badge>
     ),
-    enableSorting: true,
+    meta: {
+      filterable: true,
+      filterVariant: "select",
+      filterOptions: [
+        { label: "Confirmed", value: "confirmed" },
+        { label: "Pending", value: "pending" },
+        { label: "Failed", value: "failed" },
+      ],
+    },
   },
+  {
+    accessorKey: "itemsCount",
+    header: "Items",
+    meta: { filterable: true, filterVariant: "number" },
+  },
+  {
+    accessorKey: "active",
+    header: "Active",
+    meta: { filterable: true, filterVariant: "boolean" },
+  },
+  {
+    accessorKey: "createdAt",
+    header: "Date",
+    cell: ({ row }) => row.original.createdAt.toLocaleDateString(),
+    meta: { filterable: true, filterVariant: "date" },
+  },
+];
+
+const actions: TableAction<Transaction>[] = [
+  { label: "View details", onClick: (row) => console.log("View", row.id) },
+  { label: "Refund", onClick: (row) => console.log("Refund", row.id), when: (row) => row.status === "confirmed" },
+  { label: "Delete", onClick: (row) => console.log("Delete", row.id), variant: "destructive" },
 ];
 
 const meta = {
   title: "Components/DataTable",
   component: DataTable,
   parameters: {
-    layout: "centered",
+    layout: "fullscreen",
   },
   tags: ["autodocs"],
-  argTypes: {
-    enableBulkSelect: {
-      control: "boolean",
-    },
-    isLoading: {
-      control: "boolean",
-    },
-    skeletonRowCount: {
-      control: "number",
-    },
-    emptyMessage: {
-      control: "text",
-    },
-  },
   decorators: [
     (Story) => (
-      <div className="w-[640px]">
+      <div className="mx-auto max-w-7xl p-8">
         <Story />
       </div>
     ),
@@ -84,103 +175,51 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
+export const Complete: Story = {
   args: {
-    data: sampleData,
-    columns,
-    emptyMessage: "No results found.",
-  } as any,
-};
-
-export const WithBulkSelect: Story = {
-  args: {
-    data: sampleData,
-    columns,
+    data: sampleTransactions,
+    columns: columns as ColumnDef<unknown, unknown>[],
+    actions: actions as TableAction<unknown>[] | undefined,
     enableBulkSelect: true,
-    emptyMessage: "No results found.",
-  } as any,
-};
-
-const defaultActions: TableAction<Person>[] = [
-  { label: "Edit", onClick: (row) => console.log("Edit", row) },
-  { label: "View details", onClick: (row) => console.log("View", row) },
-  { label: "Delete", onClick: (row) => console.log("Delete", row), variant: "destructive" },
-];
-
-export const WithActions: Story = {
-  args: {
-    data: sampleData,
-    columns,
-    actions: defaultActions,
-    emptyMessage: "No results found.",
-  } as any,
-};
-
-export const WithRowClick: Story = {
-  args: {
-    data: sampleData,
-    columns,
-    onRowClick: (row: Person) => alert(`Clicked: ${row.name}`),
-    emptyMessage: "No results found.",
-  } as any,
-};
-
-export const WithBulkSelectAndActions: Story = {
-  args: {
-    data: sampleData,
-    columns,
-    enableBulkSelect: true,
-    actions: defaultActions,
-    emptyMessage: "No results found.",
-  } as any,
+  },
 };
 
 export const Loading: Story = {
   args: {
     data: [],
-    columns,
+    columns: columns as any,
     isLoading: true,
     skeletonRowCount: 5,
-  } as any,
+  },
 };
 
 export const Empty: Story = {
   args: {
     data: [],
-    columns,
-    emptyMessage: "No results found.",
-  } as any,
+    columns: columns as any,
+    emptyMessage: "No transactions found for this period.",
+  },
 };
 
-export const CustomEmptyMessage: Story = {
+export const Pagination: Story = {
   args: {
-    data: [],
-    columns,
-    emptyMessage: "No users yet. Add your first user to get started.",
-  } as any,
-};
+    data: sampleTransactions.slice(0, 3),
+    columns: columns as ColumnDef<unknown, unknown>[],
+  },
+  render: (args) => {
+    const [page, setPage] = React.useState(0);
 
-const manyRows = Array.from({ length: 15 }, (_, i) => ({
-  id: String(i + 1),
-  name: `User ${i + 1}`,
-  email: `user${i + 1}@example.com`,
-  role: i % 3 === 0 ? "Admin" : i % 3 === 1 ? "Developer" : "Viewer",
-  status: i % 5 === 0 ? ("inactive" as const) : ("active" as const),
-}));
-
-export const WithPagination: Story = {
-  args: {
-    data: manyRows,
-    columns,
-    emptyMessage: "No results found.",
-  } as any,
-};
-
-export const LoadingCustomSkeletonRows: Story = {
-  args: {
-    data: [],
-    columns,
-    isLoading: true,
-    skeletonRowCount: 8,
-  } as any,
+    return (
+      <DataTable
+        {...args}
+        pagination={{
+          pageIndex: page,
+          pageSize: 3,
+          hasNextPage: page < 1,
+          hasPreviousPage: page > 0,
+          onPageChange: setPage,
+        }}
+      />
+    );
+  },
 };

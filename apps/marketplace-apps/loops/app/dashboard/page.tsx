@@ -230,7 +230,6 @@ const Dashboard = () => {
             isLoading={statsLoading}
             data={filteredLogs}
             columns={logColumns}
-            withFilterPill={false}
             emptyMessage="No activity yet."
             containerClassName="[&_.bg-card]:shadow-none [&_[data-slot=table-cell]]:text-xs [&_[data-slot=table-head]]:text-xs [&_[data-slot=table-container]::-webkit-scrollbar]:h-1 [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:rounded-full [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:bg-border [&_[data-slot=table-container]::-webkit-scrollbar-track]:bg-transparent"
           />

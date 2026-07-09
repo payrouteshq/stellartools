@@ -1,7 +1,8 @@
-import { useState } from "react";
+import * as React from "react";
 
 import type { Meta, StoryObj } from "@storybook/react";
 
+import { cn } from "../../lib/utils";
 import { FileUpload, type FileWithPreview } from "./index";
 
 function createNonImageFile(name: string, type: string): FileWithPreview {
@@ -9,23 +10,17 @@ function createNonImageFile(name: string, type: string): FileWithPreview {
   return Object.assign(file, { preview: "#" });
 }
 
-const FileUploadWithState = (args: any) => {
-  const [value, setValue] = useState<FileWithPreview[]>(args.value ?? []);
+const FileUploadWithState = ({ value: initialValue, ...props }: React.ComponentProps<typeof FileUpload>) => {
+  const [value, setValue] = React.useState<FileWithPreview[]>(initialValue ?? []);
+  const isCircle = props.shape === "circle";
+
   return (
-    <div className="w-full max-w-md min-w-[400px]">
+    <div className={isCircle ? "w-fit" : "w-full max-w-md min-w-[400px]"}>
       <FileUpload
+        {...props}
         value={value}
         onFilesChange={setValue}
-        onFilesRejected={args.onFilesRejected}
-        label={args.label}
-        error={args.error}
-        description={args.description}
-        placeholder={args.placeholder}
-        disabled={args.disabled}
-        enableTransformation={args.enableTransformation}
-        targetFormat={args.targetFormat}
-        dropzoneMultiple={args.dropzoneMultiple}
-        dropzoneAccept={args.dropzoneAccept}
+        className={cn(isCircle && "w-fit", props.className)}
       />
     </div>
   );
@@ -83,13 +78,16 @@ export const FileUploadCircle: Story = {
   render: (args) => <FileUploadWithState {...args} />,
   args: {
     label: "Upload picture",
-    placeholder: undefined,
+    placeholder: "",
+    description: "",
     shape: "circle",
+    className: "w-fit",
     dropzoneAccept: { "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"] },
     dropzoneMaxSize: 5 * 1024 * 1024,
     dropzoneMultiple: false,
     enableTransformation: true,
     targetFormat: "image/png",
+    maxDimension: 1024,
   },
 };
 

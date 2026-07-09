@@ -5,10 +5,10 @@ import * as React from "react";
 import { retrieveEvents } from "@/actions/event";
 import { retrievePayments } from "@/actions/payment";
 import { retrieveSubscriptions } from "@/actions/subscription";
-import { ResolvedPayment } from "@/db";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { TIMELINE_ROUTE_MAP } from "@/constant";
+import { ResolvedPayment } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
@@ -420,7 +420,6 @@ export default function SubscriptionDetailPage() {
                   columns={invoiceColumns(s.environment)}
                   data={subscriptionPayments}
                   isLoading={loadingPayments}
-                  withFilterPill={false}
                   emptyMessage="No payments yet"
                   pagination={{
                     pageIndex: paymentsPageIndex,

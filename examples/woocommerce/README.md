@@ -55,5 +55,3 @@ docker compose -f examples/woocommerce/docker-compose.yml down
 ```
 
 Data is kept in Docker volumes. Add `-v` to wipe everything.
-
-

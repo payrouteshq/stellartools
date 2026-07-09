@@ -17,12 +17,7 @@ import { Switch } from "../../ui/switch";
 import { DateField } from "../date-field";
 import { EmbeddedFieldRow, FieldStack } from "../field-stack";
 import { NumberField } from "../number-field";
-import {
-  PhoneNumberField,
-  phoneNumberFromString,
-  phoneNumberToString,
-  type PhoneNumber,
-} from "../phone-number-field";
+import { type PhoneNumber, PhoneNumberField, phoneNumberFromString, phoneNumberToString } from "../phone-number-field";
 import { SelectField } from "../select-field";
 import { SelectInput, type SelectInputValue } from "../select-input";
 import {
@@ -345,7 +340,7 @@ export const DataTableFilterPill = <TData, TValue>({
                 name="phoneNumber"
                 control={control}
                 render={({ field }) => (
-                  <div className="space-y-0 [&_button]:flex [&_button]:h-full [&_button]:items-center [&_button]:gap-1.5 [&_button]:px-2 [&_button]:py-0 [&_span.font-mono]:text-xs **:data-[slot=input-group]:h-7 **:data-[slot=input-group]:min-h-7">
+                  <div className="space-y-0 **:data-[slot=input-group]:h-7 **:data-[slot=input-group]:min-h-7 [&_button]:flex [&_button]:h-full [&_button]:items-center [&_button]:gap-1.5 [&_button]:px-2 [&_button]:py-0 [&_span.font-mono]:text-xs">
                     <PhoneNumberField
                       id="phone-filter"
                       label={null}

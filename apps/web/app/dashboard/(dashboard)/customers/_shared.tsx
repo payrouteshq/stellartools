@@ -621,13 +621,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
 
           <div className="space-y-10">
             <CsvImportSection label="3. System Preview">
-              <DataTable
-                columns={PREVIEW_COLS}
-                data={previewData}
-                isLoading={false}
-                className="border-0 shadow-none"
-                withFilterPill={false}
-              />
+              <DataTable columns={PREVIEW_COLS} data={previewData} isLoading={false} className="border-0 shadow-none" />
             </CsvImportSection>
 
             <CsvImportSection label="4. Logic Validation">

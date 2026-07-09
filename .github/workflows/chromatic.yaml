@@ -1,6 +1,12 @@
 name: "Chromatic Publish"
 
-on: push
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/shared-ui/**"
+      - ".storybook/**"
 
 jobs:
   publish-chromatic:

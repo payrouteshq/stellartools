@@ -11,7 +11,9 @@
     "type-check": "tsc --noEmit",
     "db:generate": "npx drizzle-kit generate",
     "db:migrate": "npx drizzle-kit migrate",
-    "email": "email dev --dir ./emails"
+    "email": "email dev --dir ./emails",
+    "storybook": "pnpm -w run storybook",
+    "build-storybook": "pnpm -w run build-storybook"
   },
   "dependencies": {
     "@aliimam/icons": "^0.1.9",

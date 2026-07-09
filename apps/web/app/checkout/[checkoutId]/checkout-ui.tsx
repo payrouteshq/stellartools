@@ -130,7 +130,7 @@ export default function CheckoutUI() {
                   <Skeleton className="h-10 w-48 rounded-md" />
                 )}
                 {trialDays > 0 && (
-                  <p className="text-sm font-medium text-background-foreground/80">
+                  <p className="text-background-foreground/80 text-sm font-medium">
                     {trialDays}-day free trial
                     {billingPeriodLabel ? `, then billed every ${billingPeriodLabel.replaceAll("every ", "")}` : ""}
                   </p>

@@ -41,7 +41,7 @@ Stellar Tools is an OSS payment platform that lets developers accept and manage 
 - [Tailwind CSS](https://tailwindcss.com) 4 - styling
 - [PostgreSQL](https://www.postgresql.org) + [Drizzle ORM](https://orm.drizzle.team) - database
 - [Stellar SDK](https://stellar.org) + [Soroban](https://soroban.stellar.org) - blockchain
-- [pnpm](https://pnpm.io) workspaces + [Nx](https://nx.dev) - monorepo
+- [pnpm](https://pnpm.io) workspaces
 
 ## Monorepo Structure
 

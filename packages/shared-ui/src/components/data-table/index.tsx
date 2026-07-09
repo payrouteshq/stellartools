@@ -161,7 +161,6 @@ interface DataTableProps<TData, TValue>
   isLoading?: boolean;
   skeletonRowCount?: number;
   emptyMessage?: string;
-  withFilterPill?: boolean;
   columnFilters?: ColumnFiltersState;
   setColumnFilters?: (filters: ColumnFiltersState) => void;
   pagination?: DataTablePagination;
@@ -178,7 +177,6 @@ export const DataTable = <TData, TValue>({
   isLoading = false,
   skeletonRowCount = 5,
   emptyMessage = "No results found.",
-  withFilterPill = true,
   columnFilters: externalFilters,
   setColumnFilters: setExternalFilters,
   pagination,
@@ -320,7 +318,9 @@ export const DataTable = <TData, TValue>({
   return (
     <div {...container} className={cn("space-y-4", container?.className)}>
       <div className="flex flex-wrap items-center gap-2 px-1">
-        {withFilterPill && filterableCols.map((col) => <DataTableFilterPill key={col.id} column={col} />)}
+        {filterableCols.map((col) => (
+          <DataTableFilterPill key={col.id} column={col} />
+        ))}
       </div>
 
       <div className="bg-card rounded-lg border">

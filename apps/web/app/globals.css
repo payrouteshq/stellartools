@@ -73,7 +73,6 @@
   }
 }
 
-
 @layer base {
   h1,
   h2,
@@ -94,13 +93,11 @@
   }
 }
 
-
 @layer utilities {
   .scrollbar-sidebar {
     @apply scrollbar-track-sidebar scrollbar-thumb-sidebar-border scrollbar-hover:scrollbar-thumb-sidebar-primary scrollbar-active:scrollbar-thumb-sidebar-ring scrollbar-thin;
   }
 }
-
 
 /*
 * https://github.com/StackExchange/Stacks/pull/383/files
@@ -115,4 +112,3 @@
     line-height: normal !important;
   }
 }
-
