@@ -92,6 +92,7 @@ type Organization = Awaited<ReturnType<typeof retrieveOrganization>>;
 
 const ProfileTabContent = ({ user }: { user: User }) => {
   const { file, isLoading: imgLoading } = useFilePreview(user.profile?.avatarUrl);
+  const { data: orgContext } = useOrgContext();
 
   const profileForm = RHF.useForm({
     resolver: zodResolver(profileSchema),
@@ -121,7 +122,8 @@ const ProfileTabContent = ({ user }: { user: User }) => {
   const { mutate: handleToggle2fa, isPending: isToggling2fa } = useAction(
     async (checked: boolean) => {
       if (checked) {
-        const response = await setup2fa(user.id);
+        if (!orgContext?.name) return { isEnabling: false };
+        const response = await setup2fa(user.id, orgContext.name);
         return { ...response, isEnabling: true };
       } else {
         AppModal.open({

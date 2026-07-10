@@ -189,7 +189,13 @@ export const getCurrentOrganization = async (onError?: (err: string) => Promise<
 
   try {
     const organization = await retrieveOrganization(orgId);
-    return { id: organization.id, environment, token: selectedOrg, selectedCurrency: organization.selectedCurrency };
+    return {
+      id: organization.id,
+      environment,
+      token: selectedOrg,
+      selectedCurrency: organization.selectedCurrency,
+      name: organization.name,
+    };
   } catch (error) {
     if (onError) await onError((error as Error)?.message);
     return null;

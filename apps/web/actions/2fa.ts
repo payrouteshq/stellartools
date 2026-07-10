@@ -37,7 +37,7 @@ export const initiate2faReset = safeAction(async (accountId: string) => {
   return { success: true, resetToken };
 });
 
-export const setup2fa = safeAction(async (accountId: string) => {
+export const setup2fa = safeAction(async (accountId: string, organizationName: string) => {
   const account = await retrieveAccount({ id: accountId });
   if (!account) throw new AppError("Account not found");
 
@@ -53,7 +53,7 @@ export const setup2fa = safeAction(async (accountId: string) => {
       .where(eq(accounts.id, accountId));
   }
 
-  const otpauthUrl = generateURI({ issuer: "StellarTools", label: account.email, secret });
+  const otpauthUrl = generateURI({ issuer: "StellarTools", label: organizationName, secret });
   const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
 
   return { secret, qrCodeDataUrl };
