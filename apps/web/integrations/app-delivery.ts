@@ -31,7 +31,7 @@ export const deliverToApp = async <TName extends string, TObject>(
 
   try {
     const signer = new WebhookSigner();
-    const signature = signer.generateSignature(body, decrypt(app.appSecret.replace(SENSITIVE_KEY_PREFIX, "")));
+    const signature = signer.generateSignature(body, decrypt(app.appSecret.replaceAll(SENSITIVE_KEY_PREFIX, "")));
 
     const appToken = await generateAppToken(
       appInstallationId,
@@ -79,6 +79,7 @@ export const deliverToApp = async <TName extends string, TObject>(
 
     return { success: response.ok };
   } catch (error: any) {
+    console.error("[deliverToApp] failed for", app.id, error.message);
     const duration = Date.now() - startTime;
 
     await postDeliveryLog(
