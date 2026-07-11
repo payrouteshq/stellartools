@@ -69,12 +69,12 @@ const windowUnitOptions = [
   { value: "months", label: "months" },
 ];
 const filterOpOptions: { value: FilterOp; label: string }[] = [
-  { value: "=", label: "= equals" },
-  { value: "!=", label: "≠ not equals" },
-  { value: ">", label: "> greater than" },
-  { value: "<", label: "< less than" },
-  { value: ">=", label: "≥ greater or equal" },
-  { value: "<=", label: "≤ less or equal" },
+  { value: "eq", label: "= equals" },
+  { value: "is_not", label: "≠ not equals" },
+  { value: "gt", label: "> greater than" },
+  { value: "lt", label: "< less than" },
+  { value: "gte", label: "≥ greater or equal" },
+  { value: "lte", label: "≤ less or equal" },
 ];
 
 // ─── Rule block editor ───────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ function RuleBlockEditor({
           <button
             type="button"
             onClick={() =>
-              onChange({ ...block, filters: [...block.filters, { prop: propKeys[0], op: "=", value: "" }] })
+              onChange({ ...block, filters: [...block.filters, { prop: propKeys[0], op: "eq", value: "" }] })
             }
             className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline self-start"
           >

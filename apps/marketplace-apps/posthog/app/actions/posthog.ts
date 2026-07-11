@@ -1,6 +1,6 @@
 "use server";
 
-import { Cohort, FilterOp, deleteCohort as dbDeleteCohort, upsertCohort } from "@/app/actions/db";
+import { Cohort, deleteCohort as dbDeleteCohort, upsertCohort } from "@/app/actions/db";
 import { Primitive, StellarTools } from "@stellartools/core";
 
 export type PostHogProject = { id: number; name: string };
@@ -13,20 +13,6 @@ export type AppSettings = {
 };
 
 // ─── PostHog cohort helpers ───────────────────────────────────────────────────
-
-type FilterOpStr = "exact" | "is_not" | "gt" | "lt" | "gte" | "lte";
-
-function mapFilterOp(op: FilterOp): FilterOpStr {
-  const map: Record<FilterOp, FilterOpStr> = {
-    "=": "exact",
-    "!=": "is_not",
-    ">": "gt",
-    "<": "lt",
-    ">=": "gte",
-    "<=": "lte",
-  };
-  return map[op];
-}
 
 function compileCohort(cohort: Cohort) {
   return {
@@ -48,7 +34,7 @@ function compileCohort(cohort: Cohort) {
           event_filters: block.filters.map((f) => ({
             key: f.prop,
             type: "event",
-            operator: mapFilterOp(f.op as FilterOp),
+            operator: f.op === "eq" ? "exact" : f.op,
             value: f.value,
           })),
         })),

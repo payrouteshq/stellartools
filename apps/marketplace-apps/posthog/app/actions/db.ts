@@ -2,12 +2,13 @@
 
 import { Pool } from "pg";
 
-export type FilterOp = "=" | "!=" | ">" | "<" | ">=" | "<=";
+export type FilterOp = "eq" | "is_not" | "gt" | "lt" | "gte" | "lte";
 
 export type PropertyFilter = {
   prop: string;
   op: FilterOp;
   value: string | number;
+  currency?: string;
 };
 
 export type TimeWindow = { amount: number; unit: "days" | "weeks" | "months" } | null;
