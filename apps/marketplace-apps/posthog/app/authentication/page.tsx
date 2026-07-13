@@ -12,52 +12,75 @@ function AuthenticationForm() {
   const appToken = searchParams.get("st_token") ?? "";
   const router = useRouter();
 
+  const [step, setStep] = React.useState<1 | 2>(1);
   const [projectToken, setProjectToken] = React.useState("");
   const [personalApiKey, setPersonalApiKey] = React.useState("");
-  const [projectId, setProjectId] = React.useState("");
+  const [projectTokenError, setProjectTokenError] = React.useState<string | null>(null);
+  const [personalApiKeyError, setPersonalApiKeyError] = React.useState<string | null>(null);
   const [projects, setProjects] = React.useState<PostHogProject[]>([]);
-  const [projectsLoading, setProjectsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [projectId, setProjectId] = React.useState("");
+  const [projectError, setProjectError] = React.useState<string | null>(null);
+  const [serverError, setServerError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
-  const projectOptions = React.useMemo(
-    () => projects.map((p) => ({ value: String(p.id), label: p.name })),
-    [projects]
-  );
+  const projectOptions = React.useMemo(() => projects.map((p) => ({ value: String(p.id), label: p.name })), [projects]);
 
-  const fetchProjects = async () => {
-    if (!personalApiKey || !projectToken) return;
-    setProjectsLoading(true);
-    setError(null);
-    const result = await listPostHogProjects(personalApiKey);
-    if (result.length === 0) {
-      setError("Couldn't fetch projects. Check your personal API key.");
-    } else {
-      setProjects(result);
-      if (!projectId) setProjectId(String(result[0].id));
+  const handleStep1 = async () => {
+    setProjectTokenError(null);
+    setPersonalApiKeyError(null);
+
+    let hasError = false;
+    if (!projectToken.trim()) {
+      setProjectTokenError("Project token is required");
+      hasError = true;
+    } else if (!/^phc_/.test(projectToken.trim())) {
+      setProjectTokenError("Project token must start with phc_");
+      hasError = true;
     }
-    setProjectsLoading(false);
+
+    if (!personalApiKey.trim()) {
+      setPersonalApiKeyError("Personal API key is required");
+      hasError = true;
+    } else if (!/^phx_/.test(personalApiKey.trim())) {
+      setPersonalApiKeyError("Personal API key must start with phx_");
+      hasError = true;
+    }
+
+    if (hasError) return;
+
+    setPending(true);
+    try {
+      const result = await listPostHogProjects(personalApiKey.trim());
+      if (result.length === 0) {
+        setPersonalApiKeyError("Couldn't fetch projects. Check your personal API key.");
+        return;
+      }
+      setProjects(result);
+      setProjectId(String(result[0].id));
+      setStep(2);
+    } finally {
+      setPending(false);
+    }
   };
 
-  const handleConnect = async () => {
-    setError(null);
-    if (!projectToken || !personalApiKey) {
-      setError("Both keys are required");
-      return;
-    }
+  const handleStep2 = async () => {
+    setProjectError(null);
+    setServerError(null);
+
     if (!projectId) {
-      setError("Select a project to continue");
+      setProjectError("Select a project to continue");
       return;
     }
     if (!appToken) {
-      setError("App token not found");
+      setServerError("App token not found");
       return;
     }
+
     setPending(true);
     try {
-      const result = await validateAndConnect(projectToken, personalApiKey, projectId, appToken);
+      const result = await validateAndConnect(projectToken.trim(), personalApiKey.trim(), projectId, appToken);
       if (result !== true) {
-        setError(result);
+        setServerError(result);
         return;
       }
       window.parent.postMessage({ type: "stellar:data-changed" }, "*");
@@ -67,6 +90,44 @@ function AuthenticationForm() {
     }
   };
 
+  if (step === 2) {
+    return (
+      <div className="bg-background min-h-screen px-5">
+        <section className="mx-auto flex w-full max-w-md flex-col gap-6 py-8">
+          <div className="space-y-1">
+            <h2 className="text-base font-medium">Choose a project</h2>
+            <p className="text-muted-foreground text-sm">Select the PostHog project to sync payment analytics into.</p>
+          </div>
+
+          <SelectField
+            id="project"
+            label="Project"
+            value={projectId}
+            onChange={setProjectId}
+            items={projectOptions}
+            placeholder="Select project"
+            triggerClassName="shadow-none"
+            error={projectError}
+          />
+
+          <p className="text-muted-foreground text-xs">
+            The personal key can read across every project in your org, not just the one selected here.
+          </p>
+
+          {serverError && (
+            <p className="text-destructive text-sm" role="alert">
+              {serverError}
+            </p>
+          )}
+
+          <Button className="w-full shadow-none" isLoading={pending} onClick={handleStep2}>
+            {pending ? "Connecting…" : "Connect PostHog →"}
+          </Button>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background min-h-screen px-5">
       <section className="mx-auto flex w-full max-w-md flex-col gap-6 py-8">
@@ -75,15 +136,15 @@ function AuthenticationForm() {
           <p className="text-muted-foreground text-sm">Add your PostHog keys to start tracking payment analytics.</p>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-6">
           <TextField
             id="project-token"
             label="Project token"
             placeholder="phc_xxxxxxxx"
             value={projectToken}
             onChange={setProjectToken}
-            onBlur={fetchProjects}
             className="font-mono text-sm shadow-none"
+            error={projectTokenError}
           />
 
           <TextField
@@ -92,30 +153,12 @@ function AuthenticationForm() {
             placeholder="phx_xxxxxxxx"
             value={personalApiKey}
             onChange={setPersonalApiKey}
-            onBlur={fetchProjects}
             className="font-mono text-sm shadow-none"
+            error={personalApiKeyError}
           />
 
-          <SelectField
-            id="project"
-            label="Project"
-            value={projectId}
-            onChange={setProjectId}
-            items={projectOptions}
-            placeholder="Select project — fetched after key entry"
-            disabled={projectOptions.length === 0 || projectsLoading}
-            isLoading={projectsLoading}
-            triggerClassName="shadow-none"
-          />
-
-          {error && <p className="text-destructive text-sm">{error}</p>}
-
-          <p className="text-muted-foreground text-xs">
-            The personal key can read across every project in your org, not just the one selected here.
-          </p>
-
-          <Button className="w-full shadow-none" isLoading={pending} onClick={handleConnect}>
-            {pending ? "Connecting…" : "Connect PostHog →"}
+          <Button className="w-full shadow-none" isLoading={pending} onClick={handleStep1}>
+            {pending ? "Verifying…" : "Continue"}
           </Button>
         </div>
       </section>
