@@ -150,7 +150,10 @@ export async function POST(req: NextRequest) {
 
     const track = (eventName: string, properties: Record<string, unknown>) => {
       const distinctId = String(properties.stellartools_customer_id ?? "anonymous");
-      posthog.capture({ distinctId, event: eventName, properties: { ...properties, environment } });
+      const $set: Record<string, unknown> = {};
+      if (properties.email != null) $set.email = properties.email;
+      if (properties.name != null) $set.name = properties.name;
+      posthog.capture({ distinctId, event: eventName, properties: { ...properties, environment, ...(Object.keys($set).length ? { $set } : {}) } });
     };
 
     await handler(event, track);
