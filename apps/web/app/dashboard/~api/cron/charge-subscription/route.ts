@@ -18,7 +18,7 @@ import _ from "lodash";
 
 const CONCURRENCY_LIMIT = 5;
 
-export async function processSingleSubscription(sub: ResolvedSubscription) {
+async function processSingleSubscription(sub: ResolvedSubscription) {
   const { id: subId, organizationId: orgId, environment: env, productId } = sub;
   const walletAddress = sub?.customerWallet?.address;
 
