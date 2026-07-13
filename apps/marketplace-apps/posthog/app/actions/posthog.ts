@@ -44,7 +44,7 @@ function compileCohort(cohort: Cohort) {
 }
 
 function cohortUrl(settings: AppSettings, id?: string) {
-  const base = `${settings.posthogHost}/api/projects/${settings.posthogProjectId}/cohorts`;
+  const base = `"https://app.posthog.com"/api/projects/${settings.posthogProjectId}/cohorts`;
   return id ? `${base}/${id}/` : `${base}/`;
 }
 
