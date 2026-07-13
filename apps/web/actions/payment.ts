@@ -5,7 +5,7 @@ import { processPaymentBilling } from "@/actions/billing";
 import { retrieveCheckout, retrieveCheckoutAndCustomer } from "@/actions/checkout";
 import { putCheckout } from "@/actions/checkout";
 import { retrieveCustomers, upsertCustomerWallet } from "@/actions/customers";
-import { paginate, runAtomic, withEvent } from "@/actions/event";
+import { paginate, parseOffset, runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganization } from "@/actions/organization";
 import { retrieveProducts } from "@/actions/product";
 import { PaymentStatus } from "@/constant/schema.client";
@@ -323,6 +323,7 @@ export const retrievePayments = async (
   }
 
   const limit = params?.limit ?? 10;
+  const offset = await parseOffset(params?.starting_after);
 
   const rows = await db
     .select({
@@ -349,7 +350,7 @@ export const retrievePayments = async (
     )
     .orderBy(desc(payments.createdAt))
     .limit(limit + 1)
-    .offset(params?.starting_after ? parseInt(params.starting_after, 10) : 0);
+    .offset(offset);
 
   return await paginate(
     rows.map(({ customer, payment, hasRefund, wallets, refunds, org }) => ({

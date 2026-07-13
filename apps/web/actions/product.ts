@@ -1,5 +1,6 @@
 "use server";
 
+import { paginate, parseOffset } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { subscriptionPeriodMs } from "@/constant";
 import { Network, Product, ProductStatus, db, products } from "@/db";
@@ -8,8 +9,6 @@ import { AppError } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
 import { and, desc, eq } from "drizzle-orm";
-
-import { paginate } from "./event";
 
 const resolveSubscriptionBilling = (
   type: Product["type"],
@@ -77,7 +76,7 @@ export const retrieveProducts = async (
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   const limit = filters?.limit ?? 10;
-  const offset = filters?.starting_after ? parseInt(filters.starting_after, 10) : 0;
+  const offset = await parseOffset(filters?.starting_after);
 
   const productsList = await db
     .select()

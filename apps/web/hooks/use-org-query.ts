@@ -58,10 +58,10 @@ export function useOrgQuery<
 
   const queryKey: QueryKey = [
     ...baseQueryKey,
-    ...(pagination ? [pageIndex, pageSize] : []),
     org?.id,
     org?.environment,
-  ].filter(Boolean);
+    ...(pagination ? [pageIndex, pageSize] : []),
+  ].filter((segment) => segment !== undefined && segment !== null);
 
   const result = useQuery({
     ...queryOptions,
@@ -94,6 +94,8 @@ export function useInvalidateOrgQuery() {
 
   return (baseQueryKey: OrgQueryKey) =>
     queryClient.invalidateQueries({
-      queryKey: [...baseQueryKey, org?.id, org?.environment].filter(Boolean),
+      queryKey: [...baseQueryKey, org?.id, org?.environment].filter(
+        (segment) => segment !== undefined && segment !== null
+      ),
     });
 }

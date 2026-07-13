@@ -23,7 +23,8 @@ import { uploadFiles } from "@/integrations/file-upload";
 import { getFiatRates } from "@/integrations/price-feed";
 import { createAccount } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
-import { generateResourceId, normalizeTimeSeries } from "@/lib/utils";
+import { computeOverviewStats } from "@/lib/overview-stats";
+import { generateResourceId } from "@/lib/utils";
 import { STELLARTOOLS_ID, signJwt, verifyJwt } from "@stellartools/core";
 import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import moment from "moment";
@@ -300,16 +301,8 @@ export const retrieveOverviewStats = async (
 
   const dayCount = moment().diff(moment(since), "days") + 1;
 
-  // 1. Fetch Fiat Rates and calculate the Target Rate multiplier
+  // 1. Fetch Fiat Rates; bucket conversion happens in computeOverviewStats
   const rates = await getFiatRates();
-  const targetRate = targetCurrency === "USD" ? 1 : (rates[targetCurrency] ?? 1);
-
-  const normalize = (amount: number | string, fromCurrency: string) => {
-    const val = Number(amount);
-    if (fromCurrency === targetCurrency) return val;
-    const rateFrom = rates[fromCurrency] ?? 1;
-    return Math.round((val / rateFrom) * targetRate);
-  };
 
   // A. Metrics: Subs, Trials, Total Customers
   const metricsQuery = db
@@ -516,54 +509,19 @@ export const retrieveOverviewStats = async (
     mrrChartQuery,
   ]);
 
-  const mrrCents = mrrResult.reduce((acc, b) => acc + normalize(b.cents, b.currencyCode), 0);
-  const totalGross = grossResult.reduce((acc, b) => acc + normalize(b.totalCents, b.currencyCode), 0);
-  const totalFees = feeResult.reduce((acc, b) => acc + normalize(b.totalFees, b.currencyCode), 0);
-  const netRevenueCents = totalGross - totalFees;
-
-  const netRevMap = new Map<string, number>();
-  revChart.forEach((b) =>
-    netRevMap.set(b.date, (netRevMap.get(b.date) ?? 0) + normalize(b.grossCents, b.currencyCode))
-  );
-  feeChart.forEach((b) => netRevMap.set(b.date, (netRevMap.get(b.date) ?? 0) - normalize(b.feeCents, b.currencyCode)));
-
-  const mrrDayMap = new Map<string, number>();
-  mrrChart.forEach((b) => mrrDayMap.set(b.date, (mrrDayMap.get(b.date) ?? 0) + normalize(b.cents, b.currencyCode)));
-
-  return {
-    activeTrials: Number(metrics.activeTrials),
-    activeSubscriptions: Number(metrics.activeSubscriptions),
-    totalCustomers: Number(metrics.totalCustomers),
-    newCustomers: custChart.reduce((acc, curr) => acc + curr.count, 0),
-    mrrCents,
-    netRevenueCents,
-    currency: targetCurrency,
-    charts: {
-      mrr: normalizeTimeSeries(
-        Array.from(mrrDayMap.entries()).map(([date, value]) => ({ date, value })),
-        dayCount,
-        "day"
-      ),
-      activeSubscriptions: normalizeTimeSeries(
-        activeSubscriptionsChart.map((m) => ({ date: m.date, value: m.count })),
-        dayCount,
-        "day"
-      ),
-      revenue: normalizeTimeSeries(
-        Array.from(netRevMap.entries()).map(([date, value]) => ({ date, value })),
-        dayCount,
-        "day"
-      ),
-      customers: normalizeTimeSeries(
-        custChart.map((c) => ({ date: c.date, value: c.count })),
-        dayCount,
-        "day"
-      ),
-      trials: normalizeTimeSeries(
-        trialsChart.map((t) => ({ date: t.date, value: t.count })),
-        dayCount,
-        "day"
-      ),
+  return computeOverviewStats(
+    {
+      metrics,
+      mrrBuckets: mrrResult.map((b) => ({ currencyCode: b.currencyCode, cents: b.cents })),
+      grossBuckets: grossResult.map((b) => ({ currencyCode: b.currencyCode, cents: b.totalCents })),
+      feeBuckets: feeResult.map((b) => ({ currencyCode: b.currencyCode, cents: b.totalFees })),
+      revenueChart: revChart,
+      feeChart,
+      customersChart: custChart,
+      trialsChart,
+      activeSubscriptionsChart,
+      mrrChart,
     },
-  };
+    { targetCurrency, rates, dayCount }
+  );
 };

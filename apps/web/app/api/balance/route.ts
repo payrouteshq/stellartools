@@ -7,7 +7,7 @@ export const OPTIONS = createOptionsHandler();
 
 export const GET = apiHandler({
   auth: ["session", "apikey"],
-  mcp: { name: "get_balance", description: "Get the balance of an account" },
+  mcp: { name: "get_balance", description: "Fetch Account balance" },
   handler: async ({ auth: { organizationId, environment } }) => {
     const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
 

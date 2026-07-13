@@ -24,23 +24,26 @@ export const GET = apiHandler({
       ending_before,
     });
 
-    const failedCounts = await db
-      .select({
-        id: payments.subscriptionId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(payments)
-      .where(
-        and(
-          eq(payments.organizationId, organizationId),
-          eq(payments.status, "failed"),
-          inArray(
-            payments.subscriptionId,
-            subscriptions.data.map((s) => s.id)
+    const subscriptionIds = subscriptions.data.map((s) => s.id);
+
+    let failedCounts: { id: string | null; count: number }[] = [];
+
+    if (subscriptionIds.length > 0) {
+      failedCounts = await db
+        .select({
+          id: payments.subscriptionId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.organizationId, organizationId),
+            eq(payments.status, "failed"),
+            inArray(payments.subscriptionId, subscriptionIds)
           )
         )
-      )
-      .groupBy(payments.subscriptionId);
+        .groupBy(payments.subscriptionId);
+    }
 
     const countMap = Object.fromEntries(failedCounts.map((c) => [c.id, c.count]));
 

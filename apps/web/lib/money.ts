@@ -40,6 +40,19 @@ export const Money = {
     return Math.round(new Big(usdCents).times(rate).toNumber());
   },
 
+  /**
+   * Convert cents between currencies using USD-based rates (rates[X] = X units per USD).
+   * Unknown currencies fall back to a 1:1 USD rate.
+   */
+  convert: (cents: number | string, fromCurrency: string, toCurrency: string, rates: Record<string, number>): number => {
+    const value = Number(cents);
+    if (!Number.isFinite(value)) return 0;
+    if (fromCurrency === toCurrency) return Math.round(value);
+    const rateFrom = rates[fromCurrency] ?? 1;
+    const rateTo = toCurrency === "USD" ? 1 : (rates[toCurrency] ?? 1);
+    return Math.round((value / rateFrom) * rateTo);
+  },
+
   // USD cents → local currency string (alias kept for explicit call sites)
   format: (cents: number, currency: string): string => {
     return Money.formatFiat(cents, currency);

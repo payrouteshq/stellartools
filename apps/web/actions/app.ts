@@ -194,6 +194,8 @@ export const installMarketplaceApp = async (appSlug: string) => {
 
   if (!app) throw new Error("App not found");
 
+  if (app.status !== "available") throw new Error("App is not available for installation");
+
   const scopes = app.scopes;
 
   const { installation } = await postAppInstallation({

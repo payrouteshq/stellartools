@@ -2,6 +2,7 @@
 
 import { retrieveApps } from "@/actions/app";
 import { retrieveCustomerPortalSession } from "@/actions/customers";
+import { paginate, parseOffset } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { ApiKey, Network, apiKeys, db, organizations } from "@/db";
@@ -13,8 +14,6 @@ import { AppContext } from "@stellartools/app-sdk";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, decodeJwt, verifyJwt } from "@stellartools/core";
 import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
-
-import { paginate } from "./event";
 
 export const postApiKey = safeAction(
   async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
@@ -42,7 +41,7 @@ export const retrieveApiKeys = async (params?: ApiListParams, orgId?: string, en
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   const limit = params?.limit ?? 10;
-  const offset = params?.starting_after ? parseInt(params.starting_after, 10) : 0;
+  const offset = await parseOffset(params?.starting_after);
 
   return await db
     .select()
@@ -171,7 +170,9 @@ export const resolveAuthContext = async (params: {
       environment: payload.env,
       appId: app.id,
       installationId: payload.instId,
-      scopes: app.scopes,
+      // Enforce the scopes the org actually granted at install time (carried in
+      // the verified token), not the app's full declared scope list.
+      scopes: payload.scopes ?? app.scopes,
       type: "app",
     };
   }

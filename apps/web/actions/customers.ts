@@ -1,6 +1,6 @@
 "use server";
 
-import { deleteEvents, paginate, withEvent } from "@/actions/event";
+import { deleteEvents, paginate, parseOffset, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import {
   Customer,
@@ -127,7 +127,7 @@ export const retrieveCustomers = async (
   if (options?.requireLookUpParams && filters.length < 1) return { data: [], has_more: false };
 
   const limit = params?.limit ?? 10;
-  const offset = params?.starting_after ? parseInt(params.starting_after, 10) : 0;
+  const offset = await parseOffset(params?.starting_after);
 
   const customers = await db.query.customers.findMany({
     where: (c, { and, or }) =>

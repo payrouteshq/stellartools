@@ -199,7 +199,7 @@ export const maskData = (
   sensitivePrefix: string,
   encryptFn: (value: string) => string
 ): Record<string, any> => {
-  const out: Record<string, any> = {};
+  const out: Record<string, any> = Array.isArray(data) ? [] : {};
   for (const key of Object.keys(data)) {
     const val = data[key];
     if (sensitiveKeys.includes(key) && typeof val === "string" && !val.startsWith(sensitivePrefix)) {
@@ -218,7 +218,7 @@ export const unmaskData = (
   sensitivePrefix: string,
   decryptFn: (value: string) => string
 ): Record<string, any> => {
-  const out: Record<string, any> = {};
+  const out: Record<string, any> = Array.isArray(data) ? [] : {};
   for (const key of Object.keys(data)) {
     const val = data[key];
     if (typeof val === "string" && val.startsWith(sensitivePrefix)) {

@@ -259,3 +259,10 @@ export const paginate = async <T>(data: T[], limit: number): Promise<PaginatedRe
     has_more,
   };
 };
+
+// `starting_after` is an offset supplied by API clients; never let a bad value reach SQL as NaN
+export const parseOffset = async (startingAfter?: string | null): Promise<number> => {
+  if (!startingAfter) return 0;
+  const offset = Number.parseInt(startingAfter, 10);
+  return Number.isInteger(offset) && offset > 0 ? offset : 0;
+};

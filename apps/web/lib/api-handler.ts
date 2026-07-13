@@ -73,13 +73,15 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
 
       // Permissions check
       if (authResult?.type === "app" && config.requiredAppScope) {
-        const allowedScopes = [
-          ...(authResult?.scopes ?? []),
+        const grantedScopes: string[] = authResult?.scopes ?? [];
+        const allowedScopes: string[] = [
+          ...grantedScopes,
           "write:app-installation",
           "read:app-installation", // Automatically allow all app tokens to read app installations
-        ] as const;
+        ];
 
-        const hasPermission = allowedScopes.includes(config.requiredAppScope);
+        // "*" is the wildcard grant meaning "all scopes"
+        const hasPermission = grantedScopes.includes("*") || allowedScopes.includes(config.requiredAppScope);
 
         if (!hasPermission) {
           return NextResponse.json(

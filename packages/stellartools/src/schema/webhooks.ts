@@ -73,10 +73,12 @@ export interface Webhook {
   updated_at: string;
 }
 
+const httpsUrlSchema = z.url().refine((url) => url.startsWith("https://"), { message: "Must be a valid HTTPS URL" });
+
 export const webhookSchema = schemaFor<Webhook>()(
   z.object({
     id: z.string(),
-    url: z.string(),
+    url: httpsUrlSchema,
     secret: z.string(),
     events: z.array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType))),
     name: z.string(),
@@ -89,7 +91,7 @@ export const webhookSchema = schemaFor<Webhook>()(
 
 export const createWebhookSchema = z.object({
   name: z.string(),
-  url: z.string(),
+  url: httpsUrlSchema,
   description: z.string().optional(),
   events: z
     .array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType)))
@@ -100,7 +102,7 @@ export type CreateWebhook = z.infer<typeof createWebhookSchema>;
 
 export const updateWebhookSchema = z.object({
   name: z.string().optional(),
-  url: z.string().optional(),
+  url: httpsUrlSchema.optional(),
   description: z.string().optional(),
   events: z
     .array(z.custom<WebhookEventType>((v) => WEBHOOK_EVENT_TYPES.includes(v as WebhookEventType)))

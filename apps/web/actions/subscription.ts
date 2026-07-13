@@ -1,7 +1,7 @@
 "use server";
 
 import { upsertCustomerWallet } from "@/actions/customers";
-import { paginate, withEvent } from "@/actions/event";
+import { paginate, parseOffset, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { retrievePaymentCount } from "@/actions/payment";
 import { SubscriptionStatus } from "@/constant/schema.client";
@@ -16,6 +16,7 @@ import {
   subscriptions,
 } from "@/db";
 import { AppError } from "@/lib/action-handler";
+import { initialSubscriptionStatus } from "@/lib/subscription";
 import { computeDiff, generateResourceId } from "@/lib/utils";
 import { toSnakeCase } from "@/lib/utils";
 import { ApiListParams, EventTrigger, PaginatedResult, WebhookTrigger } from "@/types";
@@ -38,7 +39,7 @@ export const postSubscriptionsBulk = async (
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
   const trialDays = params.trialDays ?? 0;
-  const status = params.status ?? (trialDays > 0 ? "trialing" : "active");
+  const status = initialSubscriptionStatus(trialDays, params.status);
 
   return withEvent(
     async () => {
@@ -183,7 +184,9 @@ export const retrieveSubscriptions = async (
   options?: { withCustomer?: boolean; withProduct?: boolean; withCustomerWallets?: boolean }
 ): Promise<PaginatedResult<ResolvedSubscription>> => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
+
   const limit = params?.limit ?? 10;
+  const offset = await parseOffset(params?.starting_after);
 
   const rows = await db
     .select({
@@ -207,7 +210,7 @@ export const retrieveSubscriptions = async (
     )
     .orderBy(desc(subscriptions.createdAt))
     .limit(limit + 1)
-    .offset(params?.starting_after ? parseInt(params.starting_after, 10) : 0);
+    .offset(offset);
 
   return await paginate(
     rows.map(({ customer, product, customerWallets, subscription }) => ({
@@ -227,6 +230,8 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
       data: [oldSubscription],
     },
   ] = await Promise.all([resolveOrgContext(orgId, env), retrieveSubscriptions(orgId, env, { subscriptionId: id })]);
+
+  if (!oldSubscription) throw new AppError("Subscription not found");
 
   return withEvent(
     async () => {
