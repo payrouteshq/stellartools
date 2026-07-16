@@ -28,7 +28,9 @@ describe("computeDiff", () => {
   });
 
   it("ignores updatedAt/createdAt/id by default", () => {
-    expect(computeDiff({ id: "1", updatedAt: "a", createdAt: "b" }, { id: "2", updatedAt: "c", createdAt: "d" })).toBeNull();
+    expect(
+      computeDiff({ id: "1", updatedAt: "a", createdAt: "b" }, { id: "2", updatedAt: "c", createdAt: "d" })
+    ).toBeNull();
   });
 
   it("normalizes undefined values to null", () => {
@@ -43,7 +45,12 @@ describe("computeDiff", () => {
   });
 
   it("deep-diffs nested objects when a delimiter is provided", () => {
-    const diff = computeDiff({ metadata: { tier: "gold", region: "eu" } }, { metadata: { tier: "silver", region: "eu" } }, [], ".");
+    const diff = computeDiff(
+      { metadata: { tier: "gold", region: "eu" } },
+      { metadata: { tier: "silver", region: "eu" } },
+      [],
+      "."
+    );
     expect(diff?.data).toEqual({ tier: "silver" });
     expect(diff?.previous_attributes).toEqual({ tier: "gold" });
   });

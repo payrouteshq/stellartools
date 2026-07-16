@@ -5,6 +5,7 @@ import * as React from "react";
 import { accountValidator } from "@/actions/auth";
 import { useAction } from "@/hooks/use-action";
 import { useAuth } from "@/hooks/use-auth";
+import { useClearStaleCookies } from "@/hooks/use-clear-stale-cookies";
 import { capture, identifyUser } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, InputGroup, InputGroupAddon, InputGroupInput, Label, TextField } from "@stellartools/shared-ui";
@@ -28,6 +29,8 @@ export default function SignIn() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { error, handleGoogleSignIn, setDismissedError } = useAuth();
+
+  useClearStaleCookies();
 
   const next = searchParams.get("next");
 

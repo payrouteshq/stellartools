@@ -9,7 +9,6 @@ import { type AppContext } from "@stellartools/app-sdk";
 import { Button, Skeleton, Spinner } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 
-
 const Dashboard = () => {
   const searchParams = useSearchParams();
   const appToken = searchParams.get("st_token") ?? "";
@@ -18,11 +17,13 @@ const Dashboard = () => {
   const { settings } = useStellarToolsContext();
   const appSettings = settings as unknown as AppSettings;
 
-  const { data: cohorts = [], isLoading, refetch } = useStellarToolsQuery<Cohort[]>(
-    ["cohorts"],
-    (ctx: AppContext) => listCohorts(ctx.instId),
-    { enabled: !!settings.posthogProjectToken }
-  );
+  const {
+    data: cohorts = [],
+    isLoading,
+    refetch,
+  } = useStellarToolsQuery<Cohort[]>(["cohorts"], (ctx: AppContext) => listCohorts(ctx.instId), {
+    enabled: !!settings.posthogProjectToken,
+  });
 
   const { mutate: removeCohort } = useStellarToolsMutation(
     async ({ id, posthogCohortId }: { id: string; posthogCohortId: string | null }) =>
@@ -38,7 +39,6 @@ const Dashboard = () => {
   return (
     <div className="bg-background min-h-screen px-5 pb-10">
       <section className="flex flex-col gap-8 py-6">
-
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -68,11 +68,11 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium">Cohorts</h3>
-              <p className="text-muted-foreground text-xs mt-0.5">PostHog cohorts built from your payment events.</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">PostHog cohorts built from your payment events.</p>
             </div>
             <Button
               size="sm"
-              className="shadow-none h-8 text-xs"
+              className="h-8 text-xs shadow-none"
               onClick={() => router.push(`/dashboard/cohort?st_token=${appToken}`)}
             >
               New cohort
@@ -100,16 +100,16 @@ const Dashboard = () => {
               {cohorts.map((cohort) => (
                 <div
                   key={cohort.id}
-                  className="border-border flex items-center justify-between rounded-lg border px-4 py-3 gap-4"
+                  className="border-border flex items-center justify-between gap-4 rounded-lg border px-4 py-3"
                 >
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-sm font-medium truncate">{cohort.name}</span>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="truncate text-sm font-medium">{cohort.name}</span>
                     <span className="text-muted-foreground text-xs">
                       {cohort.blocks.length} rule{cohort.blocks.length !== 1 ? "s" : ""} ·{" "}
                       {cohort.match === "all" ? "all must match" : "any must match"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
                       onClick={() => router.push(`/dashboard/cohort?st_token=${appToken}&id=${cohort.id}`)}
@@ -130,7 +130,6 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-
       </section>
     </div>
   );
@@ -138,7 +137,13 @@ const Dashboard = () => {
 
 export default function DashboardPage() {
   return (
-    <React.Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><Spinner /></div>}>
+    <React.Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center">
+          <Spinner />
+        </div>
+      }
+    >
       <Dashboard />
     </React.Suspense>
   );

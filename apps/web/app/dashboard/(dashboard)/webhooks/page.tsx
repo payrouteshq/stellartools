@@ -603,7 +603,6 @@ function WebhooksModalContent({
 }: WebhooksModalContentProps) {
   const { data: orgContext } = useOrgContext();
   const formRef = React.useRef<HTMLFormElement>(null);
-  const invalidateOrgQuery = useInvalidateOrgQuery();
   const { data: organization, isLoading } = useOrgContext();
   const [secret, setSecret] = React.useState<string>("");
 

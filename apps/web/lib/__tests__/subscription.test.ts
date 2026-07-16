@@ -1,4 +1,8 @@
-import { MAX_CONSECUTIVE_FAILED_PAYMENTS, initialSubscriptionStatus, shouldCancelAfterFailures } from "@/lib/subscription";
+import {
+  MAX_CONSECUTIVE_FAILED_PAYMENTS,
+  initialSubscriptionStatus,
+  shouldCancelAfterFailures,
+} from "@/lib/subscription";
 import { describe, expect, it } from "vitest";
 
 describe("initialSubscriptionStatus", () => {

@@ -6,8 +6,8 @@ import { Cohort, FilterOp, RuleBlock } from "@/app/actions/db";
 import { getCohort } from "@/app/actions/db";
 import { AppSettings, saveCohort } from "@/app/actions/posthog";
 import { useStellarToolsContext } from "@stellartools/app-sdk";
-import { Button, Input, SelectField, Spinner } from "@stellartools/shared-ui";
 import { WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
+import { Button, Input, SelectField, Spinner } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // ─── Event catalog ────────────────────────────────────────────────────────────
@@ -16,12 +16,12 @@ type PropMeta = { type: "currency" | "enum" | "string"; source?: "products" };
 type EventCatalogEntry = { properties: Record<string, PropMeta> };
 
 const RESOURCE_PROPS: Record<string, Record<string, PropMeta>> = {
-  customer:        { email: { type: "string" }, name: { type: "string" } },
-  payment_method:  {},
-  checkout:        { product_id: { type: "enum", source: "products" }, status: { type: "string" } },
-  payment:         { amount: { type: "currency" } },
-  refund:          { amount: { type: "currency" } },
-  subscription:    { product_id: { type: "enum", source: "products" }, status: { type: "string" } },
+  customer: { email: { type: "string" }, name: { type: "string" } },
+  payment_method: {},
+  checkout: { product_id: { type: "enum", source: "products" }, status: { type: "string" } },
+  payment: { amount: { type: "currency" } },
+  refund: { amount: { type: "currency" } },
+  subscription: { product_id: { type: "enum", source: "products" }, status: { type: "string" } },
 };
 
 const EVENT_CATALOG = Object.fromEntries(
@@ -93,8 +93,7 @@ function RuleBlockEditor({
   const propKeys = Object.keys(EVENT_CATALOG[block.event as WebhookEventType]?.properties ?? {});
 
   return (
-    <div className="border-border rounded-lg border p-4 flex flex-col gap-4">
-
+    <div className="border-border flex flex-col gap-4 rounded-lg border p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">Condition</span>
@@ -111,7 +110,7 @@ function RuleBlockEditor({
 
       {/* Event */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-muted-foreground">Event</label>
+        <label className="text-muted-foreground text-xs">Event</label>
         <SelectField
           id={`event-${block.id}`}
           label=""
@@ -124,7 +123,7 @@ function RuleBlockEditor({
 
       {/* Frequency */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-muted-foreground">Frequency</label>
+        <label className="text-muted-foreground text-xs">Frequency</label>
         <div className="flex items-center gap-2">
           <SelectField
             id={`count-op-${block.id}`}
@@ -141,7 +140,7 @@ function RuleBlockEditor({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               onChange({ ...block, count: { ...block.count, value: Number(e.target.value) } })
             }
-            className="shadow-none w-20"
+            className="w-20 shadow-none"
           />
           <span className="text-muted-foreground text-sm">times</span>
         </div>
@@ -149,10 +148,10 @@ function RuleBlockEditor({
 
       {/* Time window */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-muted-foreground">Time window</label>
+        <label className="text-muted-foreground text-xs">Time window</label>
         {block.window ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Last</span>
+            <span className="text-muted-foreground text-sm">Last</span>
             <Input
               type="number"
               min={1}
@@ -160,7 +159,7 @@ function RuleBlockEditor({
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 onChange({ ...block, window: { ...block.window!, amount: Number(e.target.value) } })
               }
-              className="shadow-none w-20"
+              className="w-20 shadow-none"
             />
             <SelectField
               id={`unit-${block.id}`}
@@ -182,7 +181,7 @@ function RuleBlockEditor({
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Any time</span>
+            <span className="text-muted-foreground text-sm">Any time</span>
             <button
               type="button"
               onClick={() => onChange({ ...block, window: { amount: 30, unit: "days" } })}
@@ -197,7 +196,9 @@ function RuleBlockEditor({
       {/* Filters */}
       {propKeys.length > 0 && (
         <div className="flex flex-col gap-2">
-          <label className="text-xs text-muted-foreground">Filters <span className="font-normal">(optional)</span></label>
+          <label className="text-muted-foreground text-xs">
+            Filters <span className="font-normal">(optional)</span>
+          </label>
           {block.filters.map((f, i) => (
             <div key={i} className="flex items-center gap-2">
               <SelectField
@@ -232,12 +233,12 @@ function RuleBlockEditor({
                   next[i] = { ...f, value: e.target.value };
                   onChange({ ...block, filters: next });
                 }}
-                className="shadow-none flex-1"
+                className="flex-1 shadow-none"
               />
               <button
                 type="button"
                 onClick={() => onChange({ ...block, filters: block.filters.filter((_, j) => j !== i) })}
-                className="text-muted-foreground hover:text-destructive text-sm shrink-0"
+                className="text-muted-foreground hover:text-destructive shrink-0 text-sm"
               >
                 ×
               </button>
@@ -248,13 +249,12 @@ function RuleBlockEditor({
             onClick={() =>
               onChange({ ...block, filters: [...block.filters, { prop: propKeys[0], op: "eq", value: "" }] })
             }
-            className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline self-start"
+            className="text-muted-foreground hover:text-foreground self-start text-xs underline-offset-4 hover:underline"
           >
             + Add filter
           </button>
         </div>
       )}
-
     </div>
   );
 }
@@ -298,8 +298,14 @@ function CohortPage() {
   }
 
   const handleSave = async () => {
-    if (!cohort.name.trim()) { setError("Name is required"); return; }
-    if (cohort.blocks.length === 0) { setError("Add at least one rule"); return; }
+    if (!cohort.name.trim()) {
+      setError("Name is required");
+      return;
+    }
+    if (cohort.blocks.length === 0) {
+      setError("Add at least one rule");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -316,7 +322,6 @@ function CohortPage() {
   return (
     <div className="bg-background min-h-screen px-5 py-6">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
-
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium">{editId ? "Edit cohort" : "New cohort"}</h2>
           <button
@@ -333,26 +338,28 @@ function CohortPage() {
             placeholder="Cohort name"
             value={cohort.name}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCohort({ ...cohort, name: e.target.value })}
-            className="shadow-none text-sm"
+            className="text-sm shadow-none"
           />
           <Input
             placeholder="Description (optional)"
             value={cohort.description ?? ""}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCohort({ ...cohort, description: e.target.value })}
-            className="shadow-none text-sm"
+            className="text-sm shadow-none"
           />
         </div>
 
         <div className="flex items-center gap-3">
           <span className="text-muted-foreground text-sm">Match</span>
-          <div className="flex rounded-md border overflow-hidden">
+          <div className="flex overflow-hidden rounded-md border">
             {(["all", "any"] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setCohort({ ...cohort, match: m })}
                 className={`px-3 py-1 text-xs transition-colors ${
-                  cohort.match === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  cohort.match === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {m === "all" ? "All rules (AND)" : "Any rule (OR)"}
@@ -374,7 +381,7 @@ function CohortPage() {
           <button
             type="button"
             onClick={() => setCohort({ ...cohort, blocks: [...cohort.blocks, newBlock()] })}
-            className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline self-start"
+            className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline"
           >
             + Add rule
           </button>
@@ -384,14 +391,18 @@ function CohortPage() {
 
         <div className="flex items-center gap-3">
           <div className="flex-1" />
-          <Button variant="outline" onClick={() => router.push(`/dashboard?st_token=${appToken}`)} className="shadow-none" disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/dashboard?st_token=${appToken}`)}
+            className="shadow-none"
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button onClick={handleSave} isLoading={saving} className="shadow-none">
             {saving ? "Saving…" : "Save cohort"}
           </Button>
         </div>
-
       </div>
     </div>
   );
@@ -399,7 +410,13 @@ function CohortPage() {
 
 export default function CohortNewPage() {
   return (
-    <React.Suspense fallback={<div className="flex h-screen w-screen items-center justify-center"><Spinner /></div>}>
+    <React.Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center">
+          <Spinner />
+        </div>
+      }
+    >
       <CohortPage />
     </React.Suspense>
   );

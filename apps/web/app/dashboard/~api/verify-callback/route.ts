@@ -1,4 +1,4 @@
-import { postAccount, retrieveAccount } from "@/actions/account";
+import { retrieveAccount } from "@/actions/account";
 import { accountValidator } from "@/actions/auth";
 import { AppError } from "@/lib/action-handler";
 import { Result } from "@stellartools/core";
@@ -79,17 +79,9 @@ export async function GET(req: NextRequest) {
     const lastName = payload.family_name || nameParts.slice(1).join(" ") || "";
 
     if (stateData.intent === "SIGN_UP") {
-      // For sign-up via Google: save the user with Google SSO but redirect to
-      // the signup page so they can set a password (enabling both auth methods).
-      let existingAccount = await retrieveAccount({ email: payload.email });
+      const existingAccount = await retrieveAccount({ email: payload.email });
 
-      if (!existingAccount) {
-        await postAccount({
-          email: payload.email,
-          sso: { values: [{ provider: "google", sub: payload.sub! }] },
-          profile: { firstName, lastName, avatarUrl: payload.picture ?? undefined },
-        });
-      } else if (existingAccount.sso?.values?.some((s) => s.provider === "local")) {
+      if (existingAccount?.sso?.values?.some((s) => s.provider === "local")) {
         // Already fully registered — send to sign-in with an informative message
         return NextResponse.redirect(
           new URL(
@@ -98,41 +90,14 @@ export async function GET(req: NextRequest) {
           )
         );
       }
-      // Account exists with Google SSO only (or was just created) — collect password
-      const params = new URLSearchParams({
-        firstName,
-        lastName,
-        email: payload.email,
-        mode: "google-complete",
-      });
-      return NextResponse.redirect(
-        new URL(`${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signup?${params.toString()}`, req.url)
-      );
     }
 
-    // If account doesn't exist or hasn't set a password yet, send through the
-    // google-complete setup flow rather than auto-logging them in.
-    const existingAccount = await retrieveAccount({ email: payload.email });
-    const hasLocalPassword = existingAccount?.sso?.values?.some((s) => s.provider === "local");
-
-    if (!existingAccount || !hasLocalPassword) {
-      if (!existingAccount) {
-        await postAccount({
-          email: payload.email,
-          sso: { values: [{ provider: "google", sub: payload.sub! }] },
-          profile: { firstName, lastName, avatarUrl: payload.picture ?? undefined },
-        });
-      }
-      const params = new URLSearchParams({ firstName, lastName, email: payload.email, mode: "google-complete" });
-      return NextResponse.redirect(
-        new URL(`${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signup?${params.toString()}`, req.url)
-      );
-    }
-
+    // Google verifies the email for us — create/link the account and log the
+    // user straight in, no separate "set a password" step required.
     const account = await accountValidator(
       payload.email,
       { provider: "google", sub: payload.sub },
-      "SIGN_IN",
+      stateData.intent === "SIGN_UP" ? "SIGN_UP" : "SIGN_IN",
       { firstName, lastName, avatarUrl: payload.picture },
       { ...stateData }
     );

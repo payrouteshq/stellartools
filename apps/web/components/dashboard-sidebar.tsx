@@ -89,7 +89,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
   const [isSwitching, setIsSwitching] = React.useState(false);
 
   const { data: orgContext } = useOrgContext();
-  const { data: user } = useQuery({ queryKey: ["current-user"], queryFn: getCurrentUser });
+  const { data: user } = useQuery({ queryKey: ["current-user"], queryFn: () => getCurrentUser() });
   const { data: organizations, isLoading: isLoadingOrgs } = useQuery({
     queryKey: ["sidebar-organizations"],
     queryFn: async () => await retrieveOrganizations(),
@@ -107,12 +107,13 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
 
   const handleSwitchOrganization = async (orgId: string) => {
     if (!currentOrg || orgId === currentOrg.id) return;
+
     setIsSwitching(true);
     try {
       await setCurrentOrganization(orgId, orgContext?.environment || "testnet");
-      queryClient.invalidateQueries({ queryKey: ["org-context"] });
+
+      await queryClient.invalidateQueries();
       toast.success("Organization switched");
-      router.refresh();
     } catch {
       toast.error("Failed to switch organization");
     } finally {
@@ -143,7 +144,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton size="lg" disabled={isSwitching} tooltip={currentOrg?.name ?? "Organization"}>
-                      <div className="text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                      <div className="flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
                         {currentOrg?.logoUrl ? (
                           <Image
                             src={currentOrg.logoUrl}
@@ -153,7 +154,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
                             className="size-full object-cover"
                           />
                         ) : (
-                          <Building2 className="size-4" />
+                          <Building2 className="text-foreground size-4" />
                         )}
                       </div>
                       <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
@@ -188,7 +189,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
                             {org.logoUrl ? (
                               <Image src={org.logoUrl} alt="" width={24} height={24} />
                             ) : (
-                              <Building2 className="size-4" />
+                              <Building2 className="text-foreground size-4" />
                             )}
                           </div>
                           <span className="flex-1 truncate">{org.name}</span>
@@ -199,7 +200,7 @@ export function DashboardSidebar({ children }: { children: React.ReactNode }) {
 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/select-organization?create=true" className="gap-2">
+                      <Link href="/select-organization?newOverride=true" className="gap-2">
                         <Plus className="size-4" /> <span>Create organization</span>
                       </Link>
                     </DropdownMenuItem>

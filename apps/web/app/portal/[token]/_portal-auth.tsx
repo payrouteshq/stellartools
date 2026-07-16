@@ -54,7 +54,7 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
           {org?.logoUrl ? (
             <img src={org.logoUrl} alt={orgName} className="size-8 rounded-md object-contain" />
           ) : (
-            <Building2 className="size-8" />
+            <Building2 className="text-foreground size-8" />
           )}
           <span className="text-foreground truncate text-sm font-semibold">{orgName}</span>
         </div>

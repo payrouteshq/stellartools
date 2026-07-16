@@ -44,7 +44,12 @@ export const Money = {
    * Convert cents between currencies using USD-based rates (rates[X] = X units per USD).
    * Unknown currencies fall back to a 1:1 USD rate.
    */
-  convert: (cents: number | string, fromCurrency: string, toCurrency: string, rates: Record<string, number>): number => {
+  convert: (
+    cents: number | string,
+    fromCurrency: string,
+    toCurrency: string,
+    rates: Record<string, number>
+  ): number => {
     const value = Number(cents);
     if (!Number.isFinite(value)) return 0;
     if (fromCurrency === toCurrency) return Math.round(value);

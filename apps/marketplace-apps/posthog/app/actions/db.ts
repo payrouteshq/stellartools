@@ -67,10 +67,9 @@ function rowToCohort(r: CohortRow): Cohort {
 }
 
 export async function listCohorts(installationId: string): Promise<Cohort[]> {
-  const rows = await query<CohortRow>(
-    `SELECT * FROM cohorts WHERE installation_id = $1 ORDER BY updated_at DESC`,
-    [installationId]
-  );
+  const rows = await query<CohortRow>(`SELECT * FROM cohorts WHERE installation_id = $1 ORDER BY updated_at DESC`, [
+    installationId,
+  ]);
   return rows.map(rowToCohort);
 }
 
@@ -90,7 +89,15 @@ export async function upsertCohort(cohort: Cohort): Promise<void> {
        blocks = EXCLUDED.blocks,
        posthog_cohort_id = EXCLUDED.posthog_cohort_id,
        updated_at = NOW()`,
-    [cohort.id, cohort.installationId, cohort.name, cohort.description ?? null, cohort.match, JSON.stringify(cohort.blocks), cohort.posthogCohortId]
+    [
+      cohort.id,
+      cohort.installationId,
+      cohort.name,
+      cohort.description ?? null,
+      cohort.match,
+      JSON.stringify(cohort.blocks),
+      cohort.posthogCohortId,
+    ]
   );
 }
 

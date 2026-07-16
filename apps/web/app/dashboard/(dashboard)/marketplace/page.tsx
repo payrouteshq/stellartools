@@ -51,7 +51,7 @@ export default async function MarketplacePage() {
                         </div>
                       ) : (
                         <div className="bg-foreground/5 border-border flex size-14 items-center justify-center rounded-lg border">
-                          <Building2 className="size-6" />
+                          <Building2 className="text-foreground size-6" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1 space-y-1">

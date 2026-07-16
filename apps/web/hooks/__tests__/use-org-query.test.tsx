@@ -1,8 +1,9 @@
+import * as React from "react";
+
 import { useInvalidateOrgQuery, useOrgQuery } from "@/hooks/use-org-query";
 import { PaginatedResult } from "@/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/actions/organization", () => ({

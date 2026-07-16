@@ -1,16 +1,16 @@
 import {
   AppInstallationSettings,
   Network,
+  z as Schema,
   WebhookEvent,
   WebhookEventBase,
   WebhookEventType,
   WebhookObjectMap,
   WebhookSigner,
-  z as Schema,
   parseJSON,
 } from "@stellartools/core";
-import { PostHog } from "posthog-node";
 import { NextRequest, NextResponse } from "next/server";
+import { PostHog } from "posthog-node";
 
 type WebhookHandlers = {
   [K in WebhookEventType]?: (
@@ -153,7 +153,11 @@ export async function POST(req: NextRequest) {
       const $set: Record<string, unknown> = {};
       if (properties.email != null) $set.email = properties.email;
       if (properties.name != null) $set.name = properties.name;
-      posthog.capture({ distinctId, event: eventName, properties: { ...properties, environment, ...(Object.keys($set).length ? { $set } : {}) } });
+      posthog.capture({
+        distinctId,
+        event: eventName,
+        properties: { ...properties, environment, ...(Object.keys($set).length ? { $set } : {}) },
+      });
     };
 
     await handler(event, track);

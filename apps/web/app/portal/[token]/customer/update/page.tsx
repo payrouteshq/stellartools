@@ -226,7 +226,7 @@ function PortalSidebar({ org }: { org: Organization | null }) {
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
         ) : (
-          <Building2 className="size-8" />
+          <Building2 className="text-foreground size-8" />
         )}
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
@@ -264,7 +264,7 @@ function MobileOrgHeader({ org }: { org: Organization | null }) {
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
         ) : (
-          <StellarTools width={24} height={24} className="shrink-0 object-contain" />
+          <Building2 className="text-foreground size-7" />
         )}
         <div className="flex flex-col gap-0.5">
           <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>

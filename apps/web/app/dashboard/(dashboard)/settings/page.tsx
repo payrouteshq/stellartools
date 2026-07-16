@@ -737,7 +737,7 @@ export default function SettingsPage() {
 
   const { data: user, isLoading: isLoadingUser } = useQuery({
     queryKey: ["current-user"],
-    queryFn: getCurrentUser,
+    queryFn: () => getCurrentUser(),
   });
 
   const { data: organization, isLoading: isLoadingOrg } = useQuery({

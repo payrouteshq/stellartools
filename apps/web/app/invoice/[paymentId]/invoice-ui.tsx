@@ -74,7 +74,7 @@ export function InvoiceUI({ resolvedPayment }: InvoiceUIProps) {
             />
           ) : (
             <div className="bg-foreground/5 border-border flex size-9 items-center justify-center rounded-lg border">
-              <Building2 className="size-4" />
+              <Building2 className="text-foreground size-4" />
             </div>
           )}
           <span className="text-foreground text-base font-semibold">{resolvedPayment.org?.name ?? "StellarTools"}</span>

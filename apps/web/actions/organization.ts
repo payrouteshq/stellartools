@@ -182,13 +182,13 @@ export const getCurrentOrganization = async (onError?: (err: string) => Promise<
 
   if (!selectedOrg) return null;
 
-  const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(
-    selectedOrg,
-    process.env.JWT_SECRET!,
-    STELLARTOOLS_ID
-  );
-
   try {
+    const { orgId, environment } = verifyJwt<{ orgId: string; environment: Network }>(
+      selectedOrg,
+      process.env.JWT_SECRET!,
+      STELLARTOOLS_ID
+    );
+
     const organization = await retrieveOrganization(orgId);
     return {
       id: organization.id,

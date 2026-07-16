@@ -5,6 +5,7 @@ import * as React from "react";
 import { postOrganizationAndSecret, retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
 import { StellarTools } from "@/components/icon";
 import { useAction } from "@/hooks/use-action";
+import { useClearStaleCookies } from "@/hooks/use-clear-stale-cookies";
 import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -18,7 +19,6 @@ import {
   Skeleton,
   TextAreaField,
   TextField,
-  phoneNumberSchema,
   phoneNumberToString,
   toast,
 } from "@stellartools/shared-ui";
@@ -34,14 +34,19 @@ import { z } from "zod";
 interface Client$SelectOrganizationPageProps {
   xVercelIpCountry: string | null;
   acceptLanguage: string | null;
+  autoOpen: boolean;
 }
 
 export const Client$SelectOrganizationPage = ({
   xVercelIpCountry,
   acceptLanguage,
+  autoOpen,
 }: Client$SelectOrganizationPageProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useClearStaleCookies();
+
   const next = searchParams.get("next");
   const { data: organizations, isLoading } = useQuery({
     queryKey: ["organizations"],
@@ -52,6 +57,8 @@ export const Client$SelectOrganizationPage = ({
   const createModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [createModalFooterProps, setCreateModalFooterProps] = React.useState({ isPending: false });
   const isCreateModalOpenRef = React.useRef(false);
+
+  const [isNavigating, startNavigating] = React.useTransition();
 
   const openCreateModal = React.useCallback(() => {
     isCreateModalOpenRef.current = true;
@@ -66,9 +73,10 @@ export const Client$SelectOrganizationPage = ({
           xVercelIpCountry={xVercelIpCountry}
           acceptLanguage={acceptLanguage}
           onSuccess={async (orgId) => {
-            AppModal.close();
             await setCurrentOrganization(orgId);
-            router.push(next ?? "/");
+            startNavigating(() => {
+              router.push(next ?? "/");
+            });
           }}
         />
       ),
@@ -77,7 +85,7 @@ export const Client$SelectOrganizationPage = ({
           hasOrganizations={hasOrganizations}
           onClose={AppModal.close}
           submitRef={createModalSubmitRef}
-          isPending={createModalFooterProps.isPending}
+          isPending={createModalFooterProps.isPending || isNavigating}
         />
       ),
       size: "full",
@@ -86,7 +94,15 @@ export const Client$SelectOrganizationPage = ({
         isCreateModalOpenRef.current = false;
       },
     });
-  }, [hasOrganizations, router, xVercelIpCountry, acceptLanguage]);
+  }, [
+    hasOrganizations,
+    router,
+    next,
+    xVercelIpCountry,
+    acceptLanguage,
+    createModalFooterProps.isPending,
+    isNavigating,
+  ]);
 
   React.useEffect(() => {
     if (isCreateModalOpenRef.current) {
@@ -96,22 +112,24 @@ export const Client$SelectOrganizationPage = ({
             hasOrganizations={hasOrganizations}
             onClose={AppModal.close}
             submitRef={createModalSubmitRef}
-            isPending={createModalFooterProps.isPending}
+            isPending={createModalFooterProps.isPending || isNavigating}
           />
         ),
       });
     }
-  }, [createModalFooterProps.isPending, hasOrganizations]);
+  }, [createModalFooterProps.isPending, hasOrganizations, isNavigating]);
 
   React.useEffect(() => {
-    if (searchParams?.get("create") === "true") openCreateModal();
-  }, [searchParams?.get("create"), openCreateModal]);
+    if (autoOpen) openCreateModal();
+  }, [autoOpen]);
 
   const handleSelectOrg = React.useCallback(
     async (orgId: string, orgName: string) => {
       capture("organization_selected", { org_id: orgId, org_name: orgName });
       await setCurrentOrganization(orgId);
-      router.push(next ?? "/");
+      startNavigating(() => {
+        router.push(next ?? "/");
+      });
     },
     [router, next]
   );
@@ -241,9 +259,17 @@ function CreateOrganizationModalFooter({
   );
 }
 
+// Picking a country from the dropdown alone (no digits typed) still produces a
+// present-but-empty object — plain `phoneNumberSchema.optional()` would validate
+// that object against its `min(1)` and wrongly report "Phone number is required".
+const optionalPhoneNumberSchema = z
+  .object({ number: z.string(), countryCode: z.string().default("US") })
+  .optional()
+  .nullable();
+
 const createOrganizationSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  phoneNumber: phoneNumberSchema.optional().nullable(),
+  phoneNumber: optionalPhoneNumberSchema,
   description: z.string().optional(),
   physicalAddress: z.string().optional(),
   supportEmail: z.email(),
@@ -274,7 +300,7 @@ const CreateOrganizationModalContent = ({
     resolver: zodResolver(createOrganizationSchema),
     defaultValues: {
       name: "",
-      phoneNumber: { number: "", countryCode: "US" },
+      phoneNumber: undefined,
       description: "",
       physicalAddress: "",
       supportEmail: "",
@@ -292,6 +318,8 @@ const CreateOrganizationModalContent = ({
 
       let selectedCurrency = null;
 
+      console.log({ phoneNumber: data.phoneNumber });
+
       if (data.phoneNumber?.countryCode) {
         selectedCurrency =
           countryToCurrency[data.phoneNumber.countryCode.toUpperCase() as keyof typeof countryToCurrency];
@@ -308,7 +336,7 @@ const CreateOrganizationModalContent = ({
       return await postOrganizationAndSecret(
         {
           name: data.name,
-          phoneNumber: data.phoneNumber ? phoneNumberToString(data.phoneNumber) : null,
+          phoneNumber: data.phoneNumber?.number ? phoneNumberToString(data.phoneNumber) : null,
           description: data.description ?? null,
           logoUrl: null,
           settings: null,

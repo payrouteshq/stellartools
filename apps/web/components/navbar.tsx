@@ -43,8 +43,10 @@ export function Header() {
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["current-user"],
-    queryFn: getCurrentUser,
+    queryFn: () => getCurrentUser(),
   });
+
+  console.log({ user });
 
   const isAuthenticated = !!user;
 

@@ -75,7 +75,7 @@ export default async function MarketplaceAppPage({ params }: { params: Promise<{
                 </div>
               ) : (
                 <div className="bg-foreground/5 border-border flex size-16 items-center justify-center rounded-lg border">
-                  <Building2 className="size-6" />
+                  <Building2 className="text-foreground size-6" />
                 </div>
               )}
               <div className="min-w-0 space-y-2">
