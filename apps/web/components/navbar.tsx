@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getCurrentUser, signOut } from "@/actions/auth";
 import { Payroutes, StellarTools } from "@/components/icon";
-import { CirclePlus, LogOut, Menu, Monitor, Moon, Sun } from "@aliimam/icons";
+import ModeToggle from "@/components/mode-toggle";
+import { Menu } from "@aliimam/icons";
 import {
   AppModal,
   Avatar,
@@ -18,13 +19,13 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   cn,
   toast,
 } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -68,6 +69,24 @@ export function Header() {
     }
   }, [router, pathname]);
 
+  const openLogoutConfirm = useCallback(() => {
+    AppModal.open({
+      title: "Log out",
+      description: "Are you sure you want to log out? You'll need to sign in again to access your account.",
+      content: (
+        <div className="py-4">
+          <p className="text-muted-foreground text-sm">
+            This will end your current session and you&apos;ll be redirected to the sign in page.
+          </p>
+        </div>
+      ),
+      size: "small",
+      showCloseButton: true,
+      primaryButton: { children: "Log out", variant: "destructive", onClick: handleLogout },
+      secondaryButton: { children: "Cancel" },
+    });
+  }, [handleLogout]);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 0);
@@ -106,6 +125,24 @@ export function Header() {
         <DialogContent className="inset-0! top-0! left-0! m-0! flex h-screen! w-screen! max-w-none! translate-x-0! translate-y-0! flex-col gap-0 rounded-none border-none p-0">
           <DialogTitle className="sr-only">Navigation menu</DialogTitle>
 
+          <div className="flex items-center justify-between px-8 pt-8">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="size-8 border">
+                  <AvatarImage src={user?.profile.avatarUrl || ""} alt={userName} />
+                  <AvatarFallback>{userInitials}</AvatarFallback>
+                </Avatar>
+                <div className="leading-tight">
+                  <p className="text-foreground text-sm font-semibold">{userName}</p>
+                  <p className="text-muted-foreground text-xs">{user?.email}</p>
+                </div>
+              </div>
+            ) : (
+              <span />
+            )}
+            <ModeToggle />
+          </div>
+
           <nav className="flex flex-1 flex-col justify-center gap-1 px-8">
             {NAV_LINKS.map(({ href, label }) => (
               <Link
@@ -130,13 +167,32 @@ export function Header() {
               Talk to us →
             </Link>
             {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                onClick={() => setMenuOpen(false)}
-                className="bg-primary text-primary-foreground block rounded-xl px-5 py-4 text-center text-[15px] font-semibold no-underline"
-              >
-                Go to Dashboard →
-              </Link>
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="bg-primary text-primary-foreground block rounded-xl px-5 py-4 text-center text-[15px] font-semibold no-underline"
+                >
+                  Go to Dashboard →
+                </Link>
+                <Link
+                  href="/settings"
+                  onClick={() => setMenuOpen(false)}
+                  className="border-border block rounded-xl border px-5 py-4 text-center text-[15px] font-semibold no-underline"
+                >
+                  Account Settings
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openLogoutConfirm();
+                  }}
+                  className="text-destructive block rounded-xl px-5 py-4 text-center text-[15px] font-semibold"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <>
                 <Link
@@ -191,10 +247,10 @@ export function Header() {
             ))}
           </ul>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <Link
               href="/book-call"
-              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-4 py-2 text-[14.5px] font-medium no-underline transition-colors"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 rounded-lg px-4 py-2 text-[14.5px] font-medium whitespace-nowrap no-underline transition-colors"
             >
               Talk to us →
             </Link>
@@ -207,58 +263,40 @@ export function Header() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Avatar className="cursor-pointer border">
+                    <Avatar className="size-8 cursor-pointer border">
                       <AvatarImage src={user?.profile.avatarUrl || ""} alt={userName} />
                       <AvatarFallback>{userInitials}</AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-70 rounded-xl p-3" align="end">
-                    <div className="p-2">
-                      <h1 className="font-semibold">{userName}</h1>
-                      <p className="text-muted-foreground text-sm">{user?.email}</p>
-                    </div>
+                  <DropdownMenuContent className="w-64" align="end">
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-2 py-1.5">
+                        <Avatar className="size-8 rounded-lg">
+                          <AvatarImage src={user?.profile.avatarUrl || ""} alt={userName} />
+                          <AvatarFallback className="rounded-lg">{userInitials}</AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left leading-tight">
+                          <span className="truncate text-sm font-semibold">{userName}</span>
+                          <span className="text-muted-foreground truncate text-xs">{user?.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem className="py-3" asChild>
+                      <DropdownMenuItem asChild>
                         <Link href="/dashboard">Dashboard</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="py-3" asChild>
+                      <DropdownMenuItem asChild>
                         <Link href="/settings">Account Settings</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="justify-between py-3" asChild>
-                        <Link href="/select-organization?create=true">
-                          Create Teams <CirclePlus strokeWidth={2} />
-                        </Link>
-                      </DropdownMenuItem>
                     </DropdownMenuGroup>
-                    <DropdownMenuSeparator className="-mx-3" />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem className="justify-between py-3">
-                        Theme <ThemeSwitcher />
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator className="-mx-3" />
-                    <DropdownMenuItem
-                      className="text-destructive justify-between py-3"
-                      onClick={() =>
-                        AppModal.open({
-                          title: "Log out",
-                          description:
-                            "Are you sure you want to log out? You'll need to sign in again to access your account.",
-                          content: (
-                            <div className="py-4">
-                              <p className="text-muted-foreground text-sm">
-                                This will end your current session and you&apos;ll be redirected to the sign in page.
-                              </p>
-                            </div>
-                          ),
-                          size: "small",
-                          showCloseButton: true,
-                          primaryButton: { children: "Log out", variant: "destructive", onClick: handleLogout },
-                          secondaryButton: { children: "Cancel" },
-                        })
-                      }
-                    >
-                      Logout <LogOut strokeWidth={2} />
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="justify-between" onSelect={(e) => e.preventDefault()}>
+                      Theme <ModeToggle />
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-destructive" onClick={openLogoutConfirm}>
+                      Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -285,72 +323,3 @@ export function Header() {
     </nav>
   );
 }
-
-const themes = [
-  {
-    key: "system",
-    icon: Monitor,
-    label: "System theme",
-  },
-  {
-    key: "light",
-    icon: Sun,
-    label: "Light theme",
-  },
-  {
-    key: "dark",
-    icon: Moon,
-    label: "Dark theme",
-  },
-];
-
-export type ThemeSwitcherProps = {
-  value?: "light" | "dark" | "system";
-  onChange?: (theme: "light" | "dark" | "system") => void;
-  defaultValue?: "light" | "dark" | "system";
-  className?: string;
-};
-
-const ThemeSwitcher = ({ className }: ThemeSwitcherProps) => {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  const handleThemeClick = useCallback(
-    (themeKey: "light" | "dark" | "system") => {
-      setTheme(themeKey);
-    },
-    [setTheme]
-  );
-
-  useEffect(() => {
-    const id = window.setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(id);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
-  return (
-    <div className={cn("bg-background ring-border relative isolate flex h-7 rounded-full p-1 ring-1", className)}>
-      {themes.map(({ key, icon: Icon, label }) => {
-        const isActive = theme === key;
-
-        return (
-          <button
-            aria-label={label}
-            className="relative h-5 w-6 rounded-full"
-            key={key}
-            onClick={() => handleThemeClick(key as "light" | "dark" | "system")}
-            type="button"
-          >
-            {isActive && <div className="bg-secondary absolute inset-0 rounded-full" />}
-            <Icon
-              className={cn("relative z-10 m-auto h-3.5 w-3.5", isActive ? "text-foreground" : "text-muted-foreground")}
-            />
-          </button>
-        );
-      })}
-    </div>
-  );
-};
