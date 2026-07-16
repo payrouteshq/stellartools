@@ -1,6 +1,7 @@
 "use client";
 
 import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
+import { CheckoutSkeleton } from "@/app/checkout/[checkoutId]/checkout-skeleton";
 import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark } from "@/components/icon";
 import { useCheckout } from "@/contexts/checkout-context";
@@ -335,16 +336,7 @@ const Checkout = {
     </div>
   ),
 
-  Skeleton: () => (
-    <div className="bg-background flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-2xl space-y-3">
-        <Skeleton className="h-3 w-40 rounded-md" />
-        <Skeleton className="h-3 w-full rounded-md" />
-        <Skeleton className="h-3 w-5/6 rounded-md" />
-        <Skeleton className="h-3 w-2/3 rounded-md" />
-      </div>
-    </div>
-  ),
+  Skeleton: CheckoutSkeleton,
 
   Footer: () => (
     <footer className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-6 border-t px-4 py-12 grayscale transition-all sm:flex-row lg:px-8">

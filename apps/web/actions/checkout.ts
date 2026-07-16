@@ -1,9 +1,11 @@
 "use server";
 
 import { retrieveSupportedAssets } from "@/actions/asset";
-import { putCustomer } from "@/actions/customers";
+import { putCustomer, upsertCustomer } from "@/actions/customers";
 import { runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
+import { retrieveProducts } from "@/actions/product";
+import { subscriptionPeriodMs } from "@/constant";
 import {
   Checkout,
   Network,
@@ -24,6 +26,7 @@ import { computeDiff, generateResourceId } from "@/lib/utils";
 import { CheckoutStatus } from "@stellartools/core";
 import { all } from "better-all";
 import { and, eq, sql } from "drizzle-orm";
+import moment from "moment";
 
 export const postCheckout = async (
   params: Omit<Checkout, "id" | "organizationId" | "environment" | "createdAt" | "updatedAt" | "initialPagingToken">,
@@ -295,6 +298,90 @@ export const deleteCheckout = async (id: string, orgId?: string, env?: Network) 
     .returning();
 
   return null;
+};
+
+export const createProductCheckoutSession = async (params: {
+  productId: string;
+  orgId: string;
+  env: Network;
+  customer?: { id?: string | null; email?: string | null; phone?: string | null };
+  subscription?: { trialDays?: number; cancelAtPeriodEnd?: boolean } | null;
+  metadata?: Record<string, unknown> | null;
+  description?: string | null;
+  redirectUrl?: string | null;
+}) => {
+  const { productId, orgId, env } = params;
+
+  const {
+    data: [product],
+  } = await retrieveProducts(orgId, env, { productId });
+
+  if (!product) throw new AppError(`Product Not Found ${productId}`);
+
+  if (product.type === "subscription" && !product.recurringPeriod) {
+    throw new AppError("Subscription product does not have a recurring period");
+  }
+
+  const durationMs = subscriptionPeriodMs(product.recurringPeriod, product.customDurationMs);
+
+  if (!durationMs && product.type === "subscription") {
+    throw new AppError("Subscription product has an invalid billing period");
+  }
+
+  const customer = await upsertCustomer(
+    {
+      id: params.customer?.id ?? null,
+      email: params.customer?.email ?? null,
+      phone: params.customer?.phone ?? null,
+    },
+    orgId,
+    env,
+    {
+      name: params.customer?.email?.split("@")[0] ?? "Guest",
+      metadata: (params.metadata as Record<string, string> | null) ?? undefined,
+    }
+  );
+
+  let subscriptionData = null;
+
+  if (product.type === "subscription") {
+    const trialDays = params.subscription?.trialDays ?? 0;
+    const periodStart = moment().toISOString();
+    const cancelAtPeriodEnd = params.subscription?.cancelAtPeriodEnd ?? false;
+
+    subscriptionData =
+      trialDays > 0
+        ? {
+            period_start: periodStart,
+            period_end: moment().add(trialDays, "days").toISOString(),
+            cancel_at_period_end: cancelAtPeriodEnd,
+            trial_days: trialDays,
+          }
+        : {
+            period_start: periodStart,
+            period_end: moment().add(durationMs, "milliseconds").toISOString(),
+            cancel_at_period_end: cancelAtPeriodEnd,
+          };
+  }
+
+  return await postCheckout(
+    {
+      customerId: customer.id,
+      customerEmail: customer.email,
+      customerPhone: customer.phone,
+      status: "open",
+      expiresAt: new Date(Date.now() + 864e5),
+      metadata: params.metadata ?? {},
+      description: params.description ?? null,
+      redirectUrl: params.redirectUrl ?? null,
+      subscriptionData,
+      productId,
+      currencyCode: null,
+      amountCents: null,
+    } as Parameters<typeof postCheckout>[0],
+    orgId,
+    env
+  );
 };
 
 // -- INTERNAL --

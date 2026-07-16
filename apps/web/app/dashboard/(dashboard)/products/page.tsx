@@ -27,6 +27,7 @@ import {
   DataTable,
   Spinner,
   TableAction,
+  useCopy,
 } from "@stellartools/shared-ui";
 import { Column, ColumnDef } from "@tanstack/react-table";
 import {
@@ -129,6 +130,7 @@ const currencyFilterOptions = CURRENCY_CODES.map((code) => ({
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { handleCopy } = useCopy();
   const [selectedStatus, setSelectedStatus] = React.useState<string | null>(null);
   const productModalSubmitRef = React.useRef<(() => void) | null>(null);
 
@@ -301,6 +303,14 @@ function ProductsPageContent() {
   );
 
   const tableActions: TableAction<ProductEsque>[] = [
+    {
+      label: "Copy permalink",
+      onClick: (p) =>
+        handleCopy({
+          text: `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/product/${p.id}`,
+          message: "Payment link copied",
+        }),
+    },
     {
       label: "Edit",
       onClick: openEditModal,

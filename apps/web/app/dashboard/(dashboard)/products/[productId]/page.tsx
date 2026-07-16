@@ -155,6 +155,7 @@ function ProductDetailSkeleton() {
 export default function ProductDetailPage() {
   const { productId } = useParams() as { productId: string };
   const { data: org } = useOrgContext();
+  const { handleCopy } = useCopy();
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
   const productModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [productModalFooterProps, setProductModalFooterProps] = React.useState({
@@ -175,6 +176,9 @@ export default function ProductDetailPage() {
   const updatedAtLabel = formatDate(product?.updatedAt);
 
   const mainPriceDisplay = Money.formatFiat(product?.priceCents ?? 0, product?.currencyCode ?? "USD");
+
+  const permalink = `${process.env.NEXT_PUBLIC_CHECKOUT_URL}/product/${product?.id ?? ""}`;
+  const copyPermalink = () => handleCopy({ text: permalink, message: "Payment link copied" });
 
   const openEditModal = React.useCallback(() => {
     if (!product) return;
@@ -393,6 +397,7 @@ export default function ProductDetailPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={copyPermalink}>Copy payment link</DropdownMenuItem>
                     <DropdownMenuItem>Archive product</DropdownMenuItem>
                     <DropdownMenuItem className="text-destructive" onClick={() => openDeleteModal()}>
                       Delete
@@ -489,6 +494,10 @@ export default function ProductDetailPage() {
                     <div className="flex items-center justify-between gap-2">
                       <LogDetailItem label="Product ID" value={product.id} />
                       <CopyButton text={product.id} label="Copy product ID" />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <LogDetailItem label="Permalink" value={permalink} />
+                      <CopyButton text={permalink} label="Copy payment link" />
                     </div>
                     {product.description && (
                       <div className="flex flex-col gap-1">

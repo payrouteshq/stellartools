@@ -71,9 +71,18 @@ export const postProduct = async (
 export const retrieveProducts = async (
   orgId?: string,
   env?: Network,
-  filters: { productId?: string; status?: ProductStatus } & ApiListParams = {}
+  filters: { productId?: string; status?: ProductStatus; requiresAuth?: boolean } & ApiListParams = {}
 ): Promise<PaginatedResult<Product>> => {
-  const { organizationId, environment } = await resolveOrgContext(orgId, env);
+  const requiresAuth = filters?.requiresAuth ?? true;
+
+  let orgContext: { organizationId: string; environment: Network } | undefined;
+
+  if (requiresAuth) {
+    const { organizationId, environment } = await resolveOrgContext(orgId, env);
+    orgContext = { organizationId, environment };
+  } else {
+    orgContext = undefined;
+  }
 
   const limit = filters?.limit ?? 10;
   const offset = await parseOffset(filters?.starting_after);
@@ -83,8 +92,9 @@ export const retrieveProducts = async (
     .from(products)
     .where(
       and(
-        eq(products.organizationId, organizationId),
-        eq(products.environment, environment),
+        ...(orgContext
+          ? [eq(products.organizationId, orgContext.organizationId), eq(products.environment, orgContext.environment)]
+          : []),
         ...(filters.productId ? [eq(products.id, filters.productId)] : []),
         ...(filters.status ? [eq(products.status, filters.status)] : [])
       )

@@ -1,13 +1,11 @@
 import { resolveAuthContext } from "@/actions/apikey";
-import { postCheckout } from "@/actions/checkout";
+import { createProductCheckoutSession, postCheckout } from "@/actions/checkout";
 import { upsertCustomer } from "@/actions/customers";
-import { retrieveProducts } from "@/actions/product";
-import { getCorsHeaders, subscriptionPeriodMs } from "@/constant";
+import { getCorsHeaders } from "@/constant";
 import { AppError } from "@/lib/action-handler";
 import { createOptionsHandler } from "@/lib/api-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { Result, createCheckoutSchema, createDirectCheckoutSchema, validateSchema } from "@stellartools/core";
-import moment from "moment";
 import { NextRequest, NextResponse } from "next/server";
 
 export const OPTIONS = createOptionsHandler();
@@ -50,71 +48,57 @@ export const POST = async (req: NextRequest) => {
       if (!auth) {
         return Result.err(new AppError("Unauthorized"));
       }
-      const { customer_id, customer_email, customer_phone, metadata } = data;
-      console.log({ data });
-      const customer = await upsertCustomer(
-        { id: customer_id, email: customer_email, phone: customer_phone },
-        auth.organizationId,
-        auth.environment,
-        { name: customer_email?.split("@")[0] ?? "Guest", metadata }
-      );
 
-      let subscriptionData = null;
+      let checkout;
 
-      if ("product_id" in data) {
-        const {
-          data: [product],
-        } = await retrieveProducts(auth.organizationId, auth.environment, { productId: data.product_id });
-
-        if (!product) return Result.err(new AppError(`Product Not Found ${data.product_id}`));
-
-        if (product.type == "subscription" && !product.recurringPeriod) {
-          return Result.err(new AppError("Subscription product does not have a recurring period"));
+      if (checkoutType === "product") {
+        try {
+          checkout = await createProductCheckoutSession({
+            productId: data.product_id,
+            orgId: auth.organizationId,
+            env: auth.environment,
+            customer: { id: data.customer_id, email: data.customer_email, phone: data.customer_phone },
+            subscription: data.subscription_data
+              ? {
+                  trialDays: data.subscription_data.trial_days,
+                  cancelAtPeriodEnd: data.subscription_data.cancel_at_period_end,
+                }
+              : null,
+            metadata: data.metadata ?? {},
+            description: data.description ?? null,
+            redirectUrl: data.redirect_url ?? null,
+          });
+        } catch (e) {
+          return Result.err(e instanceof AppError ? e : new AppError("Failed to create checkout"));
         }
+      } else {
+        const { customer_id, customer_email, customer_phone, metadata } = data;
+        const customer = await upsertCustomer(
+          { id: customer_id, email: customer_email, phone: customer_phone },
+          auth.organizationId,
+          auth.environment,
+          { name: customer_email?.split("@")[0] ?? "Guest", metadata }
+        );
 
-        const durationMs = subscriptionPeriodMs(product.recurringPeriod, product.customDurationMs);
+        const payload = {
+          organizationId: auth.organizationId,
+          environment: auth.environment,
+          customerId: customer.id,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          status: "open" as const,
+          expiresAt: new Date(Date.now() + 864e5),
+          metadata: data.metadata ?? {},
+          description: data.description ?? null,
+          redirectUrl: data.redirect_url ?? null,
+          subscriptionData: null,
+          productId: null,
+          currencyCode: data.currency_code,
+          amountCents: data.amount_cents,
+        } as Parameters<typeof postCheckout>[0];
 
-        if (!durationMs && product.type === "subscription") {
-          return Result.err(new AppError("Subscription product has an invalid billing period"));
-        }
-
-        const trialDays = data.subscription_data?.trial_days ?? 0;
-        const periodStart = moment().toISOString();
-        const cancelAtPeriodEnd = data.subscription_data?.cancel_at_period_end ?? false;
-
-        subscriptionData =
-          trialDays > 0
-            ? {
-                period_start: periodStart,
-                period_end: moment().add(trialDays, "days").toISOString(),
-                cancel_at_period_end: cancelAtPeriodEnd,
-                trial_days: trialDays,
-              }
-            : {
-                period_start: periodStart,
-                period_end: moment().add(durationMs, "milliseconds").toISOString(),
-                cancel_at_period_end: cancelAtPeriodEnd,
-              };
+        checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);
       }
-
-      const payload = {
-        organizationId: auth.organizationId,
-        environment: auth.environment,
-        customerId: customer.id,
-        customerEmail: customer.email,
-        customerPhone: customer.phone,
-        status: "open" as const,
-        expiresAt: new Date(Date.now() + 864e5),
-        metadata: data.metadata ?? {},
-        description: data.description ?? null,
-        redirectUrl: data.redirect_url ?? null,
-        subscriptionData,
-        productId: checkoutType === "product" ? data.product_id : null,
-        currencyCode: checkoutType === "direct" ? data.currency_code : null,
-        amountCents: checkoutType === "direct" ? data.amount_cents : null,
-      } as Parameters<typeof postCheckout>[0];
-
-      const checkout = await postCheckout(payload as any, auth.organizationId, auth.environment);
 
       return Result.ok({
         id: checkout.id,
