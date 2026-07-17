@@ -17,7 +17,7 @@ export type ReconReport = {
   status: "synced" | "diverged";
 };
 
-const DRIFT_THRESHOLD = 0.0001;
+const DRIFT_THRESHOLD = 1;
 
 export async function reconcileOrganization(orgId?: string, env?: Network): Promise<ReconReport[]> {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
