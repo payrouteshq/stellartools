@@ -173,6 +173,8 @@ export default function SubscriptionDetailPage() {
     { enabled: !!subscriptionId, pagination: true }
   );
 
+  const actionKeys = React.useRef<Record<string, string>>({});
+
   const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
     async ({ path, onComplete = () => {} }: { path: string; onComplete?: () => void | Promise<void> }) => {
       if (!orgContext?.token) throw new AppError("No session token");
@@ -180,7 +182,8 @@ export default function SubscriptionDetailPage() {
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token },
       });
-      const res = await api.post(`/subscriptions/${subscriptionId}${path}`, {});
+      if (!actionKeys.current[path]) actionKeys.current[path] = crypto.randomUUID();
+      const res = await api.post(`/subscriptions/${subscriptionId}${path}`, {}, { "Idempotency-Key": actionKeys.current[path] });
       if (res.isErr()) throw new AppError(res.error.message);
       await onComplete();
       return res.value;

@@ -1,11 +1,46 @@
 "use server";
 
+import { retrieveAccount as retrieveMerchantAccount } from "@/actions/account";
 import { withEvent } from "@/actions/event";
-import { resolveOrgContext } from "@/actions/organization";
-import { Network, Payout, charges, db, payouts } from "@/db";
+import { resolveOrgContext, retrieveOrganization, retrieveOrganizationIdAndSecret } from "@/actions/organization";
+import { Network, Payout, db, payouts } from "@/db";
+import { MerchantPayoutProcessedEmail } from "@/emails/merchant-payout-processed";
+import { sendEmail } from "@/integrations/email";
+import { retrieveAccount } from "@/integrations/stellar-core";
 import { generateResourceId } from "@/lib/utils";
 import { EventTrigger } from "@/types";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+
+export interface WalletAsset {
+  code: string;
+  issuer: string | null;
+  balance: number;
+}
+
+export const retrieveWalletBalance = async (): Promise<{
+  assets: WalletAsset[];
+  publicKey: string | null;
+}> => {
+  const { organizationId, environment } = await resolveOrgContext();
+
+  const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
+
+  if (!secret?.publicKey) return { assets: [], publicKey: null };
+
+  const accountResult = await retrieveAccount(secret.publicKey, environment);
+  if (accountResult.isErr()) return { assets: [], publicKey: secret.publicKey };
+  const assets = accountResult.value.balances
+    .map((b) => {
+      const isNative = b.asset_type === "native";
+      return {
+        code: isNative ? "XLM" : ((b as any).asset_code as string),
+        issuer: isNative ? null : ((b as any).asset_issuer as string),
+        balance: parseFloat(b.balance),
+      };
+    })
+    .filter((a) => a.balance > 0);
+  return { assets, publicKey: secret.publicKey };
+};
 
 export const retrievePayouts = async () => {
   const { organizationId, environment } = await resolveOrgContext();
@@ -66,23 +101,11 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
     async () => {
       const [payout] = await db.update(payouts).set(params).where(eq(payouts.id, id)).returning();
 
-      if (params.status === "succeeded" && payout) {
-        await db
-          .update(charges)
-          .set({ clearedAt: new Date() })
-          .where(
-            and(
-              eq(charges.organizationId, payout.organizationId),
-              eq(charges.environment, payout.environment),
-              isNull(charges.clearedAt)
-            )
-          );
-      }
-
       return payout;
     },
-    (payout) => {
+    async (payout) => {
       let events: EventTrigger<typeof payout>[] = [];
+      const sideEffects: Array<() => Promise<void>> = [];
       const eventId = generateResourceId("evt", id, 25);
 
       if (payout.status == "succeeded") {
@@ -99,9 +122,37 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
             },
           }),
         });
+
+        sideEffects.push(async () => {
+          const [org, account] = await Promise.all([
+            retrieveOrganization(payout.organizationId),
+            retrieveMerchantAccount({ organizationId: payout.organizationId }),
+          ]);
+          if (!account?.email) return;
+          await sendEmail(
+            account.email,
+            "Whops! Your payment has arrived 🎉",
+            MerchantPayoutProcessedEmail({
+              organizationName: org.name,
+              organizationLogo: org.logoUrl,
+              cryptoAmount: String(payout.cryptoAmount ?? ""),
+              assetCode: payout.selectedAssetCode ?? "XLM",
+              walletAddress: payout.walletAddress ?? "",
+              transactionHash: payout.transactionHash ?? "",
+            })
+          );
+        });
       }
 
-      return { events };
+      return {
+        events,
+        webhooks: {
+          organizationId: payout.organizationId,
+          environment: payout.environment,
+          triggers: [],
+        },
+        sideEffects,
+      };
     }
   );
 };

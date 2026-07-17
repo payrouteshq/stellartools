@@ -1,0 +1,2 @@
+ALTER TABLE "payout" DROP CONSTRAINT "crypto_or_fiat_constraint";--> statement-breakpoint
+ALTER TABLE "payout" ADD CONSTRAINT "crypto_or_fiat_constraint" CHECK (("payout"."selected_asset_code" IS NOT NULL AND ("payout"."transaction_hash" IS NOT NULL OR "payout"."status" = 'pending')) OR ("payout"."bank_account" IS NOT NULL));

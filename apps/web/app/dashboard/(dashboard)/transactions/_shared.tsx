@@ -47,6 +47,7 @@ export function RefundModalContent({
   payment: ResolvedPayment | null;
 }) {
   const { data: orgContext } = useOrgContext();
+  const idempotencyKey = React.useRef(crypto.randomUUID());
   const form = RHF.useForm<RefundFormData>({
     resolver: zodResolver(refundSchema),
     defaultValues: {
@@ -75,12 +76,11 @@ export function RefundModalContent({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext?.token! },
       });
-      const result = await api.post<{ id: string }>("/refunds", {
-        payment_id: data.paymentId,
-        metadata: null,
-        wallet_address: data.walletAddress,
-        reason: data.reason ?? null,
-      });
+      const result = await api.post<{ id: string }>(
+        "/refunds",
+        { payment_id: data.paymentId, metadata: null, wallet_address: data.walletAddress, reason: data.reason ?? null },
+        { "Idempotency-Key": idempotencyKey.current }
+      );
       if (result.isErr()) throw new AppError(result.error.message);
       return result.value;
     },

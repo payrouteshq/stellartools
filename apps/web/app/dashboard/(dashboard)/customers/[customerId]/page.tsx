@@ -648,6 +648,7 @@ function CheckoutModalContent({
   onFooterChange?: (props: { isPending: boolean; createdUrl: string | null }) => void;
 }) {
   const { data: orgContext } = useOrgContext();
+  const idempotencyKey = React.useRef(crypto.randomUUID());
   const [createdUrl, setCreatedUrl] = React.useState<string | null>(null);
   const { copied, handleCopy } = useCopy();
 
@@ -707,16 +708,20 @@ function CheckoutModalContent({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token! },
       });
-      const response = await api.post<Checkout>("/checkout?type=product", {
-        customer_id: customerId,
-        customer_email: undefined,
-        customer_phone: undefined,
-        product_id: data.productId,
-        description: data.description,
-        redirect_url: data.redirectUrl || undefined,
-        metadata: null,
-        ...(data.trialDays && data.trialDays > 0 ? { subscription_data: { trial_days: data.trialDays } } : {}),
-      });
+      const response = await api.post<Checkout>(
+        "/checkout?type=product",
+        {
+          customer_id: customerId,
+          customer_email: undefined,
+          customer_phone: undefined,
+          product_id: data.productId,
+          description: data.description,
+          redirect_url: data.redirectUrl || undefined,
+          metadata: null,
+          ...(data.trialDays && data.trialDays > 0 ? { subscription_data: { trial_days: data.trialDays } } : {}),
+        },
+        { "Idempotency-Key": idempotencyKey.current }
+      );
 
       if (response.isErr()) {
         throw new AppError(response.error.message);

@@ -36,6 +36,13 @@
       "when": 1784284920940,
       "tag": "0004_previous_tomas",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784287078703,
+      "tag": "0005_pending_payout_constraint",
+      "breakpoints": true
     }
   ]
 }

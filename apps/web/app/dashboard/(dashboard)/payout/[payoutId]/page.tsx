@@ -12,6 +12,7 @@ import { PayoutReceipt } from "@/components/receipt-engine";
 import { TIMELINE_ROUTE_MAP } from "@/constant";
 import { PayoutStatus } from "@/constant/schema.client";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { Money } from "@/lib/money";
 import { downloadReceipt } from "@/lib/utils";
 import {
   Badge,
@@ -254,7 +255,7 @@ export default function PayoutDetailPage() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
-              { label: "Payout Amount", value: `${payout.amountCents} XLM` },
+              { label: "Payout Amount", value: `${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}` },
               { label: "Status", value: <StatusBadge status={payout.status as any} /> },
               {
                 label: "Network",
@@ -273,7 +274,7 @@ export default function PayoutDetailPage() {
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold">Payout Information</h3>
                 <div className="bg-card space-y-4 rounded-lg border p-4">
-                  <DetailRow label="Amount" value={`${payout.amountCents} XLM`} />
+                  <DetailRow label="Amount" value={`${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}`} />
                   <Separator />
                   <DetailRow
                     label="Payout Method"
@@ -327,7 +328,7 @@ export default function PayoutDetailPage() {
               <div className="space-y-3">
                 <DetailRow label="Payout ID" value={payout.id} mono action={<CopyBtn text={payout.id} />} />
                 <Separator />
-                <DetailRow label="Asset" value="XLM" />
+                <DetailRow label="Asset" value={payout.selectedAssetCode ?? "XLM"} />
               </div>
             </div>
           </div>

@@ -391,7 +391,7 @@ export const payouts = pgTable(
   (table) => [
     check(
       "crypto_or_fiat_constraint",
-      sql`(${table.selectedAssetCode} IS NOT NULL AND ${table.transactionHash} IS NOT NULL) OR (${table.bankAccount} IS NOT NULL)`
+      sql`(${table.selectedAssetCode} IS NOT NULL AND (${table.transactionHash} IS NOT NULL OR ${table.status} = 'pending')) OR (${table.bankAccount} IS NOT NULL)`
     ),
   ]
 );

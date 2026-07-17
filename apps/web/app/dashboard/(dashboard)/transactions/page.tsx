@@ -360,7 +360,7 @@ function TransactionsPageContent() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4!">
               {tabs.map((tab) => (
                 <Card
                   key={tab.id}

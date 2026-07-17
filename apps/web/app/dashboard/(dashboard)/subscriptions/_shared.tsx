@@ -265,6 +265,7 @@ function CustomerDetail({
 export function SubscriptionModalContent({ onSuccess, editingSubscription, setSubmitRef, onFooterChange }: any) {
   const { data: org } = useOrgContext();
   const isEditMode = !!editingSubscription;
+  const idempotencyKey = React.useRef(crypto.randomUUID());
 
   const form = RHF.useForm({
     resolver: zodResolver(subscriptionFormSchema),
@@ -341,7 +342,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
             ...(Object.keys(metadata).length ? { metadata } : {}),
             ...(data.cancelAtPeriodEnd && { cancel_at_period_end: data.cancelAtPeriodEnd }),
           })
-        : await api.post("/subscriptions", payload);
+        : await api.post("/subscriptions", payload, { "Idempotency-Key": idempotencyKey.current });
 
       if (res.isErr()) throw new AppError(res.error.message);
       return res.value;
@@ -350,7 +351,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
   );
 
   React.useEffect(() => {
-    setSubmitRef.current = form.handleSubmit((d) => handleAction(d as any));
+    setSubmitRef.current = form.handleSubmit((d) => handleAction(d));
   }, [form, handleAction]);
 
   React.useEffect(() => {

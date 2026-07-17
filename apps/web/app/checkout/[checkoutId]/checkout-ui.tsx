@@ -1,7 +1,7 @@
 "use client";
 
-import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { CheckoutSkeleton } from "@/app/checkout/[checkoutId]/checkout-skeleton";
+import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark } from "@/components/icon";
 import { useCheckout } from "@/contexts/checkout-context";
