@@ -1,9 +1,9 @@
+import { retrieveCharges } from "@/actions/charges";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
 import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } from "@/actions/subscription";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
-import { charges, db } from "@/db";
 import { decrypt } from "@/integrations/encryption";
 import {
   resolveMerchantSecret,
@@ -15,7 +15,6 @@ import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
-import { and, eq } from "drizzle-orm";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -38,13 +37,14 @@ export const POST = apiHandler({
 
     if (!secret) throw new AppError("Merchant keys not configured, please contact support");
 
-    // Look up the platform fee charged for this payment so we can deduct it from the refund.
-    // The merchant already paid the fee on the way in — they can only return what they kept.
-    const [platformCharge] = await db
-      .select()
-      .from(charges)
-      .where(and(eq(charges.paymentId, payment_id), eq(charges.status, "succeeded")))
-      .limit(1);
+    const {
+      data: [platformCharge],
+    } = await retrieveCharges(
+      organizationId,
+      environment,
+      { paymentId: payment_id, type: "platform_fee" },
+      { limit: 1 }
+    );
 
     const feeCrypto = platformCharge ? Number(platformCharge.cryptoAmount) : 0;
     const feeAmountCents = platformCharge ? platformCharge.amountCents : 0;

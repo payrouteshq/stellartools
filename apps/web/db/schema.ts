@@ -361,6 +361,7 @@ export const charges = pgTable("charge", {
   environment: networkEnum("network").notNull(),
   clearedAt: timestamp("cleared_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const payoutStatusEnum = pgEnum("payout_status", payoutStatusEnum$1);
@@ -627,6 +628,12 @@ export type CustomerPortalSession = InferSelectModel<typeof customerPortalSessio
 export type App = InferSelectModel<typeof apps>;
 export type AppInstallation = InferSelectModel<typeof appInstallations>;
 export type AppLog = InferSelectModel<typeof appLogs>;
+
+export type Charge = InferSelectModel<typeof charges>;
+
+export type ChargeType = (typeof chargeTypeEnum.enumValues)[number];
+
+export type ChargeStatus = (typeof chargeStatusEnum.enumValues)[number];
 
 export type ResolvedCustomer = Customer & { wallets?: Array<CustomerWallet> };
 
