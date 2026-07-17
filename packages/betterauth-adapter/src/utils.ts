@@ -9,7 +9,7 @@ export const getContext = (ctx: GenericEndpointContext, options: BillingConfig) 
 
   return {
     user: session.user as typeof session.user & { stellartools_customer_id: string },
-    stellar: new StellarTools({ api_key: options.api_key }),
+    stellar: new StellarTools({ api_key: options.apiKey }),
     adapter: ctx.context.adapter,
   };
 };

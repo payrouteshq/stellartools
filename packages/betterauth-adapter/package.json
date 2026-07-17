@@ -28,9 +28,9 @@
     "url": "https://github.com/payrouteshq/stellartools/issues"
   },
   "dependencies": {
-    "@better-auth/core": "^1.4.9",
+    "@better-auth/core": "^1.6.11",
     "@stellartools/core": "workspace:*",
-    "better-auth": "^1.4.9",
+    "better-auth": "^1.6.11",
     "zod": "^4.2.1"
   },
   "devDependencies": {

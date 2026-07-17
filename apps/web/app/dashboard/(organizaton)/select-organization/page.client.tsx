@@ -3,7 +3,8 @@
 import * as React from "react";
 
 import { postOrganizationAndSecret, retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
-import { StellarTools } from "@/components/icon";
+import { StellarToolsIcon } from "@/components/icon";
+import ModeToggle from "@/components/mode-toggle";
 import { useAction } from "@/hooks/use-action";
 import { useClearStaleCookies } from "@/hooks/use-clear-stale-cookies";
 import { capture, identifyOrganization } from "@/lib/posthog";
@@ -149,7 +150,7 @@ export const Client$SelectOrganizationPage = ({
       <div className="relative z-10 w-full max-w-sm space-y-8">
         <div className="flex flex-col items-center gap-3">
           <div className="bg-foreground/5 border-border flex size-12 items-center justify-center rounded-2xl border">
-            <StellarTools width={26} height={26} className="text-foreground" />
+            <StellarToolsIcon width={26} height={26} className="text-foreground" />
           </div>
           <div className="text-center">
             <h1 className="text-foreground text-xl font-semibold tracking-tight">
@@ -240,21 +241,18 @@ function CreateOrganizationModalFooter({
   isPending: boolean;
 }) {
   return (
-    <div className="flex w-full justify-end gap-3">
-      {hasOrganizations && (
-        <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
-          Cancel
+    <div className="flex w-full items-center justify-between">
+      <ModeToggle />
+      <div className="flex gap-3">
+        {hasOrganizations && (
+          <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+        )}
+        <Button type="button" onClick={() => submitRef.current?.()} disabled={isPending} isLoading={isPending}>
+          {isPending ? "Creating..." : "Create Organization"}
         </Button>
-      )}
-      <Button
-        type="button"
-        onClick={() => submitRef.current?.()}
-        disabled={isPending}
-        isLoading={isPending}
-        className="gap-2"
-      >
-        {isPending ? "Creating..." : "Create Organization"}
-      </Button>
+      </div>
     </div>
   );
 }

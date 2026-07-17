@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { StellarTools } from "@/components/icon";
+import { StellarToolsIcon } from "@/components/icon";
 import { CustomerReceipt } from "@/components/receipt-engine";
 import { ResolvedPayment } from "@/db";
 import { Money } from "@/lib/money";
@@ -148,7 +148,7 @@ export function InvoiceUI({ resolvedPayment }: InvoiceUIProps) {
         className="text-muted-foreground hover:text-foreground mt-8 flex items-center gap-1.5 text-sm transition-colors"
       >
         Powered by
-        <StellarTools width={13} height={13} className="shrink-0" />
+        <StellarToolsIcon width={13} height={13} className="shrink-0" />
         <span className="font-medium">StellarTools</span>
       </a>
     </div>

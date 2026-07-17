@@ -24,7 +24,7 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["index"]
+            "pages": ["index", "adapter-playground"]
           },
           {
             "group": "Concepts",

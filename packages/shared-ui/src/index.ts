@@ -1,3 +1,6 @@
+// Icons
+export { StellarToolsIcon } from "./components/icons";
+
 // Hooks
 export { useFilePreview } from "./hooks/use-file-preview";
 export { useCopy } from "./hooks/use-copy";

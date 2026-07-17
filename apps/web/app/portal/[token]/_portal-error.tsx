@@ -1,6 +1,6 @@
 "use client";
 
-import { StellarTools } from "@/components/icon";
+import { StellarToolsIcon } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
 
 const MESSAGES = {
@@ -21,7 +21,7 @@ export function PortalSessionError({ reason }: { reason: keyof typeof MESSAGES }
     <div className="bg-background flex min-h-screen">
       <aside className="border-border bg-background hidden w-[280px] shrink-0 flex-col border-r px-8 py-10 md:flex!">
         <div className="mb-6 flex items-center gap-3">
-          <StellarTools width={28} height={28} className="shrink-0 object-contain" />
+          <StellarToolsIcon width={28} height={28} className="shrink-0 object-contain" />
           <span className="text-foreground truncate text-sm font-semibold">StellarTools</span>
         </div>
         <div className="mt-auto flex justify-end">
@@ -32,7 +32,7 @@ export function PortalSessionError({ reason }: { reason: keyof typeof MESSAGES }
       <main className="flex flex-1 flex-col">
         <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
           <div className="flex items-center gap-2.5">
-            <StellarTools width={24} height={24} className="shrink-0 object-contain" />
+            <StellarToolsIcon width={24} height={24} className="shrink-0 object-contain" />
             <span className="text-foreground text-sm font-semibold">StellarTools</span>
           </div>
           <ModeToggle />

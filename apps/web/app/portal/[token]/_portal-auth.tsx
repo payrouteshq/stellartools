@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { sendPortalOtp, verifyPortalOtp } from "@/actions/customers";
-import { StellarTools } from "@/components/icon";
+import { StellarToolsIcon } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button, InputOTP, InputOTPGroup, InputOTPSlot } from "@stellartools/shared-ui";
 import { Building2 } from "lucide-react";
@@ -69,7 +69,7 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
             {org?.logoUrl ? (
               <img src={org.logoUrl} alt={orgName} className="size-7 rounded-md object-contain" />
             ) : (
-              <StellarTools width={24} height={24} className="shrink-0 object-contain" />
+              <StellarToolsIcon width={24} height={24} className="shrink-0 object-contain" />
             )}
             <span className="text-foreground text-sm font-semibold">{orgName}</span>
           </div>

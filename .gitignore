@@ -71,3 +71,7 @@ MEMORY.md
 apps/**/.next
 apps/**/out
 apps/**/coverage
+
+examples/**/.next
+examples/**/dist
+examples/**/node_modules

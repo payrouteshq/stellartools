@@ -7,7 +7,6 @@ import {
   Network,
   Organization,
   OrganizationSecret,
-  charges,
   customers,
   db,
   organizationSecrets,
@@ -26,7 +25,7 @@ import { AppError, safeAction } from "@/lib/action-handler";
 import { computeOverviewStats } from "@/lib/overview-stats";
 import { generateResourceId } from "@/lib/utils";
 import { STELLARTOOLS_ID, signJwt, verifyJwt } from "@stellartools/core";
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import moment from "moment";
 
 export const postOrganizationAndSecret = safeAction(
@@ -284,11 +283,8 @@ export const deleteOrganizationSecret = async (id: string) => {
 
 /**
  * @documentation
- * MRR is not realized money. It's the snapshot: "if every active subscription renews this
- * month, how much comes in?" It's a projection of future revenue, so there's nothing to
- * deduct fees from yet.
- *
- * Revenue is realized money. It's the actual money that has come in, minus any fees that have been deducted.
+ * MRR is not realized money — it's a projection if every active subscription renews this month.
+ * Gross volume is period sales analytics (DB-backed).
  */
 export const retrieveOverviewStats = async (
   options: { selectedCurrency: string; orgId?: string; env?: Network; since?: Date } = {
@@ -336,15 +332,10 @@ export const retrieveOverviewStats = async (
     )
     .groupBy(products.currencyCode);
 
-  // C. Gross Revenue Buckets (Excluding Succeeded Refunds)
+  // Exclude charges tied to refunded payments (paymentId IS NULL means subscription/manual charge — keep those)
   const excludeRefundedPayments = sql`${payments.id} NOT IN (
     SELECT ${refunds.paymentId} FROM ${refunds} WHERE ${refunds.status} = 'succeeded'
   )`;
-
-  // Exclude charges tied to refunded payments (paymentId IS NULL means subscription/manual charge — keep those)
-  const excludeRefundedCharges = sql`(${charges.paymentId} IS NULL OR ${charges.paymentId} NOT IN (
-    SELECT ${refunds.paymentId} FROM ${refunds} WHERE ${refunds.status} = 'succeeded'
-  ))`;
 
   const grossRevenueQuery = db
     .select({
@@ -363,25 +354,6 @@ export const retrieveOverviewStats = async (
     )
     .groupBy(payments.currencyCode);
 
-  // D. Uncleared Platform Fees Buckets (also excluding fees for refunded payments)
-  const feesQuery = db
-    .select({
-      currencyCode: charges.currencyCode,
-      totalFees: sql<number>`coalesce(sum(${charges.amountCents}), 0)::int`,
-    })
-    .from(charges)
-    .where(
-      and(
-        eq(charges.organizationId, organizationId),
-        eq(charges.environment, environment),
-        eq(charges.status, "succeeded"),
-        isNull(charges.clearedAt),
-        excludeRefundedCharges
-      )
-    )
-    .groupBy(charges.currencyCode);
-
-  // E. Time Series Data (Revenue, Customers, Subs, Trials)
   const revenueChartQuery = db
     .select({
       date: sql<string>`date_trunc('day', ${payments.createdAt})::date::text`,
@@ -399,25 +371,6 @@ export const retrieveOverviewStats = async (
       )
     )
     .groupBy(sql`1`, payments.currencyCode);
-
-  const feesChartQuery = db
-    .select({
-      date: sql<string>`date_trunc('day', ${charges.createdAt})::date::text`,
-      currencyCode: charges.currencyCode,
-      feeCents: sql<number>`coalesce(sum(${charges.amountCents}), 0)::int`,
-    })
-    .from(charges)
-    .where(
-      and(
-        eq(charges.organizationId, organizationId),
-        eq(charges.environment, environment),
-        eq(charges.status, "succeeded"),
-        isNull(charges.clearedAt),
-        gte(charges.createdAt, since),
-        excludeRefundedCharges
-      )
-    )
-    .groupBy(sql`1`, charges.currencyCode);
 
   const customersChartQuery = db
     .select({
@@ -485,38 +438,24 @@ export const retrieveOverviewStats = async (
     )
     .groupBy(sql`1`, products.currencyCode);
 
-  const [
-    metrics,
-    mrrResult,
-    grossResult,
-    feeResult,
-    revChart,
-    feeChart,
-    custChart,
-    trialsChart,
-    activeSubscriptionsChart,
-    mrrChart,
-  ] = await Promise.all([
-    metricsQuery,
-    mrrQuery,
-    grossRevenueQuery,
-    feesQuery,
-    revenueChartQuery,
-    feesChartQuery,
-    customersChartQuery,
-    trialsChartQuery,
-    activeSubscriptionsChartQuery,
-    mrrChartQuery,
-  ]);
+  const [metrics, mrrResult, grossResult, revChart, custChart, trialsChart, activeSubscriptionsChart, mrrChart] =
+    await Promise.all([
+      metricsQuery,
+      mrrQuery,
+      grossRevenueQuery,
+      revenueChartQuery,
+      customersChartQuery,
+      trialsChartQuery,
+      activeSubscriptionsChartQuery,
+      mrrChartQuery,
+    ]);
 
   return computeOverviewStats(
     {
       metrics,
       mrrBuckets: mrrResult.map((b) => ({ currencyCode: b.currencyCode, cents: b.cents })),
       grossBuckets: grossResult.map((b) => ({ currencyCode: b.currencyCode, cents: b.totalCents })),
-      feeBuckets: feeResult.map((b) => ({ currencyCode: b.currencyCode, cents: b.totalFees })),
       revenueChart: revChart,
-      feeChart,
       customersChart: custChart,
       trialsChart,
       activeSubscriptionsChart,

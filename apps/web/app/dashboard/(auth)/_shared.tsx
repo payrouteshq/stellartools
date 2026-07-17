@@ -3,7 +3,7 @@
 import React from "react";
 
 import { Google } from "@/components/icon";
-import { StellarTools } from "@/components/icon";
+import { StellarToolsIcon } from "@/components/icon";
 import { Button, Separator } from "@stellartools/shared-ui";
 import { AlertCircle, X } from "lucide-react";
 import Link from "next/link";
@@ -59,7 +59,7 @@ export function AuthLayout({
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
       <div className="bg-foreground hidden flex-col justify-between overflow-hidden p-16 lg:flex!">
         <div className="space-y-8">
-          <StellarTools width={100} height={100} className="text-background" />
+          <StellarToolsIcon width={100} height={100} className="text-background" />
           <h1 className="text-background mb-6 text-4xl leading-[1.1] font-extrabold tracking-normal">
             The financial infrastructure
             <br />

@@ -1,4 +1,4 @@
-import { Payroutes, StellarTools } from "@/components/icon";
+import { Payroutes, StellarToolsIcon } from "@/components/icon";
 import { Linkedin, Twitter } from "lucide-react";
 import Link from "next/link";
 
@@ -19,7 +19,7 @@ export const FooterSection = () => (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-2">
         <Link href="/" className="flex items-center gap-2 no-underline">
-          <StellarTools width={22} height={22} className="text-foreground" />
+          <StellarToolsIcon width={22} height={22} className="text-foreground" />
           <span className="text-foreground text-sm font-semibold">StellarTools</span>
         </Link>
         <p className="text-muted-foreground text-xs">built for the Stellar blockchain</p>

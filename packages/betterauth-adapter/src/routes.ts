@@ -7,7 +7,7 @@ import { getContext } from "./utils";
 
 const retrieveOrCreateCustomer = async (ctx: GenericEndpointContext): Promise<string> => {
   const context = ctx?.context;
-  const { user, stellar, adapter } = getContext(ctx, { api_key: context?.api_key });
+  const { user, stellar, adapter } = getContext(ctx, { apiKey: context?.api_key });
 
   const dbUser = await adapter.findOne<{ stellartools_customer_id: string }>({
     model: "user",
@@ -43,7 +43,7 @@ export const createCustomer = (options: BillingConfig) =>
     const { stellar } = getContext(ctx, options);
     const result = await stellar.customers.retrieve(customerId);
 
-    options?.on_customer_created?.(result);
+    options?.onCustomerCreated?.(result);
     return ctx.json(result);
   });
 
@@ -82,7 +82,7 @@ export const createSubscription = (options: BillingConfig) =>
       const { stellar } = getContext(ctx, options);
       const sub = await stellar.subscriptions.create({ ...ctx.body, customer_id: customerId });
 
-      options?.on_subscription_created?.(sub);
+      options?.onSubscriptionCreated?.(sub);
 
       return ctx.json(sub);
     }

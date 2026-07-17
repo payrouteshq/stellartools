@@ -15,9 +15,6 @@ export const getKeeperSecret = (network: Network) =>
 export const getChargesPublicKey = (network: Network) =>
   pick(network, process.env.CHARGES_PUBLIC_KEY_TESTNET, process.env.CHARGES_PUBLIC_KEY_MAINNET, "CHARGES_PUBLIC_KEY");
 
-export const getChargesSecretKey = (network: Network) =>
-  pick(network, process.env.CHARGES_SECRET_KEY_TESTNET, process.env.CHARGES_SECRET_KEY_MAINNET, "CHARGES_SECRET_KEY");
-
 export const getSubscriptionContractId = (network: Network) =>
   pick(
     network,

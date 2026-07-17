@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { getCurrentUser, signOut } from "@/actions/auth";
-import { Payroutes, StellarTools } from "@/components/icon";
+import { Payroutes, StellarToolsIcon } from "@/components/icon";
 import ModeToggle from "@/components/mode-toggle";
 import { Menu } from "@aliimam/icons";
 import {
@@ -106,7 +106,7 @@ export function Header() {
             </Link>
             <span className="text-foreground text-sm">/</span>
             <Link className="flex items-center gap-2" href="/" target="_blank">
-              <StellarTools width={28} height={28} className="text-foreground size-7 rounded-md object-contain" />
+              <StellarToolsIcon width={28} height={28} className="text-foreground size-7 rounded-md object-contain" />
               <span className="font-rosemary text-foreground text-base font-semibold">StellarTools</span>
             </Link>
           </div>
@@ -228,7 +228,7 @@ export function Header() {
             </Link>
             <span className="text-foreground">/</span>
             <Link className="flex items-center gap-2" href="/">
-              <StellarTools width={32} height={32} className="text-foreground" />
+              <StellarToolsIcon width={32} height={32} className="text-foreground" />
               <span className="font-rosemary text-foreground text-lg font-semibold">StellarTools</span>
             </Link>
           </div>

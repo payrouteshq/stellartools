@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import { createCustomerImage, getCustomerPortalData } from "@/actions/customers";
-import { StellarTools } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";

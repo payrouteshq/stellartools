@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { deleteCustomerWallet, getCustomerPortalData, retrieveCustomerPortalSession } from "@/actions/customers";
-import { StellarTools } from "@/components/icon";
+import { StellarToolsIcon } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useAction } from "@/hooks/use-action";
 import { AppError } from "@/lib/action-handler";
@@ -352,7 +352,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
             className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 text-xs transition-colors"
           >
             Powered by
-            <StellarTools width={13} height={13} className="shrink-0" />
+            <StellarToolsIcon width={13} height={13} className="shrink-0" />
             StellarTools
           </Link>
         </div>
@@ -408,7 +408,7 @@ function MobileOrgHeader({ org }: { org: Organization | null }) {
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
         ) : (
-          <StellarTools width={24} height={24} className="shrink-0 object-contain" />
+          <StellarToolsIcon width={24} height={24} className="shrink-0 object-contain" />
         )}
         <div className="flex flex-col gap-0.5">
           <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>

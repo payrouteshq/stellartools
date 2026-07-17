@@ -18,8 +18,9 @@ import { and, eq } from "drizzle-orm";
 export const postApiKey = safeAction(
   async (params: Omit<ApiKey, "id" | "organizationId" | "environment" | "token">, orgId?: string, env?: Network) => {
     const { organizationId, environment } = await resolveOrgContext(orgId, env);
+    const mode = environment == "mainnet" ? "live" : "test";
 
-    const rawToken = generateResourceId("st_key", organizationId, 52);
+    const rawToken = generateResourceId(`st_${mode}_`, organizationId, 52);
 
     const apiKey = await db
       .insert(apiKeys)

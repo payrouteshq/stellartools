@@ -9,9 +9,7 @@ export type OverviewStatsInput = {
   metrics: { activeSubscriptions: number | string; activeTrials: number | string; totalCustomers: number | string };
   mrrBuckets: CurrencyBucket[];
   grossBuckets: CurrencyBucket[];
-  feeBuckets: CurrencyBucket[];
   revenueChart: { date: string; currencyCode: string; grossCents: number }[];
-  feeChart: { date: string; currencyCode: string; feeCents: number }[];
   customersChart: DatedCount[];
   trialsChart: DatedCount[];
   activeSubscriptionsChart: DatedCount[];
@@ -30,12 +28,12 @@ export type OverviewStats = {
   totalCustomers: number;
   newCustomers: number;
   mrrCents: number;
-  netRevenueCents: number;
+  grossVolumeCents: number;
   currency: string;
   charts: {
     mrr: NormalizedChartPoint[];
     activeSubscriptions: NormalizedChartPoint[];
-    revenue: NormalizedChartPoint[];
+    grossVolume: NormalizedChartPoint[];
     customers: NormalizedChartPoint[];
     trials: NormalizedChartPoint[];
   };
@@ -44,31 +42,17 @@ export type OverviewStats = {
 const sumBuckets = (buckets: CurrencyBucket[], target: string, rates: Record<string, number>): number =>
   buckets.reduce((acc, b) => acc + Money.convert(b.cents, b.currencyCode, target, rates), 0);
 
-/**
- * Pure aggregation for the dashboard overview: converts every currency bucket
- * into the target currency, nets fees out of gross revenue (both totals and the
- * daily series), and shapes the time series for the charts.
- */
 export const computeOverviewStats = (input: OverviewStatsInput, options: OverviewStatsOptions): OverviewStats => {
   const { targetCurrency, rates, dayCount } = options;
 
   const mrrCents = sumBuckets(input.mrrBuckets, targetCurrency, rates);
-  const totalGross = sumBuckets(input.grossBuckets, targetCurrency, rates);
-  const totalFees = sumBuckets(input.feeBuckets, targetCurrency, rates);
-  const netRevenueCents = totalGross - totalFees;
+  const grossVolumeCents = sumBuckets(input.grossBuckets, targetCurrency, rates);
 
-  // Net revenue per day = gross for the day minus platform fees for the day.
-  const netRevMap = new Map<string, number>();
+  const grossVolumeMap = new Map<string, number>();
   for (const b of input.revenueChart) {
-    netRevMap.set(
+    grossVolumeMap.set(
       b.date,
-      (netRevMap.get(b.date) ?? 0) + Money.convert(b.grossCents, b.currencyCode, targetCurrency, rates)
-    );
-  }
-  for (const b of input.feeChart) {
-    netRevMap.set(
-      b.date,
-      (netRevMap.get(b.date) ?? 0) - Money.convert(b.feeCents, b.currencyCode, targetCurrency, rates)
+      (grossVolumeMap.get(b.date) ?? 0) + Money.convert(b.grossCents, b.currencyCode, targetCurrency, rates)
     );
   }
 
@@ -90,7 +74,7 @@ export const computeOverviewStats = (input: OverviewStatsInput, options: Overvie
     totalCustomers: Number(input.metrics.totalCustomers),
     newCustomers: input.customersChart.reduce((acc, curr) => acc + curr.count, 0),
     mrrCents,
-    netRevenueCents,
+    grossVolumeCents,
     currency: targetCurrency,
     charts: {
       mrr: toSeries(mrrDayMap),
@@ -99,7 +83,7 @@ export const computeOverviewStats = (input: OverviewStatsInput, options: Overvie
         dayCount,
         "day"
       ),
-      revenue: toSeries(netRevMap),
+      grossVolume: toSeries(grossVolumeMap),
       customers: normalizeTimeSeries(
         input.customersChart.map((c) => ({ date: c.date, value: c.count })),
         dayCount,

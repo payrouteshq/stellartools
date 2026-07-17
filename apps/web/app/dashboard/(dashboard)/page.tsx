@@ -3,6 +3,7 @@
 import React from "react";
 
 import { putOrganization, retrieveOverviewStats } from "@/actions/organization";
+import { retrieveWalletBalance } from "@/actions/payout";
 import { ReconReport, reconcileOrganization } from "@/actions/reconciliation";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
@@ -71,6 +72,10 @@ export default function DashboardPage() {
     { staleTime: 60 * 1000 }
   );
 
+  const { data: walletData } = useOrgQuery(["wallet-balance"], () => retrieveWalletBalance(), {
+    staleTime: 60 * 1000,
+  });
+
   const { data: reconReports } = useOrgQuery(["recon-report"], () => reconcileOrganization(), {
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -112,6 +117,14 @@ export default function DashboardPage() {
 
   const selectedItem = currencyItems.find((c) => c.code === org?.selectedCurrency) ?? null;
 
+  const walletBalanceLabel = React.useMemo(() => {
+    const assets = walletData?.assets ?? [];
+    if (!assets.length) return "View wallet balance";
+    return assets
+      .map((a) => `${a.balance.toLocaleString(undefined, { maximumFractionDigits: 7 })} ${a.code}`)
+      .join(" · ");
+  }, [walletData?.assets]);
+
   if (isStatsLoading || isRatesLoading || !stats) {
     return (
       <div className="w-full">
@@ -124,7 +137,7 @@ export default function DashboardPage() {
     );
   }
 
-  const revenue28 = Money.formatFiat(stats.netRevenueCents, currency);
+  const grossVolume = Money.formatFiat(stats.grossVolumeCents, currency);
   const mrrDisplay = Money.formatFiat(stats.mrrCents, currency);
 
   return (
@@ -137,72 +150,84 @@ export default function DashboardPage() {
                 <h1 className="text-foreground text-xl font-bold tracking-tight md:text-3xl">Overview</h1>
                 {reconReports !== undefined && <LedgerHealth reports={reconReports} />}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <SelectField
-                  id="period-select"
-                  value={period}
-                  onChange={(v) => {
-                    setPeriod(v);
-                    window.dispatchEvent(new CustomEvent("stellar:period-changed", { detail: { period: v } }));
-                  }}
-                  triggerClassName="h-9 w-[140px]"
-                  items={[
-                    { value: "7", label: "Last 7 days" },
-                    { value: "30", label: "Last 30 days" },
-                    { value: "365", label: "Last 365 days" },
-                  ]}
-                />
-                <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                  <PopoverTrigger asChild>
-                    {isRatesLoading || isUpdatingOrganizationCurrency ? (
-                      <div className="flex h-9 w-max items-center justify-center">
-                        <Spinner strokeColor="var(--muted-foreground)" size={30} />
-                      </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={countryOpen}
-                        className="border-border/80 h-9 w-[200px] justify-between rounded-lg font-normal shadow-xs"
-                      >
-                        <span className="truncate">
-                          {selectedItem ? `${selectedItem.name} (${selectedItem.code})` : "Select currency"}
-                        </span>
-                        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                      </Button>
-                    )}
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[280px] p-0" align="end" onWheel={(e) => e.stopPropagation()}>
-                    <Command>
-                      <CommandInput placeholder="Search currency..." />
-                      <CommandList className="max-h-[280px]">
-                        <CommandEmpty>No currency found.</CommandEmpty>
-                        <CommandGroup>
-                          {currencyItems.map((item) => (
-                            <CommandItem
-                              disabled={isUpdatingOrganizationCurrency}
-                              key={item.code}
-                              value={`${item.name} ${item.code}`.toLowerCase()}
-                              onSelect={() => {
-                                updateOrganizationCurrency(item.code);
-                                setCountryOpen(false);
-                              }}
-                            >
-                              <span
-                                className={cn("flex-1 truncate", org?.selectedCurrency === item.code && "font-medium")}
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <SelectField
+                    id="period-select"
+                    value={period}
+                    onChange={(v) => {
+                      setPeriod(v);
+                      window.dispatchEvent(new CustomEvent("stellar:period-changed", { detail: { period: v } }));
+                    }}
+                    triggerClassName="h-9 w-[140px]"
+                    items={[
+                      { value: "7", label: "Last 7 days" },
+                      { value: "30", label: "Last 30 days" },
+                      { value: "365", label: "Last 365 days" },
+                    ]}
+                  />
+                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                    <PopoverTrigger asChild>
+                      {isRatesLoading || isUpdatingOrganizationCurrency ? (
+                        <div className="flex h-9 w-max items-center justify-center">
+                          <Spinner strokeColor="var(--muted-foreground)" size={30} />
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={countryOpen}
+                          className="border-border/80 h-9 w-[200px] justify-between rounded-lg font-normal shadow-xs"
+                        >
+                          <span className="truncate">
+                            {selectedItem ? `${selectedItem.name} (${selectedItem.code})` : "Select currency"}
+                          </span>
+                          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                        </Button>
+                      )}
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0" align="end" onWheel={(e) => e.stopPropagation()}>
+                      <Command>
+                        <CommandInput placeholder="Search currency..." />
+                        <CommandList className="max-h-[280px]">
+                          <CommandEmpty>No currency found.</CommandEmpty>
+                          <CommandGroup>
+                            {currencyItems.map((item) => (
+                              <CommandItem
+                                disabled={isUpdatingOrganizationCurrency}
+                                key={item.code}
+                                value={`${item.name} ${item.code}`.toLowerCase()}
+                                onSelect={() => {
+                                  updateOrganizationCurrency(item.code);
+                                  setCountryOpen(false);
+                                }}
                               >
-                                {item.name} ({item.code})
-                              </span>
-                              {org?.selectedCurrency === item.code && (
-                                <CheckMark className="text-foreground size-4 shrink-0" />
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                                <span
+                                  className={cn(
+                                    "flex-1 truncate",
+                                    org?.selectedCurrency === item.code && "font-medium"
+                                  )}
+                                >
+                                  {item.name} ({item.code})
+                                </span>
+                                {org?.selectedCurrency === item.code && (
+                                  <CheckMark className="text-foreground size-4 shrink-0" />
+                                )}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <Link
+                  href="/payout"
+                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 text-xs underline underline-offset-2 transition-colors"
+                >
+                  <span className="max-w-[280px] truncate">{walletBalanceLabel}</span>
+                  <ArrowUpRight className="size-3 shrink-0" />
+                </Link>
               </div>
             </div>
 
@@ -235,13 +260,14 @@ export default function DashboardPage() {
                 tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
               />
               <StatCard
-                title="Revenue"
-                value={revenue28}
+                title="Gross volume"
+                value={grossVolume}
                 subtitle={`Last ${period} days`}
                 icon={<DollarIcon className="text-muted-foreground size-5" />}
-                sparkData={stats.charts.revenue}
+                sparkData={stats.charts.grossVolume}
                 color="var(--chart-2)"
                 tooltipValueFormatter={(v) => Money.formatFiat(v, currency)}
+                href="/transactions"
               />
               <StatCard
                 title="New Customers"

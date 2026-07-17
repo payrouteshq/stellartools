@@ -1,39 +1,24 @@
 import { Checkout, Customer, Subscription } from "@stellartools/core";
 
 export interface BillingConfig {
-  /**
-   * The API key for the Stellar Tools API.
-   */
-  api_key: string;
+  /** Your StellarTools API key. */
+  apiKey: string;
 
-  /**
-   * Whether to automatically create a customer when a user is created.
-   * @default false
-   */
-  create_customer_on_sign_up?: boolean;
+  /** Automatically create a Stellar customer when a user signs up. Defaults to `false`. */
+  createCustomerOnSignUp?: boolean;
 
-  /**
-   * The function to call when a customer is created.
-   */
-  on_customer_created?: (customer: Customer) => Promise<void>;
+  /** Called after a customer is created or linked. */
+  onCustomerCreated?: (customer: Customer) => Promise<void>;
 
-  /**
-   * The function to call when a checkout is completed.
-   */
-  on_checkout_complete?: (data: Checkout) => Promise<void>;
+  /** Called when a checkout is completed. */
+  onCheckoutComplete?: (data: Checkout) => Promise<void>;
 
-  /**
-   * The function to call when a subscription is created.
-   */
-  on_subscription_created?: (data: Subscription) => Promise<void>;
+  /** Called when a subscription is created. */
+  onSubscriptionCreated?: (data: Subscription) => Promise<void>;
 
-  /**
-   * The function to call when a subscription is canceled.
-   */
-  on_subscription_canceled?: (data: Subscription) => Promise<void>;
+  /** Called when a subscription is canceled. */
+  onSubscriptionCanceled?: (data: Subscription) => Promise<void>;
 
-  /**
-   * The function to call when a subscription is updated.
-   */
-  on_subscription_updated?: (data: Subscription) => Promise<void>;
+  /** Called when a subscription is updated. */
+  onSubscriptionUpdated?: (data: Subscription) => Promise<void>;
 }

@@ -6,12 +6,13 @@ import { initiate2faReset, setup2fa, toggle2fa } from "@/actions/2fa";
 import { putAccount } from "@/actions/account";
 import { getCurrentUser } from "@/actions/auth";
 import { putOrganization, retrieveOrganization } from "@/actions/organization";
+import { retrieveWalletBalance } from "@/actions/payout";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
-import { useOrgContext } from "@/hooks/use-org-query";
+import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
@@ -27,22 +28,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
   FileUpload,
   type FileWithPreview,
+  Input,
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
+  Label,
   PhoneNumber,
   PhoneNumberField,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  SelectField,
   Separator,
   Skeleton,
   Spinner,
@@ -53,7 +48,6 @@ import {
   UnderlineTabsContent,
   UnderlineTabsList,
   UnderlineTabsTrigger,
-  cn,
   phoneNumberFromString,
   phoneNumberSchema,
   useCopy,
@@ -61,7 +55,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
 import countryToCurrency from "country-to-currency";
-import { Calendar, Check, ChevronRight, ChevronsUpDown, Copy, ExternalLink, RotateCcw } from "lucide-react";
+import { Calendar, Check, ChevronRight, Copy, ExternalLink, RotateCcw } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import * as RHF from "react-hook-form";
@@ -320,7 +314,9 @@ const getCurrencyFlag = (currencyCode: string): string => {
 
 const OrganizationTabContent = ({ organization }: { organization: Organization }) => {
   const { data: orgContext } = useOrgContext();
-  const [currencyOpen, setCurrencyOpen] = React.useState(false);
+  const { copied: orgIdCopied, handleCopy: handleOrgIdCopy } = useCopy();
+  const { copied: publicKeyCopied, handleCopy: handlePublicKeyCopy } = useCopy();
+  const { data: walletData } = useOrgQuery(["wallet-balance"], () => retrieveWalletBalance());
 
   const { file, isLoading: imgLoading } = useFilePreview(organization.logoUrl);
   const { fiatRates, isLoading: isLoadingCurrencies } = useCurrencyConverter();
@@ -421,131 +417,137 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
       <Card className="shadow-none">
         <CardContent className="pt-6">
           <form onSubmit={form.handleSubmit((data) => updateOrganization(data))} className="space-y-6">
-            <RHF.Controller
-              control={form.control}
-              name="name"
-              render={({ field, fieldState: { error } }) => (
-                <TextField
-                  {...field}
-                  id="organization-name"
-                  label="Organization Name"
-                  error={error?.message || null}
-                  className="w-full shadow-none"
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="space-y-6">
+                <RHF.Controller
+                  control={form.control}
+                  name="name"
+                  render={({ field, fieldState: { error } }) => (
+                    <TextField
+                      {...field}
+                      id="organization-name"
+                      label="Organization Name"
+                      error={error?.message || null}
+                      className="w-full shadow-none"
+                    />
+                  )}
                 />
-              )}
-            />
 
-            <RHF.Controller
-              control={form.control}
-              name="phoneNumber"
-              render={({ field, fieldState: { error } }) => (
-                <PhoneNumberField
-                  id="phone-number"
-                  label="Phone Number"
-                  value={field.value as PhoneNumber}
-                  onChange={field.onChange}
-                  error={error?.message || null}
-                  disabled={isSubmitting}
-                  groupClassName="w-full shadow-none"
+                <RHF.Controller
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field, fieldState: { error } }) => (
+                    <PhoneNumberField
+                      id="phone-number"
+                      label="Phone Number"
+                      value={field.value ? (field.value as PhoneNumber) : { number: "", countryCode: "US" }}
+                      onChange={field.onChange}
+                      error={error?.message || null}
+                      disabled={isSubmitting}
+                      groupClassName="w-full shadow-none"
+                    />
+                  )}
                 />
-              )}
-            />
 
-            <RHF.Controller
-              name="id"
-              control={form.control}
-              render={({ field, fieldState: { error } }) => (
-                <TextField {...field} label="Organization ID" error={error?.message} id={field.name} disabled />
-              )}
-            />
-
-            <RHF.Controller
-              control={form.control}
-              name="description"
-              render={({ field, fieldState: { error } }) => (
-                <TextAreaField
-                  {...field}
-                  value={field.value || ""}
-                  id="organization-description"
-                  label="Description"
-                  placeholder="Tell us about your organization..."
-                  error={error?.message || null}
-                  className="w-full shadow-none"
+                <RHF.Controller
+                  control={form.control}
+                  name="selectedCurrency"
+                  render={({ field }) => (
+                    <SelectField
+                      id="display-currency"
+                      label="Display currency"
+                      helpText="Used across your dashboard and shown to customers at checkout."
+                      helpTextClassName="text-muted-foreground text-xs"
+                      value={field.value}
+                      onChange={field.onChange}
+                      isLoading={isLoadingCurrencies}
+                      className="w-full shadow-none"
+                      triggerClassName="w-full shadow-none"
+                      items={currencyItems.map((item) => {
+                        const flag = getCurrencyFlag(item.code);
+                        return {
+                          value: item.code,
+                          label: `${item.name} (${item.code})`,
+                          icon: flag ? <span className="text-base leading-none">{flag}</span> : undefined,
+                        };
+                      })}
+                    />
+                  )}
                 />
-              )}
-            />
-
-            <Separator />
-
-            <div className="flex items-center justify-between gap-6">
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-semibold">Display currency</p>
-                <p className="text-muted-foreground text-xs">
-                  Used across your dashboard and shown to customers at checkout.
-                </p>
               </div>
-              <RHF.Controller
-                control={form.control}
-                name="selectedCurrency"
-                render={({ field }) => {
-                  const selected = currencyItems.find((c) => c.code === field.value) ?? null;
-                  const flag = getCurrencyFlag(field.value);
-                  return (
-                    <Popover open={currencyOpen} onOpenChange={setCurrencyOpen}>
-                      <PopoverTrigger asChild>
-                        {isLoadingCurrencies ? (
-                          <Skeleton className="h-9 w-48 shrink-0 rounded-lg" />
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={currencyOpen}
-                            className="h-9 w-52 shrink-0 justify-between gap-2 font-normal shadow-none"
-                          >
-                            {flag && <span className="shrink-0 text-base leading-none">{flag}</span>}
-                            <span className="flex-1 truncate text-left">
-                              {selected ? `${selected.name} (${selected.code})` : "Select currency"}
-                            </span>
-                            <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
-                          </Button>
-                        )}
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[320px] p-0" align="end" onWheel={(e) => e.stopPropagation()}>
-                        <Command>
-                          <CommandInput placeholder="Search currency..." />
-                          <CommandList className="max-h-[280px]">
-                            <CommandEmpty>No currency found.</CommandEmpty>
-                            <CommandGroup>
-                              {currencyItems.map((item) => {
-                                const itemFlag = getCurrencyFlag(item.code);
-                                return (
-                                  <CommandItem
-                                    key={item.code}
-                                    value={`${item.name} ${item.code}`.toLowerCase()}
-                                    onSelect={() => {
-                                      field.onChange(item.code);
-                                      setCurrencyOpen(false);
-                                    }}
-                                  >
-                                    {itemFlag && (
-                                      <span className="mr-1 shrink-0 text-base leading-none">{itemFlag}</span>
-                                    )}
-                                    <span className={cn("flex-1 truncate", field.value === item.code && "font-medium")}>
-                                      {item.name} ({item.code})
-                                    </span>
-                                    {field.value === item.code && <Check className="size-4 shrink-0" />}
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  );
-                }}
-              />
+
+              <div className="space-y-6">
+                <RHF.Controller
+                  name="id"
+                  control={form.control}
+                  render={({ field, fieldState: { error } }) => (
+                    <div className="space-y-2">
+                      <Label htmlFor={field.name}>Organization ID</Label>
+                      <div className="relative w-full">
+                        <Input
+                          id={field.name}
+                          value={field.value}
+                          disabled
+                          className="w-full pr-10 font-mono shadow-none"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={orgIdCopied ? "Copied" : "Copy organization ID"}
+                          className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 size-8 -translate-y-1/2 shadow-none"
+                          onClick={() => handleOrgIdCopy({ text: field.value, message: "Copied to clipboard" })}
+                        >
+                          {orgIdCopied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                        </Button>
+                      </div>
+                      {error?.message && <p className="text-destructive text-sm">{error.message}</p>}
+                    </div>
+                  )}
+                />
+
+                <div className="space-y-2">
+                  <Label htmlFor="organization-public-key">Wallet public key</Label>
+                  <div className="relative w-full">
+                    <Input
+                      id="organization-public-key"
+                      value={walletData?.publicKey ?? ""}
+                      disabled
+                      className="w-full pr-10 font-mono shadow-none"
+                    />
+                    {walletData?.publicKey && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={publicKeyCopied ? "Copied" : "Copy public key"}
+                        className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 size-8 -translate-y-1/2 shadow-none"
+                        onClick={() =>
+                          handlePublicKeyCopy({ text: walletData.publicKey!, message: "Copied to clipboard" })
+                        }
+                      >
+                        {publicKeyCopied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <RHF.Controller
+                  control={form.control}
+                  name="description"
+                  render={({ field, fieldState: { error } }) => (
+                    <TextAreaField
+                      {...field}
+                      value={field.value || ""}
+                      id="organization-description"
+                      label="Description"
+                      placeholder="Tell us about your organization..."
+                      error={error?.message || null}
+                      className="w-full shadow-none"
+                    />
+                  )}
+                />
+              </div>
             </div>
 
             <Separator />

@@ -2,6 +2,8 @@ import { SVGProps } from "react";
 
 import { motion } from "framer-motion";
 
+export { StellarToolsIcon } from "@stellartools/shared-ui";
+
 export const Payroutes = (props: SVGProps<SVGSVGElement>) => {
   return (
     <svg
