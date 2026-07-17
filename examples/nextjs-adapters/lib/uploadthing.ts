@@ -2,8 +2,8 @@ import { shield } from "@stellartools/uploadthing-adapter";
 
 // shield() replaces createUploadthing() — it adds subscription middleware automatically
 const f = shield({
-  apiKey: process.env.STELLAR_API_KEY!,
-  productId: process.env.STELLAR_PRODUCT_ID!,
+  apiKey: process.env.STELLARTOOLS_API_KEY!,
+  productId: process.env.STELLARTOOLS_PRODUCT_ID!,
 });
 
 export const fileRouter = {

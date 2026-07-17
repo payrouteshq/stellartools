@@ -7,5 +7,12 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@stellartools/web", "@stellartools/app-resend", "@stellartools/app-loops", "@stellartools/shopify"]
+  "ignore": [
+    "@stellartools/web",
+    "@stellartools/app-resend",
+    "@stellartools/app-loops",
+    "@stellartools/shopify",
+    "@stellartools/medusajs-adapter",
+    "medusajs"
+  ]
 }

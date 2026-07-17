@@ -20,17 +20,25 @@ const f = shield({
 });
 
 export const fileRouter = {
-  imageUploader: f({ image: { maxFileSize: "8MB" } })
-    .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Upload complete for:", metadata.customerId);
-      console.log("File URL:", file.url);
-    }),
+  imageUploader: f({ image: { maxFileSize: "8MB" } }).onUploadComplete(async ({ metadata, file }) => {
+    console.log("Upload complete for:", metadata.customerId);
+    console.log("File URL:", file.ufsUrl);
+  }),
 };
 ```
 
-Each request must include an `x-customer-id` header with the StellarTools customer ID. The check runs before any file transfer begins — if the customer has no active subscription, the upload is rejected immediately with a `FORBIDDEN` error.
+Pass the customer email on each upload. The adapter looks up the StellarTools customer and checks their subscription before the file transfer starts.
 
-The `customerId` and `productId` are passed through to `metadata` inside `onUploadComplete`.
+```tsx
+<UploadDropzone
+  endpoint="imageUploader"
+  headers={{ "x-customer-email": customerEmail }}
+/>
+```
+
+Use the email from checkout for that product. If the customer is not found or has no active subscription, the upload is rejected.
+
+`metadata.customerId` and `metadata.productId` are available in `onUploadComplete`.
 
 ## Config
 
@@ -44,6 +52,6 @@ The `customerId` and `productId` are passed through to `metadata` inside `onUplo
 
 ## Required headers
 
-<ParamField header="x-customer-id" type="string" required>
-  The StellarTools customer ID to verify access for.
+<ParamField header="x-customer-email" type="string" required>
+  The customer email to look up and verify access for.
 </ParamField>

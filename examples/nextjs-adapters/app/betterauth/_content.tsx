@@ -8,12 +8,16 @@ import {
   Badge,
   Button,
   CodeBlock,
+  type PhoneNumber,
+  PhoneNumberField,
   Spinner,
   TextField,
   UnderlineTabs,
   UnderlineTabsContent,
   UnderlineTabsList,
   UnderlineTabsTrigger,
+  cn,
+  phoneNumberToString,
 } from "@stellartools/shared-ui";
 import * as RHF from "react-hook-form";
 import { z } from "zod";
@@ -33,11 +37,20 @@ const signInSchema = z.object({
 
 // ── Billing action schemas ────────────────────────────────────────────────────
 
-const updateCustomerSchema = z.object({
+const updateCustomerFormSchema = z.object({
   name: z.string().optional(),
-  email: z.string().optional(),
-  phone: z.string().optional(),
+  phone: z
+    .object({
+      number: z.string(),
+      countryCode: z.string(),
+    })
+    .optional(),
 });
+
+type UpdateCustomerPayload = {
+  name?: string;
+  phone?: string;
+};
 
 const createSubscriptionSchema = z.object({
   product_id: z.string().min(1, "Product ID is required"),
@@ -50,12 +63,15 @@ const createRefundSchema = z.object({
 
 type SignUpValues = z.infer<typeof signUpSchema>;
 type SignInValues = z.infer<typeof signInSchema>;
-type UpdateCustomerValues = z.infer<typeof updateCustomerSchema>;
+type UpdateCustomerFormValues = z.infer<typeof updateCustomerFormSchema>;
 type CreateSubscriptionValues = z.infer<typeof createSubscriptionSchema>;
 type CreateRefundValues = z.infer<typeof createRefundSchema>;
 type View = "sign-up" | "sign-in";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const COMPACT_ACTION_FORM_CLASS =
+  "[&_.space-y-2]:space-y-1 [&_[data-slot=label]]:text-[10px] [&_[data-slot=label]]:font-medium [&_[data-slot=input]]:h-7 [&_[data-slot=input]]:px-2 [&_[data-slot=input]]:text-xs [&_[data-slot=input-group]]:mt-0 [&_[data-slot=input-group]]:h-7 [&_[data-slot=input-group]]:text-xs [&_[data-slot=input-group]_button]:h-7 [&_[data-slot=input-group]_button]:gap-1 [&_[data-slot=input-group]_button]:px-2 [&_[data-slot=input-group]_button_span]:text-xs [&_[data-slot=input-group]_button_svg]:h-2.5 [&_[data-slot=input-group]_button_svg]:w-4 [&_[data-slot=input-group-control]]:py-0 [&_[data-slot=input-group-control]]:text-xs [&_[type=submit]]:h-7 [&_[type=submit]]:px-2.5 [&_[type=submit]]:text-xs";
 
 async function apiFetch(path: string, init?: RequestInit) {
   const res = await fetch(`/api/auth${path}`, init);
@@ -262,7 +278,7 @@ export default function BetterAuthContent() {
           </Button>
         </ActionRow>
 
-        <ActionRow method="POST" path="/stellar/customer/update">
+        <ActionRow method="POST" path="/stellar/customer/update" stacked>
           <UpdateCustomerForm
             loading={loading}
             onSubmit={(body) =>
@@ -293,7 +309,7 @@ export default function BetterAuthContent() {
           </Button>
         </ActionRow>
 
-        <ActionRow method="POST" path="/stellar/subscription/create">
+        <ActionRow method="POST" path="/stellar/subscription/create" stacked>
           <CreateSubscriptionForm
             loading={loading}
             onSubmit={(body) =>
@@ -310,7 +326,7 @@ export default function BetterAuthContent() {
       </Section>
 
       <Section label="Refunds">
-        <ActionRow method="POST" path="/stellar/refund/create">
+        <ActionRow method="POST" path="/stellar/refund/create" stacked>
           <CreateRefundForm
             loading={loading}
             onSubmit={(body) =>
@@ -344,26 +360,67 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 // ── Action row ────────────────────────────────────────────────────────────────
 
-function ActionRow({ method, path, children }: { method: "GET" | "POST"; path: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start">
-      <div className="flex min-w-0 shrink-0 items-center gap-2 pt-1">
-        <Badge variant={method === "GET" ? "secondary" : "outline"} className="font-mono text-[10px]">
-          {method}
-        </Badge>
-        <span className="text-muted-foreground font-mono text-xs">{path}</span>
+function ActionRow({
+  method,
+  path,
+  children,
+  stacked = false,
+}: {
+  method: "GET" | "POST";
+  path: string;
+  children: React.ReactNode;
+  stacked?: boolean;
+}) {
+  const endpoint = (
+    <div className="flex min-w-0 items-center gap-2">
+      <Badge variant={method === "GET" ? "secondary" : "outline"} className="font-mono text-[10px]">
+        {method}
+      </Badge>
+      <span className="text-muted-foreground font-mono text-xs">{path}</span>
+    </div>
+  );
+
+  if (stacked) {
+    return (
+      <div className="px-4 py-3">
+        {endpoint}
+        <div
+          className={cn(
+            "mt-2",
+            "**:data-[slot=input]:h-7 **:data-[slot=input]:px-2 **:data-[slot=input]:text-xs **:data-[slot=input-group]:mt-0 **:data-[slot=input-group]:h-7 **:data-[slot=input-group]:text-xs **:data-[slot=input-group-control]:py-0 **:data-[slot=input-group-control]:text-xs **:data-[slot=label]:text-[10px] **:data-[slot=label]:font-medium [&_.space-y-2]:space-y-1 [&_[data-slot=input-group]_button]:h-7 [&_[data-slot=input-group]_button]:gap-1 [&_[data-slot=input-group]_button]:px-2 [&_[data-slot=input-group]_button_span]:text-xs [&_[data-slot=input-group]_button_svg]:h-2.5 [&_[data-slot=input-group]_button_svg]:w-4 [&_[type=submit]]:text-xs **:[[type=submit]]:h-7 **:[[type=submit]]:px-2.5"
+          )}
+        >
+          {children}
+        </div>
       </div>
-      <div className="sm:ml-auto">{children}</div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      {endpoint}
+      <div className="ml-auto shrink-0">{children}</div>
     </div>
   );
 }
 
 // ── Inline forms ──────────────────────────────────────────────────────────────
 
-function UpdateCustomerForm({ loading, onSubmit }: { loading: boolean; onSubmit: (v: UpdateCustomerValues) => void }) {
-  const form = RHF.useForm<UpdateCustomerValues>({ resolver: zodResolver(updateCustomerSchema) });
+function UpdateCustomerForm({ loading, onSubmit }: { loading: boolean; onSubmit: (v: UpdateCustomerPayload) => void }) {
+  const form = RHF.useForm<UpdateCustomerFormValues>({
+    resolver: zodResolver(updateCustomerFormSchema),
+    defaultValues: { name: "", phone: { number: "", countryCode: "US" } },
+  });
+
+  const handleSubmit = form.handleSubmit(({ name, phone }) => {
+    onSubmit({
+      name: name?.trim() || undefined,
+      phone: phone?.number ? phoneNumberToString(phone as PhoneNumber) : undefined,
+    });
+  });
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-x-2 gap-y-2">
       <RHF.Controller
         control={form.control}
         name="name"
@@ -374,7 +431,7 @@ function UpdateCustomerForm({ loading, onSubmit }: { loading: boolean; onSubmit:
             value={field.value ?? ""}
             onChange={field.onChange}
             placeholder="Jane Doe"
-            className="w-36"
+            className="w-32 shadow-none"
             error={error?.message ?? null}
           />
         )}
@@ -383,18 +440,18 @@ function UpdateCustomerForm({ loading, onSubmit }: { loading: boolean; onSubmit:
         control={form.control}
         name="phone"
         render={({ field, fieldState: { error } }) => (
-          <TextField
+          <PhoneNumberField
             id="upd-phone"
             label="Phone"
-            value={field.value ?? ""}
+            value={field.value ?? { number: "", countryCode: "US" }}
             onChange={field.onChange}
-            placeholder="+1 555 0100"
-            className="w-36"
             error={error?.message ?? null}
+            groupClassName="w-44 shadow-none"
+            inputClassName="shadow-none"
           />
         )}
       />
-      <Button type="submit" size="sm" disabled={loading} className="mb-0.5">
+      <Button type="submit" size="sm" disabled={loading}>
         {loading && <Spinner size={14} strokeColor="currentColor" />}
         Update
       </Button>
@@ -411,7 +468,7 @@ function CreateSubscriptionForm({
 }) {
   const form = RHF.useForm<CreateSubscriptionValues>({ resolver: zodResolver(createSubscriptionSchema) });
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-2">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-x-2 gap-y-2">
       <RHF.Controller
         control={form.control}
         name="product_id"
@@ -422,12 +479,12 @@ function CreateSubscriptionForm({
             value={field.value ?? ""}
             onChange={field.onChange}
             placeholder="prod_…"
-            className="w-52"
+            className="w-48 shadow-none"
             error={fieldState.error?.message ?? null}
           />
         )}
       />
-      <Button type="submit" size="sm" disabled={loading} className="mb-0.5">
+      <Button type="submit" size="sm" disabled={loading}>
         {loading && <Spinner size={14} strokeColor="currentColor" />}
         Create
       </Button>
@@ -438,7 +495,7 @@ function CreateSubscriptionForm({
 function CreateRefundForm({ loading, onSubmit }: { loading: boolean; onSubmit: (v: CreateRefundValues) => void }) {
   const form = RHF.useForm<CreateRefundValues>({ resolver: zodResolver(createRefundSchema) });
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-2">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-x-2 gap-y-2">
       <RHF.Controller
         control={form.control}
         name="payment_id"
@@ -449,7 +506,7 @@ function CreateRefundForm({ loading, onSubmit }: { loading: boolean; onSubmit: (
             value={field.value ?? ""}
             onChange={field.onChange}
             placeholder="pay_…"
-            className="w-44"
+            className="w-40 shadow-none"
             error={fieldState.error?.message ?? null}
           />
         )}
@@ -464,12 +521,12 @@ function CreateRefundForm({ loading, onSubmit }: { loading: boolean; onSubmit: (
             value={field.value ?? ""}
             onChange={field.onChange}
             placeholder="duplicate charge"
-            className="w-44"
+            className="w-40 shadow-none"
             error={fieldState.error?.message ?? null}
           />
         )}
       />
-      <Button type="submit" size="sm" disabled={loading} className="mb-0.5">
+      <Button type="submit" size="sm" disabled={loading}>
         {loading && <Spinner size={14} strokeColor="currentColor" />}
         Create
       </Button>

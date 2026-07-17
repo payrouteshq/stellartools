@@ -1,9 +1,12 @@
 import { StellarToolsIcon } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { fileRouter } from "@/lib/uploadthing";
 import type { Metadata } from "next";
 import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import Image from "next/image";
 import Link from "next/link";
+import { extractRouterConfig } from "uploadthing/server";
 
 import "./globals.css";
 import { Providers } from "./providers";
@@ -23,6 +26,12 @@ const NAV = [
   { href: "/aisdk", label: "AI SDK", img: "/images/integrations/aisdk.jpg", external: false },
   { href: "/langchain", label: "LangChain", img: "/images/integrations/langchain.png", external: false },
   { href: "/uploadthing", label: "UploadThing", img: "/images/integrations/uploadthing.png", external: false },
+  {
+    href: "http://localhost:8000",
+    label: "MedusaJS",
+    img: "/images/integrations/medusa.jpeg",
+    external: true,
+  },
   {
     href: "https://stellartools-production.up.railway.app/product/stellartools-license",
     label: "WooCommerce",
@@ -45,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${dmSans.variable} ${instrumentSerif.variable} ${jetBrainsMono.variable}`}
     >
       <body className="font-sans antialiased">
+        <NextSSRPlugin routerConfig={extractRouterConfig(fileRouter)} />
         <Providers>
           <div className="flex min-h-screen">
             {/* Sidebar */}

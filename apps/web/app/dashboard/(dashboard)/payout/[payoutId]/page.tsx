@@ -130,7 +130,7 @@ export default function PayoutDetailPage() {
   });
 
   const { data: payoutEvents, isLoading: isLoadingPayoutEvents } = useOrgQuery(["payout-events", payoutId], () =>
-    retrieveEvents({ merchantId: "current" }, ["payout::requested", "payout::processed"])
+    retrieveEvents({ payoutId }, ["payout::requested", "payout::processed"])
   );
 
   const currentOrg = organizations?.find((org) => org.id === orgContext?.id) || null;

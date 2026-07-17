@@ -323,9 +323,11 @@ export default function PayoutPage() {
       meta: { filterable: true, filterVariant: "text" },
     },
     {
-      header: "Asset",
+      header: "Crypto",
       cell: ({ row }) => (
-        <span className="font-mono text-sm font-medium">{row.original.selectedAssetCode ?? "XLM"}</span>
+        <span className="font-mono text-sm font-medium">
+          {Money.formatCrypto(row.original.cryptoAmount, row.original.selectedAssetCode ?? "XLM")}
+        </span>
       ),
     },
     {

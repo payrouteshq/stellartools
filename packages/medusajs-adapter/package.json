@@ -35,6 +35,7 @@
     "@stellartools/core": "workspace:*"
   },
   "devDependencies": {
+    "@medusajs/types": "^2.12.3",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   }

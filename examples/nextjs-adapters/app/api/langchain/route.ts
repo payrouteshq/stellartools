@@ -1,9 +1,11 @@
+import { resolveCustomerIdFromEmail } from "@/lib/resolve-customer";
 import { HumanMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { ShieldError, shield } from "@stellartools/langchain-adapter";
 
 export async function POST(req: Request) {
-  const { message, customerId, free } = await req.json();
+  const { message, customerEmail, free } = await req.json();
+  const customerId = await resolveCustomerIdFromEmail(customerEmail);
 
   const model = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0.7 });
 
@@ -13,10 +15,14 @@ export async function POST(req: Request) {
     return Response.json({ content: result.content });
   }
 
+  if (!customerId) {
+    return Response.json({ error: "Customer not found" }, { status: 404 });
+  }
+
   const shielded = shield(model, {
-    apiKey: process.env.STELLAR_API_KEY!,
+    apiKey: process.env.STELLARTOOLS_API_KEY!,
     customerId,
-    productId: process.env.STELLAR_PRODUCT_ID!,
+    productId: process.env.STELLARTOOLS_PRODUCT_ID!,
   });
 
   try {

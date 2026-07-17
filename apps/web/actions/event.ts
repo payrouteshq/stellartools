@@ -10,7 +10,7 @@ import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
 import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk/schema";
 import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
-import { SQL, and, desc, eq, inArray } from "drizzle-orm";
+import { SQL, and, desc, eq, inArray, sql } from "drizzle-orm";
 import _ from "lodash";
 import { AsyncLocalStorage } from "node:async_hooks";
 
@@ -173,7 +173,12 @@ type NarrowedEvent<T extends EventType> = Event & { type: T };
 type NarrowedEvents<T extends readonly EventType[]> = Array<NarrowedEvent<T[number]>>;
 
 export const retrieveEvents = async <T extends readonly EventType[]>(
-  filters: { customerId?: string; merchantId?: SuggestedString<"current">; subscriptionId?: string },
+  filters: {
+    customerId?: string;
+    merchantId?: SuggestedString<"current">;
+    subscriptionId?: string;
+    payoutId?: string;
+  },
   eventTypes?: T,
   orgId?: string,
   env?: Network
@@ -193,6 +198,9 @@ export const retrieveEvents = async <T extends readonly EventType[]>(
   }
   if (filters.subscriptionId) {
     whereClause.push(eq(events.subscriptionId, filters.subscriptionId));
+  }
+  if (filters.payoutId) {
+    whereClause.push(sql`${events.data}->>'payoutId' = ${filters.payoutId}`);
   }
   if (eventTypes) {
     whereClause.push(inArray(events.type, eventTypes));

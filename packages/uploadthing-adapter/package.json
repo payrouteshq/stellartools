@@ -32,6 +32,7 @@
     "url": "https://github.com/payrouteshq/stellartools/issues"
   },
   "dependencies": {
+    "@uploadthing/shared": "^7.1.10",
     "uploadthing": "^7.7.4",
     "@stellartools/core": "workspace:*"
   },

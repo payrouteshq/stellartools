@@ -35,7 +35,7 @@ export class CheckoutApi {
 
   async retrieve(id: string, options?: RequestOptions) {
     return unwrap(
-      await Result.andThenAsync(validateSchema(retrieveCheckoutSchema, { id }), async (id) => {
+      await Result.andThenAsync(validateSchema(retrieveCheckoutSchema, { id }), async ({ id }) => {
         return await this.apiClient.get<Checkout>(`checkout/${id}`, undefined, mapOptionsToHeaders(options));
       })
     );

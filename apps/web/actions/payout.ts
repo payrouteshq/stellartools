@@ -7,7 +7,7 @@ import { Network, Payout, db, payouts } from "@/db";
 import { MerchantPayoutProcessedEmail } from "@/emails/merchant-payout-processed";
 import { sendEmail } from "@/integrations/email";
 import { retrieveAccount } from "@/integrations/stellar-core";
-import { generateResourceId } from "@/lib/utils";
+import { Money } from "@/lib/money";
 import { EventTrigger } from "@/types";
 import { and, desc, eq } from "drizzle-orm";
 
@@ -68,12 +68,9 @@ export const postPayout = async (
   orgId?: string,
   env?: Network
 ) => {
-  let eventId: string | null = null;
-
   return withEvent(
     async () => {
       const { organizationId, environment } = await resolveOrgContext(orgId, env);
-      eventId = generateResourceId("evt", organizationId, 25);
       const [result] = await db
         .insert(payouts)
         .values({ ...params, organizationId, environment })
@@ -81,18 +78,29 @@ export const postPayout = async (
 
       return result;
     },
-    {
+    (payout) => ({
       events: [
         {
           type: "payout::requested",
-          map: (payout: any) => ({
-            id: eventId as string,
+          map: () => ({
             merchantId: payout.organizationId,
-            data: { amount: payout.amount, walletAddress: payout.walletAddress, memo: payout.memo },
+            data: {
+              payoutId: payout.id,
+              amount: Money.formatFiat(payout.amountCents, payout.currencyCode),
+              cryptoAmount: Money.formatCrypto(payout.cryptoAmount, payout.selectedAssetCode ?? "XLM"),
+              walletAddress: payout.walletAddress,
+              memo: payout.memo,
+              status: "pending",
+            },
           }),
         },
       ],
-    }
+      webhooks: {
+        organizationId: payout.organizationId,
+        environment: payout.environment,
+        triggers: [],
+      },
+    })
   );
 };
 
@@ -106,19 +114,20 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
     async (payout) => {
       let events: EventTrigger<typeof payout>[] = [];
       const sideEffects: Array<() => Promise<void>> = [];
-      const eventId = generateResourceId("evt", id, 25);
 
       if (payout.status == "succeeded") {
         events.push({
           type: "payout::processed",
           map: (payout) => ({
-            id: eventId,
             merchantId: payout.organizationId,
             data: {
-              amount: `${Number(payout.amountCents) / 100} ${payout.currencyCode}`,
+              payoutId: payout.id,
+              amount: Money.formatFiat(payout.amountCents, payout.currencyCode),
+              cryptoAmount: Money.formatCrypto(payout.cryptoAmount, payout.selectedAssetCode ?? "XLM"),
               walletAddress: payout.walletAddress,
               memo: payout.memo,
               transactionHash: payout.transactionHash,
+              status: "succeeded",
             },
           }),
         });

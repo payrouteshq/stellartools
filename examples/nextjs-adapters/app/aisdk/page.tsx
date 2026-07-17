@@ -22,13 +22,14 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
+import { CustomerEmailHelpText } from "@/components/customer-email-help-text";
 import { useChat } from "@ai-sdk/react";
-import { Input } from "@stellartools/shared-ui";
+import { TextField } from "@stellartools/shared-ui";
 import { CopyIcon, LockIcon, MessageSquareIcon } from "lucide-react";
 import Image from "next/image";
 
 export default function AiSdkPage() {
-  const [customerId, setCustomerId] = React.useState("");
+  const [customerEmail, setCustomerEmail] = React.useState("");
   const [shieldBlocked, setShieldBlocked] = React.useState(false);
 
   const { messages, status, append, stop } = useChat({
@@ -40,7 +41,7 @@ export default function AiSdkPage() {
   const handleSubmit = ({ text }: { text: string }) => {
     if (!text.trim()) return;
     setShieldBlocked(false);
-    append({ role: "user", content: text }, { body: { customerId } });
+    append({ role: "user", content: text }, { body: { customerEmail } });
   };
 
   const isStreaming = status === "streaming" || status === "submitted";
@@ -48,21 +49,27 @@ export default function AiSdkPage() {
 
   return (
     <div className="flex h-[calc(100vh-112px)] flex-col gap-4">
-      <div className="flex shrink-0 items-center gap-2.5">
-        <Image
-          src="/images/integrations/aisdk.jpg"
-          alt="AI SDK"
-          width={26}
-          height={26}
-          className="rounded-lg object-contain"
-        />
-        <h1 className="shrink-0 text-xl font-semibold tracking-tight">AI SDK</h1>
-        <span className="text-muted-foreground/40 shrink-0 text-sm">·</span>
-        <Input
-          value={customerId}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerId(e.target.value)}
-          placeholder="Customer ID (cus_...)"
-          className="flex-1 font-mono"
+      <div className="flex shrink-0 flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/images/integrations/aisdk.jpg"
+            alt="AI SDK"
+            width={26}
+            height={26}
+            className="rounded-lg object-contain"
+          />
+          <h1 className="text-xl font-semibold tracking-tight">AI SDK</h1>
+        </div>
+        <TextField
+          id="customer-email"
+          label="Customer email"
+          type="email"
+          value={customerEmail}
+          onChange={setCustomerEmail}
+          placeholder="jane@example.com"
+          helpText={<CustomerEmailHelpText />}
+          className="max-w-md shadow-none"
+          error={null}
         />
       </div>
 
@@ -73,7 +80,7 @@ export default function AiSdkPage() {
               <ConversationEmptyState
                 icon={<MessageSquareIcon className="size-6" />}
                 title="AI SDK Adapter"
-                description="Enter a Customer ID and send a message to test the subscription gate."
+                description="Enter a customer email and send a message to test the subscription gate."
               />
             ) : (
               <>

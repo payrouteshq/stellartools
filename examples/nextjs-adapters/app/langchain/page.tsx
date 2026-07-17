@@ -22,7 +22,8 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
-import { Input } from "@stellartools/shared-ui";
+import { CustomerEmailHelpText } from "@/components/customer-email-help-text";
+import { TextField } from "@stellartools/shared-ui";
 import { CopyIcon, LockIcon, MessageSquareIcon } from "lucide-react";
 import Image from "next/image";
 
@@ -35,7 +36,7 @@ type ChatMsg = {
 
 export default function LangChainPage() {
   const [messages, setMessages] = React.useState<ChatMsg[]>([]);
-  const [customerId, setCustomerId] = React.useState("");
+  const [customerEmail, setCustomerEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const isFirstMessage = messages.length === 0;
@@ -52,7 +53,7 @@ export default function LangChainPage() {
       const res = await fetch("/api/langchain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, customerId, free: isFirstMessage }),
+        body: JSON.stringify({ message: text, customerEmail, free: isFirstMessage }),
       });
       const json = await res.json();
 
@@ -83,21 +84,27 @@ export default function LangChainPage() {
 
   return (
     <div className="flex h-[calc(100vh-112px)] flex-col gap-4">
-      <div className="flex shrink-0 items-center gap-2.5">
-        <Image
-          src="/images/integrations/langchain.png"
-          alt="LangChain"
-          width={26}
-          height={26}
-          className="rounded-lg object-contain"
-        />
-        <h1 className="shrink-0 text-xl font-semibold tracking-tight">LangChain</h1>
-        <span className="text-muted-foreground/40 shrink-0 text-sm">·</span>
-        <Input
-          value={customerId}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerId(e.target.value)}
-          placeholder="Customer ID (cus_...)"
-          className="flex-1 font-mono"
+      <div className="flex shrink-0 flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/images/integrations/langchain.png"
+            alt="LangChain"
+            width={26}
+            height={26}
+            className="rounded-lg object-contain"
+          />
+          <h1 className="text-xl font-semibold tracking-tight">LangChain</h1>
+        </div>
+        <TextField
+          id="customer-email"
+          label="Customer email"
+          type="email"
+          value={customerEmail}
+          onChange={setCustomerEmail}
+          placeholder="jane@example.com"
+          helpText={<CustomerEmailHelpText />}
+          className="max-w-md shadow-none"
+          error={null}
         />
       </div>
 
@@ -108,7 +115,7 @@ export default function LangChainPage() {
               <ConversationEmptyState
                 icon={<MessageSquareIcon className="size-6" />}
                 title="LangChain Adapter"
-                description="First message is free. Add a Customer ID to test the subscription gate on the next message."
+                description="First message is free. Add a customer email to test the subscription gate on the next message."
               />
             ) : (
               messages.map((msg, i) => (

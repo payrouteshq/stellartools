@@ -27,14 +27,22 @@ const ADAPTERS = [
 
 const STORES = [
   {
+    name: "MedusaJS",
+    href: "http://localhost:8000",
+    hint: "Add the product to cart and go through checkout",
+    img: "/images/integrations/medusa.svg",
+  },
+  {
     name: "WooCommerce",
     href: "https://stellartools-production.up.railway.app/product/stellartools-license",
     hint: "Add the product to cart and go through checkout",
+    img: "/images/integrations/wordpress.png",
   },
   {
     name: "Shopify",
     href: "https://stellartools-testnet.myshopify.com",
     hint: "Password: test123",
+    img: "/images/integrations/shopify.png",
   },
 ];
 
@@ -83,6 +91,11 @@ export default function OverviewPage() {
           {STORES.map((s) => (
             <a key={s.href} href={s.href} target="_blank" rel="noopener noreferrer" className="group block">
               <div className="border-border hover:bg-muted/30 flex items-center gap-4 rounded-xl border px-5 py-4 transition-colors">
+                {"img" in s && s.img && (
+                  <div className="bg-muted/60 flex size-9 shrink-0 items-center justify-center rounded-lg border">
+                    <Image src={s.img} alt={s.name} width={20} height={20} className="rounded object-contain" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{s.name}</p>
                   <p className="text-muted-foreground text-xs">{s.hint}</p>

@@ -33,7 +33,7 @@ import {
   cn,
   useCopy,
 } from "@stellartools/shared-ui";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, FilterFn } from "@tanstack/react-table";
 import {
   ArrowDown,
   ArrowLeft,
@@ -191,6 +191,17 @@ const StatusBadge = ({ isDisabled }: { isDisabled: boolean }) => {
   );
 };
 
+const WEBHOOK_EVENT_FILTER_OPTIONS = WEBHOOK_EVENTS.map((event) => ({
+  label: event.label,
+  value: event.id,
+}));
+
+const webhookEventsFilterFn: FilterFn<WebhookDestination> = (row, _columnId, filterValue) => {
+  if (!Array.isArray(filterValue) || filterValue.length === 0) return true;
+  const events = row.original.events ?? [];
+  return filterValue.some((event) => events.includes(event as WebhookEventType));
+};
+
 const columns: ColumnDef<WebhookDestination>[] = [
   {
     accessorKey: "type",
@@ -251,7 +262,13 @@ const columns: ColumnDef<WebhookDestination>[] = [
       );
     },
     enableSorting: false,
-    meta: { filterable: true, filterVariant: "text" },
+    filterFn: webhookEventsFilterFn,
+    meta: {
+      filterable: true,
+      filterVariant: "multiselect",
+      filterLabel: "Listening to",
+      filterOptions: WEBHOOK_EVENT_FILTER_OPTIONS,
+    },
   },
   {
     accessorKey: "eventsFrom",
@@ -584,7 +601,7 @@ interface WebhookDestination extends Pick<Webhook, "id" | "name" | "url" | "is_d
   responseTime?: number[];
   errorRate: number;
   description?: string | null;
-  events?: string[];
+  events: WebhookEventType[];
 }
 interface WebhooksModalContentProps {
   editingWebhook?: WebhookDestination | null;
