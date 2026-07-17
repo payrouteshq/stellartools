@@ -183,7 +183,11 @@ export default function SubscriptionDetailPage() {
         headers: { "x-session-token": orgContext.token },
       });
       if (!actionKeys.current[path]) actionKeys.current[path] = crypto.randomUUID();
-      const res = await api.post(`/subscriptions/${subscriptionId}${path}`, {}, { "Idempotency-Key": actionKeys.current[path] });
+      const res = await api.post(
+        `/subscriptions/${subscriptionId}${path}`,
+        {},
+        { "Idempotency-Key": actionKeys.current[path] }
+      );
       if (res.isErr()) throw new AppError(res.error.message);
       await onComplete();
       return res.value;

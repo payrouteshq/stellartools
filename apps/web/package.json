@@ -21,7 +21,6 @@
     "@aliimam/icons": "^0.1.9",
     "@creit.tech/stellar-wallets-kit": "1.9.5",
     "@hookform/resolvers": "^5.2.2",
-    "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@number-flow/react": "^0.5.10",
     "@radix-ui/react-slot": "^1.2.4",

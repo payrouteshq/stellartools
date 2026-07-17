@@ -121,9 +121,13 @@ export default function PayoutDetailPage() {
     queryFn: async () => await retrieveOrganizations(),
   });
 
-  const { data: payout, isLoading: isLoadingPayout } = useOrgQuery(["payout", payoutId], () =>
-    retrievePayoutById(payoutId)
-  );
+  const {
+    data: payout,
+    isLoading: isLoadingPayout,
+    isFetching,
+  } = useOrgQuery(["payout", payoutId], () => retrievePayoutById(payoutId), {
+    refetchInterval: (query) => (query.state.data?.status === "pending" ? 4000 : false),
+  });
 
   const { data: payoutEvents, isLoading: isLoadingPayoutEvents } = useOrgQuery(["payout-events", payoutId], () =>
     retrieveEvents({ merchantId: "current" }, ["payout::requested", "payout::processed"])
@@ -224,7 +228,18 @@ export default function PayoutDetailPage() {
                 <h1 className="text-2xl font-bold">Payout Details</h1>
                 <StatusBadge status={payout.status as any} />
               </div>
-              <p className="text-muted-foreground text-sm">Payout #{payout.id}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-muted-foreground text-sm">Payout #{payout.id}</p>
+                {payout.status === "pending" && (
+                  <span className="flex items-center gap-1 text-xs text-amber-600">
+                    <span className="relative flex size-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
+                      <span className="relative inline-flex size-1.5 rounded-full bg-amber-500" />
+                    </span>
+                    {isFetching ? "Checking..." : "Auto-updating"}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} className="gap-2 shadow-none">
@@ -255,7 +270,10 @@ export default function PayoutDetailPage() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
-              { label: "Payout Amount", value: `${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}` },
+              {
+                label: "Payout Amount",
+                value: `${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}`,
+              },
               { label: "Status", value: <StatusBadge status={payout.status as any} /> },
               {
                 label: "Network",
@@ -274,7 +292,10 @@ export default function PayoutDetailPage() {
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold">Payout Information</h3>
                 <div className="bg-card space-y-4 rounded-lg border p-4">
-                  <DetailRow label="Amount" value={`${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}`} />
+                  <DetailRow
+                    label="Amount"
+                    value={`${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}`}
+                  />
                   <Separator />
                   <DetailRow
                     label="Payout Method"

@@ -3,6 +3,38 @@ import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
 
+const pick = (network: Network, testnet: string | undefined, mainnet: string | undefined, name: string) => {
+  const v = network === "testnet" ? testnet : mainnet;
+  if (!v) throw new AppError(`${name}_${network === "testnet" ? "TESTNET" : "MAINNET"} is not configured`);
+  return v;
+};
+
+export const getKeeperSecret = (network: Network) =>
+  pick(network, process.env.KEEPER_SECRET_TESTNET, process.env.KEEPER_SECRET_MAINNET, "KEEPER_SECRET");
+
+export const getChargesPublicKey = (network: Network) =>
+  pick(network, process.env.CHARGES_PUBLIC_KEY_TESTNET, process.env.CHARGES_PUBLIC_KEY_MAINNET, "CHARGES_PUBLIC_KEY");
+
+export const getChargesSecretKey = (network: Network) =>
+  pick(network, process.env.CHARGES_SECRET_KEY_TESTNET, process.env.CHARGES_SECRET_KEY_MAINNET, "CHARGES_SECRET_KEY");
+
+export const getSubscriptionContractId = (network: Network) =>
+  pick(
+    network,
+    process.env.SUBSCRIPTION_CONTRACT_TESTNET_ID,
+    process.env.SUBSCRIPTION_CONTRACT_MAINNET_ID,
+    "SUBSCRIPTION_CONTRACT"
+  );
+
+/** Minimum starting balance for a new account (2 × base reserve, no subentries). */
+async function getMinCreateAccountBalance(server: StellarSDK.Horizon.Server): Promise<string> {
+  const { records } = await server.ledgers().order("desc").limit(1).call();
+  const ledger = records[0];
+  if (!ledger) return "1";
+  const baseReserveXlm = Number(ledger.base_reserve_in_stroops) / 10_000_000;
+  return (baseReserveXlm * 2).toFixed(7);
+}
+
 export const getStellarConfig = (network: Network) => {
   const isTestnet = network === "testnet";
 
@@ -31,15 +63,19 @@ export const createAccount = async (network: Network) => {
       return { ...account, keypair };
     }
 
-    const sourceSecret = process.env.KEEPER_SECRET!;
-    const sourceKeypair = StellarSDK.Keypair.fromSecret(sourceSecret);
-    const account = await server.loadAccount(sourceKeypair.publicKey());
+    const newKeypair = StellarSDK.Keypair.random();
+    const sourceKeypair = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
+    const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
+    const startingBalance = await getMinCreateAccountBalance(server);
 
-    const tx = new StellarSDK.TransactionBuilder(account, { fee: StellarSDK.BASE_FEE, networkPassphrase: passphrase })
+    const tx = new StellarSDK.TransactionBuilder(sourceAccount, {
+      fee: StellarSDK.BASE_FEE,
+      networkPassphrase: passphrase,
+    })
       .addOperation(
         StellarSDK.Operation.createAccount({
-          destination: sourceKeypair.publicKey(),
-          startingBalance: "10", // 10 XLM
+          destination: newKeypair.publicKey(),
+          startingBalance,
         })
       )
       .setTimeout(30)
@@ -47,7 +83,8 @@ export const createAccount = async (network: Network) => {
 
     tx.sign(sourceKeypair);
     await server.submitTransaction(tx);
-    return { ...account, keypair: sourceKeypair };
+    const account = await server.loadAccount(newKeypair.publicKey());
+    return { ...account, keypair: newKeypair };
   });
 };
 

@@ -50,7 +50,11 @@ export default function SubscriptionsPage() {
       });
       const actionKey = `${id}${path}`;
       if (!actionKeys.current[actionKey]) actionKeys.current[actionKey] = crypto.randomUUID();
-      const res = await api.post(`/subscriptions/${id}${path}`, {}, { "Idempotency-Key": actionKeys.current[actionKey] });
+      const res = await api.post(
+        `/subscriptions/${id}${path}`,
+        {},
+        { "Idempotency-Key": actionKeys.current[actionKey] }
+      );
       if (res.isErr()) throw new AppError(res.error.message);
       await onComplete();
       return res.value;

@@ -2,7 +2,7 @@ import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Network } from "@/db";
 import { decrypt } from "@/integrations/encryption";
-import { parseError } from "@/integrations/stellar-core";
+import { getKeeperSecret, getSubscriptionContractId, parseError } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { Result } from "@stellartools/core";
@@ -36,14 +36,8 @@ const getSorobanConfig = (network: Network) => {
   return {
     passphrase: isTestnet ? StellarSDK.Networks.TESTNET : StellarSDK.Networks.PUBLIC,
     server: new StellarSDK.rpc.Server(rpcUrl),
-    contractId: process.env.SUBSCRIPTION_CONTRACT_ID!,
+    contractId: getSubscriptionContractId(network),
   };
-};
-
-const getKeeperKeypair = () => {
-  const secret = process.env.KEEPER_SECRET;
-  if (!secret) throw new AppError("KEEPER_SECRET is not configured");
-  return StellarSDK.Keypair.fromSecret(secret);
 };
 
 export const resolveMerchantSecret = async (orgId: string, network: Network) => {
@@ -114,7 +108,9 @@ const invokeSoroban = async <T = SorobanTxResult>(
 ): Promise<Result<T, AppError>> => {
   return Result.tryPromise(async () => {
     const { server, passphrase } = getSorobanConfig(network);
-    const keypair = options.signerSecret ? StellarSDK.Keypair.fromSecret(options.signerSecret) : getKeeperKeypair();
+    const keypair = options.signerSecret
+      ? StellarSDK.Keypair.fromSecret(options.signerSecret)
+      : StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
     const sourceKey = options.readOnly ? (options.sourcePublicKey ?? keypair.publicKey()) : keypair.publicKey();
     const sourceAccount = await server.getAccount(sourceKey);
 
@@ -263,7 +259,7 @@ export const startSubscription = async (
     durationMs: number;
   }
 ) => {
-  const keeper = getKeeperKeypair();
+  const keeper = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
   const { contractId } = getSorobanConfig(network);
   const durationSeconds = Math.max(1, Math.round(params.durationMs / 1000));
   const operation = new StellarSDK.Contract(contractId).call(
@@ -305,7 +301,7 @@ export const updateSubscriptionPeriod = async (
     periodEnd: Date;
   }
 ) => {
-  const keeper = getKeeperKeypair();
+  const keeper = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
   const { contractId } = getSorobanConfig(network);
   const periodDurationSeconds = Math.max(1, Math.round(params.periodDurationMs / 1000));
   const periodEndSeconds = BigInt(Math.floor(params.periodEnd.getTime() / 1000));

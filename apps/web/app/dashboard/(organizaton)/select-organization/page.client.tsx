@@ -318,8 +318,6 @@ const CreateOrganizationModalContent = ({
 
       let selectedCurrency = null;
 
-      console.log({ phoneNumber: data.phoneNumber });
-
       if (data.phoneNumber?.countryCode) {
         selectedCurrency =
           countryToCurrency[data.phoneNumber.countryCode.toUpperCase() as keyof typeof countryToCurrency];
@@ -330,8 +328,6 @@ const CreateOrganizationModalContent = ({
           acceptLanguage.split(",")[0]?.split(";")[0]?.trim() ?? ""
         );
       }
-
-      console.log({ selectedCurrency });
 
       return await postOrganizationAndSecret(
         {

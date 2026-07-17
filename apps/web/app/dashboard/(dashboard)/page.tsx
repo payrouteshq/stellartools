@@ -3,6 +3,7 @@
 import React from "react";
 
 import { putOrganization, retrieveOverviewStats } from "@/actions/organization";
+import { ReconReport, reconcileOrganization } from "@/actions/reconciliation";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import {
@@ -20,6 +21,7 @@ import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { Money } from "@/lib/money";
+import { ApiClient } from "@stellartools/core";
 import {
   AppModal,
   Button,
@@ -38,6 +40,10 @@ import {
   SelectField,
   Skeleton,
   Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   cn,
 } from "@stellartools/shared-ui";
 import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
@@ -64,6 +70,23 @@ export default function DashboardPage() {
     () => retrieveOverviewStats({ since, selectedCurrency: org?.selectedCurrency ?? "USD" }),
     { staleTime: 60 * 1000 }
   );
+
+  const { data: reconReports } = useOrgQuery(["recon-report"], () => reconcileOrganization(), {
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  React.useEffect(() => {
+    if (!org?.token || !reconReports) return;
+    const hasDrift = reconReports.some((r) => r.status === "diverged");
+    if (!hasDrift) return;
+
+    const api = new ApiClient({
+      baseUrl: process.env.NEXT_PUBLIC_DASHBOARD_URL!,
+      headers: { "x-session-token": org.token },
+    });
+    api.post(`/~api/cron/reconcile`, {}).catch(() => {});
+  }, [org?.token, reconReports]);
 
   const { fiatRates, currency, isLoading: isRatesLoading } = useCurrencyConverter();
 
@@ -112,6 +135,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-foreground text-xl font-bold tracking-tight md:text-3xl">Overview</h1>
+                {reconReports !== undefined && <LedgerHealth reports={reconReports} />}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <SelectField
@@ -242,6 +266,54 @@ export default function DashboardPage() {
         </DashboardSidebarInset>
       </DashboardSidebar>
     </div>
+  );
+}
+
+function LedgerHealth({ reports }: { reports: ReconReport[] }) {
+  const isHealthy = reports.length === 0 || reports.every((r) => r.status === "synced");
+  const diverged = reports.filter((r) => r.status === "diverged");
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="mt-1 flex cursor-default items-center gap-1.5">
+            <span className="relative flex size-2">
+              <span
+                className={cn(
+                  "absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+                  isHealthy ? "bg-green-500" : "bg-destructive"
+                )}
+              />
+              <span
+                className={cn(
+                  "relative inline-flex size-2 rounded-full",
+                  isHealthy ? "bg-green-500" : "bg-destructive"
+                )}
+              />
+            </span>
+            <span className={cn("text-xs font-medium", isHealthy ? "text-green-600" : "text-destructive")}>
+              {isHealthy ? "Ledger Verified" : "Ledger Diverged"}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+          {isHealthy ? (
+            <p>All on-chain balances match your records.</p>
+          ) : (
+            <div className="space-y-1">
+              <p className="font-medium">Balance mismatch detected:</p>
+              {diverged.map((r) => (
+                <p key={r.assetCode}>
+                  {r.assetCode}: DB {r.dbNetBalance.toFixed(7)} · Chain {r.chainActualBalance.toFixed(7)} (Δ{" "}
+                  {r.drift.toFixed(7)})
+                </p>
+              ))}
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

@@ -137,8 +137,7 @@ function PayoutForm({
     assets.map((a) => [a.code, `${a.code} — ${Money.formatCrypto(a.balance, a.code)} available`])
   );
 
-  const balanceExceeded =
-    !!selectedAsset && Number(cryptoAmount) > 0 && Number(cryptoAmount) > selectedAsset.balance;
+  const balanceExceeded = !!selectedAsset && Number(cryptoAmount) > 0 && Number(cryptoAmount) > selectedAsset.balance;
   const amountError = balanceExceeded
     ? `Exceeds available balance of ${Money.formatCrypto(selectedAsset!.balance, selectedCode)}`
     : (form.formState.errors.cryptoAmount?.message ?? form.formState.errors.assetCode?.message);
@@ -215,7 +214,7 @@ function PayoutForm({
             {" · "}
             <button
               type="button"
-              className="text-primary hover:underline cursor-pointer"
+              className="text-primary cursor-pointer hover:underline"
               onClick={() => form.setValue("cryptoAmount", selectedAsset.balance.toFixed(7), { shouldValidate: true })}
             >
               Max
@@ -332,18 +331,16 @@ export default function PayoutPage() {
     {
       header: "Amount",
       cell: ({ row }) => (
-        <div className="font-medium">
-          {Money.formatCrypto(Number(row.original.cryptoAmount), row.original.selectedAssetCode ?? "XLM")}
-        </div>
+        <div className="font-medium">{Money.formatFiat(row.original.amountCents, row.original.currencyCode)}</div>
       ),
-      meta: { filterable: true, filterVariant: "number" },
     },
     {
+      accessorKey: "status",
       header: "Status",
       cell: ({ row }) => <StatusBadge status={row.original.status as PayoutStatus} />,
       meta: {
         filterable: true,
-        filterVariant: "select",
+        filterVariant: "multiselect",
         filterOptions: [
           { label: "Pending", value: "pending" },
           { label: "Succeeded", value: "succeeded" },

@@ -52,17 +52,17 @@ export const postOrganizationAndSecret = safeAction(
         .values({ ...params, id: organizationId, accountId })
         .returning();
 
-      // todo: drop `defaultEnvironment` prop and parallelize request for testnet and mainnet.
-      const account = await createAccount(defaultEnvironment);
+      const [testnetAccount, mainnetAccount] = await Promise.all([createAccount("testnet"), createAccount("mainnet")]);
 
-      if (account.isErr()) throw new AppError(account.error?.message);
+      if (testnetAccount.isErr()) throw new AppError(testnetAccount.error?.message);
+      if (mainnetAccount.isErr()) throw new AppError(mainnetAccount.error?.message);
 
-      postOrganizationSecretWithEncryption(
+      await postOrganizationSecretWithEncryption(
         {
-          testnetSecret: account.value!.keypair.secret(),
-          testnetPublicKey: account.value!.keypair.publicKey(),
-          mainnetSecret: null,
-          mainnetPublicKey: null,
+          testnetSecret: testnetAccount.value!.keypair.secret(),
+          testnetPublicKey: testnetAccount.value!.keypair.publicKey(),
+          mainnetSecret: mainnetAccount.value!.keypair.secret(),
+          mainnetPublicKey: mainnetAccount.value!.keypair.publicKey(),
         },
         organization.id,
         defaultEnvironment

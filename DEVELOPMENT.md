@@ -42,7 +42,7 @@ Fill in the values in `.env`. The required ones to get started locally:
 | `NEXT_PUBLIC_DASHBOARD_URL` | URL of the dashboard                                   |
 | `NEXT_PUBLIC_API_URL`       | URL of the API                                         |
 
-Stellar-specific variables (`NEXT_PUBLIC_RPC_URL_TESTNET`, `KEEPER_SECRET`, etc.) are only needed if you're working on blockchain features.
+Stellar-specific variables (`NEXT_PUBLIC_RPC_URL_TESTNET`, `KEEPER_SECRET_TESTNET`, `SUBSCRIPTION_CONTRACT_TESTNET_ID`, etc.) are only needed if you're working on blockchain features.
 
 **4. Start Docker services**
 

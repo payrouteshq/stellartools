@@ -6,7 +6,7 @@ import { retrievePayments } from "@/actions/payment";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Network } from "@/db";
 import { decrypt } from "@/integrations/encryption";
-import { sendAssetPayment } from "@/integrations/stellar-core";
+import { getChargesPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
 import { generateResourceId } from "@/lib/utils";
@@ -60,7 +60,7 @@ export async function processPaymentBilling(paymentId: string, organizationId: s
 
     const res = await sendAssetPayment(
       secretKey,
-      process.env.CHARGES_PUBLIC_KEY!,
+      getChargesPublicKey(payment.environment),
       payment.selectedAssetCode,
       payment.selectedAssetIssuer!,
       feeCryptoAmount.toFixed(7),
