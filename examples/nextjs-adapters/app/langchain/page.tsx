@@ -26,7 +26,11 @@ export default function LangChainPage() {
     setMessages((prev) => [...prev, userMsg]);
     setFeedback(null);
     setLoading(true);
-    capture("playground_message_sent", { adapter: "langchain", customer_email_set: !!customerEmail, message_length: text.length });
+    capture("playground_message_sent", {
+      adapter: "langchain",
+      customer_email_set: !!customerEmail,
+      message_length: text.length,
+    });
 
     try {
       const res = await fetch("/api/langchain", {

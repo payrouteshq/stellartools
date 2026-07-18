@@ -1,0 +1,2 @@
+ALTER TABLE "organization_secret" ADD COLUMN "testnet_initial_balance" text DEFAULT '0';--> statement-breakpoint
+ALTER TABLE "organization_secret" ADD COLUMN "mainnet_initial_balance" text DEFAULT '0';

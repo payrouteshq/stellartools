@@ -56,7 +56,11 @@ export default function AiSdkPage() {
   const handleSubmit = (text: string) => {
     if (!text.trim()) return;
     setFeedback(null);
-    capture("playground_message_sent", { adapter: "aisdk", customer_email_set: !!customerEmail, message_length: text.length });
+    capture("playground_message_sent", {
+      adapter: "aisdk",
+      customer_email_set: !!customerEmail,
+      message_length: text.length,
+    });
     append({ role: "user", content: text }, { body: { customerEmail } });
   };
 

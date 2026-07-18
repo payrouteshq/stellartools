@@ -43,6 +43,13 @@
       "when": 1784287078703,
       "tag": "0005_pending_payout_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784399836737,
+      "tag": "0006_silky_madame_masque",
+      "breakpoints": true
     }
   ]
 }

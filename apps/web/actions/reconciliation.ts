@@ -4,7 +4,7 @@ import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/or
 import { sweepAndProcessPayment } from "@/actions/payment";
 import { Network } from "@/constant/schema.client";
 import { db } from "@/db";
-import { charges, payments, payouts, refunds } from "@/db/schema";
+import { charges, organizationSecrets, payments, payouts, refunds } from "@/db/schema";
 import { getStellarConfig } from "@/integrations/stellar-core";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
@@ -27,6 +27,16 @@ export async function reconcileOrganization(orgId?: string, env?: Network): Prom
 
   const { server } = getStellarConfig(environment);
   const account = await server.loadAccount(secret.publicKey);
+
+  const [baseRow] = await db
+    .select({
+      balance:
+        environment === "testnet"
+          ? organizationSecrets.testnetInitialBalance
+          : organizationSecrets.mainnetInitialBalance,
+    })
+    .from(organizationSecrets)
+    .where(eq(organizationSecrets.organizationId, organizationId));
 
   const assetRows = await db
     .selectDistinct({ code: payments.selectedAssetCode })
@@ -92,7 +102,10 @@ export async function reconcileOrganization(orgId?: string, env?: Network): Prom
       const outPayouts = Number(payoutsRow[0]?.total ?? 0);
       const outRefunds = Number(refundsRow[0]?.total ?? 0);
       const outCharges = Number(chargesRow[0]?.total ?? 0);
-      const dbNetBalance = inflow - outPayouts - outRefunds - outCharges;
+
+      const genesisBalance = Number(baseRow?.balance ?? 0);
+
+      const dbNetBalance = genesisBalance + inflow - outPayouts - outRefunds - outCharges;
 
       const balanceEntry =
         code === "XLM"

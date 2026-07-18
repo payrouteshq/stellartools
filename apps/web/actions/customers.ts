@@ -226,43 +226,50 @@ export const upsertCustomer = async (
   lookUpKeys: MaybeArray<CustomerLookup>,
   orgId: string,
   env: Network,
-  additionalParams: { name?: string; metadata?: CustomerMetadata; image?: string }
+  additionalParams: {
+    name?: string;
+    metadata?: CustomerMetadata;
+    image?: string;
+    phone?: string | null;
+    email?: string | null;
+  }
 ) => {
-  const lookupArray = Array.isArray(lookUpKeys) ? lookUpKeys : lookUpKeys ? [lookUpKeys] : [];
+  const lookupArray = (Array.isArray(lookUpKeys) ? lookUpKeys : [lookUpKeys]).filter((k) =>
+    Object.values(k).some((v) => !!v)
+  );
 
-  const id = lookupArray.find((p): p is { id: string } => "id" in p && !!p.id)?.id;
-  const email = lookupArray.find((p): p is { email: string } => "email" in p && !!p.email)?.email;
-  const phone = lookupArray.find((p): p is { phone: string } => "phone" in p && !!p.phone)?.phone;
-
-  const findExisting = async (lookup: CustomerLookup) =>
-    retrieveCustomers(lookup, { requireLookUpParams: true }, orgId, env).then(({ data: [c] }) => c);
-
-  if (id) {
-    const existing = await findExisting({ id });
-    if (existing) return existing;
-  }
-  if (email) {
-    const existing = await findExisting({ email });
-    if (existing) return existing;
-  }
-  if (phone) {
-    const existing = await findExisting({ phone });
+  if (lookupArray.length > 0) {
+    const {
+      data: [existing],
+    } = await retrieveCustomers(lookupArray, { requireLookUpParams: true }, orgId, env);
     if (existing) return existing;
   }
 
-  return await postCustomers(
+  const email =
+    additionalParams.email ?? (lookupArray.find((l) => "email" in l) as { email?: string | null })?.email ?? null;
+
+  const phone =
+    additionalParams.phone ?? (lookupArray.find((l) => "phone" in l) as { phone?: string | null })?.phone ?? null;
+
+  if (!email && !phone && !additionalParams.name) {
+    throw new AppError("VALIDATION_ERROR", "Identifying information required to create a customer.");
+  }
+
+  const [newCustomer] = await postCustomers(
     [
       {
-        email: email ?? null,
-        name: additionalParams.name ?? null,
-        phone: phone ?? null,
+        email,
+        phone,
+        name: additionalParams.name ?? email?.split("@")[0] ?? "Guest",
         metadata: additionalParams.metadata ?? null,
         image: additionalParams.image ?? null,
       },
     ],
     orgId,
     env
-  ).then(([c]) => c);
+  );
+
+  return newCustomer;
 };
 
 export const deleteCustomer = async (id: string, orgId?: string, env?: Network) => {

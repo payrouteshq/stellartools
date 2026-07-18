@@ -328,19 +328,18 @@ export const createProductCheckoutSession = async (params: {
     throw new AppError("VALIDATION_ERROR", "Subscription product has an invalid billing period");
   }
 
-  const customer = await upsertCustomer(
-    {
-      id: params.customer?.id ?? null,
-      email: params.customer?.email ?? null,
-      phone: params.customer?.phone ?? null,
-    },
-    orgId,
-    env,
-    {
+  let customerId: string | null = null;
+  let customerEmail: string | null = params.customer?.email ?? null;
+  let customerPhone: string | null = params.customer?.phone ?? null;
+
+  if (params.customer?.id || params.customer?.email || params.customer?.phone) {
+    const customer = await upsertCustomer(params.customer, orgId, env, {
       name: params.customer?.email?.split("@")[0] ?? "Guest",
-      metadata: (params.metadata as Record<string, string> | null) ?? undefined,
-    }
-  );
+    });
+    customerId = customer.id;
+    customerEmail = customer.email;
+    customerPhone = customer.phone;
+  }
 
   let subscriptionData = null;
 
@@ -366,9 +365,9 @@ export const createProductCheckoutSession = async (params: {
 
   return await postCheckout(
     {
-      customerId: customer.id,
-      customerEmail: customer.email,
-      customerPhone: customer.phone,
+      customerId,
+      customerEmail,
+      customerPhone,
       status: "open",
       expiresAt: new Date(Date.now() + 864e5),
       metadata: params.metadata ?? {},
@@ -389,17 +388,41 @@ export const createProductCheckoutSession = async (params: {
 export const putCheckoutAndCustomerInternal = safeAction(
   async (
     checkoutId: string,
-    data: { email: string | null; phoneNumber: string | null; customerId?: string | null },
+    data: { email: string; phoneNumber: string; customerId?: string | null },
     orgId: string,
     environment: Network
   ) => {
     await runAtomic(async () => {
-      await putCheckout(checkoutId, { customerEmail: data.email, customerPhone: data.phoneNumber }, orgId, environment);
+      let finalCustomerId = data.customerId;
 
-      if (data.customerId) {
-        const name = data.email?.split("@")[0] ?? "Guest";
-        await putCustomer(data.customerId, { email: data.email, phone: data.phoneNumber, name }, orgId, environment);
+      // If checkout was anonymous, create/find the customer row NOW
+      if (!finalCustomerId) {
+        const customer = await upsertCustomer({ email: data.email }, orgId, environment, {
+          name: data.email.split("@")[0],
+          phone: data.phoneNumber,
+        });
+        finalCustomerId = customer.id;
       }
+
+      // 1. Link the checkout to the customer
+      await putCheckout(
+        checkoutId,
+        {
+          customerEmail: data.email,
+          customerPhone: data.phoneNumber,
+          customerId: finalCustomerId,
+        },
+        orgId,
+        environment
+      );
+
+      // 2. Ensure customer record is updated with latest details
+      await putCustomer(
+        finalCustomerId,
+        { email: data.email, phone: data.phoneNumber },
+        orgId,
+        environment
+      );
     });
   }
 );

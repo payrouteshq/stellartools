@@ -56,12 +56,17 @@ export const postOrganizationAndSecret = safeAction(
       if (testnetAccount.isErr()) throw new AppError("INTERNAL_ERROR", testnetAccount.error?.message);
       if (mainnetAccount.isErr()) throw new AppError("INTERNAL_ERROR", mainnetAccount.error?.message);
 
+      const testnetBal = testnetAccount.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+      const mainnetBal = mainnetAccount.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+
       await postOrganizationSecretWithEncryption(
         {
           testnetSecret: testnetAccount.value!.keypair.secret(),
           testnetPublicKey: testnetAccount.value!.keypair.publicKey(),
           mainnetSecret: mainnetAccount.value!.keypair.secret(),
           mainnetPublicKey: mainnetAccount.value!.keypair.publicKey(),
+          testnetInitialBalance: testnetBal,
+          mainnetInitialBalance: mainnetBal,
         },
         organization.id,
         defaultEnvironment
@@ -240,6 +245,8 @@ export const postOrganizationSecretWithEncryption = async (
     testnetPublicKey: string | null;
     testnetSecret: string | null;
     mainnetSecret: string | null;
+    testnetInitialBalance: string | null;
+    mainnetInitialBalance: string | null;
   },
   orgId?: string,
   env?: Network
@@ -253,6 +260,8 @@ export const postOrganizationSecretWithEncryption = async (
       testnetPublicKey: params.testnetPublicKey,
       mainnetSecretEncrypted: params.mainnetSecret ? `${SENSITIVE_KEY_PREFIX}${encrypt(params.mainnetSecret)}` : null,
       testnetSecretEncrypted: params.testnetSecret ? `${SENSITIVE_KEY_PREFIX}${encrypt(params.testnetSecret)}` : null,
+      testnetInitialBalance: params.testnetInitialBalance,
+      mainnetInitialBalance: params.mainnetInitialBalance,
       id: generateResourceId("org_sec", organizationId, 25),
       organizationId,
     })

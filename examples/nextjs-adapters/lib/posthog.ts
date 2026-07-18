@@ -21,4 +21,3 @@ export function capture<T extends string = string, P extends Record<string, unkn
   if (typeof window === "undefined") return;
   posthog.capture(event, props ?? {});
 }
-

@@ -115,6 +115,8 @@ export const organizationSecrets = pgTable("organization_secret", {
   testnetPublicKey: text("testnet_public_key"),
   mainnetSecretEncrypted: text("mainnet_secret_encrypted"),
   mainnetPublicKey: text("mainnet_public_key"),
+  testnetInitialBalance: text("testnet_initial_balance").default("0"),
+  mainnetInitialBalance: text("mainnet_initial_balance").default("0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
