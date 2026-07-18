@@ -54,6 +54,7 @@ export const TIMELINE_ROUTE_MAP: Record<string, (id: string) => string> = {
   paymentId: (id) => `/transactions/${id}`,
   externalUrl: (url) => url,
   deliveryLogId: (id) => `/webhooks/~?eventId=${id}`,
+  transactionHash: (hash) => `https://stellar.expert/explorer/public/tx/${hash}`,
 };
 
 export const SENSITIVE_KEY_PREFIX = "__ST_ENC__:";

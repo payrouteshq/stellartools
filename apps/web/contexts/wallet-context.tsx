@@ -55,11 +55,12 @@ const WalletContext = React.createContext<IWalletContext | undefined>(undefined)
 
 let walletConnectModule: WalletConnectModule | undefined;
 let walletKit: StellarWalletsKit | undefined;
+let walletKitNetwork: WalletNetwork | undefined;
 
 function getWalletKit(network: Networks): StellarWalletsKit {
-  if (!walletKit) {
-    const swkNetwork = network === Networks.PUBLIC ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
+  const swkNetwork = network === Networks.PUBLIC ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
 
+  if (!walletKit || walletKitNetwork !== swkNetwork) {
     walletConnectModule = new WalletConnectModule({
       projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
       method: WalletConnectAllowedMethods.SIGN,
@@ -83,6 +84,7 @@ function getWalletKit(network: Networks): StellarWalletsKit {
         walletConnectModule,
       ],
     });
+    walletKitNetwork = swkNetwork;
   }
   return walletKit;
 }
@@ -99,14 +101,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const rpcUrl = React.useMemo(() => {
     if (environment === "testnet") return process.env.NEXT_PUBLIC_RPC_URL_TESTNET!;
     else return process.env.NEXT_PUBLIC_RPC_URL_MAINNET!;
-  }, []);
+  }, [environment]);
 
   const network = React.useMemo(() => {
     if (environment === "testnet") return Networks.TESTNET;
     else return Networks.PUBLIC;
   }, [environment]);
 
-  const stellarRpc = new rpc.Server(rpcUrl);
+  const stellarRpc = React.useMemo(() => new rpc.Server(rpcUrl), [rpcUrl]);
 
   async function handleSetWalletAddress(): Promise<boolean> {
     try {

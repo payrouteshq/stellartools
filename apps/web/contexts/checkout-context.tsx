@@ -93,6 +93,10 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
   const [selectedAsset, setSelectedAsset] = React.useState<SelectedAsset | null>(null);
 
   React.useEffect(() => {
+    if (checkout?.environment) wallet.setEnvironment(checkout.environment);
+  }, [checkout?.environment]);
+
+  React.useEffect(() => {
     if (!selectedAsset && publicDataQuery.data?.assets?.[0]) {
       const first = publicDataQuery.data.assets[0];
       setSelectedAsset({ code: first.code, canonicalIssuer: first.canonicalIssuer ?? null });
