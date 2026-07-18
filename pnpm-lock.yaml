@@ -68,7 +68,7 @@ importers:
         version: 7.0.0
       next:
         specifier: 16.2.9
-        version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       pg:
         specifier: ^8.22.0
         version: 8.22.0
@@ -120,7 +120,7 @@ importers:
         version: link:../../../packages/shared-ui
       next:
         specifier: 16.2.9
-        version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       pg:
         specifier: ^8.22.0
         version: 8.22.0
@@ -175,7 +175,7 @@ importers:
         version: link:../../../packages/shared-ui
       next:
         specifier: 16.2.9
-        version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       pg:
         specifier: ^8.22.0
         version: 8.22.0
@@ -957,7 +957,7 @@ importers:
         version: link:../stellartools
       better-auth:
         specifier: ^1.6.11
-        version: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@libsql/client@0.14.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.11.1)(knex@3.2.10(better-sqlite3@12.11.1)(pg@8.22.0))(kysely@0.28.17)(pg@8.22.0)(postgres@3.4.9))(next@16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.20.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.4(@types/node@22.20.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))
+        version: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@libsql/client@0.14.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.11.1)(knex@3.2.10(better-sqlite3@12.11.1)(pg@8.22.0))(kysely@0.28.17)(pg@8.22.0)(postgres@3.4.9))(next@16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.20.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.4(@types/node@22.20.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)))
       zod:
         specifier: ^4.2.1
         version: 4.4.3
@@ -992,14 +992,17 @@ importers:
     dependencies:
       '@medusajs/framework':
         specifier: ^2.12.3
-        version: 2.15.5(@medusajs/cli@2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@22.20.0)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.4.3)
+        version: 2.15.5(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.4.3)
       '@stellartools/core':
         specifier: workspace:*
         version: link:../stellartools
     devDependencies:
       '@medusajs/types':
         specifier: ^2.12.3
-        version: 2.17.2(ioredis@5.11.1)(vite@5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0))
+        version: 2.17.2(ioredis@5.11.1)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.41
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.43(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.16)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.9.0)
@@ -1125,7 +1128,7 @@ importers:
         version: 2.30.1
       next:
         specifier: '>=14'
-        version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -22807,7 +22810,7 @@ snapshots:
   '@jest/console@29.7.0':
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       chalk: 4.1.2
       jest-message-util: 29.7.0
       jest-util: 29.7.0
@@ -22820,14 +22823,14 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 3.9.0
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 29.7.0
-      jest-config: 29.7.0(@types/node@22.20.0)(ts-node@10.9.2(@swc/core@1.15.43(@swc/helpers@0.5.23))(@types/node@20.19.41)(typescript@5.9.3))
+      jest-config: 29.7.0(@types/node@20.19.41)(ts-node@10.9.2(@swc/core@1.15.43(@swc/helpers@0.5.23))(@types/node@20.19.41)(typescript@5.9.3))
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
       jest-regex-util: 29.6.3
@@ -22861,7 +22864,7 @@ snapshots:
     dependencies:
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       jest-mock: 29.7.0
 
   '@jest/expect-utils@29.7.0':
@@ -22879,7 +22882,7 @@ snapshots:
     dependencies:
       '@jest/types': 29.6.3
       '@sinonjs/fake-timers': 10.3.0
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       jest-message-util: 29.7.0
       jest-mock: 29.7.0
       jest-util: 29.7.0
@@ -22895,7 +22898,7 @@ snapshots:
 
   '@jest/pattern@30.4.0':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       jest-regex-util: 30.4.0
 
   '@jest/reporters@29.7.0':
@@ -22906,7 +22909,7 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       '@jridgewell/trace-mapping': 0.3.31
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit: 0.1.2
@@ -22979,7 +22982,7 @@ snapshots:
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/yargs': 15.0.20
       chalk: 4.1.2
     optional: true
@@ -22989,7 +22992,7 @@ snapshots:
       '@jest/schemas': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -22999,7 +23002,7 @@ snapshots:
       '@jest/schemas': 30.4.1
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -23430,45 +23433,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@medusajs/cli@2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)':
-    dependencies:
-      '@medusajs/deps': 2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@medusajs/telemetry': 2.17.2
-      '@medusajs/utils': 2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
-      '@types/express': 4.17.25
-      chalk: 4.1.2
-      configstore: 5.0.1
-      dotenv: 16.6.1
-      execa: 5.1.1
-      express: 4.22.2
-      fs-exists-cached: 1.0.0
-      fs-extra: 11.3.5
-      glob: 13.0.6
-      hosted-git-info: 4.1.0
-      inquirer: 8.2.7(@types/node@22.20.0)
-      is-valid-path: 0.1.1
-      meant: 1.0.3
-      ora: 5.4.1
-      prompts: 2.4.2
-      resolve-cwd: 3.0.0
-      stack-trace: 0.0.10
-      ulid: 2.4.0
-      winston: 3.19.0
-      yargs: 17.7.2
-    transitivePeerDependencies:
-      - '@types/node'
-      - better-sqlite3
-      - debug
-      - libsql
-      - mariadb
-      - mysql
-      - mysql2
-      - pg-native
-      - pg-query-stream
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@medusajs/core-flows@2.17.2(@medusajs/framework@2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0))':
     dependencies:
       '@medusajs/framework': 2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0)
@@ -23531,12 +23495,12 @@ snapshots:
       - react-native
       - typescript
 
-  '@medusajs/deps@2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)':
+  '@medusajs/deps@2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)':
     dependencies:
       '@mikro-orm/cli': 6.6.12(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
       '@mikro-orm/core': 6.6.12
       '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
-      '@mikro-orm/migrations': 6.6.12(@mikro-orm/core@6.6.12)(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
+      '@mikro-orm/migrations': 6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
       '@mikro-orm/postgresql': 6.6.12(@mikro-orm/core@6.6.12)(better-sqlite3@12.11.1)(libsql@0.4.7)
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/instrumentation-pg': 0.52.0(@opentelemetry/api@1.9.1)
@@ -23565,34 +23529,6 @@ snapshots:
       '@mikro-orm/core': 6.6.14
       '@mikro-orm/knex': 6.6.14(@mikro-orm/core@6.6.14)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
       '@mikro-orm/migrations': 6.6.14(@mikro-orm/core@6.6.14)(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
-      '@mikro-orm/postgresql': 6.6.14(@mikro-orm/core@6.6.14)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/instrumentation-pg': 0.52.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources': 2.7.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-node': 0.218.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-node': 2.7.1(@opentelemetry/api@1.9.1)
-      awilix: 8.0.1
-      pg: 8.22.0
-      zod: 4.2.0
-    transitivePeerDependencies:
-      - '@types/node'
-      - better-sqlite3
-      - libsql
-      - mariadb
-      - mysql
-      - mysql2
-      - pg-native
-      - pg-query-stream
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@medusajs/deps@2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)':
-    dependencies:
-      '@mikro-orm/cli': 6.6.14(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
-      '@mikro-orm/core': 6.6.14
-      '@mikro-orm/knex': 6.6.14(@mikro-orm/core@6.6.14)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
-      '@mikro-orm/migrations': 6.6.14(@mikro-orm/core@6.6.14)(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
       '@mikro-orm/postgresql': 6.6.14(@mikro-orm/core@6.6.14)(better-sqlite3@12.11.1)(libsql@0.4.7)
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/instrumentation-pg': 0.52.0(@opentelemetry/api@1.9.1)
@@ -23682,18 +23618,18 @@ snapshots:
     dependencies:
       '@medusajs/framework': 2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0)
 
-  '@medusajs/framework@2.15.5(@medusajs/cli@2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@22.20.0)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.4.3)':
+  '@medusajs/framework@2.15.5(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.4.3)':
     dependencies:
       '@aws-sdk/client-dynamodb': 3.1057.0
       '@jercle/yargonaut': 1.1.5
-      '@medusajs/cli': 2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@medusajs/deps': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@medusajs/modules-sdk': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
-      '@medusajs/orchestration': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/cli': 2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)
+      '@medusajs/deps': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)
+      '@medusajs/modules-sdk': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/orchestration': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
       '@medusajs/telemetry': 2.15.5
-      '@medusajs/types': 2.15.5(ioredis@5.11.1)(vite@5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0))
-      '@medusajs/utils': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
-      '@medusajs/workflows-sdk': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/types': 2.15.5(ioredis@5.11.1)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))
+      '@medusajs/utils': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/workflows-sdk': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
       '@types/express': 4.17.25
       chokidar: 4.0.3
       compression: 1.8.1
@@ -23712,7 +23648,7 @@ snapshots:
       zod-validation-error: 5.0.0(zod@4.4.3)
     optionalDependencies:
       ioredis: 5.11.1
-      vite: 5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0)
+      vite: 5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0)
     transitivePeerDependencies:
       - '@types/node'
       - better-sqlite3
@@ -23928,11 +23864,11 @@ snapshots:
       - typescript
       - yaml
 
-  '@medusajs/modules-sdk@2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
+  '@medusajs/modules-sdk@2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
     dependencies:
-      '@medusajs/deps': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@medusajs/orchestration': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
-      '@medusajs/utils': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/deps': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)
+      '@medusajs/orchestration': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/utils': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
     transitivePeerDependencies:
       - '@types/node'
       - better-sqlite3
@@ -23981,10 +23917,10 @@ snapshots:
     dependencies:
       '@medusajs/framework': 2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0)
 
-  '@medusajs/orchestration@2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
+  '@medusajs/orchestration@2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
     dependencies:
-      '@medusajs/deps': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@medusajs/utils': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/deps': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)
+      '@medusajs/utils': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
       ulid: 2.4.0
     transitivePeerDependencies:
       - '@types/node'
@@ -24124,12 +24060,12 @@ snapshots:
     dependencies:
       '@medusajs/framework': 2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0)
 
-  '@medusajs/types@2.15.5(ioredis@5.11.1)(vite@5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0))':
+  '@medusajs/types@2.15.5(ioredis@5.11.1)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))':
     dependencies:
       bignumber.js: 9.3.1
     optionalDependencies:
       ioredis: 5.11.1
-      vite: 5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0)
+      vite: 5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0)
 
   '@medusajs/types@2.17.2(ioredis@5.11.1)(vite@5.4.21(@types/node@17.0.21)(lightningcss@1.32.0)(terser@5.48.0))':
     dependencies:
@@ -24144,13 +24080,6 @@ snapshots:
     optionalDependencies:
       ioredis: 5.11.1
       vite: 5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0)
-
-  '@medusajs/types@2.17.2(ioredis@5.11.1)(vite@5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0))':
-    dependencies:
-      bignumber.js: 9.3.1
-    optionalDependencies:
-      ioredis: 5.11.1
-      vite: 5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)(terser@5.48.0)
 
   '@medusajs/ui-preset@2.17.2(tailwindcss@3.4.19(tsx@4.22.4)(yaml@2.9.0))':
     dependencies:
@@ -24191,13 +24120,13 @@ snapshots:
       '@medusajs/framework': 2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0)
       jsonwebtoken: 9.0.3
 
-  '@medusajs/utils@2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
+  '@medusajs/utils@2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
     dependencies:
       '@graphql-codegen/core': 4.0.2(graphql@16.14.0)
       '@graphql-codegen/typescript': 4.1.6(graphql@16.14.0)
       '@graphql-tools/merge': 9.1.9(graphql@16.14.0)
       '@graphql-tools/schema': 10.0.33(graphql@16.14.0)
-      '@medusajs/deps': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
+      '@medusajs/deps': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)
       '@types/pluralize': 0.0.33
       bignumber.js: 9.3.1
       dotenv: 16.6.1
@@ -24251,36 +24180,6 @@ snapshots:
       - supports-color
       - tedious
 
-  '@medusajs/utils@2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
-    dependencies:
-      '@graphql-codegen/core': 4.0.2(graphql@16.14.0)
-      '@graphql-codegen/typescript': 4.1.6(graphql@16.14.0)
-      '@graphql-tools/merge': 9.1.9(graphql@16.14.0)
-      '@graphql-tools/schema': 10.0.33(graphql@16.14.0)
-      '@medusajs/deps': 2.17.2(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@types/pluralize': 0.0.33
-      bignumber.js: 9.3.1
-      dotenv: 16.6.1
-      dotenv-expand: 11.0.7
-      express: 4.22.2
-      graphql: 16.14.0
-      jsonwebtoken: 9.0.3
-      pg-connection-string: 2.14.0
-      pluralize: 8.0.0
-      ulid: 2.4.0
-    transitivePeerDependencies:
-      - '@types/node'
-      - better-sqlite3
-      - libsql
-      - mariadb
-      - mysql
-      - mysql2
-      - pg-native
-      - pg-query-stream
-      - sqlite3
-      - supports-color
-      - tedious
-
   '@medusajs/workflow-engine-inmemory@2.17.2(@medusajs/framework@2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0))':
     dependencies:
       '@medusajs/framework': 2.17.2(@medusajs/cli@2.17.2(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7))(@types/node@20.19.41)(better-sqlite3@12.11.1)(ioredis@5.11.1)(libsql@0.4.7)(vite@5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)(terser@5.48.0))(zod@4.2.0)
@@ -24296,12 +24195,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@medusajs/workflows-sdk@2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
+  '@medusajs/workflows-sdk@2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)':
     dependencies:
-      '@medusajs/deps': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)
-      '@medusajs/modules-sdk': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
-      '@medusajs/orchestration': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
-      '@medusajs/utils': 2.15.5(@types/node@22.20.0)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/deps': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)
+      '@medusajs/modules-sdk': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/orchestration': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
+      '@medusajs/utils': 2.15.5(@types/node@20.19.41)(better-sqlite3@12.11.1)(express@4.22.2)(libsql@0.4.7)
       ulid: 2.4.0
     transitivePeerDependencies:
       - '@types/node'
@@ -24480,12 +24379,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@mikro-orm/migrations@6.6.12(@mikro-orm/core@6.6.12)(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)':
+  '@mikro-orm/migrations@6.6.12(@mikro-orm/core@6.6.12)(@types/node@20.19.41)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)':
     dependencies:
       '@mikro-orm/core': 6.6.12
       '@mikro-orm/knex': 6.6.12(@mikro-orm/core@6.6.12)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
       fs-extra: 11.3.3
-      umzug: 3.8.2(@types/node@22.20.0)
+      umzug: 3.8.2(@types/node@20.19.41)
     transitivePeerDependencies:
       - '@types/node'
       - better-sqlite3
@@ -24506,26 +24405,6 @@ snapshots:
       '@mikro-orm/knex': 6.6.14(@mikro-orm/core@6.6.14)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
       fs-extra: 11.3.3
       umzug: 3.8.2(@types/node@20.19.41)
-    transitivePeerDependencies:
-      - '@types/node'
-      - better-sqlite3
-      - libsql
-      - mariadb
-      - mysql
-      - mysql2
-      - pg
-      - pg-native
-      - pg-query-stream
-      - sqlite3
-      - supports-color
-      - tedious
-
-  '@mikro-orm/migrations@6.6.14(@mikro-orm/core@6.6.14)(@types/node@22.20.0)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)':
-    dependencies:
-      '@mikro-orm/core': 6.6.14
-      '@mikro-orm/knex': 6.6.14(@mikro-orm/core@6.6.14)(better-sqlite3@12.11.1)(libsql@0.4.7)(pg@8.22.0)
-      fs-extra: 11.3.3
-      umzug: 3.8.2(@types/node@22.20.0)
     transitivePeerDependencies:
       - '@types/node'
       - better-sqlite3
@@ -28625,19 +28504,6 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.41
 
-  '@rushstack/node-core-library@5.13.0(@types/node@22.20.0)':
-    dependencies:
-      ajv: 8.13.0
-      ajv-draft-04: 1.0.0(ajv@8.13.0)
-      ajv-formats: 3.0.1(ajv@8.13.0)
-      fs-extra: 11.3.5
-      import-lazy: 4.0.0
-      jju: 1.4.0
-      resolve: 1.22.12
-      semver: 7.5.4
-    optionalDependencies:
-      '@types/node': 22.20.0
-
   '@rushstack/terminal@0.15.2(@types/node@20.19.41)':
     dependencies:
       '@rushstack/node-core-library': 5.13.0(@types/node@20.19.41)
@@ -28645,25 +28511,9 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.41
 
-  '@rushstack/terminal@0.15.2(@types/node@22.20.0)':
-    dependencies:
-      '@rushstack/node-core-library': 5.13.0(@types/node@22.20.0)
-      supports-color: 8.1.1
-    optionalDependencies:
-      '@types/node': 22.20.0
-
   '@rushstack/ts-command-line@4.23.7(@types/node@20.19.41)':
     dependencies:
       '@rushstack/terminal': 0.15.2(@types/node@20.19.41)
-      '@types/argparse': 1.0.38
-      argparse: 1.0.10
-      string-argv: 0.3.2
-    transitivePeerDependencies:
-      - '@types/node'
-
-  '@rushstack/ts-command-line@4.23.7(@types/node@22.20.0)':
-    dependencies:
-      '@rushstack/terminal': 0.15.2(@types/node@22.20.0)
       '@types/argparse': 1.0.38
       argparse: 1.0.10
       string-argv: 0.3.2
@@ -30269,7 +30119,7 @@ snapshots:
 
   '@types/archiver@8.0.0':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/readdir-glob': 1.1.5
 
   '@types/argparse@1.0.38': {}
@@ -30303,7 +30153,7 @@ snapshots:
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
     optional: true
 
   '@types/big.js@7.0.0': {}
@@ -30311,7 +30161,7 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/chai@5.2.3':
     dependencies:
@@ -30320,13 +30170,13 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/cookie@0.6.0': {}
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/d3-array@3.2.2': {}
 
@@ -30461,7 +30311,7 @@ snapshots:
 
   '@types/express-serve-static-core@4.19.8':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/qs': 6.15.1
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -30479,7 +30329,7 @@ snapshots:
 
   '@types/graceful-fs@4.1.9':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/hast@2.3.10':
     dependencies:
@@ -30515,7 +30365,7 @@ snapshots:
   '@types/jsonwebtoken@9.0.10':
     dependencies:
       '@types/ms': 2.1.0
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/katex@0.16.8': {}
 
@@ -30537,11 +30387,11 @@ snapshots:
 
   '@types/mute-stream@0.0.4':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/node-forge@1.3.14':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
     optional: true
 
   '@types/node@12.20.55': {}
@@ -30563,7 +30413,7 @@ snapshots:
 
   '@types/papaparse@5.5.2':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/pg-pool@2.0.6':
     dependencies:
@@ -30571,7 +30421,7 @@ snapshots:
 
   '@types/pg@8.20.0':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 
@@ -30587,7 +30437,7 @@ snapshots:
 
   '@types/qrcode@1.5.6':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/qs@6.15.1': {}
 
@@ -30625,23 +30475,23 @@ snapshots:
 
   '@types/readdir-glob@1.1.5':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/resolve@1.20.6': {}
 
   '@types/send@0.17.6':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/serve-static@1.15.10':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/send': 0.17.6
 
   '@types/shimmer@1.2.0': {}
@@ -30668,11 +30518,11 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -32104,6 +31954,38 @@ snapshots:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
 
+  better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.11.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@libsql/client@0.14.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.11.1)(knex@3.2.10(better-sqlite3@12.11.1)(pg@8.22.0))(kysely@0.28.17)(pg@8.22.0)(postgres@3.4.9))(next@16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.20.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.4(@types/node@22.20.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))):
+    dependencies:
+      '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
+      '@better-auth/drizzle-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(drizzle-orm@0.45.2(@libsql/client@0.14.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.11.1)(knex@3.2.10(better-sqlite3@12.11.1)(pg@8.22.0))(kysely@0.28.17)(pg@8.22.0)(postgres@3.4.9))
+      '@better-auth/kysely-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(kysely@0.28.17)
+      '@better-auth/memory-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
+      '@better-auth/mongo-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
+      '@better-auth/prisma-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
+      '@better-auth/telemetry': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)
+      '@better-auth/utils': 0.4.0
+      '@better-fetch/fetch': 1.1.21
+      '@noble/ciphers': 2.2.0
+      '@noble/hashes': 2.2.0
+      better-call: 1.3.5(zod@4.4.3)
+      defu: 6.1.7
+      jose: 6.2.3
+      kysely: 0.28.17
+      nanostores: 1.3.0
+      zod: 4.4.3
+    optionalDependencies:
+      better-sqlite3: 12.11.1
+      drizzle-kit: 0.31.10
+      drizzle-orm: 0.45.2(@libsql/client@0.14.0(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/pg@8.20.0)(better-sqlite3@12.11.1)(knex@3.2.10(better-sqlite3@12.11.1)(pg@8.22.0))(kysely@0.28.17)(pg@8.22.0)(postgres@3.4.9)
+      next: 16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      pg: 8.22.0
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.20.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.4(@types/node@22.20.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@opentelemetry/api'
+
   better-call@1.3.5(zod@4.4.3):
     dependencies:
       '@better-auth/utils': 0.4.1
@@ -32566,7 +32448,7 @@ snapshots:
 
   chrome-launcher@0.15.2:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -33594,7 +33476,7 @@ snapshots:
   engine.io@6.6.9(bufferutil@4.1.0)(utf-8-validate@6.0.6):
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       '@types/ws': 8.18.1
       accepts: 1.3.8
       base64id: 2.0.0
@@ -34026,7 +33908,7 @@ snapshots:
       eslint: 9.39.4(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.10
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.4(jiti@1.21.7))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.60.0(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@1.21.7))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.60.0(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.4(jiti@1.21.7))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.4(jiti@1.21.7))
       eslint-plugin-react: 7.37.5(eslint@9.39.4(jiti@1.21.7))
       eslint-plugin-react-hooks: 5.2.0(eslint@9.39.4(jiti@1.21.7))
@@ -34111,7 +33993,7 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.12.2
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.60.0(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@1.21.7))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.60.0(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.4(jiti@1.21.7))
     transitivePeerDependencies:
       - supports-color
 
@@ -34162,7 +34044,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.60.0(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4(jiti@1.21.7)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.60.0(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.4(jiti@1.21.7)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -34518,7 +34400,7 @@ snapshots:
 
   eval@0.1.8:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       require-like: 0.1.2
 
   event-target-shim@5.0.1: {}
@@ -35728,26 +35610,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  inquirer@8.2.7(@types/node@22.20.0):
-    dependencies:
-      '@inquirer/external-editor': 1.0.3(@types/node@22.20.0)
-      ansi-escapes: 4.3.2
-      chalk: 4.1.2
-      cli-cursor: 3.1.0
-      cli-width: 3.0.0
-      figures: 3.2.0
-      lodash: 4.18.1
-      mute-stream: 0.0.8
-      ora: 5.4.1
-      run-async: 2.4.1
-      rxjs: 7.8.2
-      string-width: 4.2.3
-      strip-ansi: 6.0.1
-      through: 2.3.8
-      wrap-ansi: 6.2.0
-    transitivePeerDependencies:
-      - '@types/node'
-
   int64-buffer@1.1.0: {}
 
   internal-slot@1.1.0:
@@ -36173,7 +36035,7 @@ snapshots:
       '@jest/expect': 29.7.0
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.7.2
@@ -36243,37 +36105,6 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  jest-config@29.7.0(@types/node@22.20.0)(ts-node@10.9.2(@swc/core@1.15.43(@swc/helpers@0.5.23))(@types/node@20.19.41)(typescript@5.9.3)):
-    dependencies:
-      '@babel/core': 7.29.7
-      '@jest/test-sequencer': 29.7.0
-      '@jest/types': 29.6.3
-      babel-jest: 29.7.0(@babel/core@7.29.7)
-      chalk: 4.1.2
-      ci-info: 3.9.0
-      deepmerge: 4.3.1
-      glob: 7.2.3
-      graceful-fs: 4.2.11
-      jest-circus: 29.7.0
-      jest-environment-node: 29.7.0
-      jest-get-type: 29.6.3
-      jest-regex-util: 29.6.3
-      jest-resolve: 29.7.0
-      jest-runner: 29.7.0
-      jest-util: 29.7.0
-      jest-validate: 29.7.0
-      micromatch: 4.0.8
-      parse-json: 5.2.0
-      pretty-format: 29.7.0
-      slash: 3.0.0
-      strip-json-comments: 3.1.1
-    optionalDependencies:
-      '@types/node': 22.20.0
-      ts-node: 10.9.2(@swc/core@1.15.43(@swc/helpers@0.5.23))(@types/node@20.19.41)(typescript@5.9.3)
-    transitivePeerDependencies:
-      - babel-plugin-macros
-      - supports-color
-
   jest-diff@29.7.0:
     dependencies:
       chalk: 4.1.2
@@ -36298,7 +36129,7 @@ snapshots:
       '@jest/environment': 29.7.0
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
@@ -36308,7 +36139,7 @@ snapshots:
     dependencies:
       '@jest/types': 29.6.3
       '@types/graceful-fs': 4.1.9
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -36347,7 +36178,7 @@ snapshots:
   jest-mock@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       jest-util: 29.7.0
 
   jest-pnp-resolver@1.2.3(jest-resolve@29.7.0):
@@ -36384,7 +36215,7 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       chalk: 4.1.2
       emittery: 0.13.1
       graceful-fs: 4.2.11
@@ -36412,7 +36243,7 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       chalk: 4.1.2
       cjs-module-lexer: 1.4.3
       collect-v8-coverage: 1.0.3
@@ -36458,7 +36289,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -36477,7 +36308,7 @@ snapshots:
     dependencies:
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.13.1
@@ -36486,13 +36317,13 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
   jest-worker@29.7.0:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       jest-util: 29.7.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
@@ -38636,6 +38467,56 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
+  next@16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@next/env': 16.2.9
+      '@swc/helpers': 0.5.15
+      baseline-browser-mapping: 2.10.33
+      caniuse-lite: 1.0.30001793
+      postcss: 8.4.31
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      styled-jsx: 5.1.6(react@19.2.3)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 16.2.9
+      '@next/swc-darwin-x64': 16.2.9
+      '@next/swc-linux-arm64-gnu': 16.2.9
+      '@next/swc-linux-arm64-musl': 16.2.9
+      '@next/swc-linux-x64-gnu': 16.2.9
+      '@next/swc-linux-x64-musl': 16.2.9
+      '@next/swc-win32-arm64-msvc': 16.2.9
+      '@next/swc-win32-x64-msvc': 16.2.9
+      '@opentelemetry/api': 1.9.1
+      sharp: 0.34.5
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
+  next@16.2.9(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+    dependencies:
+      '@next/env': 16.2.9
+      '@swc/helpers': 0.5.15
+      baseline-browser-mapping: 2.10.33
+      caniuse-lite: 1.0.30001793
+      postcss: 8.4.31
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      styled-jsx: 5.1.6(react@19.2.4)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 16.2.9
+      '@next/swc-darwin-x64': 16.2.9
+      '@next/swc-linux-arm64-gnu': 16.2.9
+      '@next/swc-linux-arm64-musl': 16.2.9
+      '@next/swc-linux-x64-gnu': 16.2.9
+      '@next/swc-linux-x64-musl': 16.2.9
+      '@next/swc-win32-arm64-msvc': 16.2.9
+      '@next/swc-win32-x64-msvc': 16.2.9
+      '@opentelemetry/api': 1.9.1
+      sharp: 0.34.5
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
   no-case@3.0.4:
     dependencies:
       lower-case: 2.0.2
@@ -39096,7 +38977,7 @@ snapshots:
 
   parse5@3.0.3:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
 
   parse5@7.3.0:
     dependencies:
@@ -39594,7 +39475,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.1
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       long: 5.3.2
 
   protobufjs@7.6.2:
@@ -39609,7 +39490,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.1
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       long: 5.3.2
 
   proxy-addr@2.0.7:
@@ -41537,7 +41418,7 @@ snapshots:
 
   stripe@15.12.0:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 20.19.41
       qs: 6.15.2
 
   stripe@19.1.0(@types/node@20.19.41):
@@ -41583,6 +41464,16 @@ snapshots:
       react: 19.2.4
     optionalDependencies:
       '@babel/core': 7.29.7
+
+  styled-jsx@5.1.6(react@19.2.3):
+    dependencies:
+      client-only: 0.0.1
+      react: 19.2.3
+
+  styled-jsx@5.1.6(react@19.2.4):
+    dependencies:
+      client-only: 0.0.1
+      react: 19.2.4
 
   stylis@4.4.0: {}
 
@@ -42111,16 +42002,6 @@ snapshots:
   umzug@3.8.2(@types/node@20.19.41):
     dependencies:
       '@rushstack/ts-command-line': 4.23.7(@types/node@20.19.41)
-      emittery: 0.13.1
-      fast-glob: 3.3.3
-      pony-cause: 2.1.11
-      type-fest: 4.41.0
-    transitivePeerDependencies:
-      - '@types/node'
-
-  umzug@3.8.2(@types/node@22.20.0):
-    dependencies:
-      '@rushstack/ts-command-line': 4.23.7(@types/node@22.20.0)
       emittery: 0.13.1
       fast-glob: 3.3.3
       pony-cause: 2.1.11

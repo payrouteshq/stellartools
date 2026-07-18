@@ -29,7 +29,7 @@ import {
   stringifyObjectFields,
   validateSchema,
 } from "@stellartools/core";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, type BinaryLike } from "crypto";
 
 import { StellarToolsMedusaAdapterOptions, stellarToolsMedusaAdapterOptionsSchema } from "./schema";
 
@@ -78,10 +78,13 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
 
     const signedPayload = `${timestamp}.${rawBody}`;
 
-    const verify = (key: string | Buffer): boolean => {
+    const verify = (key: BinaryLike): boolean => {
       try {
         const expected = createHmac("sha256", key).update(signedPayload).digest("hex");
-        return timingSafeEqual(Buffer.from(receivedSig), Buffer.from(expected));
+        const received = Buffer.from(receivedSig, "hex");
+        const expectedBuf = Buffer.from(expected, "hex");
+        if (received.length !== expectedBuf.length) return false;
+        return timingSafeEqual(Uint8Array.from(received), Uint8Array.from(expectedBuf));
       } catch {
         return false;
       }
