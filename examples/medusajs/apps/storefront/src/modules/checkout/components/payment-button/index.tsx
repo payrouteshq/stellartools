@@ -79,7 +79,7 @@ const StripePaymentButton = ({
   const card = elements?.getElement("card")
 
   const session = cart.payment_collection?.payment_sessions?.find(
-    (s) => s.status === "pending"
+    (s) => s.status === "pending",
   )
 
   const disabled = !stripe || !elements ? true : false
@@ -211,7 +211,7 @@ const StellarPaymentButton = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const session = cart.payment_collection?.payment_sessions?.find(
-    (s) => s.provider_id === "pp_stellar_stellar"
+    (s) => s.provider_id === "pp_stellar_stellar",
   )
   const paymentUrl = session?.data?.payment_url as string | undefined
 
@@ -225,7 +225,7 @@ const StellarPaymentButton = ({
   const handleOpenPortal = () => {
     if (!paymentUrl) {
       setErrorMessage(
-        "Payment URL not available. Please refresh and try again."
+        "Payment URL not available. Please refresh and try again.",
       )
       return
     }

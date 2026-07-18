@@ -70,8 +70,8 @@ export function RefundModalContent({
 
   const { mutate: createRefund, isPending: isCreatingRefund } = useAction(
     async (data: RefundFormData) => {
-      if (!orgContext) throw new AppError("No organization context found");
-      if (!data.walletAddress?.trim()) throw new AppError("Wallet address is required");
+      if (!orgContext) throw new AppError("NOT_FOUND", "No organization context found");
+      if (!data.walletAddress?.trim()) throw new AppError("VALIDATION_ERROR", "Wallet address is required");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext?.token! },
@@ -81,7 +81,7 @@ export function RefundModalContent({
         { payment_id: data.paymentId, metadata: null, wallet_address: data.walletAddress, reason: data.reason ?? null },
         { "Idempotency-Key": idempotencyKey.current }
       );
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     {

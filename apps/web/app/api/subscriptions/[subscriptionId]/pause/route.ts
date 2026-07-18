@@ -31,7 +31,7 @@ export const POST = apiHandler({
 
     const customerWallet = subscription?.customerWallet;
 
-    if (!customerWallet?.address) throw new AppError("Customer wallet not found");
+    if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
     const merchantSecret = await resolveMerchantSecret(organizationId, environment);
     const pauseResult = await soroban$pauseSubscription(

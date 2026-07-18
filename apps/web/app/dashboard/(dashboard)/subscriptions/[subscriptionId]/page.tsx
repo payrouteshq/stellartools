@@ -177,7 +177,7 @@ export default function SubscriptionDetailPage() {
 
   const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
     async ({ path, onComplete = () => {} }: { path: string; onComplete?: () => void | Promise<void> }) => {
-      if (!orgContext?.token) throw new AppError("No session token");
+      if (!orgContext?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token },
@@ -188,7 +188,7 @@ export default function SubscriptionDetailPage() {
         {},
         { "Idempotency-Key": actionKeys.current[path] }
       );
-      if (res.isErr()) throw new AppError(res.error.message);
+      if (res.isErr()) throw new AppError("INTERNAL_ERROR", res.error.message);
       await onComplete();
       return res.value;
     },
@@ -204,13 +204,13 @@ export default function SubscriptionDetailPage() {
 
   const { mutate: keepSubscription, isPending: isKeepingSubscription } = useAction(
     async ({ onComplete = () => {} }: { onComplete?: () => void | Promise<void> }) => {
-      if (!orgContext?.token) throw new AppError("No session token");
+      if (!orgContext?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token },
       });
       const res = await api.put(`/subscriptions/${subscriptionId}`, { cancel_at_period_end: false });
-      if (res.isErr()) throw new AppError(res.error.message);
+      if (res.isErr()) throw new AppError("INTERNAL_ERROR", res.error.message);
       await onComplete();
       return res.value;
     },

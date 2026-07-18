@@ -5,7 +5,11 @@ import { Result } from "@stellartools/core";
 
 const pick = (network: Network, testnet: string | undefined, mainnet: string | undefined, name: string) => {
   const v = network === "testnet" ? testnet : mainnet;
-  if (!v) throw new AppError(`${name}_${network === "testnet" ? "TESTNET" : "MAINNET"} is not configured`);
+  if (!v)
+    throw new AppError(
+      "VALIDATION_ERROR",
+      `${name}_${network === "testnet" ? "TESTNET" : "MAINNET"} is not configured`
+    );
   return v;
 };
 
@@ -278,8 +282,9 @@ export const retrieveAssetContractId = async (assetCode: AssetCode, assetIssuer:
 };
 
 export const isValidPublicKey = (publicKey?: string): Result<boolean, Error> => {
-  if (!publicKey?.trim()) return Result.err(new AppError("Public key is required"));
-  if (!StellarSDK.StrKey.isValidEd25519PublicKey(publicKey)) return Result.err(new AppError("Invalid public key"));
+  if (!publicKey?.trim()) return Result.err(new AppError("VALIDATION_ERROR", "Public key is required"));
+  if (!StellarSDK.StrKey.isValidEd25519PublicKey(publicKey))
+    return Result.err(new AppError("VALIDATION_ERROR", "Invalid public key"));
   return Result.ok(true);
 };
 

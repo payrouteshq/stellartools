@@ -375,9 +375,9 @@ function WebhooksPageContent() {
 
   const { mutate: toggleWebhookDisabledAction, isPending: isTogglingWebhookDisabled } = useAction(
     async ({ id, isDisabled }: { id: string; isDisabled: boolean }) => {
-      if (!org?.token) throw new AppError("No session token");
+      if (!org?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const result = await api.put(`/webhooks/${id}`, { is_disabled: isDisabled }, { "x-session-token": org.token });
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     {
@@ -389,11 +389,11 @@ function WebhooksPageContent() {
 
   const { mutate: deleteWebhookAction, isPending: isDeletingWebhook } = useAction(
     async (id: string) => {
-      if (!org?.token) throw new AppError("No session token");
+      if (!org?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const result = await api.delete<Webhook>(`/webhooks/${id}`, {
         "x-session-token": org.token,
       });
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     {
@@ -679,7 +679,7 @@ function WebhooksModalContent({
 
   const { mutate: createWebhookAction, isPending: isCreatingWebhook } = useAction(
     async (data: z.infer<typeof schema>) => {
-      if (!orgContext) throw new AppError("No organization context found");
+      if (!orgContext) throw new AppError("NOT_FOUND", "No organization context found");
       const result = await api.post(
         "/webhooks",
         {
@@ -690,7 +690,7 @@ function WebhooksModalContent({
         },
         { "x-session-token": orgContext?.token! }
       );
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     {
@@ -706,7 +706,7 @@ function WebhooksModalContent({
 
   const { mutate: updateWebhookAction, isPending: isUpdatingWebhook } = useAction(
     async (data: z.infer<typeof schema>) => {
-      if (!orgContext) throw new AppError("No organization context found");
+      if (!orgContext) throw new AppError("NOT_FOUND", "No organization context found");
       const result = await api.put<Webhook>(
         `/webhooks/${editingWebhook?.id}`,
         {
@@ -717,7 +717,7 @@ function WebhooksModalContent({
         },
         { "x-session-token": orgContext?.token! }
       );
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     {

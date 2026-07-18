@@ -22,10 +22,10 @@ pnpm --filter @stellartools/example-nextjs dev
 
 ## Environment variables
 
-| Variable              | Required by                   |
-| --------------------- | ----------------------------- |
-| `STELLAR_API_KEY`     | all adapters                  |
-| `STELLARTOOLS_PRODUCT_ID`  | aisdk, langchain, uploadthing |
-| `OPENAI_API_KEY`      | aisdk, langchain              |
-| `UPLOADTHING_TOKEN`   | uploadthing                   |
-| `NEXT_PUBLIC_APP_URL` | betterauth                    |
+| Variable                  | Required by                   |
+| ------------------------- | ----------------------------- |
+| `STELLAR_API_KEY`         | all adapters                  |
+| `STELLARTOOLS_PRODUCT_ID` | aisdk, langchain, uploadthing |
+| `OPENAI_API_KEY`          | aisdk, langchain              |
+| `UPLOADTHING_TOKEN`       | uploadthing                   |
+| `NEXT_PUBLIC_APP_URL`     | betterauth                    |

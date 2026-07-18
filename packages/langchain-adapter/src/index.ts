@@ -12,45 +12,69 @@ export class ShieldError extends Error {
   }
 }
 
-const schema = Schema.object({
+const shieldSchema = Schema.object({
   apiKey: Schema.string(),
   customerId: Schema.string(),
   productId: Schema.string(),
+  cacheTTL: Schema.number().default(60_000), // 1 minute
 });
 
-type ShieldConfig = Schema.infer<typeof schema>;
+type ShieldConfig = Schema.infer<typeof shieldSchema>;
+
+const ACCESS_CACHE = new Map<string, { hasAccess: boolean; expires: number }>();
 
 /**
- * Wraps a LangChain model with StellarTools access control.
- *
- * Returns a Runnable that intercepts the chain and verifies
- * the customer's subscription status on the Stellar network.
+ * @example
+ * const model = shield(new ChatOpenAI({}), {
+ *  apiKey: process.env.STELLARTOOLS_API_KEY!,
+ *  customerId: "cus_123...",
+ *  productId: "prod_456...",
+ * });
  */
 export const shield = <TModel extends BaseLanguageModel, TInput = any, TOutput = any>(
   model: TModel,
   config: ShieldConfig
 ): Runnable<TInput, TOutput> => {
-  const { error, data } = schema.safeParse(config);
-
-  if (error) throw new Error(`Invalid config: ${error.message}`);
-
-  const st = new StellarTools({ api_key: data.apiKey });
+  const parsed = shieldSchema.parse(config);
+  const st = new StellarTools({ api_key: parsed.apiKey });
+  const cacheKey = `${parsed.customerId}:${parsed.productId}`;
 
   // The functional guard that runs before the model
   const guard = RunnableLambda.from(async (input: TInput) => {
-    // 1. Fetch active subscriptions for this customer
-    const subs = await st.subscriptions.list(data.customerId);
+    const now = Date.now();
+    const cached = ACCESS_CACHE.get(cacheKey);
 
-    // 2. Verify the specific product is active
-    const hasAccess = subs.some((s) => s.product_id === data.productId && internal$hasSubscriptionAccess(s));
-
-    if (!hasAccess) {
-      throw new ShieldError(data.customerId, data.productId);
+    // 1. Check local cache (0ms latency)
+    if (cached && cached.expires > now) {
+      if (!cached.hasAccess) throw new ShieldError(parsed.customerId, parsed.productId);
+      return input;
     }
 
-    // 3. Return input to the next step in the chain (the LLM)
+    // 2. Cache miss: Verify with StellarTools
+    try {
+      const subs = await st.subscriptions.list(parsed.customerId);
+      const hasAccess = subs.some((s) => s.product_id === parsed.productId && internal$hasSubscriptionAccess(s));
+
+      // 3. Update the global cache
+      ACCESS_CACHE.set(cacheKey, {
+        hasAccess,
+        expires: now + parsed.cacheTTL,
+      });
+
+      if (!hasAccess) {
+        throw new ShieldError(parsed.customerId, parsed.productId);
+      }
+    } catch (e) {
+      // Graceful Fail-Open: If we can't reach our API but the user was
+      // recently healthy, let them through to avoid breaking the chat.
+      if (cached?.hasAccess) return input;
+
+      throw e;
+    }
+
     return input;
   });
 
+  // Pipe the guard into the actual LLM model
   return guard.pipe(model as unknown as Runnable<TInput, TOutput>);
 };

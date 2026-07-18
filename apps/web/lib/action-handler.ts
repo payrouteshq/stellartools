@@ -1,7 +1,23 @@
+export type ErrorCode =
+  | "UNAUTHORIZED" // 401
+  | "FORBIDDEN" // 403
+  | "VALIDATION_ERROR" // 400
+  | "NOT_FOUND" // 404
+  | "CONFLICT" // 409
+  | "RATE_LIMIT" // 429
+  | "INTERNAL_ERROR" // 500
+  | "STRIPE_ERROR" // Upstream
+  | "STELLAR_ERROR"; // Horizon/On-chain
+
 export class AppError extends Error {
-  constructor(message: string) {
+  public readonly code: ErrorCode;
+  public readonly status: number;
+
+  constructor(code: ErrorCode, message: string, status: number = 400) {
     super(message);
     this.name = "AppError";
+    this.code = code;
+    this.status = status;
   }
 }
 
@@ -11,24 +27,27 @@ export function safeAction<T extends (...args: any[]) => Promise<any>>(fn: T): T
       return await fn(...args);
     } catch (e) {
       if (e instanceof AppError) {
-        // Next.js does NOT mask returned data,
-        // only thrown Error instances.
-        return { __isAppError: true, message: e.message };
+        // Return a structured object that the UI 'execute' function understands
+        return {
+          __isAppError: true,
+          message: e.message,
+          code: e.code,
+          status: e.status,
+        };
       }
-      // Re-throw genuine system errors (DB crash, etc) so they remain masked/logged
+      // System crashes (SQL leaks) stay thrown here so apiHandler handles the masking
       throw e;
     }
   }) as T;
 }
 
-/**
- * Converts the returned "error object" back into a thrown error
- * so our existing onError/toast logic works without changes.
- */
 export const execute = async <T>(promise: Promise<T>): Promise<T> => {
   const result = await promise;
   if (result && typeof result === "object" && "__isAppError" in result) {
-    throw new Error((result as any).message);
+    // Re-wrap as an Error so existing .message logic in the UI doesn't break
+    const err = new Error((result as any).message);
+    (err as any).code = (result as any).code;
+    throw err;
   }
   return result;
 };

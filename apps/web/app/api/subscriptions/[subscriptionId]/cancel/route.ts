@@ -18,9 +18,10 @@ export const POST = apiHandler({
       { withCustomer: true, withProduct: true, withCustomerWallets: true }
     );
 
-    if (!subscription) throw new AppError("Subscription not found");
-    if (subscription.status === "canceled") throw new AppError("Subscription is already canceled");
-    if (subscription.cancelAtPeriodEnd) throw new AppError("Subscription is already scheduled to cancel");
+    if (!subscription) throw new AppError("NOT_FOUND", "Subscription not found");
+    if (subscription.status === "canceled") throw new AppError("VALIDATION_ERROR", "Subscription is already canceled");
+    if (subscription.cancelAtPeriodEnd)
+      throw new AppError("VALIDATION_ERROR", "Subscription is already scheduled to cancel");
 
     const result = await putSubscription(subscriptionId, { cancelAtPeriodEnd: true }, organizationId, environment);
 

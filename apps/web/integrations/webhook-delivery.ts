@@ -72,7 +72,7 @@ export const deliverWebhook = async <TName extends string, TObject>(
   if (!isSuccess) {
     console.error(`✗ Webhook failed: ${webhook.url} (${statusCode})`);
     if (result.isErr()) console.log(result.error.message);
-    throw new AppError(errorMessage ?? "Delivery failed");
+    throw new AppError("INTERNAL_ERROR", errorMessage ?? "Delivery failed");
   }
 
   console.log(`✓ Webhook delivered: ${webhook.url} in ${duration}ms`);

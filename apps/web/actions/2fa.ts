@@ -25,8 +25,8 @@ interface Pending2faPayload {
 
 export const initiate2faReset = safeAction(async (accountId: string) => {
   const account = await retrieveAccount({ id: accountId });
-  if (!account) throw new AppError("Account not found");
-  if (!account.$2faSecret) throw new AppError("2FA is not enabled on this account");
+  if (!account) throw new AppError("NOT_FOUND", "Account not found");
+  if (!account.$2faSecret) throw new AppError("VALIDATION_ERROR", "2FA is not enabled on this account");
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
 
@@ -39,7 +39,7 @@ export const initiate2faReset = safeAction(async (accountId: string) => {
 
 export const setup2fa = safeAction(async (accountId: string, organizationName: string) => {
   const account = await retrieveAccount({ id: accountId });
-  if (!account) throw new AppError("Account not found");
+  if (!account) throw new AppError("NOT_FOUND", "Account not found");
 
   const existingEncrypted = account.metadata?.pending2faSecret as string | undefined;
   const secret = existingEncrypted ? decrypt(existingEncrypted.replace(SENSITIVE_KEY_PREFIX, "")) : generateSecret();
@@ -68,7 +68,7 @@ export const toggle2fa = safeAction(
   ) => {
     const account = await retrieveAccount({ id: accountId });
 
-    if (!account) throw new AppError("Account not found");
+    if (!account) throw new AppError("NOT_FOUND", "Account not found");
 
     const isEnabling = !!setupSecret;
 
@@ -79,8 +79,8 @@ export const toggle2fa = safeAction(
         STELLARTOOLS_ID
       );
 
-      if (payload.accountId !== accountId) throw new AppError("Invalid verification token");
-      if (payload.code !== code) throw new AppError("Invalid email verification code");
+      if (payload.accountId !== accountId) throw new AppError("VALIDATION_ERROR", "Invalid verification token");
+      if (payload.code !== code) throw new AppError("VALIDATION_ERROR", "Invalid email verification code");
     } else {
       const secretToVerify = isEnabling
         ? setupSecret
@@ -88,11 +88,11 @@ export const toggle2fa = safeAction(
           ? decrypt(account.$2faSecret?.replace(SENSITIVE_KEY_PREFIX, "") ?? "")
           : null;
 
-      if (!secretToVerify) throw new AppError("2FA configuration not found");
+      if (!secretToVerify) throw new AppError("VALIDATION_ERROR", "2FA configuration not found");
 
       const { valid } = verifySync({ token: code, secret: secretToVerify });
 
-      if (!valid) throw new AppError("Invalid verification code");
+      if (!valid) throw new AppError("VALIDATION_ERROR", "Invalid verification code");
     }
 
     const { pending2faSecret: _drop, ...cleanMetadata } = account.metadata ?? {};
@@ -113,20 +113,20 @@ export const toggle2fa = safeAction(
 export const complete2fa = safeAction(async (code: string) => {
   const pendingToken = await getCookie("2fa_pending");
 
-  if (!pendingToken) throw new AppError("Session expired. Please sign in again.");
+  if (!pendingToken) throw new AppError("VALIDATION_ERROR", "Session expired. Please sign in again.");
 
   const payload = verifyJwt<Pending2faPayload>(pendingToken, process.env.JWT_SECRET!, STELLARTOOLS_ID);
 
   const account = await retrieveAccount({ id: payload.accountId });
-  if (!account) throw new AppError("Account not found");
-  if (!account.$2faSecret) throw new AppError("2FA not configured");
+  if (!account) throw new AppError("NOT_FOUND", "Account not found");
+  if (!account.$2faSecret) throw new AppError("VALIDATION_ERROR", "2FA not configured");
 
   const { valid } = verifySync({
     token: code,
     secret: decrypt(account.$2faSecret?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
   });
 
-  if (!valid) throw new AppError("Invalid verification code");
+  if (!valid) throw new AppError("VALIDATION_ERROR", "Invalid verification code");
 
   await Promise.all([generateAndSetSession(account, payload.provider), deleteCookies(["2fa_pending"])]);
 

@@ -35,7 +35,7 @@ export const POST = apiHandler({
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
 
-    if (!secret) throw new AppError("Merchant keys not configured, please contact support");
+    if (!secret) throw new AppError("VALIDATION_ERROR", "Merchant keys not configured, please contact support");
 
     const {
       data: [platformCharge],
@@ -57,7 +57,7 @@ export const POST = apiHandler({
 
     const isValidPublicKeyResult = isValidPublicKey(wallet_address ?? payment?.wallets?.address);
 
-    if (isValidPublicKeyResult.isErr()) throw new AppError(isValidPublicKeyResult.error.message);
+    if (isValidPublicKeyResult.isErr()) throw new AppError("INTERNAL_ERROR", isValidPublicKeyResult.error.message);
 
     const res = await sendAssetPayment(
       secretKey,
@@ -101,7 +101,7 @@ export const POST = apiHandler({
           { withCustomer: true, withProduct: true }
         );
 
-        if (!subscription) throw new AppError("Subscription not found");
+        if (!subscription) throw new AppError("NOT_FOUND", "Subscription not found");
 
         const merchantSecret = await resolveMerchantSecret(organizationId, environment);
         const cancellationResult = await soroban$cancelSubscription(
@@ -111,7 +111,7 @@ export const POST = apiHandler({
           subscription.productId!
         );
 
-        if (cancellationResult.isErr()) throw new AppError(cancellationResult.error.message);
+        if (cancellationResult.isErr()) throw new AppError("INTERNAL_ERROR", cancellationResult.error.message);
 
         await putSubscription(
           payment.subscriptionId,

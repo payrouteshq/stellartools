@@ -231,7 +231,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
     },
   ] = await Promise.all([resolveOrgContext(orgId, env), retrieveSubscriptions(orgId, env, { subscriptionId: id })]);
 
-  if (!oldSubscription) throw new AppError("Subscription not found");
+  if (!oldSubscription) throw new AppError("NOT_FOUND", "Subscription not found");
 
   return withEvent(
     async () => {
@@ -247,7 +247,7 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
         )
         .returning();
 
-      if (!record) throw new AppError("Subscription not found");
+      if (!record) throw new AppError("INTERNAL_ERROR", "Failed to update subscription");
 
       return record;
     },

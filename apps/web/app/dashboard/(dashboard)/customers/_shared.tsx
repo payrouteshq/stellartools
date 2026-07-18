@@ -121,7 +121,7 @@ export function CustomerModalContent({
 
   const { mutate: putCustomerAction, isPending: isPuttingCustomer } = useAction(
     async (data: CustomerFormData) => {
-      if (!org?.token) throw new AppError("No session token");
+      if (!org?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token, "x-source": "Dashboard" },
@@ -153,11 +153,11 @@ export function CustomerModalContent({
       };
       if (isEditMode) {
         const response = await api.put<Customer>(`/customers/${customer?.id}`, payload);
-        if (response.isErr()) throw new AppError(response.error.message);
+        if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
         return response.value;
       }
       const response = await api.post<Customer>("/customers", [payload]);
-      if (response.isErr()) throw new AppError(response.error.message);
+      if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
       return response.value;
     },
     {
@@ -373,13 +373,13 @@ export function DeleteCustomerModalContent({ customer, onClose }: { customer: Cu
 
   const { mutate: deleteCustomerAction, isPending } = useAction(
     async (customerId: string) => {
-      if (!org?.token) throw new AppError("No session token");
+      if (!org?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token, "x-source": "Dashboard" },
       });
       const response = await api.delete<null>(`/customers/${customerId}`);
-      if (response.isErr()) throw new AppError(response.error.message);
+      if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
       return response.value;
     },
     {
@@ -521,7 +521,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
 
   const { mutate: importCustomersAction, isPending: isImportingCustomers } = useAction(
     async () => {
-      if (!orgContext) throw new AppError("Organization context not found.");
+      if (!orgContext) throw new AppError("NOT_FOUND", "Organization context not found.");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token!, "x-source": "CSV Import" },
@@ -536,7 +536,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
           metadata: row.metadata,
         }))
       );
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     {

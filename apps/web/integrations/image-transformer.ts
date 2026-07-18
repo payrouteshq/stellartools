@@ -41,7 +41,10 @@ export class ImageTransformer {
 
       return await this.draw(source, file.name, to, targetWidth, targetHeight);
     } catch (err) {
-      throw new AppError(`Transformation failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw new AppError(
+        "INTERNAL_ERROR",
+        `Transformation failed: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 
@@ -87,7 +90,7 @@ export class ImageTransformer {
     ctx.drawImage(source, 0, 0, w, h);
 
     const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, to, 0.95));
-    if (!blob) throw new AppError("Canvas export failed");
+    if (!blob) throw new AppError("INTERNAL_ERROR", "Canvas export failed");
 
     // Clean up file extension for the new name
     const ext = to.split("/")[1].replace("jpeg", "jpg");
@@ -103,7 +106,7 @@ export class ImageTransformer {
         if (revoke) URL.revokeObjectURL(url);
         res(img);
       };
-      img.onerror = () => rej(new AppError("Failed to load image source"));
+      img.onerror = () => rej(new AppError("INTERNAL_ERROR", "Failed to load image source"));
       img.src = url;
     });
   }

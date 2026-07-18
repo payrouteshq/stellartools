@@ -321,7 +321,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
 
   const { mutate: handleAction, isPending } = useAction(
     async (data: z.infer<typeof subscriptionFormSchema>) => {
-      if (!org) throw new AppError("No organization context");
+      if (!org) throw new AppError("NOT_FOUND", "No organization context");
 
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -344,7 +344,7 @@ export function SubscriptionModalContent({ onSuccess, editingSubscription, setSu
           })
         : await api.post("/subscriptions", payload, { "Idempotency-Key": idempotencyKey.current });
 
-      if (res.isErr()) throw new AppError(res.error.message);
+      if (res.isErr()) throw new AppError("INTERNAL_ERROR", res.error.message);
       return res.value;
     },
     { invalidate: ["subscriptions"], successMsg: `Subscription ${isEditMode ? "updated" : "created"}`, onSuccess }

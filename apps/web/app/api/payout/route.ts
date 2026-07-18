@@ -29,14 +29,15 @@ export const POST = apiHandler({
     const { walletAddress, assetCode, assetIssuer, cryptoAmount, memo } = body;
 
     const keyCheck = isValidPublicKey(walletAddress);
-    if (keyCheck.isErr()) throw new AppError(keyCheck.error.message);
+    if (keyCheck.isErr()) throw new AppError("INTERNAL_ERROR", keyCheck.error.message);
 
     const [{ secret }, org] = await Promise.all([
       retrieveOrganizationIdAndSecret(organizationId, environment),
       retrieveOrganization(organizationId),
     ]);
 
-    if (!secret) throw new AppError("Merchant Stellar wallet not configured. Set up your wallet in Settings.");
+    if (!secret)
+      throw new AppError("VALIDATION_ERROR", "Merchant Stellar wallet not configured. Set up your wallet in Settings.");
 
     const [assetList, fiatRates] = await Promise.all([
       retrieveSupportedAssets({ code: assetCode }, environment),

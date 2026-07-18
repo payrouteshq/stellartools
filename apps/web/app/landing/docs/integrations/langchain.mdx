@@ -20,6 +20,7 @@ const model = shield(new ChatOpenAI({ model: "gpt-4o" }), {
   apiKey: process.env.STELLAR_TOOLS_API_KEY!,
   customerId: "cus_xxx",
   productId: "prod_xxx",
+  cacheTTL: 120_000,
 });
 
 const result = await model.invoke([new HumanMessage("Hello")]);
@@ -37,6 +38,7 @@ const chain = ChatPromptTemplate.fromMessages([["human", "{question}"]])
       apiKey: process.env.STELLAR_TOOLS_API_KEY!,
       customerId: "cus_xxx",
       productId: "prod_xxx",
+      cacheTTL: 120_000,
     })
   )
   .pipe(new StringOutputParser());

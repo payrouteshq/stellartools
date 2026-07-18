@@ -703,7 +703,7 @@ function CheckoutModalContent({
 
   const { mutate: createCheckoutAction, isPending: isCreatingCheckout } = useAction(
     async (data: z.infer<typeof checkoutSchema>) => {
-      if (!orgContext) throw new AppError("No organization context found");
+      if (!orgContext) throw new AppError("NOT_FOUND", "No organization context found");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token! },
@@ -724,7 +724,7 @@ function CheckoutModalContent({
       );
 
       if (response.isErr()) {
-        throw new AppError(response.error.message);
+        throw new AppError("INTERNAL_ERROR", response.error.message);
       }
       return response.value as Checkout;
     },
@@ -874,7 +874,7 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
 
   const { mutate: generatePortalLinkAction, isPending: isGeneratingPortalLink } = useAction(
     async () => {
-      if (!orgContext) throw new AppError("Organization context not found");
+      if (!orgContext) throw new AppError("NOT_FOUND", "Organization context not found");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token! },
@@ -885,7 +885,7 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
       );
 
       if (response.isErr()) {
-        throw new AppError(response.error.message);
+        throw new AppError("INTERNAL_ERROR", response.error.message);
       }
 
       return response.value;

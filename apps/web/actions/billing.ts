@@ -20,7 +20,7 @@ export async function processPaymentBilling(paymentId: string, organizationId: s
   if (!payment || payment.status !== "confirmed") return;
 
   if (!secret || !payment.selectedAssetCode) {
-    throw new AppError(`Missing secret or asset for payment ${paymentId}`);
+    throw new AppError("VALIDATION_ERROR", `Missing secret or asset for payment ${paymentId}`);
   }
 
   const {

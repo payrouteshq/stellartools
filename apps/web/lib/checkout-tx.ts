@@ -38,7 +38,7 @@ const MIN_CHECKOUT_TX_TIMEOUT_SEC = 120;
 
 function checkoutTxTimeoutSeconds(expiresAt: Date): number {
   const remainingSec = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
-  if (remainingSec <= 0) throw new AppError("Checkout has expired");
+  if (remainingSec <= 0) throw new AppError("VALIDATION_ERROR", "Checkout has expired");
   return Math.min(Math.max(remainingSec, MIN_CHECKOUT_TX_TIMEOUT_SEC), STELLAR_MAX_TX_TIMEOUT_SEC);
 }
 
@@ -68,7 +68,10 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
 
   const { server, passphrase } = getStellarConfig(checkout.environment);
   const account = await server.loadAccount(customerPublicKey).catch((e) => {
-    throw new AppError(e.res?.status === 404 ? "Account not found. Check network." : "Failed to load account");
+    throw new AppError(
+      e.res?.status === 404 ? "VALIDATION_ERROR" : "INTERNAL_ERROR",
+      e.res?.status === 404 ? "Account not found. Check network." : "Failed to load account"
+    );
   });
 
   const asset = sendAssetCode === "XLM" ? Asset.native() : new Asset(sendAssetCode, sendAssetIssuer!);
@@ -76,7 +79,7 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
 
   if (sendAssetIssuer) {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
-    if (!orgSecret) throw new AppError("Merchant wallet not configured");
+    if (!orgSecret) throw new AppError("VALIDATION_ERROR", "Merchant wallet not configured");
     await ensureTrustline(
       decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
       sendAssetCode,
@@ -101,7 +104,7 @@ export async function prepareSubscriptionApproval(
 > {
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
-    if (!checkout) throw new AppError("Checkout not found");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
     if (checkout.status !== "open") return { error: "Checkout is no longer open" };
     if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
     if (!selectedAssetCode) return { error: "No payment asset selected" };
@@ -200,7 +203,7 @@ export async function finalizeSubscriptionCheckout(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
-    if (!checkout) throw new AppError("Checkout not found");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
 
     const { status, productType, productId, merchantPublicKey, organizationId, environment, customerId } = checkout;
 

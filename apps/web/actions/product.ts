@@ -20,12 +20,12 @@ const resolveSubscriptionBilling = (
   }
 
   if (!recurringPeriod) {
-    throw new AppError("Subscription product requires a recurring period");
+    throw new AppError("VALIDATION_ERROR", "Subscription product requires a recurring period");
   }
 
   const ms = subscriptionPeriodMs(recurringPeriod, customDurationMs);
   if (!ms) {
-    throw new AppError("Subscription product has an invalid billing period");
+    throw new AppError("VALIDATION_ERROR", "Subscription product has an invalid billing period");
   }
 
   return { recurringPeriod, customDurationMs: ms };
@@ -49,7 +49,7 @@ export const postProduct = async (
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   if (!Number.isInteger(params.priceCents) || params.priceCents <= 0) {
-    throw new AppError("Price must be a positive integer in cents");
+    throw new AppError("VALIDATION_ERROR", "Price must be a positive integer in cents");
   }
 
   const billing = resolveSubscriptionBilling(params.type, params.recurringPeriod, params.customDurationMs);
@@ -114,7 +114,7 @@ export const putProduct = async (id: string, orgId: string, env: Network, retUpd
     },
   ] = await Promise.all([resolveOrgContext(orgId, env), retrieveProducts(orgId, env, { productId: id })]);
 
-  if (!oldProduct) throw new AppError("Product not found");
+  if (!oldProduct) throw new AppError("NOT_FOUND", "Product not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
   const type = baseUpdate.type ?? oldProduct.type;
@@ -133,7 +133,7 @@ export const putProduct = async (id: string, orgId: string, env: Network, retUpd
     .where(and(eq(products.id, id), eq(products.organizationId, organizationId)))
     .returning();
 
-  if (!product) throw new AppError("Product not found");
+  if (!product) throw new AppError("NOT_FOUND", "Product not found");
 
   return product;
 };

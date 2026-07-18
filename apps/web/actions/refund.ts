@@ -150,7 +150,7 @@ export const getRefund = async (id: string, orgId?: string, env?: Network) => {
     .where(and(eq(refunds.id, id), eq(refunds.organizationId, organizationId), eq(refunds.environment, environment)))
     .limit(1);
 
-  if (!refund) throw new AppError("Refund not found");
+  if (!refund) throw new AppError("NOT_FOUND", "Refund not found");
 
   return refund;
 };
@@ -164,7 +164,7 @@ export const updateRefund = async (id: string, retUpdate: Partial<Refund>, orgId
     .where(and(eq(refunds.id, id), eq(refunds.organizationId, organizationId), eq(refunds.environment, environment)))
     .returning();
 
-  if (!refund) throw new AppError("Failed to update refund");
+  if (!refund) throw new AppError("INTERNAL_ERROR", "Failed to update refund");
 
   return refund as Refund;
 };
@@ -185,7 +185,7 @@ export const getRefunds = async (organizationId: string) => {
     .where(eq(refunds.organizationId, organizationId))
     .orderBy(desc(refunds.createdAt));
 
-  if (!refundsList) throw new AppError("Failed to get refunds");
+  if (!refundsList) throw new AppError("INTERNAL_ERROR", "Failed to get refunds");
 
   return refundsList;
 };

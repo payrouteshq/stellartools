@@ -70,7 +70,7 @@ export const putApiKey = safeAction(async (id: string, retUpdate: Partial<ApiKey
     retrieveApiKey(id),
   ]);
 
-  if (!oldApiKey) throw new AppError("API Key not found");
+  if (!oldApiKey) throw new AppError("NOT_FOUND", "API Key not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
 
@@ -117,14 +117,14 @@ export const resolveAuthContext = async (params: {
       };
     }
 
-    throw new AppError("Invalid Cron Secret");
+    throw new AppError("VALIDATION_ERROR", "Invalid Cron Secret");
   }
 
   // 1. Portal Degree (End-user/Customer)
   if (portalToken) {
     const session = await retrieveCustomerPortalSession(portalToken);
 
-    if (!session) throw new AppError("Invalid portal token");
+    if (!session) throw new AppError("VALIDATION_ERROR", "Invalid portal token");
 
     return { organizationId: session.organizationId, environment: session.environment, type: "portal" };
   }
@@ -142,7 +142,7 @@ export const resolveAuthContext = async (params: {
       .where(eq(organizations.id, orgId))
       .limit(1);
 
-    if (!row) throw new AppError("Invalid Session");
+    if (!row) throw new AppError("VALIDATION_ERROR", "Invalid Session");
 
     return { organizationId: row.id, environment, type: "session" };
   }
@@ -154,11 +154,11 @@ export const resolveAuthContext = async (params: {
     // Decode first (without verifying) to extract appId, then look up the app's secret and verify.
     const decoded = decodeJwt<AppContext>(rawToken);
 
-    if (!decoded?.appId) throw new AppError("Invalid App Token");
+    if (!decoded?.appId) throw new AppError("VALIDATION_ERROR", "Invalid App Token");
 
     const [app] = await retrieveApps({ id: decoded.appId });
 
-    if (!app) throw new AppError("Invalid App Token");
+    if (!app) throw new AppError("VALIDATION_ERROR", "Invalid App Token");
 
     const payload = verifyJwt<AppContext>(
       rawToken,

@@ -1,9 +1,9 @@
 import { StellarToolsIcon } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { fileRouter } from "@/lib/uploadthing";
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import type { Metadata } from "next";
 import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
-import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import Image from "next/image";
 import Link from "next/link";
 import { extractRouterConfig } from "uploadthing/server";

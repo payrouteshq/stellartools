@@ -86,7 +86,7 @@ export const DELETE = apiHandler({
       auth.environment
     );
 
-    if (!customer) return Result.err(new AppError("Customer not found"));
+    if (!customer) return Result.err(new AppError("NOT_FOUND", "Customer not found"));
 
     const { data: subscriptions } = await retrieveSubscriptions(
       auth.organizationId,
@@ -108,7 +108,8 @@ export const DELETE = apiHandler({
         subscription.productId
       );
 
-      if (cancellationResult.isErr()) return Result.err(new AppError(cancellationResult.error.message));
+      if (cancellationResult.isErr())
+        return Result.err(new AppError("INTERNAL_ERROR", cancellationResult.error.message));
     }
 
     await deleteCustomer(params.customerId, auth.organizationId, auth.environment);

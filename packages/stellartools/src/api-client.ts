@@ -39,44 +39,32 @@ export class ApiClient {
     return url.startsWith("/") ? url.slice(1) : url;
   }
 
-  private request = async <T>(
-    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
-    call: () => Promise<T>
-  ): Promise<Result<T, Error>> => {
+  private request = async <T>(method: string, call: () => Promise<T>): Promise<Result<T, Error>> => {
     try {
       const data = await call();
 
-      // If we are in an iframe and this was a mutation, notify the parent
-      if (
-        typeof window !== "undefined" &&
-        window.self !== window.top &&
-        ["POST", "PUT", "DELETE", "PATCH"].includes(method.toUpperCase())
-      ) {
+      // Notify iframe parent of changes
+      if (typeof window !== "undefined" && window.self !== window.top && method !== "GET") {
         window.parent.postMessage({ type: "stellar:data-changed" }, "*");
       }
 
       return Result.ok(data);
-    } catch (e) {
-      if (e instanceof HTTPError) {
+    } catch (e: any) {
+      // 1. Handle structured errors from our apiHandler
+      if (e.response) {
         try {
-          const body = (await e.response.json()) as { error?: string | { message?: string; [k: string]: unknown } };
-          const raw = body?.error;
-          if (typeof raw === "string") {
-            return Result.err(new Error(raw));
+          const body = await e.response.json();
+          if (body?.error) {
+            // Flatten the error for simplicity, or keep code for logic
+            const msg = body.error.message || body.error.code || "Unknown Error";
+            return Result.err(new Error(msg));
           }
-          if (
-            raw &&
-            typeof raw === "object" &&
-            "message" in raw &&
-            typeof (raw as { message?: string }).message === "string"
-          ) {
-            return Result.err(new Error((raw as { message: string }).message));
-          }
-          if (raw && typeof raw === "object") {
-            return Result.err(new Error(JSON.stringify(raw)));
-          }
-        } catch (_) {}
+        } catch {
+          // Fallback for non-JSON responses (e.g., 504 gateway timeouts)
+        }
       }
+
+      // 2. Handle network/connectivity errors
       const err = e instanceof Error ? e : new Error(String(e));
       return Result.err(err);
     }

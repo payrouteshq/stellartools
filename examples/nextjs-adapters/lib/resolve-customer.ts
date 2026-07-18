@@ -5,9 +5,11 @@ export async function resolveCustomerIdFromEmail(email: string | undefined): Pro
 
   if (!trimmed) return null;
 
-  const st = new StellarTools({ api_key: process.env.STELLARTOOLS_API_KEY! });
+  const apiKey = process.env.STELLARTOOLS_API_KEY;
 
+  if (!apiKey) return null;
+
+  const st = new StellarTools({ api_key: apiKey });
   const customers = await st.customers.list({ email: trimmed });
-
-  return customers[0]?.id ?? "";
+  return customers[0]?.id ?? null;
 }

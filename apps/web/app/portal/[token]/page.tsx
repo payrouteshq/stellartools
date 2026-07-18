@@ -39,7 +39,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
       const response = await api.post(`/subscriptions/${subscriptionId}/${path}`, undefined, {
         "x-portal-token": token,
       });
-      if (response.isErr()) throw new AppError(response.error.message);
+      if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
       return response.value;
     },
     {
@@ -59,7 +59,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
         { cancel_at_period_end: false },
         { "x-portal-token": token }
       );
-      if (response.isErr()) throw new AppError(response.error.message);
+      if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
       return response.value;
     },
     {
@@ -73,7 +73,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   const { mutate: deleteWalletAction, isPending: isDeletingWallet } = useAction(
     async (walletId: string) => {
       const session = await retrieveCustomerPortalSession(token);
-      if (!session) throw new AppError("Invalid or expired session");
+      if (!session) throw new AppError("UNAUTHORIZED", "Invalid or expired session");
       const { customerId, organizationId, environment } = session;
       return await deleteCustomerWallet(customerId, walletId, organizationId, environment);
     },

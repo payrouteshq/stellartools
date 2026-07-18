@@ -233,14 +233,14 @@ export default function ProductDetailPage() {
 
   const { mutate: deleteProductAction, isPending: isDeletingProduct } = useAction(
     async () => {
-      if (!org?.token) throw new AppError("No session token");
+      if (!org?.token) throw new AppError("UNAUTHORIZED", "No session token");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token },
       });
-      if (!product?.organizationId) throw new AppError("Product not found");
+      if (!product?.organizationId) throw new AppError("NOT_FOUND", "Product not found");
       const response = await api.delete<null>(`/product/${productId}`);
-      if (response.isErr()) throw new AppError(response.error.message);
+      if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
       return response.value;
     },
     {

@@ -195,7 +195,7 @@ export function ProductsModalContent({
 
   const { mutate: putProductAction, isPending: isPendingPutProduct } = useAction(
     async ({ data, existingImageUrls }: { data: ProductFormData; existingImageUrls?: string[] }) => {
-      if (!orgContext) throw new AppError("No organization context found");
+      if (!orgContext) throw new AppError("NOT_FOUND", "No organization context found");
 
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
@@ -242,7 +242,7 @@ export function ProductsModalContent({
           unit: data.unit,
         });
 
-        if (response.isErr()) throw new AppError(response.error.message);
+        if (response.isErr()) throw new AppError("INTERNAL_ERROR", response.error.message);
 
         return response.value;
       }
@@ -261,9 +261,9 @@ export function ProductsModalContent({
         status: "active",
       });
 
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
 
-      if ("error" in result.value) throw new AppError(result.value.error);
+      if ("error" in result.value) throw new AppError("INTERNAL_ERROR", result.value.error);
 
       return result.value as ProductEsque;
     },

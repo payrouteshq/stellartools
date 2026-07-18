@@ -78,7 +78,7 @@ export const putAccount = async (id: string, params: Partial<Account>, options?:
     .where(eq(accounts.id, id))
     .returning();
 
-  if (!account) throw new AppError("Account not found");
+  if (!account) throw new AppError("NOT_FOUND", "Account not found");
 
   return account;
 };
@@ -96,7 +96,7 @@ export const resolveAccountContext = async (accountId?: string) => {
 
   const account = await getCurrentUser();
 
-  if (!account) throw new AppError("Account not found");
+  if (!account) throw new AppError("NOT_FOUND", "Account not found");
 
   return { accountId: account.id };
 };

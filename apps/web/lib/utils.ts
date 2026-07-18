@@ -124,7 +124,7 @@ export function generateResourceId(
   hashAlgorithm: HashAlgorithm = "shake128"
 ): string {
   if (!baseSignature || !prefix || length <= 0) {
-    throw new AppError("Invalid arguments: baseSignature, prefix, and length (> 0) are required");
+    throw new AppError("VALIDATION_ERROR", "Invalid arguments: baseSignature, prefix, and length (> 0) are required");
   }
 
   const hash =
@@ -189,7 +189,7 @@ export const downloadReceipt = async (Component: React.ReactElement, filename: s
     saveAs(blob, `${filename}-${new Date().toISOString().split("T")[0]}.pdf`);
   } catch (error) {
     console.error("PDF Export Failed:", error);
-    throw new AppError("Could not generate receipt");
+    throw new AppError("INTERNAL_ERROR", "Could not generate receipt");
   }
 };
 

@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     );
 
     if (stateDataResult.isErr()) {
-      throw new AppError("Invalid state data: " + stateDataResult.error.message);
+      throw new AppError("VALIDATION_ERROR", "Invalid state data: " + stateDataResult.error.message);
     }
 
     const stateData = stateDataResult.value;
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     const { tokens } = await client.getToken(code);
 
     if (!tokens.id_token) {
-      throw new AppError("No ID token received from Google");
+      throw new AppError("VALIDATION_ERROR", "No ID token received from Google");
     }
 
     const ticket = await client.verifyIdToken({
@@ -64,15 +64,15 @@ export async function GET(req: NextRequest) {
     const payload = ticket.getPayload();
 
     if (!payload) {
-      throw new AppError("Invalid token payload");
+      throw new AppError("VALIDATION_ERROR", "Invalid token payload");
     }
 
     if (payload.aud !== process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-      throw new AppError("Token audience mismatch");
+      throw new AppError("VALIDATION_ERROR", "Token audience mismatch");
     }
 
     if (!payload.email) {
-      throw new AppError("Email not found in token");
+      throw new AppError("VALIDATION_ERROR", "Email not found in token");
     }
     const nameParts = payload.name?.split(/\s+/) || [];
     const firstName = payload.given_name || nameParts[0] || "";

@@ -150,13 +150,13 @@ function PayoutForm({
       cryptoAmount: string;
       memo: string | null;
     }) => {
-      if (!org) throw new AppError("No organization context");
+      if (!org) throw new AppError("NOT_FOUND", "No organization context");
       const api = new ApiClient({
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": org.token! },
       });
       const result = await api.post<{ id: string }>("/payout", data, { "Idempotency-Key": idempotencyKey.current });
-      if (result.isErr()) throw new AppError(result.error.message);
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
     { onSuccess, successMsg: "Payout submitted successfully" }

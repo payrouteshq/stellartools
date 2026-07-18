@@ -192,12 +192,12 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           selectedAsset.code,
           selectedAsset.canonicalIssuer
         );
-        if ("error" in prep) throw new AppError(prep.error);
+        if ("error" in prep) throw new AppError("INTERNAL_ERROR", prep.error);
 
         if (prep.needsPreSwap && prep.preSwapXdr) {
           toast.info("Swapping tokens...");
           const res = await wallet.signAndSubmit(new Transaction(prep.preSwapXdr, network));
-          if (res?.status !== "SUCCESS") throw new AppError("Swap failed");
+          if (res?.status !== "SUCCESS") throw new AppError("INTERNAL_ERROR", "Swap failed");
         }
 
         const res = await wallet.signAndSubmit(new Transaction(prep.xdr, network));
@@ -209,7 +209,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
             selectedAsset.code,
             selectedAsset.canonicalIssuer ?? ""
           );
-          if (!result.success) throw new AppError(result.error ?? "Subscription failed");
+          if (!result.success) throw new AppError("STELLAR_ERROR", result.error ?? "Subscription failed");
           toast.success("You're all set!");
         } else {
           const reason = res?.message ?? "Subscription failed";
@@ -224,7 +224,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           sendAssetIssuer: selectedAsset.canonicalIssuer,
           sendMaxEstimate: cryptoAmount,
         });
-        if (typeof xdr !== "string") throw new AppError(xdr.error);
+        if (typeof xdr !== "string") throw new AppError("STELLAR_ERROR", xdr.error);
 
         const res = await wallet.signAndSubmit(new Transaction(xdr, network));
         if (res?.status === "SUCCESS") {
@@ -275,6 +275,6 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
 export const useCheckout = () => {
   const context = React.useContext(CheckoutContext);
-  if (!context) throw new AppError("useCheckout must be used within a CheckoutProvider");
+  if (!context) throw new AppError("NOT_FOUND", "useCheckout must be used within a CheckoutProvider");
   return context;
 };

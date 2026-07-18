@@ -21,6 +21,7 @@ const result = await generateText({
     apiKey: process.env.STELLAR_TOOLS_API_KEY!,
     customerId: "cus_xxx",
     productId: "prod_xxx",
+    cacheTTL: 120_000,
   }),
   prompt: "Write a haiku about Stellar",
 });
@@ -39,6 +40,7 @@ const { textStream } = await streamText({
     apiKey: process.env.STELLAR_TOOLS_API_KEY!,
     customerId: req.user.stellartoolsCustomerId,
     productId: "prod_xxx",
+    cacheTTL: 120_000,
   }),
   messages: [{ role: "user", content: "Hello" }],
 });

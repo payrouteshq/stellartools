@@ -53,8 +53,8 @@ export const postOrganizationAndSecret = safeAction(
 
       const [testnetAccount, mainnetAccount] = await Promise.all([createAccount("testnet"), createAccount("mainnet")]);
 
-      if (testnetAccount.isErr()) throw new AppError(testnetAccount.error?.message);
-      if (mainnetAccount.isErr()) throw new AppError(mainnetAccount.error?.message);
+      if (testnetAccount.isErr()) throw new AppError("INTERNAL_ERROR", testnetAccount.error?.message);
+      if (mainnetAccount.isErr()) throw new AppError("INTERNAL_ERROR", mainnetAccount.error?.message);
 
       await postOrganizationSecretWithEncryption(
         {
@@ -98,7 +98,7 @@ export const retrieveOrganizations = async (accId?: string) => {
 export const retrieveOrganization = async (id: string) => {
   const [organization] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
 
-  if (!organization) throw new AppError("Organization not found");
+  if (!organization) throw new AppError("NOT_FOUND", "Organization not found");
 
   return organization;
 };
@@ -123,7 +123,7 @@ export const retrieveOrganizationIdAndSecret = async (id: string, environment: N
     .where(eq(organizations.id, id))
     .limit(1);
 
-  if (!result) throw new AppError("Organization not found");
+  if (!result) throw new AppError("NOT_FOUND", "Organization not found");
 
   return result;
 };
@@ -154,7 +154,7 @@ export const putOrganization = async (
     .where(eq(organizations.id, id))
     .returning();
 
-  if (!organization) throw new AppError("Organization not found");
+  if (!organization) throw new AppError("NOT_FOUND", "Organization not found");
 
   return organization;
 };
@@ -206,7 +206,7 @@ export const switchEnvironment = async (environment: Network) => {
   const currentOrg = await getCurrentOrganization();
 
   if (!currentOrg) {
-    throw new AppError("No organization selected");
+    throw new AppError("VALIDATION_ERROR", "No organization selected");
   }
 
   await setCurrentOrganization(currentOrg.id, environment);
@@ -223,7 +223,7 @@ export const resolveOrgContext = async (
   const orgContext = await getCurrentOrganization();
 
   if (!orgContext) {
-    throw new AppError("No organization context found");
+    throw new AppError("VALIDATION_ERROR", "No organization context found");
   }
 
   return {
@@ -268,7 +268,7 @@ export const putOrganizationSecretWithEncryption = async (id: string, params: Pa
     .where(eq(organizationSecrets.id, id))
     .returning();
 
-  if (!secret) throw new AppError("Secret not found");
+  if (!secret) throw new AppError("NOT_FOUND", "Secret not found");
 
   return secret;
 };

@@ -36,6 +36,8 @@
       "@types/react": "19.2.15",
       "@types/react-dom": "19.2.3"
     },
-    "neverBuiltDependencies": ["usb"]
+    "neverBuiltDependencies": [
+      "usb"
+    ]
   }
 }

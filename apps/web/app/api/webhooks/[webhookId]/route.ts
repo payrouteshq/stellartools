@@ -16,7 +16,7 @@ export const GET = apiHandler({
     const {
       data: [webhook],
     } = await retrieveWebhooks(organizationId, environment, { id: webhookId });
-    if (!webhook) return Result.err(new AppError("Webhook not found"));
+    if (!webhook) return Result.err(new AppError("NOT_FOUND", "Webhook not found"));
     return Result.ok({
       id: webhook.id,
       url: webhook.url,

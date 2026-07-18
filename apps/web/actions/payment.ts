@@ -373,7 +373,7 @@ export const putPayment = async (id: string, orgId: string, env: Network, params
     },
   ] = await Promise.all([resolveOrgContext(orgId, env), retrievePayments(orgId, env, { paymentId: id })]);
 
-  if (!oldPayment) throw new AppError("Payment not found");
+  if (!oldPayment) throw new AppError("NOT_FOUND", "Payment not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = params;
 
@@ -437,7 +437,7 @@ export const sweepAndProcessPayment = async (checkoutId: string, failureReason?:
 
   const result = await verifyPaymentByPagingToken(merchantPublicKey, checkoutId, initialPagingToken!, environment);
 
-  if (result.isErr()) throw new AppError(result.error.message);
+  if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
 
   if (!result.value) return checkout;
 

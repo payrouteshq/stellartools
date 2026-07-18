@@ -39,7 +39,7 @@ export const postCheckout = async (
     secret: async () => await retrieveOrganizationIdAndSecret(organizationId, environment),
     async token() {
       const publicKey = (await this.$.secret).secret?.publicKey;
-      if (!publicKey) throw new AppError("Merchant public key not found");
+      if (!publicKey) throw new AppError("VALIDATION_ERROR", "Merchant public key not found");
       return await getLatestPagingToken(publicKey, environment);
     },
   });
@@ -138,7 +138,7 @@ export const retrieveCheckout = async (id: string, orgId?: string, env?: Network
       and(eq(checkouts.id, id), eq(checkouts.organizationId, organizationId), eq(checkouts.environment, environment))
     );
 
-  if (!checkout) throw new AppError("Checkout not found");
+  if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
 
   return checkout;
 };
@@ -245,7 +245,7 @@ export const putCheckout = async (id: string, params: Partial<Checkout>, orgId?:
     retrieveCheckout(id, orgId, env),
   ]);
 
-  if (!oldCheckout) throw new AppError("Checkout not found");
+  if (!oldCheckout) throw new AppError("NOT_FOUND", "Checkout not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = params;
 
@@ -316,16 +316,16 @@ export const createProductCheckoutSession = async (params: {
     data: [product],
   } = await retrieveProducts(orgId, env, { productId });
 
-  if (!product) throw new AppError(`Product Not Found ${productId}`);
+  if (!product) throw new AppError("NOT_FOUND", `Product Not Found ${productId}`);
 
   if (product.type === "subscription" && !product.recurringPeriod) {
-    throw new AppError("Subscription product does not have a recurring period");
+    throw new AppError("VALIDATION_ERROR", "Subscription product does not have a recurring period");
   }
 
   const durationMs = subscriptionPeriodMs(product.recurringPeriod, product.customDurationMs);
 
   if (!durationMs && product.type === "subscription") {
-    throw new AppError("Subscription product has an invalid billing period");
+    throw new AppError("VALIDATION_ERROR", "Subscription product has an invalid billing period");
   }
 
   const customer = await upsertCustomer(

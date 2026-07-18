@@ -15,7 +15,7 @@ export const GET = apiHandler({
       limit: 1,
     });
 
-    if (data.length === 0) throw new AppError("Payment not found");
+    if (data.length === 0) throw new AppError("NOT_FOUND", "Payment not found");
 
     return Result.ok(data[0]);
   },

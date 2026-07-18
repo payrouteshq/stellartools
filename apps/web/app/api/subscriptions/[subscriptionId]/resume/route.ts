@@ -34,7 +34,7 @@ export const POST = apiHandler({
 
     const customerWallet = subscription?.customerWallet;
 
-    if (!customerWallet?.address) throw new AppError("Customer wallet not found");
+    if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
     const merchantSecret = await resolveMerchantSecret(organizationId, environment);
     const resumeResult = await soroban$resumeSubscription(
@@ -45,7 +45,7 @@ export const POST = apiHandler({
     );
 
     if (resumeResult.isErr()) {
-      return Result.err(new AppError("Failed to resume subscription: " + resumeResult.error.message));
+      return Result.err(new AppError("INTERNAL_ERROR", "Failed to resume subscription: " + resumeResult.error.message));
     }
 
     const result = await putSubscription(

@@ -42,7 +42,7 @@ const getSorobanConfig = (network: Network) => {
 
 export const resolveMerchantSecret = async (orgId: string, network: Network) => {
   const { secret } = await retrieveOrganizationIdAndSecret(orgId, network);
-  if (!secret?.encrypted) throw new AppError("Merchant wallet not configured");
+  if (!secret?.encrypted) throw new AppError("VALIDATION_ERROR", "Merchant wallet not configured");
   return decrypt(secret.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 };
 
@@ -126,11 +126,11 @@ const invokeSoroban = async <T = SorobanTxResult>(
 
     if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
       const parsed = parseError(simulation);
-      throw new AppError(parsed.message);
+      throw new AppError("STELLAR_ERROR", parsed.message);
     }
 
     if (options.readOnly) {
-      if (!simulation.result) throw new AppError("Simulation returned no result");
+      if (!simulation.result) throw new AppError("STELLAR_ERROR", "Simulation returned no result");
       return StellarSDK.scValToNative(simulation.result.retval) as T;
     }
 
@@ -140,16 +140,16 @@ const invokeSoroban = async <T = SorobanTxResult>(
     const response = await server.sendTransaction(assembledTx);
 
     if (response.status !== "PENDING") {
-      throw new AppError(`Submission failed: ${response.status}`);
+      throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
     }
 
     const result = await server.pollTransaction(response.hash, { attempts: 15 });
 
     if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      throw new AppError(`Transaction failed on-chain: ${response.hash}`);
+      throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
     }
     if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
-      throw new AppError(`Transaction not confirmed: ${result.status}`);
+      throw new AppError("STELLAR_ERROR", `Transaction not confirmed: ${result.status}`);
     }
 
     const walletAddres = result.envelopeXdr
@@ -167,7 +167,7 @@ export const verifySorobanTx = async (network: Network, hash: string) => {
     const { server } = getSorobanConfig(network);
     const result = await server.getTransaction(hash);
     if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
-      throw new AppError(`Transaction not successful: ${result.status}`);
+      throw new AppError("STELLAR_ERROR", `Transaction not successful: ${result.status}`);
     }
     return hash;
   });
@@ -200,7 +200,7 @@ export const buildSubscriptionApprovalXdr = async (
 
     const simulation = await server.simulateTransaction(tx);
     if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
-      throw new AppError(parseError(simulation).message);
+      throw new AppError("STELLAR_ERROR", parseError(simulation).message);
     }
 
     const prepared = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
@@ -232,11 +232,11 @@ export const submitSorobanTx = async (network: Network, signedXDR: string) => {
     const { server, passphrase } = getSorobanConfig(network);
     const tx = StellarSDK.TransactionBuilder.fromXDR(signedXDR, passphrase);
     const response = await server.sendTransaction(tx);
-    if (response.status !== "PENDING") throw new AppError(`Submission failed: ${response.status}`);
+    if (response.status !== "PENDING") throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
 
     const result = await server.pollTransaction(response.hash, { attempts: 15 });
     if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      throw new AppError(`Transaction failed on-chain: ${response.hash}`);
+      throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
     }
 
     const walletAddres =

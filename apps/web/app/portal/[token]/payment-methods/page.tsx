@@ -46,7 +46,7 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   const { mutate: linkWallet, isPending: isLinking } = useAction(
     async (address: string) => {
       const session = await retrieveCustomerPortalSession(token);
-      if (!session) throw new AppError("Invalid or expired session");
+      if (!session) throw new AppError("UNAUTHORIZED", "Invalid or expired session");
       const { customerId, organizationId, environment } = session;
       return await upsertCustomerWallet(customerId, { walletAddress: address }, organizationId, environment);
     },
@@ -60,7 +60,7 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   const { mutate: deleteWalletAction, isPending: isDeletingWallet } = useAction(
     async (walletId: string) => {
       const session = await retrieveCustomerPortalSession(token);
-      if (!session) throw new AppError("Invalid or expired session");
+      if (!session) throw new AppError("UNAUTHORIZED", "Invalid or expired session");
       const { customerId, organizationId, environment } = session;
       return await deleteCustomerWallet(customerId, walletId, organizationId, environment);
     },

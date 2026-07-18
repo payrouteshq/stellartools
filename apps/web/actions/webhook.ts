@@ -31,7 +31,7 @@ export const postWebhook = async (
     } as Webhook)
     .returning();
 
-  if (!webhook) throw new AppError("Failed to create webhook");
+  if (!webhook) throw new AppError("INTERNAL_ERROR", "Failed to create webhook");
 
   return webhook as Webhook;
 };
@@ -119,7 +119,7 @@ export const putWebhook = async (id: string, data: Partial<Webhook>, orgId?: str
     .where(and(eq(webhooks.id, id), eq(webhooks.organizationId, organizationId), eq(webhooks.environment, environment)))
     .returning();
 
-  if (!webhook) throw new AppError("Failed to update webhook");
+  if (!webhook) throw new AppError("INTERNAL_ERROR", "Failed to update webhook");
 
   return webhook;
 };
@@ -154,7 +154,7 @@ export const postDeliveryLog = async (
     } as DeliveryLog)
     .returning();
 
-  if (!deliveryLog) throw new AppError("Failed to create delivery log");
+  if (!deliveryLog) throw new AppError("INTERNAL_ERROR", "Failed to create delivery log");
 
   return deliveryLog;
 };
@@ -234,7 +234,7 @@ export const putDeliveryLog = async (id: string, data: Partial<DeliveryLog>, org
     )
     .returning();
 
-  if (!deliveryLog) throw new AppError("Failed to update delivery log");
+  if (!deliveryLog) throw new AppError("INTERNAL_ERROR", "Failed to update delivery log");
 
   return deliveryLog;
 };

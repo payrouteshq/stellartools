@@ -20,7 +20,7 @@ export const deliverToApp = async <TName extends string, TObject>(
 
   const webhookUrl = app.webhookUrl;
 
-  if (!webhookUrl) throw new AppError("App webhook URL not found");
+  if (!webhookUrl) throw new AppError("NOT_FOUND", "App webhook URL not found");
 
   const { organizationId, environment, ...eventData } = envelope;
 
@@ -40,7 +40,7 @@ export const deliverToApp = async <TName extends string, TObject>(
       environment
     );
 
-    if (!appToken) throw new AppError("Failed to generate app token");
+    if (!appToken) throw new AppError("INTERNAL_ERROR", "Failed to generate app token");
 
     const response = await fetch(webhookUrl, {
       method: "POST",

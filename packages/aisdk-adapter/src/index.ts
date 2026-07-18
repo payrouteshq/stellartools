@@ -11,32 +11,52 @@ export class ShieldError extends Error {
   }
 }
 
-const schema = Schema.object({
+const shieldSchema = Schema.object({
   apiKey: Schema.string(),
   customerId: Schema.string(),
   productId: Schema.string(),
+  cacheTTL: Schema.number().optional().default(60_000),
 });
 
-type ShieldConfig = Schema.infer<typeof schema>;
+type ShieldConfig = Schema.infer<typeof shieldSchema>;
 
-/**
- * Creates the internal middleware that runs before every LLM call.
- */
+const ACCESS_CACHE = new Map<string, { hasAccess: boolean; expires: number }>();
+
 const createShieldMiddleware = (config: ShieldConfig): LanguageModelMiddleware => {
-  const { error, data } = schema.safeParse(config);
-
-  if (error) throw new Error(`Invalid config: ${error.message}`);
-
-  const st = new StellarTools({ api_key: data.apiKey });
+  const st = new StellarTools({ api_key: config.apiKey });
+  const cacheKey = `${config.customerId}:${config.productId}`;
 
   const verify = async () => {
-    // We check for active subscriptions for this specific product.
-    // If no active subscription is found, we block the request.
-    const subs = await st.subscriptions.list(data.customerId);
-    const hasAccess = subs.some((s) => s.product_id === data.productId && internal$hasSubscriptionAccess(s));
+    const now = Date.now();
+    const cached = ACCESS_CACHE.get(cacheKey);
 
-    if (!hasAccess) {
-      throw new ShieldError(data.customerId, data.productId);
+    // 1. If we have a valid cache hit, return immediately (0ms latency)
+    if (cached && cached.expires > now) {
+      if (!cached.hasAccess) throw new ShieldError(config.customerId, config.productId);
+      return;
+    }
+
+    // 2. Cache miss or expired: Strike the database
+    try {
+      const subs = await st.subscriptions.list(config.customerId);
+      const hasAccess = subs.some((s) => s.product_id === config.productId && internal$hasSubscriptionAccess(s));
+
+      // 3. Update the global cache
+      ACCESS_CACHE.set(cacheKey, {
+        hasAccess,
+        expires: now + config.cacheTTL,
+      });
+
+      if (!hasAccess) {
+        throw new ShieldError(config.customerId, config.productId);
+      }
+    } catch (e) {
+      // If the StellarTools API is down but we have an expired "success" cache,
+      // we gracefully allow the user through (Fail Open strategy) to prevent
+      // bricking the merchant's AI app.
+      if (cached?.hasAccess) return;
+
+      throw e;
     }
   };
 
@@ -54,14 +74,21 @@ const createShieldMiddleware = (config: ShieldConfig): LanguageModelMiddleware =
 };
 
 /**
- * shield
- * Wraps any AI language model with StellarTools access control.
- *
- * It intercepts the request and verifies the customer's subscription
- * status on the Stellar network before allowing the LLM to process.
+ * @example
+ * const model = shield(openai("gpt-4o"), {
+ *  apiKey: process.env.STELLARTOOLS_API_KEY!,
+ *  customerId: "cus_123...",
+ *  productId: "prod_456...",
+ * });
  */
-export const shield = (model: Parameters<typeof wrapLanguageModel>[0]["model"], config: ShieldConfig): LanguageModel =>
-  wrapLanguageModel({
+export const shield = (
+  model: Parameters<typeof wrapLanguageModel>[0]["model"],
+  config: ShieldConfig
+): LanguageModel => {
+  const parsed = shieldSchema.parse(config);
+
+  return wrapLanguageModel({
     model,
-    middleware: createShieldMiddleware(config),
+    middleware: createShieldMiddleware(parsed),
   });
+};

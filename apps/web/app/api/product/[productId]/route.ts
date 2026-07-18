@@ -18,7 +18,7 @@ export const GET = apiHandler({
       ({ data: [product] }) => product
     );
 
-    if (!product) return Result.err(new AppError("Product not found"));
+    if (!product) return Result.err(new AppError("NOT_FOUND", "Product not found"));
     return Result.ok({
       id: product.id,
       name: product.name,

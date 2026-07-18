@@ -162,7 +162,7 @@ export const putCustomer = async (
     retrieveCustomers({ id }, { requireLookUpParams: true }, orgId, env),
   ]);
 
-  if (!oldCustomer) throw new AppError("Customer not found");
+  if (!oldCustomer) throw new AppError("NOT_FOUND", "Customer not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
 
@@ -281,7 +281,7 @@ export const deleteCustomer = async (id: string, orgId?: string, env?: Network) 
         )
         .returning();
 
-      if (!customer) throw new AppError("Customer not found");
+      if (!customer) throw new AppError("NOT_FOUND", "Customer not found");
 
       await deleteEvents({ customerId: id }, organizationId, environment);
 
@@ -651,7 +651,10 @@ export const deleteCustomerWallet = async (customerId: string, walletId: string,
         .then(([s]) => s ?? null);
 
       if (activeSubscription) {
-        throw new AppError("This wallet is linked to an active subscription and cannot be removed.");
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "This wallet is linked to an active subscription and cannot be removed."
+        );
       }
 
       const [deleted] = await db
@@ -666,7 +669,7 @@ export const deleteCustomerWallet = async (customerId: string, walletId: string,
         )
         .returning();
 
-      if (!deleted) throw new AppError("Wallet not found");
+      if (!deleted) throw new AppError("NOT_FOUND", "Wallet not found");
 
       return deleted;
     },

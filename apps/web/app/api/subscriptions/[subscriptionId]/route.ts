@@ -29,7 +29,7 @@ export const GET = apiHandler({
     const customerWallet = subscription?.customerWallet;
 
     if (!customerWallet?.address) {
-      return Result.err(new AppError("Customer wallet not found"));
+      return Result.err(new AppError("NOT_FOUND", "Customer wallet not found"));
     }
 
     const onchainSubscription = await soroban$retrieveSubscription(
@@ -38,7 +38,8 @@ export const GET = apiHandler({
       subscription.productId
     );
 
-    if (onchainSubscription.isErr()) return Result.err(onchainSubscription.error);
+    if (onchainSubscription.isErr())
+      return Result.err(new AppError("INTERNAL_ERROR", onchainSubscription.error.message));
 
     const chainStateAsDb = {
       status: onchainSubscription.value.status,
@@ -158,7 +159,7 @@ export const PUT = apiHandler({
 
     const customerWallet = subscription?.customerWallet;
 
-    if (!customerWallet?.address) return Result.err(new AppError("Customer wallet not found"));
+    if (!customerWallet?.address) return Result.err(new AppError("NOT_FOUND", "Customer wallet not found"));
 
     const updatedSubscription = await putSubscription(
       subscriptionId,

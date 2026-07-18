@@ -13,7 +13,7 @@ const getEncryptionKey = (): Buffer => {
   const saltHex = process.env.ENCRYPTION_SALT;
 
   if (!key || !saltHex) {
-    throw new AppError("Encryption configuration (KEY/SALT) not found in environment");
+    throw new AppError("VALIDATION_ERROR", "Encryption configuration (KEY/SALT) not found in environment");
   }
 
   const salt = Buffer.from(saltHex, "hex");

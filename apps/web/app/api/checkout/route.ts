@@ -46,7 +46,7 @@ export const POST = async (req: NextRequest) => {
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
       if (!auth) {
-        return Result.err(new AppError("Unauthorized"));
+        return Result.err(new AppError("UNAUTHORIZED", "Unauthorized"));
       }
 
       let checkout;
@@ -69,7 +69,7 @@ export const POST = async (req: NextRequest) => {
             redirectUrl: data.redirect_url ?? null,
           });
         } catch (e) {
-          return Result.err(e instanceof AppError ? e : new AppError("Failed to create checkout"));
+          return Result.err(e instanceof AppError ? e : new AppError("INTERNAL_ERROR", "Failed to create checkout"));
         }
       } else {
         const { customer_id, customer_email, customer_phone, metadata } = data;

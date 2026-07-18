@@ -9,6 +9,8 @@ import { MaybePromise, Result, z as Schema, validateSchema } from "@stellartools
 import _ from "lodash";
 import { NextRequest, NextResponse } from "next/server";
 
+import { AppError } from "./action-handler";
+
 /**
  * @type {DangerouslyAllowedAppScopes} This type is marked as dangerous because it allows appTokens to write to the db,
  * But it's only used for app installations and we trust the app to not abuse it.
@@ -66,6 +68,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         vercelToken: req.headers.get("authorization"),
       };
 
+      console.log({ authParams });
       const authResult = await resolveAuthContext(authParams);
       if (config.auth && !authResult) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
@@ -150,11 +153,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
       }
 
       if (result.isErr()) {
-        const errBody = { error: result.error.message };
-        if (idempotencyKey && authResult) {
-          await saveIdempotencyResult(idempotencyKey, authResult.organizationId, 400, errBody);
-        }
-        return NextResponse.json(errBody, { status: 400, headers: corsHeaders });
+        throw result.error;
       }
 
       const processedData = (config.convertToSnakeCase ?? true) ? toSnakeCase(result.value) : result.value;
@@ -165,11 +164,18 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
 
       return NextResponse.json(processedData, { headers: { ...corsHeaders, ...config.headers } });
     } catch (error: any) {
-      console.error("[API_ERROR]", error);
-      return NextResponse.json(
-        { error: error.message || "Internal Server Error" },
-        { status: 500, headers: corsHeaders }
-      );
+      const isAppError = error instanceof AppError;
+      const status = isAppError ? error.status : 500;
+      const code = isAppError ? error.code : "INTERNAL_SERVER_ERROR";
+
+      const message = isAppError ? error.message : "An internal error occurred. Our engineers have been notified.";
+
+      console.error(`[API_FAILURE] ${req.method} ${req.nextUrl.pathname}:`, {
+        actual_error: error.message,
+        stack: isAppError ? "AppError" : error.stack,
+      });
+
+      return NextResponse.json({ error: { code, message } }, { status, headers: corsHeaders });
     }
   };
 };

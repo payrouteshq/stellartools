@@ -32,7 +32,7 @@ export const retrieveSupportedAssets = safeAction(
     } else if ("canonicalIssuer" in lookUpKey) {
       whereClause = eq(supportedAssets.canonicalIssuer, lookUpKey.canonicalIssuer!) as SQL;
     } else {
-      throw new AppError("Invalid lookup key. Must provide either id or code and issuer.");
+      throw new AppError("VALIDATION_ERROR", "Invalid lookup key. Must provide either id or code and issuer.");
     }
 
     return await db
