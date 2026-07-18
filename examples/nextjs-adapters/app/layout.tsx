@@ -27,7 +27,7 @@ const NAV = [
   { href: "/langchain", label: "LangChain", img: "/images/integrations/langchain.png", external: false },
   { href: "/uploadthing", label: "UploadThing", img: "/images/integrations/uploadthing.png", external: false },
   {
-    href: "https://stellartools-medusajs-storefront-self.vercel.app",
+    href: "https://stellartools-medusajs-storefront.vercel.app/",
     label: "MedusaJS",
     img: "/images/integrations/medusa.jpeg",
     external: true,

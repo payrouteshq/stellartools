@@ -28,7 +28,7 @@ const ADAPTERS = [
 const STORES = [
   {
     name: "MedusaJS",
-    href: "https://stellartools-medusajs-storefront-self.vercel.app",
+    href: "https://stellartools-medusajs-storefront.vercel.app/",
     hint: "Add the product to cart and go through checkout",
     img: "/images/integrations/medusa.svg",
   },
@@ -53,7 +53,7 @@ export default function OverviewPage() {
         <div className="mb-1 flex items-start justify-between gap-4">
           <h1 className="text-2xl font-bold tracking-tight">Adapter Playground</h1>
           <a
-            href="https://github.com/payroutes/stellartools/tree/main/examples/nextjs-adapters"
+            href="https://github.com/payrouteshq/stellartools/tree/main/examples/nextjs-adapters"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground flex shrink-0 items-center gap-1.5 pt-1 text-xs transition-colors"

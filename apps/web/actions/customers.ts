@@ -165,6 +165,7 @@ export const putCustomer = async (
   if (!oldCustomer) throw new AppError("NOT_FOUND", "Customer not found");
 
   const { metadata: metadataPatch, ...baseUpdate } = retUpdate;
+  const mergedMetadata = metadataPatch ? { ...(oldCustomer.metadata ?? {}), ...metadataPatch } : oldCustomer.metadata;
 
   return withEvent(
     async () => {
@@ -176,14 +177,14 @@ export const putCustomer = async (
           organizationId,
           environment,
           updatedAt: new Date(),
-          metadata: metadataPatch ? { ...(oldCustomer.metadata ?? {}), ...metadataPatch } : oldCustomer.metadata,
+          metadata: mergedMetadata,
         })
         .onConflictDoUpdate({
           target: [customersSchema.id],
           set: {
             ...baseUpdate,
             updatedAt: new Date(),
-            metadata: metadataPatch ? sql`"customer"."metadata" || ${metadataPatch}` : undefined,
+            ...(metadataPatch ? { metadata: mergedMetadata } : {}),
           },
         })
         .returning();

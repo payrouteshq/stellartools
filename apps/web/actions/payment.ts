@@ -112,7 +112,7 @@ const paymentActionHandler = async (
     console.log("paymentActionHandler", payment);
 
     const events: EventTrigger<typeof payment>[] = [];
-    const webhooks: WebhookTrigger<typeof payment>[] = [];
+    const webhooks: WebhookTrigger<any, any>[] = [];
     const sideEffects: (() => Promise<void>)[] = [];
 
     const cryptoAmount = `${payment.cryptoAmount} ${payment.selectedAssetCode}`;
@@ -122,15 +122,11 @@ const paymentActionHandler = async (
       checkoutId: payment.checkoutId!,
       customerId: payment.customerId!,
       amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
-      cryptoAmount: cryptoAmount,
+      cryptoAmount,
       status: payment.status,
       transactionHash: payment.transactionHash ?? "",
       createdAt: payment.createdAt?.toISOString() ?? new Date().toISOString(),
       metadata: payment.metadata,
-      currencyCode: payment.currencyCode,
-      amountCents: payment.amountCents,
-      selectedAssetCode: payment.selectedAssetCode,
-      selectedAssetIssuer: payment.selectedAssetIssuer ?? "",
     };
 
     if (payment.status === "failed") {
@@ -145,9 +141,10 @@ const paymentActionHandler = async (
             checkoutId: payment.checkoutId!,
             customerId: payment.customerId!,
             amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
-            cryptoAmount: cryptoAmount,
+            cryptoAmount,
             status: payment.status,
             transactionHash: payment.transactionHash ?? "",
+            createdAt: payment.createdAt?.toISOString() ?? new Date().toISOString(),
             ...(errorMessage && { error: errorMessage }),
           },
         }),
@@ -233,7 +230,7 @@ const paymentActionHandler = async (
 
     return {
       events,
-      webhooks: { organizationId, environment, triggers: webhooks as WebhookTrigger<typeof payment>[] },
+      webhooks: { organizationId, environment, triggers: webhooks },
       sideEffects,
     };
   });

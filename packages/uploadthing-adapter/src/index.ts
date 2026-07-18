@@ -98,6 +98,7 @@ export const shield = (config: ShieldConfig): ShieldFactory => {
         const { settings: cfg, client: st } = getSettings();
 
         const email = req.headers.get("x-customer-email")?.trim();
+
         if (!email) {
           throw new UploadThingError({
             code: "BAD_REQUEST",

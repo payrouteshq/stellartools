@@ -93,3 +93,14 @@
     scroll-padding-top: 4rem;
   }
 }
+
+@layer components {
+  .upload-dropzone [data-ut-element="button"] {
+    @apply bg-foreground! text-background! hover:bg-foreground/90!;
+  }
+
+  .upload-dropzone [data-ut-element="button"][data-state="uploading"],
+  .upload-dropzone [data-ut-element="button"][data-state="readying"] {
+    @apply bg-foreground/80! text-background!;
+  }
+}

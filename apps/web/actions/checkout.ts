@@ -417,12 +417,7 @@ export const putCheckoutAndCustomerInternal = safeAction(
       );
 
       // 2. Ensure customer record is updated with latest details
-      await putCustomer(
-        finalCustomerId,
-        { email: data.email, phone: data.phoneNumber },
-        orgId,
-        environment
-      );
+      await putCustomer(finalCustomerId, { email: data.email, phone: data.phoneNumber }, orgId, environment);
     });
   }
 );
