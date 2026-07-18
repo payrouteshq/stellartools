@@ -2,81 +2,58 @@
 
 import React from "react";
 
-import {
-  Conversation,
-  ConversationContent,
-  ConversationEmptyState,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import {
-  Message,
-  MessageAction,
-  MessageActions,
-  MessageContent,
-  MessageResponse,
-} from "@/components/ai-elements/message";
-import {
-  PromptInput,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-} from "@/components/ai-elements/prompt-input";
-import { CustomerEmailHelpText } from "@/components/customer-email-help-text";
-import { TextField } from "@stellartools/shared-ui";
-import { CopyIcon, LockIcon, MessageSquareIcon } from "lucide-react";
-import Image from "next/image";
-
-type ChatMsg = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  cta?: boolean;
-};
+import { type ChatFeedback, type DemoChatMessage, useCopyMessage } from "@/components/adapter-demo/chat-ui";
+import { DemoChatPanel } from "@/components/adapter-demo/demo-chat-panel";
+import { DemoPageHeader } from "@/components/adapter-demo/demo-page-header";
+import { MessageSquareIcon } from "lucide-react";
 
 export default function LangChainPage() {
-  const [messages, setMessages] = React.useState<ChatMsg[]>([]);
+  const [messages, setMessages] = React.useState<DemoChatMessage[]>([]);
   const [customerEmail, setCustomerEmail] = React.useState("");
+  const [feedback, setFeedback] = React.useState<ChatFeedback>(null);
   const [loading, setLoading] = React.useState(false);
+  const { copiedId, copy } = useCopyMessage();
 
-  const isFirstMessage = messages.length === 0;
   const status = loading ? ("submitted" as const) : ("ready" as const);
+  const isStreaming = loading;
+  const showTypingShimmer = loading;
 
-  const handleSubmit = async ({ text }: { text: string }) => {
+  const handleSubmit = async (text: string) => {
     if (!text.trim() || loading) return;
 
-    const userMsg: ChatMsg = { id: crypto.randomUUID(), role: "user", content: text };
+    const userMsg: DemoChatMessage = { id: crypto.randomUUID(), role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
+    setFeedback(null);
     setLoading(true);
 
     try {
       const res = await fetch("/api/langchain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, customerEmail, free: isFirstMessage }),
+        body: JSON.stringify({ message: text, customerEmail }),
       });
-      const json = await res.json();
+      const json = (await res.json()) as { content?: unknown; error?: string; blocked?: boolean };
 
       if (res.status === 403 || json.blocked) {
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), role: "assistant", content: json.error ?? "Subscription required", cta: true },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: typeof json.content === "string" ? json.content : JSON.stringify(json.content, null, 2),
-          },
-        ]);
+        setFeedback({ blocked: true, message: json.error ?? "Subscription required" });
+        return;
       }
-    } catch {
+
+      if (!res.ok) {
+        setFeedback({ blocked: false, message: json.error ?? "Something went wrong." });
+        return;
+      }
+
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: "Request failed. Check your API configuration." },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: typeof json.content === "string" ? json.content : JSON.stringify(json.content, null, 2),
+        },
       ]);
+    } catch {
+      setFeedback({ blocked: false, message: "Request failed. Check your API configuration." });
     } finally {
       setLoading(false);
     }
@@ -84,87 +61,29 @@ export default function LangChainPage() {
 
   return (
     <div className="flex h-[calc(100vh-112px)] flex-col gap-4">
-      <div className="flex shrink-0 flex-col gap-3">
-        <div className="flex items-center gap-2.5">
-          <Image
-            src="/images/integrations/langchain.png"
-            alt="LangChain"
-            width={26}
-            height={26}
-            className="rounded-lg object-contain"
-          />
-          <h1 className="text-xl font-semibold tracking-tight">LangChain</h1>
-        </div>
-        <TextField
-          id="customer-email"
-          label="Customer email"
-          type="email"
-          value={customerEmail}
-          onChange={setCustomerEmail}
-          placeholder="jane@example.com"
-          helpText={<CustomerEmailHelpText />}
-          className="max-w-md shadow-none"
-          error={null}
-        />
-      </div>
+      <DemoPageHeader
+        iconSrc="/images/integrations/langchain.png"
+        iconAlt="LangChain"
+        title="LangChain"
+        customerEmail={customerEmail}
+        onCustomerEmailChange={setCustomerEmail}
+      />
 
-      <div className="border-border flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border">
-        <Conversation className="min-h-0 flex-1">
-          <ConversationContent>
-            {messages.length === 0 ? (
-              <ConversationEmptyState
-                icon={<MessageSquareIcon className="size-6" />}
-                title="LangChain Adapter"
-                description="First message is free. Add a customer email to test the subscription gate on the next message."
-              />
-            ) : (
-              messages.map((msg, i) => (
-                <Message key={msg.id} from={msg.role}>
-                  <MessageContent>
-                    {msg.cta ? <SubscribeCta /> : <MessageResponse>{msg.content}</MessageResponse>}
-                  </MessageContent>
-                  {msg.role === "assistant" && !msg.cta && i === messages.length - 1 && !loading && (
-                    <MessageActions>
-                      <MessageAction tooltip="Copy" onClick={() => navigator.clipboard.writeText(msg.content)}>
-                        <CopyIcon className="size-3.5" />
-                      </MessageAction>
-                    </MessageActions>
-                  )}
-                </Message>
-              ))
-            )}
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
-
-        <div className="border-border border-t p-3">
-          <PromptInput onSubmit={handleSubmit}>
-            <PromptInputBody>
-              <PromptInputTextarea placeholder={isFirstMessage ? "First message is free…" : "Ask anything…"} />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputSubmit status={status} />
-            </PromptInputFooter>
-          </PromptInput>
-        </div>
-      </div>
+      <DemoChatPanel
+        messages={messages}
+        feedback={feedback}
+        isStreaming={isStreaming}
+        showTypingShimmer={showTypingShimmer}
+        status={status}
+        copiedId={copiedId}
+        onCopy={copy}
+        onSubmit={handleSubmit}
+        emptyState={{
+          icon: <MessageSquareIcon className="size-6" />,
+          title: "LangChain Adapter",
+          description: "Enter a customer email and send a message to test the subscription gate.",
+        }}
+      />
     </div>
-  );
-}
-
-function SubscribeCta() {
-  return (
-    <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-      <LockIcon className="size-3.5 shrink-0" />
-      Subscription required.{" "}
-      <a
-        href={process.env.NEXT_PUBLIC_STELLARTOOLS_PRODUCT_PERMALINK!}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-foreground underline underline-offset-2"
-      >
-        Subscribe to continue
-      </a>
-    </p>
   );
 }
