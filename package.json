@@ -34,7 +34,10 @@
   "pnpm": {
     "overrides": {
       "@types/react": "19.2.15",
-      "@types/react-dom": "19.2.3"
+      "@types/react-dom": "19.2.3",
+      "@mikro-orm/core": "6.6.14",
+      "@mikro-orm/knex": "6.6.14",
+      "@mikro-orm/postgresql": "6.6.14"
     },
     "neverBuiltDependencies": [
       "usb"
