@@ -5,6 +5,7 @@ import React from "react";
 import { type ChatFeedback, type DemoChatMessage, useCopyMessage } from "@/components/adapter-demo/chat-ui";
 import { DemoChatPanel } from "@/components/adapter-demo/demo-chat-panel";
 import { DemoPageHeader } from "@/components/adapter-demo/demo-page-header";
+import { capture } from "@/lib/posthog";
 import { MessageSquareIcon } from "lucide-react";
 
 export default function LangChainPage() {
@@ -25,6 +26,7 @@ export default function LangChainPage() {
     setMessages((prev) => [...prev, userMsg]);
     setFeedback(null);
     setLoading(true);
+    capture("playground_message_sent", { adapter: "langchain", customer_email_set: !!customerEmail, message_length: text.length });
 
     try {
       const res = await fetch("/api/langchain", {
@@ -36,11 +38,13 @@ export default function LangChainPage() {
 
       if (res.status === 403 || json.blocked) {
         setFeedback({ blocked: true, message: json.error ?? "Subscription required" });
+        capture("playground_message_blocked", { adapter: "langchain" });
         return;
       }
 
       if (!res.ok) {
         setFeedback({ blocked: false, message: json.error ?? "Something went wrong." });
+        capture("playground_message_error", { adapter: "langchain" });
         return;
       }
 
@@ -54,6 +58,7 @@ export default function LangChainPage() {
       ]);
     } catch {
       setFeedback({ blocked: false, message: "Request failed. Check your API configuration." });
+      capture("playground_message_error", { adapter: "langchain" });
     } finally {
       setLoading(false);
     }

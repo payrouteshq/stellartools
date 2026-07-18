@@ -865,6 +865,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.22.0
+      posthog-js:
+        specifier: ^1.372.6
+        version: 1.376.6
       react:
         specifier: ^19.0.0
         version: 19.2.4

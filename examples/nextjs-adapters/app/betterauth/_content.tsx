@@ -3,6 +3,7 @@
 import React from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { capture } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Badge,
@@ -104,12 +105,15 @@ export default function BetterAuthContent() {
     setOutput(null);
     setError(null);
     setLastEndpoint(endpoint);
+    let success = false;
     try {
       setOutput(await fn());
+      success = true;
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
+      capture("playground_api_called", { endpoint, success });
     }
   };
 

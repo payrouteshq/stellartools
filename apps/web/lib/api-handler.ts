@@ -68,7 +68,6 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         vercelToken: req.headers.get("authorization"),
       };
 
-      console.log({ authParams });
       const authResult = await resolveAuthContext(authParams);
       if (config.auth && !authResult) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });

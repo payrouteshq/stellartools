@@ -3,6 +3,7 @@
 import React from "react";
 
 import { CustomerEmailHelpText } from "@/components/customer-email-help-text";
+import { capture } from "@/lib/posthog";
 import type { FileRouter } from "@/lib/uploadthing";
 import { TextField } from "@stellartools/shared-ui";
 import { generateUploadDropzone } from "@uploadthing/react";
@@ -60,13 +61,18 @@ export default function UploadThingPage() {
           onUploadBegin={() => {
             setResult(null);
             setError(null);
+            capture("playground_upload_started", { customer_email_set: !!customerEmail });
           }}
           onClientUploadComplete={(files) => {
             setResult(files[0]?.serverData ?? null);
+            capture("playground_upload_success");
           }}
           onUploadError={(err) => {
             setResult(null);
-            setError(getUploadErrorMessage(err));
+            const msg = getUploadErrorMessage(err);
+            setError(msg);
+            const blocked = err.message === "Failed to run middleware" || !!err.data?.message;
+            capture(blocked ? "playground_upload_blocked" : "playground_upload_error");
           }}
           className="border-border bg-muted/20 hover:bg-muted/30 ut-label:text-foreground ut-allowed-content:text-muted-foreground ut-upload-icon:text-muted-foreground w-full max-w-md rounded-xl border-2 border-dashed p-10 transition-colors"
         />

@@ -11,6 +11,7 @@ import {
 } from "@/components/adapter-demo/chat-ui";
 import { DemoChatPanel } from "@/components/adapter-demo/demo-chat-panel";
 import { DemoPageHeader } from "@/components/adapter-demo/demo-page-header";
+import { capture } from "@/lib/posthog";
 import { useChat } from "@ai-sdk/react";
 import { MessageSquareIcon } from "lucide-react";
 
@@ -35,20 +36,19 @@ export default function AiSdkPage() {
         error?: string;
         blocked?: boolean;
       } | null;
-      setFeedback({
-        blocked: body?.blocked === true || response.status === 403,
-        message: body?.error ?? response.statusText,
-      });
+      const blocked = body?.blocked === true || response.status === 403;
+      setFeedback({ blocked, message: body?.error ?? response.statusText });
+      capture(blocked ? "playground_message_blocked" : "playground_message_error", { adapter: "aisdk" });
     },
     onError: (error) => {
       try {
         const parsed = JSON.parse(error.message) as { blocked?: boolean; error?: string };
-        setFeedback({
-          blocked: parsed.blocked === true,
-          message: parsed.error ?? error.message,
-        });
+        const blocked = parsed.blocked === true;
+        setFeedback({ blocked, message: parsed.error ?? error.message });
+        capture(blocked ? "playground_message_blocked" : "playground_message_error", { adapter: "aisdk" });
       } catch {
         setFeedback(parseStreamError(error.message));
+        capture("playground_message_error", { adapter: "aisdk" });
       }
     },
   });
@@ -56,6 +56,7 @@ export default function AiSdkPage() {
   const handleSubmit = (text: string) => {
     if (!text.trim()) return;
     setFeedback(null);
+    capture("playground_message_sent", { adapter: "aisdk", customer_email_set: !!customerEmail, message_length: text.length });
     append({ role: "user", content: text }, { body: { customerEmail } });
   };
 
