@@ -28,7 +28,7 @@ const ADAPTERS = [
 const STORES = [
   {
     name: "MedusaJS",
-    href: "http://localhost:8000",
+    href: "https://stellartools-medusajs-storefront.vercel.app",
     hint: "Add the product to cart and go through checkout",
     img: "/images/integrations/medusa.svg",
   },

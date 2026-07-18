@@ -13,6 +13,8 @@
     "@stellartools/app-loops",
     "@stellartools/shopify",
     "@stellartools/medusajs-adapter",
-    "medusajs"
+    "medusajs",
+    "@dtc/backend",
+    "@dtc/storefront"
   ]
 }

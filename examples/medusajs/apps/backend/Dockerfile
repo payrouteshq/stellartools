@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:22-slim
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -8,25 +8,23 @@ WORKDIR /monorepo
 COPY . .
 
 # Install all workspace deps
+# usb is in neverBuiltDependencies (no USB hardware in a web server)
+# tiny-secp256k1 falls back to pure JS if native build fails
+# better-sqlite3/@swc/core download prebuilt binaries — no gcc needed
 RUN pnpm install --frozen-lockfile
 
 # Build workspace deps in dependency order
 RUN pnpm --filter @stellartools/core build
 RUN pnpm --filter @stellartools/medusajs-adapter build
 
-# Build Medusa backend (outputs to .medusa/server with bundled node_modules)
+# Build Medusa backend (outputs compiled source to .medusa/server)
 WORKDIR /monorepo/examples/medusajs/apps/backend
 RUN pnpm run build
-
-# --- runtime image ---
-FROM node:22-alpine AS runner
-
-WORKDIR /app
-
-# .medusa/server is a self-contained bundle — no extra node_modules needed
-COPY --from=builder /monorepo/examples/medusajs/apps/backend/.medusa/server .
 
 ENV NODE_ENV=production
 EXPOSE 9000
 
-CMD ["node", "index.js"]
+# Run from .medusa/server so rootDirectory resolves admin at ./public/admin/
+# Node.js module resolution traverses up and finds node_modules at /monorepo/node_modules/
+WORKDIR /monorepo/examples/medusajs/apps/backend/.medusa/server
+CMD ["sh", "-c", "/monorepo/examples/medusajs/apps/backend/node_modules/.bin/medusa start"]

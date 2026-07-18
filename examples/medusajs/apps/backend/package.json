@@ -1,6 +1,7 @@
 {
   "name": "@dtc/backend",
   "version": "0.0.1",
+  "private": true,
   "description": "A starter for Medusa projects.",
   "author": "Medusa (https://medusajs.com)",
   "license": "MIT",

@@ -158,7 +158,7 @@ function SubscribeCta() {
       <LockIcon className="size-3.5 shrink-0" />
       Subscription required.{" "}
       <a
-        href="https://stellartools.dev/pricing"
+        href={process.env.NEXT_PUBLIC_STELLARTOOLS_PRODUCT_PERMALINK!}
         target="_blank"
         rel="noopener noreferrer"
         className="text-foreground underline underline-offset-2"
