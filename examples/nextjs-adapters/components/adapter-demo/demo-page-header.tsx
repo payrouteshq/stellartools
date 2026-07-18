@@ -28,7 +28,13 @@ export function DemoPageHeader({
   return (
     <div className="flex shrink-0 flex-col gap-3">
       <div className="flex items-center gap-2.5">
-        <Image src={iconSrc} alt={iconAlt} width={26} height={26} className="h-[26px] w-[26px] rounded-lg object-contain" />
+        <Image
+          src={iconSrc}
+          alt={iconAlt}
+          width={26}
+          height={26}
+          className="h-[26px] w-[26px] rounded-lg object-contain"
+        />
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       </div>
       <TextField

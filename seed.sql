@@ -157,6 +157,18 @@ CREATE TABLE IF NOT EXISTS refund_sessions (
 );
 
 -- ============================================================
+-- better_auth_adapter_playground database (nextjs-adapters demo)
+-- ============================================================
+SELECT 'CREATE DATABASE better_auth_adapter_playground' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'better_auth_adapter_playground')\gexec
+
+\c better_auth_adapter_playground;
+GRANT ALL ON SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO root;
+
+-- ============================================================
 -- Seed data for postgres DB (run AFTER drizzle migrations)
 -- ============================================================
 \c postgres;

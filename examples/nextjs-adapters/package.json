@@ -7,7 +7,7 @@
     "build": "next build",
     "vercel-build": "pnpm -w --filter @stellartools/core run build && pnpm -w --filter @stellartools/shared-ui run build && pnpm -w --filter @stellartools/aisdk-adapter run build && pnpm -w --filter @stellartools/betterauth-adapter run build && pnpm -w --filter @stellartools/langchain-adapter run build && pnpm -w --filter @stellartools/uploadthing-adapter run build && next build",
     "start": "next start --port 3001",
-    "auth:migrate": "auth migrate"
+    "auth:migrate": "auth migrate --yes"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.88",
@@ -43,6 +43,7 @@
     "nanoid": "^6.0.0",
     "next": "16.2.9",
     "next-themes": "^0.4.6",
+    "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.68.0",
@@ -55,6 +56,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "auth": "1.6.11",
