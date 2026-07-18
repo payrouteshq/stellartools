@@ -1,0 +1,10 @@
+**/.git
+**/.github
+**/node_modules
+**/.medusa
+**/.next
+**/dist
+**/.turbo
+**/*.log
+**/.env*
+!**/.env.example

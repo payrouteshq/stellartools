@@ -1,28 +1,29 @@
 FROM node:22-alpine AS builder
 
-RUN npm install -g pnpm@latest
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /monorepo
 
-# Copy workspace manifests first for better layer caching
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy the full monorepo (see .dockerignore for exclusions)
+COPY . .
 
-# Only the packages the backend needs
-COPY packages/stellartools/ ./packages/stellartools/
-COPY packages/medusajs-adapter/ ./packages/medusajs-adapter/
-COPY examples/medusajs/apps/backend/ ./examples/medusajs/apps/backend/
-
+# Install all workspace deps
 RUN pnpm install --frozen-lockfile
 
+# Build workspace deps in dependency order
 RUN pnpm --filter @stellartools/core build
 RUN pnpm --filter @stellartools/medusajs-adapter build
-RUN pnpm --filter @dtc/backend build
+
+# Build Medusa backend (outputs to .medusa/server with bundled node_modules)
+WORKDIR /monorepo/examples/medusajs/apps/backend
+RUN pnpm run build
 
 # --- runtime image ---
 FROM node:22-alpine AS runner
 
 WORKDIR /app
 
+# .medusa/server is a self-contained bundle — no extra node_modules needed
 COPY --from=builder /monorepo/examples/medusajs/apps/backend/.medusa/server .
 
 ENV NODE_ENV=production
