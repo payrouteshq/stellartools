@@ -1,5 +1,13 @@
 # @stellartools/langchain-adapter
 
+## 0.0.12
+
+### Patch Changes
+
+- 453347d: chore: various improvements
+- Updated dependencies [453347d]
+  - @stellartools/core@0.0.11
+
 ## 0.0.11
 
 ### Patch Changes
