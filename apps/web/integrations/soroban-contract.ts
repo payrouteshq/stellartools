@@ -106,59 +106,65 @@ const invokeSoroban = async <T = SorobanTxResult>(
   operation: StellarSDK.xdr.Operation,
   options: { readOnly?: boolean; signerSecret?: string; sourcePublicKey?: string } = {}
 ): Promise<Result<T, AppError>> => {
-  return Result.tryPromise(async () => {
-    const { server, passphrase } = getSorobanConfig(network);
-    const keypair = options.signerSecret
-      ? StellarSDK.Keypair.fromSecret(options.signerSecret)
-      : StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
-    const sourceKey = options.readOnly ? (options.sourcePublicKey ?? keypair.publicKey()) : keypair.publicKey();
-    const sourceAccount = await server.getAccount(sourceKey);
+  return Result.tryPromise({
+    try: async () => {
+      const { server, passphrase } = getSorobanConfig(network);
+      const keypair = options.signerSecret
+        ? StellarSDK.Keypair.fromSecret(options.signerSecret)
+        : StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
+      const sourceKey = options.readOnly ? (options.sourcePublicKey ?? keypair.publicKey()) : keypair.publicKey();
+      const sourceAccount = await server.getAccount(sourceKey);
 
-    const tx = new StellarSDK.TransactionBuilder(sourceAccount, {
-      fee: StellarSDK.BASE_FEE,
-      networkPassphrase: passphrase,
-    })
-      .addOperation(operation)
-      .setTimeout(30)
-      .build();
+      const tx = new StellarSDK.TransactionBuilder(sourceAccount, {
+        fee: StellarSDK.BASE_FEE,
+        networkPassphrase: passphrase,
+      })
+        .addOperation(operation)
+        .setTimeout(30)
+        .build();
 
-    const simulation = await server.simulateTransaction(tx);
+      const simulation = await server.simulateTransaction(tx);
 
-    if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
-      const parsed = parseError(simulation);
-      throw new AppError("STELLAR_ERROR", parsed.message);
-    }
+      if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
+        const parsed = parseError(simulation);
+        throw new AppError("STELLAR_ERROR", parsed.message);
+      }
 
-    if (options.readOnly) {
-      if (!simulation.result) throw new AppError("STELLAR_ERROR", "Simulation returned no result");
-      return StellarSDK.scValToNative(simulation.result.retval) as T;
-    }
+      if (options.readOnly) {
+        if (!simulation.result) throw new AppError("STELLAR_ERROR", "Simulation returned no result");
+        return StellarSDK.scValToNative(simulation.result.retval) as T;
+      }
 
-    const assembledTx = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
-    assembledTx.sign(keypair);
+      const assembledTx = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
+      assembledTx.sign(keypair);
 
-    const response = await server.sendTransaction(assembledTx);
+      const response = await server.sendTransaction(assembledTx);
 
-    if (response.status !== "PENDING") {
-      throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
-    }
+      if (response.status !== "PENDING") {
+        throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
+      }
 
-    const result = await server.pollTransaction(response.hash, { attempts: 15 });
+      const result = await server.pollTransaction(response.hash, { attempts: 15 });
 
-    if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
-    }
-    if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
-      throw new AppError("STELLAR_ERROR", `Transaction not confirmed: ${result.status}`);
-    }
+      if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
+        throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
+      }
+      if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
+        throw new AppError("STELLAR_ERROR", `Transaction not confirmed: ${result.status}`);
+      }
 
-    const walletAddres = result.envelopeXdr
-      ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
-      : undefined;
+      const walletAddres = result.envelopeXdr
+        ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
+        : undefined;
 
-    const events = extractContractEvents(result);
+      const events = extractContractEvents(result);
 
-    return { hash: response.hash, sourceWalletAddress: walletAddres, events } as T;
+      return { hash: response.hash, sourceWalletAddress: walletAddres, events } as T;
+    },
+    catch: (cause) =>
+      cause instanceof AppError
+        ? cause
+        : new AppError("STELLAR_ERROR", cause instanceof Error ? cause.message : String(cause)),
   });
 };
 

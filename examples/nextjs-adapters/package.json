@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
+    "vercel-build": "pnpm -w --filter @stellartools/core run build && pnpm -w --filter @stellartools/shared-ui run build && pnpm -w --filter @stellartools/aisdk-adapter run build && pnpm -w --filter @stellartools/betterauth-adapter run build && pnpm -w --filter @stellartools/langchain-adapter run build && pnpm -w --filter @stellartools/uploadthing-adapter run build && next build",
     "start": "next start --port 3001",
     "auth:migrate": "auth migrate"
   },
