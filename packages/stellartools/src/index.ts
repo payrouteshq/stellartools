@@ -48,7 +48,7 @@ export class StellarTools {
     }
 
     const apiClient = new ApiClient({
-      baseUrl: process.env.STELLAR_TOOLS_BASE_URL ?? "https://api.stellartools.dev",
+      baseUrl: process.env.STELLAR_TOOLS_BASE_URL || "https://api.stellartools.dev",
       headers,
       maxRetries: 3,
     });
