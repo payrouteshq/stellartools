@@ -1,6 +1,5 @@
 import { getCurrentUser } from "@/actions/auth";
 import { getCurrentOrganization } from "@/actions/organization";
-import { MainnetReadinessModal } from "@/components/mainnet-readiness-modal";
 import { PluginLauncher } from "@/components/plugin-launcher";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -26,7 +25,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="md:mr-12">
       {children}
-      <MainnetReadinessModal />
       <PluginLauncher />
     </div>
   );
