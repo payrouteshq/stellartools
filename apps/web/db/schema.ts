@@ -183,8 +183,7 @@ export const customers = pgTable(
     environment: networkEnum("network").notNull(),
   },
   (table) => ({
-    uniqueOrgEmail: unique().on(table.organizationId, table.email),
-    uniqueOrgPhone: unique().on(table.organizationId, table.phone),
+    uniqueOrgEmailNetwork: unique().on(table.organizationId, table.email, table.environment),
     idxOrgEnv: index("idx_customer_org_env").on(table.organizationId, table.environment),
     idxOrgCreatedAt: index("idx_customer_org_created_at").on(table.organizationId, table.createdAt),
   })

@@ -50,6 +50,13 @@
       "when": 1784399836737,
       "tag": "0006_silky_madame_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784423387093,
+      "tag": "0007_customer_email_network_unique",
+      "breakpoints": true
     }
   ]
 }

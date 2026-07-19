@@ -55,7 +55,7 @@ export const postCustomers = async (
           params.map((p) => ({ ...p, id: generateResourceId("cus", organizationId, 20), organizationId, environment }))
         )
         .onConflictDoUpdate({
-          target: [customersSchema.organizationId, customersSchema.email],
+          target: [customersSchema.organizationId, customersSchema.email, customersSchema.environment],
           set: {
             name: sql`coalesce(excluded.name, ${customersSchema.name})`,
             phone: sql`coalesce(excluded.phone, ${customersSchema.phone})`,
