@@ -419,7 +419,7 @@ export const deliveryLogs = pgTable(
     id: text("id").primaryKey(),
     webhookId: text("webhook_id").references(() => webhooks.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").references(() => organizations.id, { onDelete: "set null" }),
-    appInstallationId: text("app_installation_id").references(() => appInstallations.id, { onDelete: "set null" }),
+    appInstallationId: text("app_installation_id").references(() => appInstallations.id, { onDelete: "cascade" }),
     eventType: text("event_type").notNull(),
     request: jsonb("request").$type<unknown>().notNull(),
     statusCode: integer("status_code"),

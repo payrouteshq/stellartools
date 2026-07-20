@@ -1,15 +1,17 @@
-import { Play } from "lucide-react";
+import Image from "next/image";
 
 export function VideoSection() {
   return (
     <section className="mx-auto max-w-5xl px-6 pb-24">
-      <div className="border-border bg-muted/30 relative aspect-video w-full overflow-hidden rounded-2xl border">
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-          <div className="border-border bg-background flex size-14 items-center justify-center rounded-full border shadow-sm">
-            <Play className="text-foreground ml-0.5 size-5" />
-          </div>
-          <p className="text-muted-foreground text-sm">Demo video coming soon</p>
-        </div>
+      <div className="border-border bg-muted/30 relative overflow-hidden rounded-2xl border shadow-2xl shadow-black/10">
+        <Image
+          src="/images/dashboard.png"
+          alt="StellarTools dashboard overview"
+          width={3036}
+          height={1946}
+          className="h-auto w-full"
+          priority
+        />
       </div>
     </section>
   );

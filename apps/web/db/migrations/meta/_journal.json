@@ -57,6 +57,13 @@
       "when": 1784423387093,
       "tag": "0007_customer_email_network_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784542271329,
+      "tag": "0008_delivery_log_app_installation_cascade",
+      "breakpoints": true
     }
   ]
 }
