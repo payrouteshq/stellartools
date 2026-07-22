@@ -9,14 +9,14 @@ const retrieveOrCreateCustomer = async (ctx: GenericEndpointContext): Promise<st
   const context = ctx?.context;
   const { user, stellar, adapter } = getContext(ctx, { apiKey: context?.api_key });
 
-  const dbUser = await adapter.findOne<{ stellartools_customer_id: string }>({
+  const dbUser = await adapter.findOne<{ stellartools_customer_id: string | null }>({
     model: "user",
     where: [{ field: "id", value: user.id }],
   });
 
   if (dbUser?.stellartools_customer_id) return dbUser.stellartools_customer_id;
 
-  const customer = await stellar.customers.create({
+  const created = await stellar.customers.create({
     email: user.email,
     name: user.name,
     metadata: {
@@ -29,10 +29,10 @@ const retrieveOrCreateCustomer = async (ctx: GenericEndpointContext): Promise<st
   await adapter.update({
     model: "user",
     where: [{ field: "id", value: user.id }],
-    update: { stellartools_customer_id: customer.id },
+    update: { stellartools_customer_id: created.id },
   });
 
-  return customer.id;
+  return created.id;
 };
 
 // -- CUSTOMERS --

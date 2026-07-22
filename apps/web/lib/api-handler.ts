@@ -69,8 +69,9 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
       };
 
       const authResult = await resolveAuthContext(authParams);
+
       if (config.auth && !authResult) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+        throw new AppError("UNAUTHORIZED", "Unauthorized, please recheck your API key", 401);
       }
 
       // Permissions check
@@ -86,10 +87,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         const hasPermission = grantedScopes.includes("*") || allowedScopes.includes(config.requiredAppScope);
 
         if (!hasPermission) {
-          return NextResponse.json(
-            { error: `Forbidden: App missing scope [${config.requiredAppScope}]` },
-            { status: 403, headers: corsHeaders }
-          );
+          throw new AppError("FORBIDDEN", `Forbidden: App missing scope [${config.requiredAppScope}]`, 403);
         }
       }
 

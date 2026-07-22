@@ -304,6 +304,14 @@ function ProductsPageContent() {
 
   const tableActions: TableAction<ProductEsque>[] = [
     {
+      label: "Copy Product ID",
+      onClick: (p) =>
+        handleCopy({
+          text: p.id,
+          message: "Product ID copied",
+        }),
+    },
+    {
       label: "Copy permalink",
       onClick: (p) =>
         handleCopy({

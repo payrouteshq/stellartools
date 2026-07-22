@@ -53,10 +53,6 @@ type UpdateCustomerPayload = {
   phone?: string;
 };
 
-const createSubscriptionSchema = z.object({
-  product_id: z.string().min(1, "Product ID is required"),
-});
-
 const createRefundSchema = z.object({
   payment_id: z.string().min(1, "Payment ID is required"),
   reason: z.string().min(1, "Reason is required"),
@@ -65,14 +61,10 @@ const createRefundSchema = z.object({
 type SignUpValues = z.infer<typeof signUpSchema>;
 type SignInValues = z.infer<typeof signInSchema>;
 type UpdateCustomerFormValues = z.infer<typeof updateCustomerFormSchema>;
-type CreateSubscriptionValues = z.infer<typeof createSubscriptionSchema>;
 type CreateRefundValues = z.infer<typeof createRefundSchema>;
 type View = "sign-up" | "sign-in";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const COMPACT_ACTION_FORM_CLASS =
-  "[&_.space-y-2]:space-y-1 [&_[data-slot=label]]:text-[10px] [&_[data-slot=label]]:font-medium [&_[data-slot=input]]:h-7 [&_[data-slot=input]]:px-2 [&_[data-slot=input]]:text-xs [&_[data-slot=input-group]]:mt-0 [&_[data-slot=input-group]]:h-7 [&_[data-slot=input-group]]:text-xs [&_[data-slot=input-group]_button]:h-7 [&_[data-slot=input-group]_button]:gap-1 [&_[data-slot=input-group]_button]:px-2 [&_[data-slot=input-group]_button_span]:text-xs [&_[data-slot=input-group]_button_svg]:h-2.5 [&_[data-slot=input-group]_button_svg]:w-4 [&_[data-slot=input-group-control]]:py-0 [&_[data-slot=input-group-control]]:text-xs [&_[type=submit]]:h-7 [&_[type=submit]]:px-2.5 [&_[type=submit]]:text-xs";
 
 async function apiFetch(path: string, init?: RequestInit) {
   const res = await fetch(`/api/auth${path}`, init);
@@ -196,8 +188,7 @@ export default function BetterAuthContent() {
                   />
                 )}
               />
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading && <Spinner size={14} strokeColor="currentColor" />}
+              <Button type="submit" disabled={loading} className="w-full" isLoading={loading}>
                 Create account
               </Button>
             </form>
@@ -235,8 +226,7 @@ export default function BetterAuthContent() {
                   />
                 )}
               />
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading && <Spinner size={14} strokeColor="currentColor" />}
+              <Button type="submit" disabled={loading} className="w-full" isLoading={loading}>
                 Sign in
               </Button>
             </form>
@@ -264,6 +254,7 @@ export default function BetterAuthContent() {
           className="ml-2 h-6 text-xs"
           onClick={() => authClient.signOut()}
           disabled={loading}
+          isLoading={loading}
         >
           Sign out
         </Button>
@@ -276,8 +267,8 @@ export default function BetterAuthContent() {
             size="sm"
             disabled={loading}
             onClick={() => withLoading("GET /stellar/customer/retrieve", () => apiFetch("/stellar/customer/retrieve"))}
+            isLoading={loading}
           >
-            {loading && <Spinner size={14} strokeColor="currentColor" />}
             Retrieve
           </Button>
         </ActionRow>
@@ -311,21 +302,6 @@ export default function BetterAuthContent() {
             {loading && <Spinner size={14} strokeColor="currentColor" />}
             List
           </Button>
-        </ActionRow>
-
-        <ActionRow method="POST" path="/stellar/subscription/create" stacked>
-          <CreateSubscriptionForm
-            loading={loading}
-            onSubmit={(body) =>
-              withLoading("POST /stellar/subscription/create", () =>
-                apiFetch("/stellar/subscription/create", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(body),
-                })
-              )
-            }
-          />
         </ActionRow>
       </Section>
 
@@ -455,42 +431,8 @@ function UpdateCustomerForm({ loading, onSubmit }: { loading: boolean; onSubmit:
           />
         )}
       />
-      <Button type="submit" size="sm" disabled={loading}>
-        {loading && <Spinner size={14} strokeColor="currentColor" />}
+      <Button type="submit" size="sm" disabled={loading} isLoading={loading}>
         Update
-      </Button>
-    </form>
-  );
-}
-
-function CreateSubscriptionForm({
-  loading,
-  onSubmit,
-}: {
-  loading: boolean;
-  onSubmit: (v: CreateSubscriptionValues) => void;
-}) {
-  const form = RHF.useForm<CreateSubscriptionValues>({ resolver: zodResolver(createSubscriptionSchema) });
-  return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-x-2 gap-y-2">
-      <RHF.Controller
-        control={form.control}
-        name="product_id"
-        render={({ field, fieldState }) => (
-          <TextField
-            id="sub-product"
-            label="Product ID"
-            value={field.value ?? ""}
-            onChange={field.onChange}
-            placeholder="prod_…"
-            className="w-48 shadow-none"
-            error={fieldState.error?.message ?? null}
-          />
-        )}
-      />
-      <Button type="submit" size="sm" disabled={loading}>
-        {loading && <Spinner size={14} strokeColor="currentColor" />}
-        Create
       </Button>
     </form>
   );
@@ -531,7 +473,6 @@ function CreateRefundForm({ loading, onSubmit }: { loading: boolean; onSubmit: (
         )}
       />
       <Button type="submit" size="sm" disabled={loading}>
-        {loading && <Spinner size={14} strokeColor="currentColor" />}
         Create
       </Button>
     </form>

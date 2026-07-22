@@ -1,5 +1,5 @@
 import { StellarTools } from "@stellartools/core";
-import { APIError, GenericEndpointContext, MiddlewareInputContext, MiddlewareOptions } from "better-auth";
+import { APIError, GenericEndpointContext } from "better-auth";
 
 import { BillingConfig } from "./types";
 

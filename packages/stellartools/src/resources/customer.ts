@@ -27,7 +27,14 @@ export class CustomerApi {
   async create(params: CreateCustomer, options?: RequestOptions) {
     return unwrap(
       await Result.andThenAsync(validateSchema(createCustomerSchema, params), async (data) => {
-        return await this.apiClient.post<Customer>("/customers", [data], mapOptionsToHeaders(options));
+        const result = await this.apiClient.post<Array<Customer>>("/customers", [data], mapOptionsToHeaders(options));
+        if (result.isErr()) return result;
+
+        const customer = result.value[0];
+
+        if (!customer) return Result.err(new Error("Customer create returned empty response"));
+
+        return Result.ok(customer);
       })
     );
   }
