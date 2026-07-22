@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.12
+
+### Patch Changes
+
+- b267b1b: fix: customer create API and various improvements
+
 ## 0.0.11
 
 ### Patch Changes
