@@ -13,7 +13,7 @@ import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core"
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
-import { Result, z as Schema, createRefundSchema } from "@stellartools/core";
+import { CreateRefund, Result, z as Schema, createRefundSchema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 
 export const OPTIONS = createOptionsHandler();
@@ -23,7 +23,12 @@ export const POST = apiHandler({
   schema: { body: createRefundSchema.extend({ wallet_address: Schema.string().optional() }) },
   mcp: { name: "create_refund", description: "Create a refund" },
   handler: async ({ body: rawBody, auth: { organizationId, environment } }) => {
-    const { paymentId: payment_id, reason, metadata, walletAddress: wallet_address } = toCamelCase<any>(rawBody);
+    const {
+      paymentId,
+      reason,
+      metadata,
+      walletAddress: wallet_address,
+    } = toCamelCase<CreateRefund & { wallet_address?: string }>(rawBody);
 
     const [
       {
@@ -31,20 +36,17 @@ export const POST = apiHandler({
       },
       { secret },
     ] = await Promise.all([
-      retrievePayments(organizationId, environment, { paymentId: payment_id }, { withWallets: true }),
+      retrievePayments(organizationId, environment, { paymentId }, { withWallets: true }),
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
 
     if (!secret) throw new AppError("VALIDATION_ERROR", "Merchant keys not configured, please contact support");
 
+    const refundToWalletAddress = wallet_address ?? payment?.wallets?.address;
+
     const {
       data: [platformCharge],
-    } = await retrieveCharges(
-      organizationId,
-      environment,
-      { paymentId: payment_id, type: "platform_fee" },
-      { limit: 1 }
-    );
+    } = await retrieveCharges(organizationId, environment, { paymentId, type: "platform_fee" }, { limit: 1 });
 
     const feeCrypto = platformCharge ? Number(platformCharge.cryptoAmount) : 0;
     const feeAmountCents = platformCharge ? platformCharge.amountCents : 0;
@@ -52,16 +54,16 @@ export const POST = apiHandler({
     const refundCryptoAmount = (Number(payment.cryptoAmount) - feeCrypto).toFixed(7);
     const refundAmountCents = payment.amountCents - feeAmountCents;
 
-    const refundId = generateResourceId("rf", payment_id, 15);
+    const refundId = generateResourceId("rf", paymentId, 15);
     const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 
-    const isValidPublicKeyResult = isValidPublicKey(wallet_address ?? payment?.wallets?.address);
+    const isValidPublicKeyResult = isValidPublicKey(refundToWalletAddress);
 
     if (isValidPublicKeyResult.isErr()) throw new AppError("INTERNAL_ERROR", isValidPublicKeyResult.error.message);
 
     const res = await sendAssetPayment(
       secretKey,
-      payment.wallets!.address,
+      refundToWalletAddress!,
       payment.selectedAssetCode,
       payment.selectedAssetIssuer!,
       refundCryptoAmount,
@@ -72,10 +74,10 @@ export const POST = apiHandler({
     const refund = await postRefund(
       {
         id: refundId,
-        paymentId: payment_id,
+        paymentId,
         reason,
         status: res.isOk() ? "succeeded" : "failed",
-        receiverWalletAddress: wallet_address ?? payment.wallets!.address,
+        receiverWalletAddress: refundToWalletAddress!,
         customerId: payment.customerId,
         cryptoAmount: refundCryptoAmount,
         selectedAssetCode: payment.selectedAssetCode,
