@@ -1,23 +1,26 @@
-export type ErrorCode =
-  | "UNAUTHORIZED" // 401
-  | "FORBIDDEN" // 403
-  | "VALIDATION_ERROR" // 400
-  | "NOT_FOUND" // 404
-  | "CONFLICT" // 409
-  | "RATE_LIMIT" // 429
-  | "INTERNAL_ERROR" // 500
-  | "STRIPE_ERROR" // Upstream
-  | "STELLAR_ERROR"; // Horizon/On-chain
+const ERROR_STATUS = {
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  VALIDATION_ERROR: 400,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  RATE_LIMIT: 429,
+  INTERNAL_ERROR: 500,
+  STRIPE_ERROR: 502,
+  STELLAR_ERROR: 502,
+};
+
+export type ErrorCode = keyof typeof ERROR_STATUS;
 
 export class AppError extends Error {
   public readonly code: ErrorCode;
   public readonly status: number;
 
-  constructor(code: ErrorCode, message: string, status: number = 400) {
+  constructor(code: ErrorCode, message: string, status?: number) {
     super(message);
     this.name = "AppError";
     this.code = code;
-    this.status = status;
+    this.status = status ?? ERROR_STATUS[code];
   }
 }
 
