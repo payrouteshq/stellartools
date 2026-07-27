@@ -6,6 +6,7 @@ import { getCurrentUser, signOut } from "@/actions/auth";
 import { retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
 import { TestModeBanner } from "@/components/environment-mode";
 import { useOrgContext } from "@/hooks/use-org-query";
+import { navMain } from "@/lib/dashboard-nav";
 import {
   AppModal,
   Avatar,
@@ -38,49 +39,10 @@ import {
   toast,
 } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Activity,
-  BadgeCheck,
-  Bell,
-  Building2,
-  ChevronRight,
-  ChevronsUpDown,
-  Code,
-  LayoutDashboard,
-  LogOut,
-  Package,
-  Plus,
-  Receipt,
-  Repeat,
-  Settings2,
-  Store,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { BadgeCheck, Bell, Building2, ChevronRight, ChevronsUpDown, LogOut, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-
-const navMain = [
-  { title: "Overview", url: "/", icon: LayoutDashboard },
-  { title: "Products", url: "/products", icon: Package },
-  { title: "Transactions", url: "/transactions", icon: Receipt },
-  { title: "Customers", url: "/customers", icon: Users },
-  { title: "Subscriptions", url: "/subscriptions", icon: Repeat },
-  { title: "Payout", url: "/payout", icon: Wallet },
-  { title: "Marketplace", url: "/marketplace", icon: Store },
-  { title: "Settings", url: "/settings", icon: Settings2 },
-  {
-    title: "Developers",
-    url: "/developers",
-    icon: Code,
-    items: [
-      { title: "API Keys", url: "/api-keys" },
-      { title: "Webhooks", url: "/webhooks" },
-      { title: "Documentation", url: `${process.env.NEXT_PUBLIC_DOCS_URL!}` },
-    ],
-  },
-];
 
 export function DashboardSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

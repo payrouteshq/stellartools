@@ -25,6 +25,11 @@ const primitives = [
     id: "webhooks",
     description: "Real-time events for every state change — payment.completed, subscription.renewed, and more.",
   },
+  {
+    label: "Marketplace Apps",
+    id: "marketplace",
+    description: "One click integrations with the tools you already use",
+  },
 ];
 
 export const PrimitivesSection = () => {

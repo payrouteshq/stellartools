@@ -59,7 +59,8 @@ function SidebarProvider({
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
   const [isHydrated, setIsHydrated] = React.useState(false);
-  const match = document.cookie.match(new RegExp(`(^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`));
+  const match =
+    typeof document !== "undefined" ? document.cookie.match(new RegExp(`(^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`)) : null;
 
   const persisted = match ? match[2] === "true" : true;
 

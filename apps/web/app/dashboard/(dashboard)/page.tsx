@@ -16,7 +16,7 @@ import {
   LoopIcon,
   SubscriptionIcon,
 } from "@/components/icon";
-import { ShareWidget } from "@/components/share-widget";
+import { StatCard } from "@/components/stat-card";
 import { useAction } from "@/hooks/use-action";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
@@ -24,7 +24,6 @@ import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
 import {
-  AppModal,
   Button,
   Card,
   CardContent,
@@ -34,7 +33,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  LineChart,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -47,16 +45,12 @@ import {
   TooltipTrigger,
   cn,
 } from "@stellartools/shared-ui";
-import { ArrowUpRight, ChevronsUpDown, Info } from "lucide-react";
+import { ArrowUpRight, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 
 type CurrencyItem = { code: string; name: string };
 
 const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
-
-const SPARKLINE_CONFIG = {
-  value: { label: "", color: "hsl(var(--chart-1))" },
-};
 
 export default function DashboardPage() {
   const [countryOpen, setCountryOpen] = React.useState(false);
@@ -381,111 +375,4 @@ function StatCardsSkeleton() {
       </div>
     </div>
   );
-}
-
-function StatCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  sparkData,
-  color,
-  usage,
-  max,
-  href,
-  tooltipValueFormatter,
-}: {
-  title: string;
-  value: string | number;
-  subtitle: string;
-  icon: React.ReactNode;
-  sparkData: { i: string; value: number }[];
-  color: string;
-  usage?: number;
-  max?: number;
-  href?: string;
-  tooltipValueFormatter?: (value: number) => string;
-}) {
-  const hasSpark = sparkData.length > 0;
-  const chartData = hasSpark ? sparkData : Array.from({ length: 7 }, (_, i) => ({ i: `d${i}`, value: 0 }));
-
-  const handleShare = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    AppModal.open({
-      title: `Share ${title}`,
-      content: <ShareWidget title={title} value={value} subtitle={subtitle} sparkData={sparkData} />,
-      size: "medium",
-      showCloseButton: true,
-    });
-  };
-
-  const card = (
-    <Card
-      className={cn(
-        "border-border/60 bg-card group relative overflow-hidden rounded-2xl shadow-xs transition-shadow",
-        href && "cursor-pointer hover:shadow-sm"
-      )}
-    >
-      <button
-        onClick={handleShare}
-        title={`Share ${title}`}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-3 right-3 z-10 flex size-6 cursor-pointer items-center justify-center rounded-md opacity-0 transition-all group-hover:opacity-100"
-      >
-        <ArrowUpRight className="size-3.5" />
-      </button>
-
-      <CardContent className="flex flex-col gap-5 p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">{title}</p>
-            <div className="flex items-center gap-3">
-              <p className="text-foreground text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
-                {typeof value === "number" ? value.toLocaleString() : value}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Info className="text-muted-foreground/50 size-3 shrink-0" aria-hidden />
-              <p className="text-muted-foreground text-xs">{subtitle}</p>
-            </div>
-          </div>
-          <div
-            className="bg-muted/80 flex size-10 shrink-0 items-center justify-center rounded-xl [&>svg]:size-5"
-            style={{ color }}
-          >
-            {icon}
-          </div>
-        </div>
-
-        <div className="relative -mx-6 mt-1 h-28 overflow-hidden rounded-b-2xl">
-          <LineChart
-            data={chartData}
-            config={SPARKLINE_CONFIG}
-            xAxisKey="i"
-            activeKey="value"
-            color={color as "var(--chart-1)"}
-            className="h-full w-full"
-            showXAxis={false}
-            showTooltip={true}
-            showGrid={false}
-            tooltipFormatter={
-              tooltipValueFormatter ? (value: unknown) => tooltipValueFormatter(Number(value)) : undefined
-            }
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className="focus-visible:ring-ring block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-      >
-        {card}
-      </Link>
-    );
-  }
-  return card;
 }
