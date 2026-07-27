@@ -77,6 +77,7 @@ function useLaunching(appId: string | undefined) {
 
 export function PluginLauncherDrawer({ app, onClose }: { app: MockInstalledApp | null; onClose: () => void }) {
   const loading = useLaunching(app?.id);
+  const isMobile = useIsMobile();
 
   return (
     <AnimatePresence>
@@ -91,11 +92,16 @@ export function PluginLauncherDrawer({ app, onClose }: { app: MockInstalledApp |
             aria-hidden
           />
           <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
+            initial={isMobile ? { y: "100%" } : { x: "100%" }}
+            animate={isMobile ? { y: 0 } : { x: 0 }}
+            exit={isMobile ? { y: "100%" } : { x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="bg-background absolute inset-y-0 right-0 z-50 flex w-[min(22rem,85%)] flex-col shadow-2xl"
+            className={cn(
+              "bg-background z-50 flex flex-col shadow-2xl",
+              isMobile
+                ? "absolute inset-x-2 top-10 bottom-14 rounded-t-2xl"
+                : "absolute inset-y-0 right-0 w-[min(22rem,85%)]"
+            )}
           >
             <header className="flex items-center gap-3 p-4">
               <div className="relative size-9 shrink-0 overflow-hidden rounded-lg">

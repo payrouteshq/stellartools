@@ -3,27 +3,27 @@ const primitives = [
     label: "Payments",
     id: "payments",
     description:
-      "Price in your local currency — NGN, GHS, USD and more — while customers pay in XLM, USDC, or any Stellar asset. 3-second settlement, sub-cent fees, no chargebacks.",
+      "Price in your local currency e.g. NGN, GHS, USD and more, while customers pay in XLM, USDC, or any Stellar asset",
   },
   {
     label: "Subscriptions",
     id: "subscriptions",
-    description: "Recurring billing with trial periods, pause, cancel-at-period-end, and automatic renewal.",
+    description: "Recurring billing with trial periods, pause, cancel-at-period-end, and automatic renewal",
   },
   {
     label: "Checkout",
     id: "checkout",
-    description: "Hosted payment pages with your branding. A single API call — no frontend code required.",
+    description: "Hosted payment pages with your branding. A single API call no frontend code required",
   },
   {
     label: "Customer Portal",
     id: "portal",
-    description: "Self-service billing portal. Customers manage their own subscriptions and payment methods.",
+    description: "Self-service billing portal. Customers manage their own subscriptions and payment methods",
   },
   {
     label: "Webhooks",
     id: "webhooks",
-    description: "Real-time events for every state change — payment.completed, subscription.renewed, and more.",
+    description: "Real-time events for every state change e.g. payment.completed, subscription.renewed, and more",
   },
   {
     label: "Marketplace Apps",

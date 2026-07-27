@@ -22,14 +22,14 @@ export const FooterSection = () => (
           <StellarToolsIcon width={22} height={22} className="text-foreground" />
           <span className="text-foreground text-sm font-semibold">StellarTools</span>
         </Link>
-        <p className="text-muted-foreground text-xs">built for the Stellar blockchain</p>
+        <p className="text-muted-foreground text-xs">Built for the Stellar blockchain</p>
         <Link
           href="https://payroutes.sh"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-1 flex items-center gap-1.5 no-underline"
         >
-          <span className="text-muted-foreground text-xs">by</span>
+          <span className="text-muted-foreground text-xs">By</span>
           <Payroutes className="text-foreground size-4" />
           <span className="text-muted-foreground text-xs font-medium">Payroutes</span>
         </Link>

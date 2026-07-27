@@ -8,7 +8,7 @@ import Link from "next/link";
 
 const GITHUB_URL = "https://github.com/payrouteshq/stellartools";
 
-const WORDS = ["SaaS", "Agency", "Store", "Startup", "Platform", "Product"];
+const WORDS = ["SaaS", "Agency", "Marketplace", "Startup", "Store"];
 
 function CyclingWord() {
   const [index, setIndex] = React.useState(0);
@@ -39,19 +39,15 @@ function CyclingWord() {
 export function HeroSection() {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-28 pb-20 text-center">
-      <p className="text-muted-foreground mb-5 text-[11px] font-semibold tracking-[1.6px] uppercase">
-        A Payroutes company.
-      </p>
-
       <h1 className="text-foreground mb-5 text-[clamp(36px,5.5vw,68px)] leading-[1.06] font-bold tracking-tight">
-        Run your <CyclingWord />
+        Payments for your <CyclingWord />,
         <br />
-        onchain.
+        built on Stellar.
       </h1>
 
-      <p className="text-muted-foreground mb-10 max-w-[480px] text-[17px] leading-relaxed">
-        Accept payments across borders at near-zero cost. 3-second settlements, fractions of a cent per transaction —
-        open-source, Stripe-like billing on Stellar.
+      <p className="text-muted-foreground mb-10 max-w-120 text-[17px] leading-relaxed">
+        Accept payments from anywhere and cash out to your bank. Open-source, Stripe-like billing on Stellar that
+        settles in seconds for pennies.
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
