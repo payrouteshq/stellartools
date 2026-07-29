@@ -35,24 +35,18 @@ export function PaymentFirstPurchaseEmail({
 
       <Section className="bg-muted mb-6 rounded-lg px-5 py-4">
         <Row className="mb-2">
-          <Column className="text-muted-foreground w-[120px] text-xs font-medium tracking-wide uppercase">
-            Product
-          </Column>
+          <Column className="text-muted-foreground w-30 text-xs font-medium tracking-wide uppercase">Product</Column>
           <Column className="text-foreground text-sm font-medium">{productName}</Column>
         </Row>
         <Row className="mb-2">
-          <Column className="text-muted-foreground w-[120px] text-xs font-medium tracking-wide uppercase">
-            Amount
-          </Column>
+          <Column className="text-muted-foreground w-30 text-xs font-medium tracking-wide uppercase">Amount</Column>
           <Column className="text-foreground text-sm font-semibold">
             {amount} {assetCode}
           </Column>
         </Row>
         {customerEmail && (
           <Row>
-            <Column className="text-muted-foreground w-[120px] text-xs font-medium tracking-wide uppercase">
-              Customer
-            </Column>
+            <Column className="text-muted-foreground w-30 text-xs font-medium tracking-wide uppercase">Customer</Column>
             <Column className="text-muted-foreground text-sm">{customerEmail}</Column>
           </Row>
         )}

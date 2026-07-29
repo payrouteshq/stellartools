@@ -73,7 +73,7 @@ export function AreaChart<T extends BaseChartData>({
       config={config}
       role="img"
       aria-label={rest["aria-label"] ?? chartLabel}
-      className={cn("aspect-auto h-[250px] w-full", className)}
+      className={cn("aspect-auto h-62.5 w-full", className)}
     >
       <RechartsAreaChart accessibilityLayer data={data} margin={{ left: 12, right: 12 }}>
         <CartesianGrid vertical={false} {...grid} />
@@ -96,7 +96,7 @@ export function AreaChart<T extends BaseChartData>({
               <ChartTooltipContent
                 {...tooltip}
                 className={cn(
-                  "border-muted/40 w-fit min-w-[120px] gap-1 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur-sm",
+                  "border-muted/40 w-fit min-w-30 gap-1 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur-sm",
                   tooltip.className
                 )}
                 labelClassName="font-medium text-muted-foreground/80 mb-0.5"

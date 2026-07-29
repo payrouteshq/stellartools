@@ -189,7 +189,7 @@ export function ResendAppPanel({ onDisconnect }: { onDisconnect: () => void }) {
             data={filteredEmails}
             columns={EMAIL_COLUMNS}
             emptyMessage="No emails match your search."
-            containerClassName="[&_.bg-card]:shadow-none [&_[data-slot=table-cell]]:text-xs [&_[data-slot=table-head]]:text-xs"
+            containerClassName="[&_.bg-card]:shadow-none **:data-[slot=table-cell]:text-xs **:data-[slot=table-head]:text-xs"
           />
         </div>
 

@@ -130,7 +130,7 @@ function ProductDetailSkeleton() {
           </section>
           <section>
             <Skeleton className="mb-3 h-4 w-20" />
-            <Skeleton className="h-[120px] w-full rounded-lg" />
+            <Skeleton className="h-30 w-full rounded-lg" />
           </section>
         </div>
         <div className="space-y-8 lg:col-span-2">
@@ -430,7 +430,7 @@ export default function ProductDetailPage() {
                           <TableCell className="font-medium">
                             {Money.formatFiat(product.priceCents, product.currencyCode)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate text-sm">
+                          <TableCell className="text-muted-foreground max-w-50 truncate text-sm">
                             {product.description ?? "—"}
                           </TableCell>
                           {isSubscription && (
@@ -475,7 +475,7 @@ export default function ProductDetailPage() {
 
                 <section>
                   <h2 className="text-foreground text-sm font-semibold tracking-wide uppercase">Features</h2>
-                  <div className="border-border bg-muted/5 mt-3 flex min-h-[120px] items-center justify-center rounded-lg border border-dashed">
+                  <div className="border-border bg-muted/5 mt-3 flex min-h-30 items-center justify-center rounded-lg border border-dashed">
                     <p className="text-muted-foreground text-sm">No features</p>
                   </div>
                 </section>

@@ -161,7 +161,7 @@ export function RefundModalContent({
               label="Reason"
               error={error?.message}
               placeholder="Enter reason for refund (optional)"
-              className="min-h-[120px] shadow-none"
+              className="min-h-30 shadow-none"
             />
           )}
         />

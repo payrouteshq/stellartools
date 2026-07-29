@@ -63,7 +63,7 @@ export function LineChart<T extends BaseChartData>({
   const { xAxis, tooltip, line, rest, grid } = splitProps(mixinProps, "xAxis", "tooltip", "line", "grid");
 
   return (
-    <ChartContainer {...rest} config={config} className={cn("aspect-auto h-[250px] w-full", className)}>
+    <ChartContainer {...rest} config={config} className={cn("aspect-auto h-62.5 w-full", className)}>
       <AreaChart accessibilityLayer data={data} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -95,7 +95,7 @@ export function LineChart<T extends BaseChartData>({
               <ChartTooltipContent
                 {...tooltip}
                 className={cn(
-                  "border-muted/40 w-fit min-w-[120px] gap-1 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur-sm",
+                  "border-muted/40 w-fit min-w-30 gap-1 px-2 py-1.5 text-[11px] shadow-lg backdrop-blur-sm",
                   tooltip.className
                 )}
                 labelClassName="font-medium text-muted-foreground/80 mb-0.5"

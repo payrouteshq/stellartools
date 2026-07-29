@@ -165,7 +165,7 @@ const Dashboard = () => {
             xAxisKey="day"
             activeKey="sent"
             color="var(--chart-1)"
-            className="h-[200px]"
+            className="h-50"
             xAxisFormatter={(value: string | number) => (Number(value) % 5 === 0 ? String(value) : "")}
           />
           <dl className="grid grid-cols-3 gap-4">
@@ -207,7 +207,7 @@ const Dashboard = () => {
             data={filteredEmails}
             columns={EMAIL_COLUMNS}
             emptyMessage="No emails match your search."
-            containerClassName="[&_.bg-card]:shadow-none [&_[data-slot=table-cell]]:text-xs [&_[data-slot=table-head]]:text-xs [&_[data-slot=table-container]::-webkit-scrollbar]:h-1 [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:rounded-full [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:bg-border [&_[data-slot=table-container]::-webkit-scrollbar-track]:bg-transparent"
+            containerClassName="[&_.bg-card]:shadow-none **:data-[slot=table-cell]:text-xs **:data-[slot=table-head]:text-xs [&_[data-slot=table-container]::-webkit-scrollbar]:h-1 [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:rounded-full [&_[data-slot=table-container]::-webkit-scrollbar-thumb]:bg-border [&_[data-slot=table-container]::-webkit-scrollbar-track]:bg-transparent"
           />
         </div>
 

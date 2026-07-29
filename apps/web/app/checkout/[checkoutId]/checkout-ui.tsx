@@ -83,7 +83,7 @@ export default function CheckoutUI() {
         )}
       >
         <div className="space-y-6 lg:sticky lg:top-12">
-          <div className="bg-card overflow-hidden rounded-2xl border shadow-sm lg:min-w-[360px]">
+          <div className="bg-card overflow-hidden rounded-2xl border shadow-sm lg:min-w-90">
             {(checkout.organizationName || checkout.organizationLogo) && (
               <div className="flex items-center gap-3 border-b px-6 py-4">
                 {checkout.organizationLogo && (
@@ -146,7 +146,7 @@ export default function CheckoutUI() {
           </div>
         </div>
 
-        <Card className="border-primary/10 overflow-hidden rounded-2xl shadow-xl lg:min-w-[400px]">
+        <Card className="border-primary/10 overflow-hidden rounded-2xl shadow-xl lg:min-w-100">
           <CardContent className="space-y-8 p-6 sm:p-8 lg:p-10">
             <div className="space-y-6">
               {checkout.customerImage && (

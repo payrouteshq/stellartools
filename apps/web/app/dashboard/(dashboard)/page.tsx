@@ -171,7 +171,7 @@ export default function DashboardPage() {
                           variant="outline"
                           role="combobox"
                           aria-expanded={countryOpen}
-                          className="border-border/80 h-9 w-[200px] justify-between rounded-lg font-normal shadow-xs"
+                          className="border-border/80 h-9 w-50 justify-between rounded-lg font-normal shadow-xs"
                         >
                           <span className="truncate">
                             {selectedItem ? `${selectedItem.name} (${selectedItem.code})` : "Select currency"}
@@ -180,10 +180,10 @@ export default function DashboardPage() {
                         </Button>
                       )}
                     </PopoverTrigger>
-                    <PopoverContent className="w-[280px] p-0" align="end" onWheel={(e) => e.stopPropagation()}>
+                    <PopoverContent className="w-70 p-0" align="end" onWheel={(e) => e.stopPropagation()}>
                       <Command>
                         <CommandInput placeholder="Search currency..." />
-                        <CommandList className="max-h-[280px]">
+                        <CommandList className="max-h-70">
                           <CommandEmpty>No currency found.</CommandEmpty>
                           <CommandGroup>
                             {currencyItems.map((item) => (
@@ -219,7 +219,7 @@ export default function DashboardPage() {
                   href="/payout"
                   className="text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 text-xs underline underline-offset-2 transition-colors"
                 >
-                  <span className="max-w-[280px] truncate">{walletBalanceLabel}</span>
+                  <span className="max-w-70 truncate">{walletBalanceLabel}</span>
                   <ArrowUpRight className="size-3 shrink-0" />
                 </Link>
               </div>
@@ -317,7 +317,7 @@ function LedgerHealth({ reports }: { reports: ReconReport[] }) {
             </span>
           </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+        <TooltipContent side="bottom" className="max-w-65 text-xs">
           {isHealthy ? (
             <p>All on-chain balances match your records.</p>
           ) : (
@@ -364,8 +364,8 @@ function StatCardsSkeleton() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Skeleton className="h-8 w-36 md:h-9 md:w-40" />
         <div className="flex items-center gap-2">
-          <Skeleton className="h-9 w-[140px] rounded-lg" />
-          <Skeleton className="h-9 w-[200px] rounded-lg" />
+          <Skeleton className="h-9 w-35 rounded-lg" />
+          <Skeleton className="h-9 w-50 rounded-lg" />
         </div>
       </div>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">

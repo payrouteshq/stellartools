@@ -56,13 +56,13 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
       ref={listRef}
       data-slot="tabs-list"
       className={cn(
-        "bg-muted text-muted-foreground relative inline-flex h-auto w-fit items-center justify-center rounded-lg p-[3px]",
+        "bg-muted text-muted-foreground relative inline-flex h-auto w-fit items-center justify-center rounded-lg p-0.75",
         className
       )}
       {...props}
     >
       <span
-        className="bg-background dark:bg-input/30 dark:border-input absolute top-[3px] h-[calc(100%-6px)] rounded-md transition-all duration-300 ease-out dark:border"
+        className="bg-background dark:bg-input/30 dark:border-input absolute top-0.75 h-[calc(100%-6px)] rounded-md transition-all duration-300 ease-out dark:border"
         style={{
           left: `${indicatorStyle.left}px`,
           width: `${indicatorStyle.width}px`,

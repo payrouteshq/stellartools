@@ -8,7 +8,7 @@ import { cn } from "../lib/utils";
 type ToasterProps = React.ComponentProps<typeof HotToaster>;
 
 const toastBaseClass =
-  "!bg-card !text-card-foreground !border !border-border !shadow-none !rounded-lg !px-4 !py-3 !min-h-[56px] !max-w-md !backdrop-blur-sm";
+  "bg-card! text-card-foreground! border! border-border! shadow-none! rounded-lg! px-4! py-3! min-h-14! max-w-md! backdrop-blur-sm!";
 
 const Toaster = (props: ToasterProps) => (
   <HotToaster
@@ -28,7 +28,7 @@ function renderCustom(message: string, icon: React.ReactNode, className?: string
     (t) => (
       <div
         className={cn(
-          "bg-card text-card-foreground border-border flex min-h-[56px] w-full max-w-md items-center gap-3 rounded-lg border px-4 py-3 shadow-none backdrop-blur-sm transition-opacity",
+          "bg-card text-card-foreground border-border flex min-h-14 w-full max-w-md items-center gap-3 rounded-lg border px-4 py-3 shadow-none backdrop-blur-sm transition-opacity",
           t.visible ? "opacity-100" : "opacity-0",
           className
         )}

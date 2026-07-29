@@ -219,13 +219,13 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
             </PopoverTrigger>
 
             <PopoverContent
-              className="bg-background w-[300px] border p-0 shadow-lg"
+              className="bg-background w-75 border p-0 shadow-lg"
               align="start"
               onWheel={(e) => e.stopPropagation()}
             >
               <Command>
                 <CommandInput placeholder="Search country..." />
-                <CommandList className="max-h-[300px] overflow-y-auto">
+                <CommandList className="max-h-75 overflow-y-auto">
                   <CommandEmpty>No country found.</CommandEmpty>
                   <CommandGroup>
                     {sortedCountries.map((country) => (

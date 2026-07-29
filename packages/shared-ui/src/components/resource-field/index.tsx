@@ -103,7 +103,7 @@ export function ResourceField<T>({
         </InputGroup>
       </div>
 
-      <div className="max-h-[300px] overflow-y-auto">
+      <div className="max-h-75 overflow-y-auto">
         {renderActions && !query && (
           <div className="bg-background/50 border-b">
             <div className="text-muted-foreground px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase">

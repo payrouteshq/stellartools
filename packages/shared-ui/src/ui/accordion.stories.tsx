@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: { type: "single", collapsible: true },
   render: (args) => (
-    <Accordion {...args} className="w-[350px]">
+    <Accordion {...args} className="w-87.5">
       <AccordionItem value="item-1">
         <AccordionTrigger>Is it accessible?</AccordionTrigger>
         <AccordionContent>Yes. It uses Radix UI primitives.</AccordionContent>
@@ -35,7 +35,7 @@ export const Default: Story = {
 export const Multiple: Story = {
   args: { type: "multiple" },
   render: (args) => (
-    <Accordion {...args} className="w-[350px]">
+    <Accordion {...args} className="w-87.5">
       <AccordionItem value="item-1">
         <AccordionTrigger>Item 1</AccordionTrigger>
         <AccordionContent>Content for item 1.</AccordionContent>

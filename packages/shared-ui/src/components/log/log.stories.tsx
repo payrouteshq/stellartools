@@ -63,7 +63,7 @@ const columns: ColumnDef<LogEntry>[] = [
   {
     accessorKey: "message",
     header: "Message",
-    cell: ({ row }) => <span className="max-w-[200px] truncate">{row.original.message}</span>,
+    cell: ({ row }) => <span className="max-w-50 truncate">{row.original.message}</span>,
   },
 ];
 

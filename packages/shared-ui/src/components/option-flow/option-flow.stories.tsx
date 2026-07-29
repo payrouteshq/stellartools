@@ -31,7 +31,7 @@ export const BillingMode: StoryObj<typeof OptionFlow> = {
     const [mode, setMode] = React.useState("classic");
 
     return (
-      <div className="w-[500px]">
+      <div className="w-125">
         <OptionFlow label="Billing mode" value={mode} onSave={setMode} items={billingItems} />
       </div>
     );
@@ -43,7 +43,7 @@ export const WithError: StoryObj<typeof OptionFlow> = {
     const [mode, setMode] = React.useState("classic");
 
     return (
-      <div className="w-[500px]">
+      <div className="w-125">
         <OptionFlow
           label="Billing mode"
           value={mode}

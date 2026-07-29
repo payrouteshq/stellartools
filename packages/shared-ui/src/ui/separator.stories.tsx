@@ -33,7 +33,7 @@ export const Vertical: Story = {
 
 export const WithText: Story = {
   render: () => (
-    <div className="flex w-[300px] flex-col gap-2">
+    <div className="flex w-75 flex-col gap-2">
       <p className="text-sm">Section above</p>
       <Separator />
       <p className="text-sm">Section below</p>

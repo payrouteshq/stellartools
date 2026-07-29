@@ -161,7 +161,7 @@ export function Timeline<T>({
       <div className={cn("relative flex flex-col", className)}>
         <ul className="relative m-0 list-none p-0">
           <div
-            className="bg-border absolute top-2 left-[7px] w-px"
+            className="bg-border absolute top-2 left-1.75 w-px"
             style={{ height: "calc(100% - 20px)" }}
             aria-hidden="true"
           />
@@ -197,7 +197,7 @@ export function Timeline<T>({
     <div className={cn("relative flex flex-col", className)}>
       <ul className="relative m-0 list-none p-0">
         <div
-          className="bg-border absolute top-2 left-[7px] w-px"
+          className="bg-border absolute top-2 left-1.75 w-px"
           style={{ height: "calc(100% - 20px)" }}
           aria-hidden="true"
         />

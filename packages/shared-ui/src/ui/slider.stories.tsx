@@ -21,7 +21,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: { defaultValue: [50] },
   render: (args) => (
-    <div className="w-[300px]">
+    <div className="w-75">
       <Slider {...args} />
     </div>
   ),
@@ -29,7 +29,7 @@ export const Default: Story = {
 export const Disabled: Story = {
   args: { defaultValue: [50], disabled: true },
   render: (args) => (
-    <div className="w-[300px]">
+    <div className="w-75">
       <Slider {...args} />
     </div>
   ),

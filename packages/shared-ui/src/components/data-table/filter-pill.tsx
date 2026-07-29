@@ -312,7 +312,7 @@ export const DataTableFilterPill = <TData, TValue>({
           {displayValue && (
             <>
               <span className="mx-0.5 opacity-30">|</span>
-              <span className="text-foreground max-w-[120px] truncate">{displayValue}</span>
+              <span className="text-foreground max-w-30 truncate">{displayValue}</span>
             </>
           )}
         </button>

@@ -34,8 +34,8 @@ import {
   phoneNumberFromString,
   phoneNumberSchema,
   phoneNumberToString,
+  useFilePreview,
 } from "@stellartools/shared-ui";
-import { useFilePreview } from "@stellartools/shared-ui";
 import _ from "lodash";
 import { ArrowRight, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -500,7 +500,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
           return (
             <button
               onClick={() => setViewMetadata(meta)}
-              className="bg-muted hover:bg-primary/5 hover:text-primary hover:border-primary/20 max-w-[150px] cursor-pointer truncate rounded border border-transparent px-2 py-1 font-mono text-[10px] transition-colors"
+              className="bg-muted hover:bg-primary/5 hover:text-primary hover:border-primary/20 max-w-37.5 cursor-pointer truncate rounded border border-transparent px-2 py-1 font-mono text-[10px] transition-colors"
             >
               {JSON.stringify(meta)}
             </button>
@@ -625,7 +625,7 @@ export function ImportCsvModalContent({ onClose, onSuccess }: { onClose: () => v
             </CsvImportSection>
 
             <CsvImportSection label="4. Logic Validation">
-              <div className="bg-muted/10 min-h-[160px] rounded-xl border p-6">
+              <div className="bg-muted/10 min-h-40 rounded-xl border p-6">
                 <Timeline
                   items={Object.keys(schemaLogic).length ? [1] : []}
                   renderItem={() => ({

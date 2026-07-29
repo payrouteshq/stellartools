@@ -22,7 +22,7 @@ export const TrialDays: StoryObj<typeof FieldStack> = {
     const isSubscription = productId === "sub";
 
     return (
-      <div className="w-[420px]">
+      <div className="w-105">
         <FieldStack>
           <SelectField
             id="product"
@@ -57,7 +57,7 @@ export const CustomBillingPeriod: StoryObj<typeof FieldStack> = {
     const [qty, setQty] = React.useState("1");
 
     return (
-      <div className="w-[420px]">
+      <div className="w-105">
         <FieldStack className="gap-3">
           <SelectField
             id="period"

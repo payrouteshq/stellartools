@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <Collapsible className="w-[350px]">
+    <Collapsible className="w-87.5">
       <CollapsibleTrigger asChild>
         <Button variant="outline" className="w-full justify-between">
           Toggle

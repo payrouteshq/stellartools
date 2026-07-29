@@ -34,7 +34,7 @@ const EmbeddedFieldRowRoot = ({ when, children, layout = "inline", className, ..
       )}
       {...props}
     >
-      <div className="border-border absolute top-[-12px] left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
+      <div className="border-border absolute -top-3 left-0 h-[calc(50%+12px)] w-4 rounded-bl border-b border-l" />
       {children}
     </div>
   );

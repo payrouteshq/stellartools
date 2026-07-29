@@ -23,5 +23,5 @@ const content = (
 );
 
 export const Default: Story = {
-  render: () => <ScrollArea className="h-[200px] w-[250px] rounded-md border">{content}</ScrollArea>,
+  render: () => <ScrollArea className="h-50 w-62.5 rounded-md border">{content}</ScrollArea>,
 };

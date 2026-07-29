@@ -89,7 +89,7 @@ const customerConfig = {
 const FieldDemo = ({ initialValue = null, ...props }: any) => {
   const [val, setVal] = React.useState<Sample | null>(initialValue);
   return (
-    <div className="w-[420px]">
+    <div className="w-105">
       <ResourceField {...props} value={val} onChange={setVal} />
     </div>
   );

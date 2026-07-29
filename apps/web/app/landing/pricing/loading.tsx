@@ -21,7 +21,7 @@ export default function PricingLoading() {
 
         <div className="mb-32 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[380px] rounded-xl" />
+            <Skeleton key={i} className="h-95 rounded-xl" />
           ))}
         </div>
       </main>

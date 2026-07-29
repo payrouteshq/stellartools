@@ -53,7 +53,7 @@ const AppModalUI = ({
   const sizeStyles = {
     small: "max-h-[90vh] sm:max-w-md flex flex-col",
     medium: "max-h-[90vh] sm:max-w-2xl flex flex-col",
-    full: "!inset-0 !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !m-0 !h-screen !w-screen !max-w-none sm:!max-w-none rounded-none",
+    full: "inset-0! top-0! left-0! right-0! bottom-0! translate-x-0! translate-y-0! m-0! h-screen! w-screen! max-w-none! sm:max-w-none! rounded-none",
   };
 
   return (

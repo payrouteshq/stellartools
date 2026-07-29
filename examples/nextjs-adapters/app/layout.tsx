@@ -77,10 +77,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           alt={item.label}
                           width={18}
                           height={18}
-                          className="rounded-[4px] object-contain"
+                          className="rounded-lg object-contain"
                         />
                       ) : (
-                        <span className="bg-muted text-muted-foreground flex size-[18px] items-center justify-center rounded-[4px] text-[10px]">
+                        <span className="bg-muted text-muted-foreground flex size-4.5 items-center justify-center rounded-lg text-[10px]">
                           ✦
                         </span>
                       )}

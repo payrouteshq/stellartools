@@ -6,7 +6,7 @@ export function CheckoutSkeleton({ className }: { className?: string }) {
       <main className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 items-start gap-8 px-4 py-10 sm:gap-10 sm:px-6 lg:max-w-6xl lg:grid-cols-[1fr_1.1fr] lg:gap-12 lg:px-8">
         {/* Left: product summary card */}
         <div className="space-y-6 lg:sticky lg:top-12">
-          <div className="bg-card overflow-hidden rounded-2xl border shadow-sm lg:min-w-[360px]">
+          <div className="bg-card overflow-hidden rounded-2xl border shadow-sm lg:min-w-90">
             <div className="flex items-center gap-3 border-b px-6 py-4">
               <Skeleton className="size-10 shrink-0 rounded-lg" />
               <Skeleton className="h-4 w-32 rounded-md" />

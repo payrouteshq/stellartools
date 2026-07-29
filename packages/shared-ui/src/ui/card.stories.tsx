@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <Card className="w-[350px]">
+    <Card className="w-87.5">
       <CardHeader>
         <CardTitle>Card Title</CardTitle>
         <CardDescription>Card description goes here.</CardDescription>
@@ -32,7 +32,7 @@ export const Default: Story = {
 
 export const WithBorder: Story = {
   render: () => (
-    <Card className="w-[350px] border-b">
+    <Card className="w-87.5 border-b">
       <CardHeader className="border-b">
         <CardTitle>Card with borders</CardTitle>
         <CardDescription>Header and footer have borders.</CardDescription>

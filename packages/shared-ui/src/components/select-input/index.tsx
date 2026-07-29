@@ -162,8 +162,8 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
                 aria-expanded={open}
                 disabled={disabled || isLoading || options.length === 0}
                 className={cn(
-                  "border-input hover:bg-accent hover:text-accent-foreground flex h-full min-w-[100px] items-center rounded-r-none border-r bg-transparent px-3 py-0 shadow-none",
-                  mode === "currency" && "min-w-[72px] px-2",
+                  "border-input hover:bg-accent hover:text-accent-foreground flex h-full min-w-25 items-center rounded-r-none border-r bg-transparent px-3 py-0 shadow-none",
+                  mode === "currency" && "min-w-18 px-2",
                   optionTriggerClassName
                 )}
               >
@@ -182,7 +182,7 @@ export const SelectInput = React.forwardRef<HTMLInputElement, SelectInputProps>(
 
             <PopoverContent
               {...popoverContent}
-              className={cn("w-[220px] p-0 shadow-xl", popoverContent?.className)}
+              className={cn("w-55 p-0 shadow-xl", popoverContent?.className)}
               align="start"
               onWheel={(e) => e.stopPropagation()}
             >

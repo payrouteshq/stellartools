@@ -367,7 +367,7 @@ function ActionRow({
         <div
           className={cn(
             "mt-2",
-            "**:data-[slot=input]:h-7 **:data-[slot=input]:px-2 **:data-[slot=input]:text-xs **:data-[slot=input-group]:mt-0 **:data-[slot=input-group]:h-7 **:data-[slot=input-group]:text-xs **:data-[slot=input-group-control]:py-0 **:data-[slot=input-group-control]:text-xs **:data-[slot=label]:text-[10px] **:data-[slot=label]:font-medium [&_.space-y-2]:space-y-1 [&_[data-slot=input-group]_button]:h-7 [&_[data-slot=input-group]_button]:gap-1 [&_[data-slot=input-group]_button]:px-2 [&_[data-slot=input-group]_button_span]:text-xs [&_[data-slot=input-group]_button_svg]:h-2.5 [&_[data-slot=input-group]_button_svg]:w-4 [&_[type=submit]]:text-xs **:[[type=submit]]:h-7 **:[[type=submit]]:px-2.5"
+            "**:data-[slot=input]:h-7 **:data-[slot=input]:px-2 **:data-[slot=input]:text-xs **:data-[slot=input-group]:mt-0 **:data-[slot=input-group]:h-7 **:data-[slot=input-group]:text-xs **:data-[slot=input-group-control]:py-0 **:data-[slot=input-group-control]:text-xs **:data-[slot=label]:text-[10px] **:data-[slot=label]:font-medium [&_.space-y-2]:space-y-1 [&_[data-slot=input-group]_button]:h-7 [&_[data-slot=input-group]_button]:gap-1 [&_[data-slot=input-group]_button]:px-2 [&_[data-slot=input-group]_button_span]:text-xs [&_[data-slot=input-group]_button_svg]:h-2.5 [&_[data-slot=input-group]_button_svg]:w-4 **:[[type=submit]]:h-7 **:[[type=submit]]:px-2.5 **:[[type=submit]]:text-xs"
           )}
         >
           {children}

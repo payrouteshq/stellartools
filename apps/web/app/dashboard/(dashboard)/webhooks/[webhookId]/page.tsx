@@ -282,7 +282,7 @@ export default function DeliveryLogPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground text-xs font-medium">Event ID</span>
                 <div className="flex min-w-0 items-center gap-1">
-                  <span className="max-w-[180px] truncate font-mono text-xs">{l.id}</span>
+                  <span className="max-w-45 truncate font-mono text-xs">{l.id}</span>
                   <CopyButton text={l.id} label="Copy event ID" />
                 </div>
               </div>
@@ -394,7 +394,7 @@ export default function DeliveryLogPage() {
               </div>
             </div>
 
-            <div className="h-[calc(100vh-340px)] min-h-[480px]">
+            <div className="h-[calc(100vh-340px)] min-h-120">
               <Log
                 data={filteredLogs as unknown as DeliveryLog[]}
                 columns={columns}

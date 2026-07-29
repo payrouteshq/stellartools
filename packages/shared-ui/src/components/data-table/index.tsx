@@ -229,7 +229,7 @@ export const DataTable = <TData, TValue>({
           <Checkbox
             checked={table.getIsAllPageRowsSelected()}
             onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
-            className={cn(checkbox?.className, "translate-y-[2px] cursor-pointer")}
+            className={cn(checkbox?.className, "translate-y-0.5 cursor-pointer")}
           />
         ),
         cell: ({ row }) => (
@@ -237,7 +237,7 @@ export const DataTable = <TData, TValue>({
             checked={row.getIsSelected()}
             onCheckedChange={(v) => row.toggleSelected(!!v)}
             onClick={(e) => e.stopPropagation()}
-            className={cn(checkbox?.className, "translate-y-[2px] cursor-pointer")}
+            className={cn(checkbox?.className, "translate-y-0.5 cursor-pointer")}
           />
         ),
       });

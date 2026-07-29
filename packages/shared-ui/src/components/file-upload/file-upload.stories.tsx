@@ -15,7 +15,7 @@ const FileUploadWithState = ({ value: initialValue, ...props }: React.ComponentP
   const isCircle = props.shape === "circle";
 
   return (
-    <div className={isCircle ? "w-fit" : "w-full max-w-md min-w-[400px]"}>
+    <div className={isCircle ? "w-fit" : "w-full max-w-md min-w-100"}>
       <FileUpload
         {...props}
         value={value}
@@ -35,7 +35,7 @@ const meta = {
   tags: ["autodocs"],
   decorators: [
     (Story) => (
-      <div className="w-[480px]">
+      <div className="w-120">
         <Story />
       </div>
     ),

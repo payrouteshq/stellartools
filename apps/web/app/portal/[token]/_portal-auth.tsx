@@ -49,7 +49,7 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
 
   return (
     <div className="bg-background flex min-h-screen">
-      <aside className="border-border bg-background hidden w-[280px] shrink-0 flex-col border-r px-8 py-10 md:flex!">
+      <aside className="border-border bg-background hidden w-70 shrink-0 flex-col border-r px-8 py-10 md:flex!">
         <div className="mb-6 flex items-center gap-3">
           {org?.logoUrl ? (
             <img src={org.logoUrl} alt={orgName} className="size-8 rounded-md object-contain" />

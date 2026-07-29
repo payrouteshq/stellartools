@@ -72,7 +72,7 @@ export function Log<TData, TValue>({
     return (
       <div
         className={cn(
-          "border-border bg-muted/10 flex min-h-[400px] flex-col items-center justify-center rounded-lg border p-12 text-center",
+          "border-border bg-muted/10 flex min-h-100 flex-col items-center justify-center rounded-lg border p-12 text-center",
           className
         )}
       >

@@ -113,7 +113,7 @@ export const TagInput = React.forwardRef<HTMLInputElement, TagInputProps>((props
           ref={ref}
           data-slot="input-group-control"
           className={cn(
-            "h-7 min-w-[80px] flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0",
+            "h-7 min-w-20 flex-1 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0",
             input.className
           )}
           value={pendingData}

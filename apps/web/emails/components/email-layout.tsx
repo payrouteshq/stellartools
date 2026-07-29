@@ -78,7 +78,7 @@ export function EmailLayout({ preview, organizationName, organizationLogo, child
         </Head>
         <Preview>{preview}</Preview>
         <Body className="bg-background font-sans">
-          <Container className="mx-auto max-w-[560px] py-10">
+          <Container className="mx-auto max-w-140 py-10">
             {/* Org header */}
             <Section className="mb-4 px-1">
               <Row>

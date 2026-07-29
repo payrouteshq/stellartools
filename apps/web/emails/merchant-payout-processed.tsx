@@ -33,21 +33,19 @@ export const MerchantPayoutProcessedEmail = ({
 
       <Section className="bg-muted mb-6 rounded-lg px-5 py-4">
         <Row className="mb-2">
-          <Column className="text-muted-foreground w-[140px] text-xs font-medium tracking-wide uppercase">
-            Amount
-          </Column>
+          <Column className="text-muted-foreground w-35 text-xs font-medium tracking-wide uppercase">Amount</Column>
           <Column className="text-foreground text-sm font-semibold">
             {cryptoAmount} {assetCode}
           </Column>
         </Row>
         <Row className="mb-2">
-          <Column className="text-muted-foreground w-[140px] text-xs font-medium tracking-wide uppercase">
+          <Column className="text-muted-foreground w-35 text-xs font-medium tracking-wide uppercase">
             Destination
           </Column>
           <Column className="text-muted-foreground font-mono text-xs break-all">{walletAddress}</Column>
         </Row>
         <Row>
-          <Column className="text-muted-foreground w-[140px] text-xs font-medium tracking-wide uppercase">
+          <Column className="text-muted-foreground w-35 text-xs font-medium tracking-wide uppercase">
             Transaction
           </Column>
           <Column className="text-muted-foreground font-mono text-xs break-all">{transactionHash}</Column>
