@@ -99,6 +99,28 @@
   }
 }
 
+/* Checkout payment panel is forced dark on desktop regardless of the viewer's theme,
+   but must stay on the light theme below `lg` — the `.dark` scope stays mounted at every
+   size (so `dark:` component variants keep firing), and this ID override just resets the
+   underlying tokens back to light on small screens. ID specificity guarantees it wins over
+   the unlayered `.dark { }` block from shared-ui regardless of source order. */
+@media (max-width: 1023.98px) {
+  #checkout-payment-panel {
+    --background: #f6f7f8;
+    --foreground: #0f0f0f;
+    --card: #ffffff;
+    --card-foreground: #0f0f0f;
+    --popover: #ffffff;
+    --popover-foreground: #0f0f0f;
+    --muted: #d6d2c4;
+    --muted-foreground: #5a5750;
+    --accent: #d6d2c4;
+    --accent-foreground: #0f0f0f;
+    --border: #d6d2c4;
+    --input: #d6d2c4;
+  }
+}
+
 /*
 * https://github.com/StackExchange/Stacks/pull/383/files
 */

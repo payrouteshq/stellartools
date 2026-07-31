@@ -141,6 +141,14 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
       [ref]
     );
 
+    // Radix portals the country popover to document.body by default, which escapes any
+    // forced-theme `.dark` ancestor (e.g. a checkout panel that's dark regardless of the
+    // viewer's global theme). Portal into that ancestor instead so the popover inherits it.
+    const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
+    React.useEffect(() => {
+      setPortalContainer(inputRef.current?.closest(".dark") as HTMLElement | null);
+    }, []);
+
     const selectedCountry = React.useMemo(
       () => COUNTRIES_DATA.find((c) => c.countryCode === value.countryCode),
       [value.countryCode]
@@ -207,6 +215,7 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
           <Popover open={open} onOpenChange={setOpen} modal={false}>
             <PopoverTrigger asChild>
               <Button
+                type="button"
                 variant="ghost"
                 role="combobox"
                 aria-expanded={open}
@@ -214,13 +223,14 @@ export const PhoneNumberField = React.forwardRef<HTMLInputElement, PhoneNumberFi
                 className="border-input hover:bg-accent hover:text-accent-foreground flex h-full gap-2 rounded-r-none border-r bg-transparent px-3"
               >
                 <CountryFlag countryCode={value.countryCode || "US"} className={flag.className} />
-                <span className="text-foreground font-mono text-sm">{selectedCountry?.prefix || "+1"}</span>
+                <span className="font-mono text-sm">{selectedCountry?.prefix || "+1"}</span>
               </Button>
             </PopoverTrigger>
 
             <PopoverContent
               className="bg-background w-75 border p-0 shadow-lg"
               align="start"
+              container={portalContainer ?? undefined}
               onWheel={(e) => e.stopPropagation()}
             >
               <Command>
