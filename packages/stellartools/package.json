@@ -8,7 +8,8 @@
     "build:dev": "export $(cat .env.development | xargs) && tsup",
     "build:prod": "STELLAR_TOOLS_BASE_URL=${STELLAR_TOOLS_BASE_URL:-$(cat .env.production | grep STELLAR_TOOLS_BASE_URL | cut -d= -f2)} tsup",
     "lint:localhost": "if grep -qr 'localhost' dist; then echo '✗ ERROR: Localhost leaked into dist!'; exit 1; else echo '✓ Dist is clean.'; fi",
-    "prepublishOnly": "[ -n \"$CI\" ] && pnpm run lint:localhost || (pnpm run build:prod && pnpm run lint:localhost)"
+    "prepublishOnly": "[ -n \"$CI\" ] && pnpm run lint:localhost || (pnpm run build:prod && pnpm run lint:localhost)",
+    "tailwind:fix": "tailwind-lint --fix \"apps/**/*.{tsx,jsx}\" \"packages/**/*.{tsx,jsx}\" \"examples/**/*.{tsx,jsx}\""
   },
   "exports": {
     ".": {

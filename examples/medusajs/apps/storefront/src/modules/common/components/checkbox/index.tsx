@@ -29,7 +29,7 @@ const CheckboxWithLabel: React.FC<CheckboxProps> = ({
         name={name}
         data-testid={dataTestId}
       />
-      <Label htmlFor="checkbox" className="!transform-none !txt-medium">
+      <Label htmlFor="checkbox" className="transform-none! !txt-medium">
         {label}
       </Label>
     </div>

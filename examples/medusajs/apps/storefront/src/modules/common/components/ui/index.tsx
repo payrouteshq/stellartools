@@ -312,7 +312,7 @@ const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(
       <th
         ref={ref}
         className={clsx(
-          "h-12 px-4 text-left align-middle font-medium text-gray-500 [&:has([role=checkbox])]:pr-0",
+          "h-12 px-4 text-left align-middle font-medium text-gray-500 has-[[role=checkbox]]:pr-0",
           className,
         )}
         {...props}
@@ -332,7 +332,7 @@ const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
       <td
         ref={ref}
         className={clsx(
-          "p-4 align-middle [&:has([role=checkbox])]:pr-0",
+          "p-4 align-middle has-[[role=checkbox]]:pr-0",
           className,
         )}
         {...props}

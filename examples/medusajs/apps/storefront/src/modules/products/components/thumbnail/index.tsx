@@ -29,12 +29,12 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
         "relative w-full overflow-hidden p-4 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large group-hover:shadow-elevation-card-hover transition-shadow ease-in-out duration-150",
         className,
         {
-          "aspect-[11/14]": isFeatured,
-          "aspect-[9/16]": !isFeatured && size !== "square",
-          "aspect-[1/1]": size === "square",
-          "w-[180px]": size === "small",
-          "w-[290px]": size === "medium",
-          "w-[440px]": size === "large",
+          "aspect-11/14": isFeatured,
+          "aspect-9/16": !isFeatured && size !== "square",
+          "aspect-square": size === "square",
+          "w-45": size === "small",
+          "w-72.5": size === "medium",
+          "w-110": size === "large",
           "w-full": size === "full",
         },
       )}

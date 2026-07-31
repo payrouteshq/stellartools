@@ -10,8 +10,8 @@ const links = [
 ];
 
 const social = [
-  { label: "X", href: "https://x.com/stellartoolsorg", icon: Twitter },
-  { label: "LinkedIn", href: "https://www.linkedin.com/company/stellartoolsorg", icon: Linkedin },
+  { label: "X", href: "https://x.com/payrouteshq", icon: Twitter },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/payrouteshq", icon: Linkedin },
 ];
 
 export const FooterSection = () => (

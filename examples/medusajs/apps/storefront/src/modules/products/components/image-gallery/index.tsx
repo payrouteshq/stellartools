@@ -14,7 +14,7 @@ const ImageGallery = ({ images }: ImageGalleryProps) => {
           return (
             <Container
               key={image.id}
-              className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle"
+              className="relative aspect-29/34 w-full overflow-hidden bg-ui-bg-subtle"
               id={image.id}
             >
               {!!image.url && (

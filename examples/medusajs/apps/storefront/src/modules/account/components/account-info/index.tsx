@@ -59,7 +59,7 @@ const AccountInfo = ({
         <div>
           <Button
             variant="secondary"
-            className="w-[100px] min-h-[25px] py-1"
+            className="w-25 min-h-6.25 py-1"
             onClick={handleToggle}
             type={state ? "reset" : "button"}
             data-testid="edit-button"
@@ -77,7 +77,7 @@ const AccountInfo = ({
           className={clx(
             "transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden",
             {
-              "max-h-[1000px] opacity-100": isSuccess,
+              "max-h-250 opacity-100": isSuccess,
               "max-h-0 opacity-0": !isSuccess,
             },
           )}
@@ -96,7 +96,7 @@ const AccountInfo = ({
           className={clx(
             "transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden",
             {
-              "max-h-[1000px] opacity-100": isError,
+              "max-h-250 opacity-100": isError,
               "max-h-0 opacity-0": !isError,
             },
           )}
@@ -114,7 +114,7 @@ const AccountInfo = ({
           className={clx(
             "transition-[max-height,opacity] duration-300 ease-in-out overflow-visible",
             {
-              "max-h-[1000px] opacity-100": state,
+              "max-h-250 opacity-100": state,
               "max-h-0 opacity-0": !state,
             },
           )}

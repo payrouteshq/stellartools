@@ -156,7 +156,7 @@ const LanguageSelect = ({
             leaveTo="opacity-0"
           >
             <ListboxOptions
-              className="absolute -bottom-[calc(100%-36px)] left-0 xsmall:left-auto xsmall:right-0 max-h-[442px] overflow-y-scroll z-[900] bg-white drop-shadow-md text-small-regular uppercase text-black no-scrollbar rounded-rounded w-full"
+              className="absolute -bottom-[calc(100%-36px)] left-0 xsmall:left-auto xsmall:right-0 max-h-110.5 overflow-y-scroll z-900 bg-white drop-shadow-md text-small-regular uppercase text-black no-scrollbar rounded-rounded w-full"
               static
             >
               {options.map((o) => (

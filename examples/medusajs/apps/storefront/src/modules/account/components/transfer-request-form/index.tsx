@@ -28,7 +28,7 @@ export default function TransferRequestForm() {
         <div className="flex flex-col gap-y-1">
           <Heading
             level="h3"
-            className="!text-sm font-semibold text-neutral-950"
+            className="text-sm! font-semibold text-neutral-950"
           >
             Order transfers
           </Heading>
