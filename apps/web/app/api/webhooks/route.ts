@@ -1,7 +1,7 @@
 import { postWebhook } from "@/actions/webhook";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId } from "@/lib/utils";
-import { Result, z as Schema, createWebhookSchema } from "@stellartools/core";
+import { Result, z as Schema, WEBHOOK_SIGNATURE_PREFIX, createWebhookSchema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -17,7 +17,10 @@ export const POST = apiHandler({
       description: body.description ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
-      secret: sessionToken && body.secret ? body.secret : generateResourceId("whsec", organizationId, 32, "sha256"),
+      secret:
+        sessionToken && body.secret
+          ? body.secret
+          : generateResourceId(WEBHOOK_SIGNATURE_PREFIX.replaceAll("_", ""), organizationId, 32, "sha256"),
     };
 
     const response = await postWebhook(organizationId, environment, webhookPayload);

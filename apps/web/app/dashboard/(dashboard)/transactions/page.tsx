@@ -331,17 +331,6 @@ function TransactionsPageContent() {
               <div>
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Transactions</h1>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  className="gap-2 shadow-sm"
-                  onClick={() => {
-                    openRefundModal(null);
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden md:inline!">Create refund</span>
-                </Button>
-              </div>
             </div>
 
             <div className="border-border flex items-center gap-1 border-b">

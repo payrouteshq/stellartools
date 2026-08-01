@@ -24,6 +24,7 @@ import {
   Result,
   z as Schema,
   StellarTools,
+  WEBHOOK_SIGNATURE_PREFIX,
   WebhookEventType,
   currencyCodeSchema,
   stringifyObjectFields,
@@ -94,7 +95,7 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
     if (verify(secret)) return JSON.parse(rawBody);
 
     // 2. Base64-decoded bytes after stripping "whsec_" prefix
-    if (secret.startsWith("whsec_")) {
+    if (secret.startsWith(WEBHOOK_SIGNATURE_PREFIX)) {
       const decoded = Buffer.from(secret.slice(6), "base64");
       if (verify(decoded)) return JSON.parse(rawBody);
     }

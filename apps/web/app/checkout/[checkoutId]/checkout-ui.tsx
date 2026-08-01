@@ -120,7 +120,7 @@ export default function CheckoutUI() {
             <div className="space-y-2">
               <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 {fiatDisplay ? (
-                  <div className="flex items-baseline whitespace-nowrap text-3xl font-bold tracking-tight sm:text-4xl">
+                  <div className="flex items-baseline text-3xl font-bold tracking-tight whitespace-nowrap sm:text-4xl">
                     {fiatDisplay}
                     {checkout.productType === "subscription" && checkout.recurringPeriod && (
                       <span className="text-muted-foreground ml-1 text-sm font-normal tracking-normal">
@@ -182,7 +182,7 @@ export default function CheckoutUI() {
 
         <div
           id="checkout-payment-panel"
-          className="dark bg-background -mt-2 text-foreground flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-16"
+          className="dark bg-background text-foreground -mt-2 flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-16"
         >
           <form
             onSubmit={(e) => {
@@ -264,7 +264,7 @@ export default function CheckoutUI() {
                   <Button
                     type="submit"
                     className={cn(
-                      "h-12 flex-1 text-base font-semibold",
+                      "h-9 flex-1 font-semibold",
                       wallet.isProcessing && "pointer-events-none opacity-80"
                     )}
                     isLoading={wallet.isProcessing}
@@ -281,7 +281,7 @@ export default function CheckoutUI() {
                           <Button
                             type="button"
                             variant="outline"
-                            size="icon-lg"
+                            className="size-9"
                             onClick={wallet.disconnect}
                             aria-label="Disconnect wallet"
                           >

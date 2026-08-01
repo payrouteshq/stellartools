@@ -16,6 +16,7 @@ import { StellarToolsConfig, stellarToolsConfigSchema } from "./schema/shared";
 export const STELLARTOOLS_ID = "STELLARTOOLS";
 
 export const APP_TOKEN_PREFIX = "st_app_*";
+export const WEBHOOK_SIGNATURE_PREFIX = "whsec_";
 
 export class StellarTools {
   private config: StellarToolsConfig;
