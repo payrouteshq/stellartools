@@ -131,6 +131,7 @@ class WC_Gateway_StellarTools extends WC_Payment_Gateway {
 			'redirect_url'  => $this->get_return_url( $order ),
 			'description'   => "Order #{$order->get_order_number()}",
 			'metadata'      => [
+				'platform' => 'woocommerce',
 				'wc_order_id' => (string) $order_id,
 				'wc_site_url' => home_url(),
 			],

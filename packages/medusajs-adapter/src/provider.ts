@@ -149,6 +149,7 @@ export class StellarToolsMedusaAdapter extends AbstractPaymentProvider<StellarTo
                 redirect_url: data?.redirectUrl as string,
                 metadata: {
                   ...(data?.metadata as Record<string, any> | undefined),
+                  platform: "medusajs",
                   session_id: context?.idempotency_key,
                 },
                 description: (data?.description as string) ?? "Order Payment",
