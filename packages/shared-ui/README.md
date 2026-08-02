@@ -4,7 +4,7 @@ Shared React component library for the Stellar Tools monorepo. Contains all stor
 
 ## Storybook preview
 
-**[698b71db4030225770a2a4ba-zyxpqleejo.chromatic.com](https://698b71db4030225770a2a4ba-zyxpqleejo.chromatic.com/)**
+**[698b71db4030225770a2a4ba-dlaodvfhew.chromatic.com](https://698b71db4030225770a2a4ba-dlaodvfhew.chromatic.com/)**
 
 ## Usage
 
