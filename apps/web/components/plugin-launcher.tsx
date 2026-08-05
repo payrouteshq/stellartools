@@ -4,10 +4,11 @@ import * as React from "react";
 
 import { createPortal } from "react-dom";
 
-import { generateAppToken, retrieveAppInstallations } from "@/actions/app";
+import { generateAppToken } from "@/actions/app";
+import { App, AppInstallation } from "@/db/schema";
 import { useCookieState } from "@/hooks/use-cookie-state";
-import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { Button, Separator, Spinner, cn, useMounted } from "@stellartools/shared-ui";
+import { useOrgContext } from "@/hooks/use-org-query";
+import { Button, Separator, cn, useMounted } from "@stellartools/shared-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, XIcon } from "lucide-react";
@@ -15,17 +16,14 @@ import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-export function PluginLauncher() {
+interface PluginLauncherProps {
+  installationsWithApps: { installation: AppInstallation; app: App }[];
+}
+
+export function PluginLauncher({ installationsWithApps }: PluginLauncherProps) {
   const router = useRouter();
   const isMounted = useMounted();
   const { data: org } = useOrgContext();
-  const { data: installations, isLoading: isLoadingInstalledApps } = useOrgQuery(["installed-apps"], async () => {
-    const installations = await retrieveAppInstallations({ status: "active" }, org?.id, org?.environment);
-    return installations.map((p) => ({
-      installation: p.app_installation,
-      app: p.app,
-    }));
-  });
 
   const queryClient = useQueryClient();
 
@@ -35,9 +33,9 @@ export function PluginLauncher() {
   const [isOpen, setIsOpen] = useCookieState<boolean>("plugin_sidebar_open", false);
 
   const activePlugin = React.useMemo(() => {
-    if (!activeAppId) return installations?.[0] || null;
-    return installations?.find((i) => i.app.id === activeAppId) || installations?.[0] || null;
-  }, [installations, activeAppId]);
+    if (!activeAppId) return installationsWithApps?.[0] || null;
+    return installationsWithApps?.find((i) => i.app.id === activeAppId) || installationsWithApps?.[0] || null;
+  }, [installationsWithApps, activeAppId]);
 
   const [appToken, setAppToken] = React.useState<string | null>(null);
   const [tokenRefreshKey, setTokenRefreshKey] = React.useState(0);
@@ -57,6 +55,13 @@ export function PluginLauncher() {
     };
     window.addEventListener("stellartools:open-app", handler);
     return () => window.removeEventListener("stellartools:open-app", handler);
+  }, [handleSelectApp]);
+
+  React.useEffect(() => {
+    const pendingAppId = sessionStorage.getItem("stellartools:pending-open-app");
+    if (!pendingAppId) return;
+    sessionStorage.removeItem("stellartools:pending-open-app");
+    handleSelectApp(pendingAppId);
   }, [handleSelectApp]);
 
   React.useEffect(() => {
@@ -158,7 +163,7 @@ export function PluginLauncher() {
   );
 
   const renderAppIcons = (isActiveFn: (id: string) => boolean) =>
-    installations?.map((installation) => {
+    installationsWithApps?.map((installation) => {
       const active = isActiveFn(installation.app.id);
       return (
         <Button
@@ -192,7 +197,6 @@ export function PluginLauncher() {
       {/* Desktop: right-side vertical icon strip */}
       <div className="fixed top-1/2 -right-3 z-40 hidden -translate-y-1/2 items-center gap-3 pr-3 font-sans md:flex">
         <div className="flex flex-col items-end gap-2.5">
-          {isLoadingInstalledApps && <Spinner size={24} className="mr-2" />}
           {renderAppIcons((id) => activePlugin?.app.id === id && isOpen)}
           <Button
             type="button"
@@ -209,7 +213,6 @@ export function PluginLauncher() {
       {/* Mobile: bottom icon bar */}
       <div className="md:hidden">
         <div className="bg-background fixed inset-x-0 bottom-0 z-40 flex h-12 items-center justify-center gap-2.5 border-t px-4">
-          {isLoadingInstalledApps && <Spinner size={16} />}
           {renderAppIcons((id) => activePlugin?.app.id === id && isOpen)}
           <Button
             type="button"

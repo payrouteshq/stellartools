@@ -10,6 +10,7 @@ import { AppScope } from "@stellartools/app-sdk/schema";
 import { APP_TOKEN_PREFIX, STELLARTOOLS_ID, signJwt } from "@stellartools/core";
 import { SQL, and, arrayContains, eq, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { revalidatePath } from "next/cache";
 
 export const generateAppToken = async (
   installationId: string,
@@ -206,6 +207,8 @@ export const installMarketplaceApp = async (appSlug: string) => {
     status: "active",
     settings: {},
   });
+
+  revalidatePath("/dashboard", "layout");
 
   return { app, installation };
 };

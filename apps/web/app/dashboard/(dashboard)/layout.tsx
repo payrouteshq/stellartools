@@ -1,6 +1,8 @@
+import { retrieveAppInstallations } from "@/actions/app";
 import { getCurrentUser } from "@/actions/auth";
 import { getCurrentOrganization } from "@/actions/organization";
 import { PluginLauncher } from "@/components/plugin-launcher";
+import { cn } from "@stellartools/shared-ui";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -22,10 +24,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect(orgLookupFailed ? `${target}&clearKeys=selectedOrg` : target);
   }
 
+  const installationsWithApps = await retrieveAppInstallations(
+    { status: "active" },
+    currentOrg?.id,
+    currentOrg?.environment
+  );
+
+  const hasApps = installationsWithApps.length > 0;
+
   return (
-    <div className="md:mr-12">
+    <div className={cn(hasApps && "md:mr-12")}>
       {children}
-      <PluginLauncher />
+      {hasApps && (
+        <PluginLauncher
+          installationsWithApps={installationsWithApps.map((p) => ({ installation: p.app_installation, app: p.app }))}
+        />
+      )}
     </div>
   );
 }

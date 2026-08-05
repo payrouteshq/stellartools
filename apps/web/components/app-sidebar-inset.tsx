@@ -14,7 +14,7 @@ export const DashboardSidebarInset = ({ children }: { children: React.ReactNode 
     >
       <DashboardHeader />
 
-      <div className="border-border bg-card mb-2 min-h-0 flex-1 overflow-hidden rounded-tl-4xl border-l">
+      <div className="border-border bg-card mb-2 min-h-0 flex-1 overflow-hidden rounded-tl-4xl border-t border-l">
         <div className="scrollbar-sidebar h-full overflow-y-auto pb-12 md:pb-0">{children}</div>
       </div>
     </SidebarInset>
