@@ -16,6 +16,7 @@ import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
+  Badge,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -507,7 +508,19 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                 />
 
                 <div className="space-y-2">
-                  <Label htmlFor="organization-public-key">Wallet public key</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="organization-public-key">Wallet public key</Label>
+                    <Badge
+                      variant={organization.walletStrategy === "direct" ? "outline" : "secondary"}
+                      className={
+                        organization.walletStrategy === "direct"
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-500 text-[11px] px-1.5 py-0"
+                          : "bg-emerald-500/10 text-emerald-500 text-[11px] px-1.5 py-0"
+                      }
+                    >
+                      {organization.walletStrategy === "direct" ? "Self-custody" : "Managed"}
+                    </Badge>
+                  </div>
                   <div className="relative w-full">
                     <Input
                       id="organization-public-key"

@@ -53,18 +53,16 @@ export const getAsset = (code: string, issuer?: string) => {
   return code.toUpperCase() === "XLM" ? StellarSDK.Asset.native() : new StellarSDK.Asset(code, issuer!);
 };
 
-export const createAccount = async (network: Network) => {
+export const fundAccount = async (keypair: StellarSDK.Keypair, network: Network) => {
   return Result.tryPromise(async () => {
     const { passphrase, server } = getStellarConfig(network);
 
     if (network === "testnet") {
-      const keypair = StellarSDK.Keypair.random();
       await server.friendbot(keypair.publicKey()).call();
       const account = await server.loadAccount(keypair.publicKey());
       return { ...account, keypair };
     }
 
-    const newKeypair = StellarSDK.Keypair.random();
     const sourceKeypair = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
     const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
     const startingBalance = await getMinCreateAccountBalance(server);
@@ -75,7 +73,7 @@ export const createAccount = async (network: Network) => {
     })
       .addOperation(
         StellarSDK.Operation.createAccount({
-          destination: newKeypair.publicKey(),
+          destination: keypair.publicKey(),
           startingBalance,
         })
       )
@@ -84,8 +82,8 @@ export const createAccount = async (network: Network) => {
 
     tx.sign(sourceKeypair);
     await server.submitTransaction(tx);
-    const account = await server.loadAccount(newKeypair.publicKey());
-    return { ...account, keypair: newKeypair };
+    const account = await server.loadAccount(keypair.publicKey());
+    return { ...account, keypair };
   });
 };
 
@@ -175,8 +173,11 @@ export const verifyPaymentByPagingToken = async (
     if (!match) return null;
 
     const ops = await server.payments().forTransaction(match.hash).call();
+    // Find the payment op directed TO the merchant — handles both single-op (managed)
+    // and split two-op (direct: fee + merchant) transactions.
     const paymentOp = ops.records.find(
-      (op): op is StellarSDK.Horizon.ServerApi.PaymentOperationRecord => op.type === "payment"
+      (op): op is StellarSDK.Horizon.ServerApi.PaymentOperationRecord =>
+        op.type === "payment" && op.to === merchantAddress
     );
 
     return paymentOp
@@ -283,8 +284,9 @@ export const retrieveAssetContractId = async (assetCode: AssetCode, assetIssuer:
 
 export const isValidPublicKey = (publicKey?: string): Result<boolean, Error> => {
   if (!publicKey?.trim()) return Result.err(new AppError("VALIDATION_ERROR", "Public key is required"));
-  if (!StellarSDK.StrKey.isValidEd25519PublicKey(publicKey))
+  if (!StellarSDK.StrKey.isValidEd25519PublicKey(publicKey)) {
     return Result.err(new AppError("VALIDATION_ERROR", "Invalid public key"));
+  }
   return Result.ok(true);
 };
 

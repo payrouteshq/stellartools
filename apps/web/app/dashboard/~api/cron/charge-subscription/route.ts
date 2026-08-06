@@ -5,7 +5,7 @@ import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscriptio
 import { STELLAR_PRECISION, subscriptionPeriodMs } from "@/constant";
 import { ResolvedSubscription } from "@/db";
 import {
-  resolveMerchantSecret,
+  resolveMerchantSecretAndWalletStrategy,
   cancelSubscription as soroban$cancelSubscription,
   chargeSubscription as soroban$chargeSubscription,
   updateSubscriptionPeriod as soroban$updateSubscriptionPeriod,
@@ -32,8 +32,13 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
   try {
     // 1. HANDLE CANCELLATION
     if (sub.cancelAtPeriodEnd) {
-      const merchantSecret = await resolveMerchantSecret(orgId, env);
-      const res = await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
+      const { secret } = await resolveMerchantSecretAndWalletStrategy(orgId, env);
+
+      if (!secret) {
+        return { status: "error", subId, error: "Subscription cancellation requires a stored secret key" };
+      }
+
+      const res = await soroban$cancelSubscription(env, secret, walletAddress, productId);
 
       if (res.isOk()) {
         await putSubscription(subId, { status: "canceled", canceledAt: new Date() }, orgId, env);
@@ -101,8 +106,12 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
 
       if (shouldCancelAfterFailures(recentPayments.map((p) => p.status))) {
         try {
-          const merchantSecret = await resolveMerchantSecret(orgId, env);
-          await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
+          const { secret } = await resolveMerchantSecretAndWalletStrategy(orgId, env);
+
+          if (!secret) {
+            return { status: "error", subId, error: "Subscription cancellation requires a stored secret key" };
+          }
+          await soroban$cancelSubscription(env, secret, walletAddress, productId);
         } catch (cancelErr: any) {
           console.error(`[Cron] On-chain cancel failed for sub ${subId}:`, cancelErr?.message);
         }

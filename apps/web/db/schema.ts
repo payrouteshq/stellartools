@@ -6,6 +6,8 @@ import {
   networkEnum as networkEnum$1,
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
+  walletStrategyEnum as walletStrategyEnum$1,
+  WalletStrategy,
 } from "@/constant/schema.client";
 import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
@@ -39,6 +41,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const networkEnum = pgEnum("network", networkEnum$1);
+
+export const walletStrategyEnum = pgEnum("wallet_strategy", walletStrategyEnum$1);
 
 export const authProviderEnum = pgEnum("auth_provider", authProviderEnum$1);
 
@@ -102,6 +106,7 @@ export const organizations = pgTable(
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     supportEmail: text("support_email"),
     selectedCurrency: text("selected_currency").notNull(),
+    walletStrategy: walletStrategyEnum("wallet_strategy").default("managed").notNull(),
   },
   (table) => [index("idx_org_created_at").on(table.accountId, table.createdAt)]
 );
@@ -652,4 +657,4 @@ export type ResolvedSubscription = Subscription & {
   customerWallet?: CustomerWallet | null;
 };
 
-export type { ProductStatus, ProductType };
+export type { ProductStatus, ProductType, WalletStrategy };

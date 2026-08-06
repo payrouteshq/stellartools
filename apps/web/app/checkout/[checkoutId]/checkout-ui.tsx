@@ -263,10 +263,7 @@ export default function CheckoutUI() {
                 >
                   <Button
                     type="submit"
-                    className={cn(
-                      "h-9 flex-1 font-semibold",
-                      wallet.isProcessing && "pointer-events-none opacity-80"
-                    )}
+                    className={cn("h-9 flex-1 font-semibold", wallet.isProcessing && "pointer-events-none opacity-80")}
                     isLoading={wallet.isProcessing}
                     disabled={wallet.isProcessing || !selectedAsset}
                   >

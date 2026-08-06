@@ -1,7 +1,7 @@
 import { retrievePaymentCount } from "@/actions/payment";
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import {
-  resolveMerchantSecret,
+  resolveMerchantSecretAndWalletStrategy,
   resumeSubscription as soroban$resumeSubscription,
 } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
@@ -36,10 +36,20 @@ export const POST = apiHandler({
 
     if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
-    const merchantSecret = await resolveMerchantSecret(organizationId, environment);
+    const { secret } = await resolveMerchantSecretAndWalletStrategy(organizationId, environment);
+
+    if (!secret) {
+      return Result.err(
+        new AppError(
+          "VALIDATION_ERROR",
+          "Subscription management requires a stored secret key. Add your secret key in organization settings to enable this."
+        )
+      );
+    }
+
     const resumeResult = await soroban$resumeSubscription(
       environment,
-      merchantSecret,
+      secret,
       customerWallet.address,
       subscription.productId
     );

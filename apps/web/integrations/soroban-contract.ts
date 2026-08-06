@@ -40,10 +40,12 @@ const getSorobanConfig = (network: Network) => {
   };
 };
 
-export const resolveMerchantSecret = async (orgId: string, network: Network) => {
-  const { secret } = await retrieveOrganizationIdAndSecret(orgId, network);
-  if (!secret?.encrypted) throw new AppError("VALIDATION_ERROR", "Merchant wallet not configured");
-  return decrypt(secret.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
+export const resolveMerchantSecretAndWalletStrategy = async (orgId: string, network: Network) => {
+  const { secret, walletStrategy } = await retrieveOrganizationIdAndSecret(orgId, network);
+  if (!secret?.encrypted && walletStrategy === "managed") {
+    throw new AppError("VALIDATION_ERROR", "Merchant wallet not configured");
+  }
+  return { secret: decrypt(secret!.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? ""), walletStrategy };
 };
 
 const parseContractEvent = (topics: unknown[], data: unknown): SorobanEvent => {

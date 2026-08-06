@@ -31,13 +31,14 @@ export const POST = apiHandler({
     const keyCheck = isValidPublicKey(walletAddress);
     if (keyCheck.isErr()) throw new AppError("INTERNAL_ERROR", keyCheck.error.message);
 
-    const [{ secret }, org] = await Promise.all([
+    const [{ secret, walletStrategy }, org] = await Promise.all([
       retrieveOrganizationIdAndSecret(organizationId, environment),
       retrieveOrganization(organizationId),
     ]);
 
-    if (!secret)
-      throw new AppError("VALIDATION_ERROR", "Merchant Stellar wallet not configured. Set up your wallet in Settings.");
+    if (!secret) {
+      throw new AppError("VALIDATION_ERROR", "Payouts require a stored secret key. Add your secret key in organization settings to enable payouts.");
+    }
 
     const [assetList, fiatRates] = await Promise.all([
       retrieveSupportedAssets({ code: assetCode }, environment),
