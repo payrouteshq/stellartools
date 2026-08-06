@@ -1,7 +1,7 @@
 "use server";
 
 import { postCharge, putCharge, retrieveCharges } from "@/actions/charges";
-import { retrieveOrganization, retrieveOrganizationIdAndSecret } from "@/actions/organization";
+import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Network } from "@/db";

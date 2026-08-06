@@ -40,7 +40,11 @@ export const POST = apiHandler({
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
 
-    if (!secret) throw new AppError("VALIDATION_ERROR", "Refunds require a stored secret key. Add your secret key in organization settings to enable refunds.");
+    if (!secret)
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Refunds require a stored secret key. Add your secret key in organization settings to enable refunds."
+      );
 
     const refundToWalletAddress = wallet_address ?? payment?.wallets?.address;
 
@@ -108,9 +112,7 @@ export const POST = apiHandler({
         const { secret } = await resolveMerchantSecretAndWalletStrategy(organizationId, environment);
 
         if (!secret) {
-          return Result.err(
-            new AppError("VALIDATION_ERROR", "Secret key required to cancel subscription on-chain")
-          );
+          return Result.err(new AppError("VALIDATION_ERROR", "Secret key required to cancel subscription on-chain"));
         }
 
         const cancellationResult = await soroban$cancelSubscription(

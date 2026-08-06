@@ -514,8 +514,8 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                       variant={organization.walletStrategy === "direct" ? "outline" : "secondary"}
                       className={
                         organization.walletStrategy === "direct"
-                          ? "border-amber-500/30 bg-amber-500/10 text-amber-500 text-[11px] px-1.5 py-0"
-                          : "bg-emerald-500/10 text-emerald-500 text-[11px] px-1.5 py-0"
+                          ? "border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[11px] text-amber-500"
+                          : "bg-emerald-500/10 px-1.5 py-0 text-[11px] text-emerald-500"
                       }
                     >
                       {organization.walletStrategy === "direct" ? "Self-custody" : "Managed"}

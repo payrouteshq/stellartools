@@ -173,9 +173,7 @@ const allFilterColumns: ColumnDef<SampleRecord>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={statusBadgeVariant(row.original.status)}>{row.original.status}</Badge>
-    ),
+    cell: ({ row }) => <Badge variant={statusBadgeVariant(row.original.status)}>{row.original.status}</Badge>,
     meta: {
       filterable: true,
       filterVariant: "multiselect",
@@ -255,7 +253,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Filterable data table powered by TanStack Table. Enable filters by setting `meta.filterable: true` and choosing a `filterVariant`. Optional `filterOptions` supply select/multiselect/currency choices. Use `filterLabel` to override the pill label and `filterCurrencyMode: \"code\"` for currency-code-only filters.",
+          'Filterable data table powered by TanStack Table. Enable filters by setting `meta.filterable: true` and choosing a `filterVariant`. Optional `filterOptions` supply select/multiselect/currency choices. Use `filterLabel` to override the pill label and `filterCurrencyMode: "code"` for currency-code-only filters.',
       },
     },
   },
@@ -284,9 +282,7 @@ export const AllFilters: Story = {
       },
     },
   },
-  render: () => (
-    <FilterStory columns={allFilterColumns} enableBulkSelect actions={tableActions} />
-  ),
+  render: () => <FilterStory columns={allFilterColumns} enableBulkSelect actions={tableActions} />,
 };
 
 export const TextFilter: Story = {
@@ -294,7 +290,7 @@ export const TextFilter: Story = {
   parameters: {
     docs: {
       description: {
-        story: "`filterVariant: \"text\"` — case-insensitive contains search. Click the pill to open a search input.",
+        story: '`filterVariant: "text"` — case-insensitive contains search. Click the pill to open a search input.',
       },
     },
   },
@@ -322,7 +318,7 @@ export const PhoneFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"phone\"` — matches digit sequences inside formatted phone numbers. Uses the shared PhoneNumberField.",
+          '`filterVariant: "phone"` — matches digit sequences inside formatted phone numbers. Uses the shared PhoneNumberField.',
       },
     },
   },
@@ -350,7 +346,7 @@ export const NumberFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"number\"` — supports equal, greater than, less than, and between operators. Pre-applied with a between range.",
+          '`filterVariant: "number"` — supports equal, greater than, less than, and between operators. Pre-applied with a between range.',
       },
     },
   },
@@ -378,7 +374,7 @@ export const SelectFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"select\"` with `filterOptions` — single-choice dropdown filter. Exact match on the cell value.",
+          '`filterVariant: "select"` with `filterOptions` — single-choice dropdown filter. Exact match on the cell value.',
       },
     },
   },
@@ -392,8 +388,7 @@ export const SelectFilter: Story = {
         {
           accessorKey: "category",
           header: "Category",
-          cell: ({ row }) =>
-            categoryFilterOptions.find((option) => option.value === row.original.category)?.label,
+          cell: ({ row }) => categoryFilterOptions.find((option) => option.value === row.original.category)?.label,
           meta: {
             filterable: true,
             filterVariant: "select",
@@ -412,7 +407,7 @@ export const MultiselectFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"multiselect\"` with `filterOptions` — checkbox list for selecting multiple values. Pre-applied with two statuses selected.",
+          '`filterVariant: "multiselect"` with `filterOptions` — checkbox list for selecting multiple values. Pre-applied with two statuses selected.',
       },
     },
   },
@@ -426,9 +421,7 @@ export const MultiselectFilter: Story = {
         {
           accessorKey: "status",
           header: "Status",
-          cell: ({ row }) => (
-            <Badge variant={statusBadgeVariant(row.original.status)}>{row.original.status}</Badge>
-          ),
+          cell: ({ row }) => <Badge variant={statusBadgeVariant(row.original.status)}>{row.original.status}</Badge>,
           meta: {
             filterable: true,
             filterVariant: "multiselect",
@@ -447,7 +440,7 @@ export const CurrencyAmountFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"currency\"` (default `filterCurrencyMode: \"amount\"`) — amount input with currency selector and eq/gt/lt/between operators. Amounts are stored in cents. Pre-applied with a greater-than filter.",
+          '`filterVariant: "currency"` (default `filterCurrencyMode: "amount"`) — amount input with currency selector and eq/gt/lt/between operators. Amounts are stored in cents. Pre-applied with a greater-than filter.',
       },
     },
   },
@@ -481,7 +474,7 @@ export const CurrencyCodeFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"currency\"` with `filterCurrencyMode: \"code\"` — currency-code-only picker without an amount input.",
+          '`filterVariant: "currency"` with `filterCurrencyMode: "code"` — currency-code-only picker without an amount input.',
       },
     },
   },
@@ -518,8 +511,7 @@ export const DateFilter: Story = {
   parameters: {
     docs: {
       description: {
-        story:
-          "`filterVariant: \"date\"` — calendar picker that matches rows on the same calendar day.",
+        story: '`filterVariant: "date"` — calendar picker that matches rows on the same calendar day.',
       },
     },
   },
@@ -548,7 +540,7 @@ export const BooleanFilter: Story = {
     docs: {
       description: {
         story:
-          "`filterVariant: \"boolean\"` — inline switch inside the popover. Applies immediately without an Apply button.",
+          '`filterVariant: "boolean"` — inline switch inside the popover. Applies immediately without an Apply button.',
       },
     },
   },
@@ -593,9 +585,7 @@ export const BulkSelectAndActions: Story = {
         {
           accessorKey: "status",
           header: "Status",
-          cell: ({ row }) => (
-            <Badge variant={statusBadgeVariant(row.original.status)}>{row.original.status}</Badge>
-          ),
+          cell: ({ row }) => <Badge variant={statusBadgeVariant(row.original.status)}>{row.original.status}</Badge>,
         },
       ]}
       enableBulkSelect

@@ -2,12 +2,12 @@ import {
   AssetCode,
   AssetIssuer,
   AuthProvider,
+  WalletStrategy,
   authProviderEnum as authProviderEnum$1,
   networkEnum as networkEnum$1,
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
   walletStrategyEnum as walletStrategyEnum$1,
-  WalletStrategy,
 } from "@/constant/schema.client";
 import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {

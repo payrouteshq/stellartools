@@ -37,7 +37,10 @@ export const POST = apiHandler({
     ]);
 
     if (!secret) {
-      throw new AppError("VALIDATION_ERROR", "Payouts require a stored secret key. Add your secret key in organization settings to enable payouts.");
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Payouts require a stored secret key. Add your secret key in organization settings to enable payouts."
+      );
     }
 
     const [assetList, fiatRates] = await Promise.all([
