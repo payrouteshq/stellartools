@@ -10,6 +10,8 @@ export const authProviderEnum = ["google", "local"] as const;
 
 export const payoutStatusEnum = ["pending", "succeeded", "failed"] as const;
 
+export const payoutMethodEnum = ["crypto", "fiat"] as const;
+
 export const subscriptionStatusEnum = subscriptionStatusEnum$1.enum;
 
 export type Network = (typeof networkEnum)[number];
@@ -17,6 +19,8 @@ export type Network = (typeof networkEnum)[number];
 export type AuthProvider = (typeof authProviderEnum)[number];
 
 export type PayoutStatus = (typeof payoutStatusEnum)[number];
+
+export type PayoutMethod = (typeof payoutMethodEnum)[number];
 
 export type SubscriptionStatus = SchemaZod.infer<typeof subscriptionStatusEnum$1>;
 

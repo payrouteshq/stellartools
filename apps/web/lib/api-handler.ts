@@ -1,7 +1,7 @@
 import "server-only";
 
 import { resolveAuthContext } from "@/actions/apikey";
-import { getStoredResponse, saveIdempotencyResult, tryAcquireLock } from "@/actions/idempotency";
+import { getStoredResponse, releaseIdempotencyLock, saveIdempotencyResult, tryAcquireLock } from "@/actions/idempotency";
 import { getCorsHeaders } from "@/constant";
 import { AuthContext } from "@/types";
 import { AppScope } from "@stellartools/app-sdk/schema";
@@ -58,6 +58,8 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
     const corsHeaders = getCorsHeaders(origin);
     const idempotencyKey = req.headers.get("Idempotency-Key");
 
+    let resolvedAuth: AuthContext | null = null;
+
     try {
       // 1. AUTHENTICATION & SCOPING
       const authParams = {
@@ -69,6 +71,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
       };
 
       const authResult = await resolveAuthContext(authParams);
+      resolvedAuth = authResult;
 
       if (config.auth && !authResult) {
         throw new AppError("UNAUTHORIZED", "Unauthorized, please recheck your API key", 401);
@@ -97,9 +100,15 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
 
         if (stored) {
           if (stored.lockedAt && !stored.responseStatus) {
-            return NextResponse.json({ error: "Request in progress" }, { status: 409, headers: corsHeaders });
+            const lockAgeMs = Date.now() - stored.lockedAt.getTime();
+            if (lockAgeMs > 60_000) {
+              await releaseIdempotencyLock(idempotencyKey, authResult.organizationId);
+            } else {
+              return NextResponse.json({ error: "Request in progress" }, { status: 409, headers: corsHeaders });
+            }
+          } else {
+            return NextResponse.json(stored.responseBody, { status: stored.responseStatus!, headers: corsHeaders });
           }
-          return NextResponse.json(stored.responseBody, { status: stored.responseStatus!, headers: corsHeaders });
         }
 
         const locked = await tryAcquireLock(idempotencyKey, authResult.organizationId, req.nextUrl.pathname);
@@ -161,6 +170,11 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
 
       return NextResponse.json(processedData, { headers: { ...corsHeaders, ...config.headers } });
     } catch (error: any) {
+      if (idempotencyKey && resolvedAuth) {
+        await releaseIdempotencyLock(idempotencyKey, resolvedAuth.organizationId).catch((releaseError: unknown) => {
+          console.error("[IDEMPOTENCY_RELEASE_FAILURE]", releaseError);
+        });
+      }
       const isAppError = error instanceof AppError;
       const status = isAppError ? error.status : 500;
       const code = isAppError ? error.code : "INTERNAL_SERVER_ERROR";

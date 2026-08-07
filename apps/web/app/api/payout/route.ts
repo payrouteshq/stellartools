@@ -58,7 +58,7 @@ export const POST = apiHandler({
         amountCents,
         currencyCode: org.selectedCurrency,
         cryptoAmount,
-        selectedAssetCode: assetCode as any,
+        selectedAssetCode: assetCode,
         selectedAssetIssuer: assetIssuer ?? null,
         status: "pending",
         walletAddress,

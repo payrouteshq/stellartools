@@ -73,8 +73,13 @@ export async function withEvent<T>(
       const deliveryLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
 
       // 3. EMIT INTERNAL EVENTS (Dashboard Timeline)
-      if (eventConfigs) {
-        const eventsToEmit = (Array.isArray(eventConfigs) ? eventConfigs : [eventConfigs]).flatMap((cfg) => {
+      const normalizedEventConfigs = eventConfigs
+        ? Array.isArray(eventConfigs)
+          ? eventConfigs
+          : [eventConfigs]
+        : [];
+      if (normalizedEventConfigs.length > 0) {
+        const eventsToEmit = normalizedEventConfigs.flatMap((cfg) => {
           const mapped = cfg.map(result);
           return (Array.isArray(mapped) ? mapped : [mapped]).map((m) => ({
             ...m,
@@ -157,6 +162,7 @@ export async function withEvent<T>(
 }
 
 export const emitEvents = async (params: Array<EventEmitParams>, orgId?: string, env?: Network) => {
+  if (params.length === 0) return undefined;
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
   return await db

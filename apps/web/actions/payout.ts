@@ -30,13 +30,20 @@ export const retrieveWalletBalance = async (): Promise<{
   const accountResult = await retrieveAccount(secret.publicKey, environment);
   if (accountResult.isErr()) return { assets: [], publicKey: secret.publicKey };
   const assets = accountResult.value.balances
-    .map((b) => {
-      const isNative = b.asset_type === "native";
-      return {
-        code: isNative ? "XLM" : ((b as any).asset_code as string),
-        issuer: isNative ? null : ((b as any).asset_issuer as string),
-        balance: parseFloat(b.balance),
-      };
+    .flatMap((balance): WalletAsset[] => {
+      if (balance.asset_type === "native") {
+        return [{ code: "XLM", issuer: null, balance: parseFloat(balance.balance) }];
+      }
+      if ("asset_code" in balance && "asset_issuer" in balance) {
+        return [
+          {
+            code: balance.asset_code,
+            issuer: balance.asset_issuer,
+            balance: parseFloat(balance.balance),
+          },
+        ];
+      }
+      return [];
     })
     .filter((a) => a.balance > 0);
   return { assets, publicKey: secret.publicKey };
@@ -64,7 +71,7 @@ export const retrievePayoutById = async (id: string) => {
 };
 
 export const postPayout = async (
-  params: Omit<Payout, "organizationId" | "environment" | "createdAt" | "updatedAt">,
+  params: Omit<typeof payouts.$inferInsert, "organizationId" | "environment" | "createdAt">,
   orgId?: string,
   env?: Network
 ) => {
@@ -105,8 +112,11 @@ export const postPayout = async (
 };
 
 export const putPayout = async (id: string, params: Partial<Payout>) => {
+  let previousStatus: Payout["status"] | undefined;
   return withEvent(
     async () => {
+      const [existing] = await db.select({ status: payouts.status }).from(payouts).where(eq(payouts.id, id)).limit(1);
+      previousStatus = existing?.status;
       const [payout] = await db.update(payouts).set(params).where(eq(payouts.id, id)).returning();
 
       return payout;
@@ -115,7 +125,7 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
       let events: EventTrigger<typeof payout>[] = [];
       const sideEffects: Array<() => Promise<void>> = [];
 
-      if (payout.status == "succeeded") {
+      if (payout.status === "succeeded" && previousStatus !== "succeeded") {
         events.push({
           type: "payout::processed",
           map: (payout) => ({
@@ -148,6 +158,13 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
               assetCode: payout.selectedAssetCode ?? "XLM",
               walletAddress: payout.walletAddress ?? "",
               transactionHash: payout.transactionHash ?? "",
+              payoutMethod: payout.method,
+              fiatAmount:
+                payout.method === "fiat" ? Money.formatFiat(payout.amountCents, payout.currencyCode) : undefined,
+              destinationLabel:
+                payout.method === "fiat"
+                  ? `${payout.withdrawalMethod ?? "Provider payout"} · ${payout.destinationCurrency ?? payout.currencyCode}`
+                  : undefined,
             })
           );
         });

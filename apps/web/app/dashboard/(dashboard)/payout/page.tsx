@@ -24,18 +24,35 @@ import {
   Card,
   CardContent,
   DataTable,
+  SelectField,
   SelectInput,
   Separator,
   Skeleton,
   Spinner,
   TableAction,
   TextField,
+  UnderlineTabs,
+  UnderlineTabsContent,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
   cn,
   toast,
 } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpFromLine, CheckCircle2, Clock, Construction, ExternalLink, Wallet, XCircle } from "lucide-react";
+import {
+  ArrowUpFromLine,
+  CheckCircle2,
+  CircleAlert,
+  Clock,
+  Construction,
+  ExternalLink,
+  Landmark,
+  RefreshCw,
+  ShieldCheck,
+  Wallet,
+  XCircle,
+} from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -110,6 +127,30 @@ const payoutSchema = z.object({
 });
 
 type PayoutFormData = z.infer<typeof payoutSchema>;
+
+type FiatCurrency = "NGN" | "USD" | "GBP" | "EUR";
+
+interface OfframpCapabilities {
+  provider: { id: "sdf-test-anchor"; name: string };
+  environment: "testnet" | "mainnet";
+  sandbox: boolean;
+  assets: Array<{
+    code: string;
+    issuer: string | null;
+    minAmount: string | null;
+    maxAmount: string | null;
+  }>;
+  destinationCurrencies: readonly FiatCurrency[];
+  payoutRails: readonly ["bank_account"];
+}
+
+interface CreateOfframpResponse {
+  id: string;
+  status: "pending";
+  providerTransactionId: string;
+  interactiveUrl: string;
+  sandbox: boolean;
+}
 
 function PayoutForm({
   assets,
@@ -280,6 +321,397 @@ function PayoutForm({
   );
 }
 
+const fiatPayoutSchema = z.object({
+  assetCode: z.string().min(1, "Please select an asset"),
+  cryptoAmount: z.string().refine((value) => Number(value) > 0, "Enter a valid amount greater than 0"),
+  destinationCurrency: z.enum(["NGN", "USD", "GBP", "EUR"]),
+  destinationCountry: z
+    .string()
+    .trim()
+    .length(2, "Use a two-letter country code, for example NG")
+    .transform((value) => value.toUpperCase()),
+  payoutRail: z.literal("bank_account"),
+});
+
+type FiatPayoutFormData = z.infer<typeof fiatPayoutSchema>;
+
+function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSuccess: () => void }) {
+  const { data: org } = useOrgContext();
+  const idempotencyKey = React.useRef(crypto.randomUUID());
+  const popupRef = React.useRef<Window | null>(null);
+
+  const {
+    data: capabilities,
+    error: capabilitiesError,
+    isLoading: isLoadingCapabilities,
+    refetch: refetchCapabilities,
+  } = useQuery({
+    queryKey: ["offramp-capabilities", org?.id],
+    enabled: !!org?.token,
+    retry: false,
+    queryFn: async () => {
+      if (!org?.token) throw new AppError("NOT_FOUND", "No organization context");
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": org.token },
+      });
+      const result = await api.get<OfframpCapabilities>("/offramp/capabilities");
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
+      return result.value;
+    },
+  });
+
+  const availableAssets = React.useMemo(
+    () =>
+      assets.filter((walletAsset) =>
+        capabilities?.assets.some(
+          (providerAsset) =>
+            providerAsset.code === walletAsset.code && providerAsset.issuer === walletAsset.issuer
+        )
+      ),
+    [assets, capabilities]
+  );
+
+  const form = useForm<FiatPayoutFormData>({
+    resolver: zodResolver(fiatPayoutSchema),
+    defaultValues: {
+      assetCode: "",
+      cryptoAmount: "",
+      destinationCurrency: "NGN",
+      destinationCountry: "NG",
+      payoutRail: "bank_account",
+    },
+  });
+
+  React.useEffect(() => {
+    if (!form.getValues("assetCode") && availableAssets[0]) {
+      form.setValue("assetCode", availableAssets[0].code, { shouldValidate: true });
+    }
+  }, [availableAssets, form]);
+
+  const selectedCode = form.watch("assetCode");
+  const cryptoAmount = form.watch("cryptoAmount");
+  const selectedAsset = availableAssets.find((asset) => asset.code === selectedCode);
+  const providerAsset = capabilities?.assets.find(
+    (asset) => asset.code === selectedAsset?.code && asset.issuer === selectedAsset?.issuer
+  );
+  const numericAmount = Number(cryptoAmount);
+  const providerMin = providerAsset?.minAmount ? Number(providerAsset.minAmount) : null;
+  const providerMax = providerAsset?.maxAmount ? Number(providerAsset.maxAmount) : null;
+  const balanceExceeded = !!selectedAsset && numericAmount > selectedAsset.balance;
+  const belowProviderMinimum = providerMin !== null && numericAmount > 0 && numericAmount < providerMin;
+  const aboveProviderMaximum = providerMax !== null && numericAmount > providerMax;
+  const amountInvalid =
+    !Number.isFinite(numericAmount) ||
+    numericAmount <= 0 ||
+    balanceExceeded ||
+    belowProviderMinimum ||
+    aboveProviderMaximum;
+
+  const maximumSelectableAmount = React.useMemo(() => {
+    if (!selectedAsset) return null;
+    const maximum = providerMax === null ? selectedAsset.balance : Math.min(selectedAsset.balance, providerMax);
+    return maximum > 0 ? maximum.toFixed(7) : null;
+  }, [providerMax, selectedAsset]);
+  const transactionLimitLabel = providerAsset
+    ? providerAsset.minAmount && providerAsset.maxAmount
+      ? `${providerAsset.minAmount}–${providerAsset.maxAmount} ${selectedCode}`
+      : providerAsset.minAmount
+        ? `Minimum ${providerAsset.minAmount} ${selectedCode}`
+        : providerAsset.maxAmount
+          ? `Maximum ${providerAsset.maxAmount} ${selectedCode}`
+          : null
+    : null;
+
+  const { mutate: createOfframp, isPending } = useAction(
+    async (data: FiatPayoutFormData) => {
+      if (!org?.token || !capabilities || !selectedAsset) {
+        throw new AppError("NOT_FOUND", "Offramp is not available");
+      }
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": org.token },
+        maxRetries: 0,
+      });
+      const result = await api.post<CreateOfframpResponse>(
+        "/offramp",
+        {
+          providerId: capabilities.provider.id,
+          assetCode: selectedAsset.code,
+          assetIssuer: selectedAsset.issuer,
+          cryptoAmount: data.cryptoAmount,
+          destinationCurrency: data.destinationCurrency,
+          destinationCountry: data.destinationCountry,
+          payoutRail: data.payoutRail,
+        },
+        { "Idempotency-Key": idempotencyKey.current }
+      );
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
+      return result.value;
+    },
+    {
+      onSuccess: (result) => {
+        if (popupRef.current) {
+          popupRef.current.opener = null;
+          popupRef.current.location.href = result.interactiveUrl;
+        }
+        onSuccess();
+      },
+      onError: () => {
+        popupRef.current?.close();
+        popupRef.current = null;
+        idempotencyKey.current = crypto.randomUUID();
+      },
+      successMsg: "Fiat payout started. Complete the provider flow in the new window.",
+    }
+  );
+
+  const handleSubmit = form.handleSubmit((data) => {
+    if (amountInvalid) return;
+    popupRef.current = window.open("/payout/provider-loading", "_blank");
+    if (!popupRef.current) {
+      toast.error("Your browser blocked the provider window. Allow popups and try again.");
+      return;
+    }
+    createOfframp(data);
+  });
+
+  const amountError = balanceExceeded
+    ? `Exceeds available balance of ${Money.formatCrypto(selectedAsset?.balance ?? 0, selectedCode)}`
+    : belowProviderMinimum
+      ? `Minimum provider amount is ${providerAsset?.minAmount} ${selectedCode}`
+      : aboveProviderMaximum
+        ? `Maximum provider amount is ${providerAsset?.maxAmount} ${selectedCode}`
+        : form.formState.errors.cryptoAmount?.message;
+
+  if (isLoadingCapabilities) {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center gap-3 py-12 text-center">
+        <Spinner size={28} />
+        <div>
+          <p className="text-sm font-medium">Getting your payout options</p>
+          <p className="text-muted-foreground mt-1 text-xs">This should only take a moment…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (capabilitiesError) {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center gap-4 py-12 text-center">
+        <div className="bg-destructive/10 flex size-12 items-center justify-center rounded-full">
+          <CircleAlert className="text-destructive size-6" />
+        </div>
+        <div className="max-w-sm">
+          <p className="font-medium">Fiat payouts are temporarily unavailable</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            We couldn’t load your payout options. Check your connection and try again.
+          </p>
+        </div>
+        <Button type="button" variant="outline" className="gap-2" onClick={() => void refetchCapabilities()}>
+          <RefreshCw className="size-4" /> Try again
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-6 py-2">
+      {capabilities?.sandbox && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          <ShieldCheck className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Test mode</p>
+            <p className="mt-1 text-xs">
+              You can complete the full payout flow, but no real fiat will be sent to a bank account.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <section className="space-y-3">
+        <div>
+          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">You send</p>
+          <p className="text-muted-foreground mt-1 text-xs">Choose an asset and enter how much you want to cash out.</p>
+        </div>
+        <SelectInput
+          id="fiat-payout-amount"
+          mode="plain"
+          placeholder="0.0000000"
+          value={{ amount: cryptoAmount, option: selectedCode }}
+          onChange={({ amount, option }) => {
+            if (option !== selectedCode) {
+              form.setValue("assetCode", option, { shouldValidate: true });
+              form.setValue("cryptoAmount", "", { shouldValidate: false });
+            } else {
+              form.setValue("cryptoAmount", amount, { shouldValidate: true });
+            }
+          }}
+          options={availableAssets.map((asset) => asset.code)}
+          optionLabels={Object.fromEntries(
+            availableAssets.map((asset) => [
+              asset.code,
+              `${asset.code} — ${Money.formatCrypto(asset.balance, asset.code)} available`,
+            ])
+          )}
+          error={amountError ?? form.formState.errors.assetCode?.message}
+        />
+
+        {selectedAsset && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <p className="text-muted-foreground">
+              Available: {Money.formatCrypto(selectedAsset.balance, selectedAsset.code)}
+            </p>
+            {maximumSelectableAmount && (
+              <button
+                type="button"
+                className="text-primary cursor-pointer font-medium hover:underline"
+                onClick={() =>
+                  form.setValue("cryptoAmount", maximumSelectableAmount, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              >
+                Max
+              </button>
+            )}
+          </div>
+        )}
+
+        {transactionLimitLabel && (
+          <div className="bg-muted/40 flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Transaction limit</span>
+            <span className="font-medium tabular-nums">{transactionLimitLabel}</span>
+          </div>
+        )}
+      </section>
+
+      <Separator />
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">You receive</p>
+          <p className="text-muted-foreground mt-1 text-xs">Choose your currency and where you want to receive it.</p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Controller
+            control={form.control}
+            name="destinationCurrency"
+            render={({ field, fieldState }) => (
+              <SelectField
+                id="fiat-currency"
+                label="Currency"
+                value={field.value}
+                onChange={field.onChange}
+                items={(capabilities?.destinationCurrencies ?? ["NGN", "USD", "GBP", "EUR"]).map((currency) => ({
+                  value: currency,
+                  label: {
+                    NGN: "NGN — Nigerian naira",
+                    USD: "USD — US dollar",
+                    GBP: "GBP — British pound",
+                    EUR: "EUR — Euro",
+                  }[currency],
+                }))}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="destinationCountry"
+            render={({ field, fieldState }) => (
+              <TextField
+                id="fiat-country"
+                label="Country"
+                value={field.value}
+                onChange={(value) => field.onChange(value.toUpperCase())}
+                placeholder="NG"
+                maxLength={2}
+                error={fieldState.error?.message}
+                helpText="Use a two-letter code, such as NG, US or GB"
+              />
+            )}
+          />
+        </div>
+
+        <Controller
+          control={form.control}
+          name="payoutRail"
+          render={({ field, fieldState }) => (
+            <SelectField
+              id="fiat-payout-rail"
+              label="Receive money via"
+              value={field.value}
+              onChange={field.onChange}
+              items={[{ value: "bank_account", label: "Bank account" }]}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+      </section>
+
+      <div className="bg-muted/40 flex items-start gap-3 rounded-xl border p-4">
+        <Landmark className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+        <div>
+          <p className="text-sm font-medium">Your details stay with the payout partner</p>
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+            {capabilities?.provider.name ?? "The payout partner"} will securely collect your bank and identity
+            details in the next step. StellarTools does not store them.
+          </p>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isPending || availableAssets.length === 0 || amountInvalid}
+        className="w-full gap-2"
+        size="lg"
+      >
+        {isPending ? <Spinner size={16} strokeColor="currentColor" /> : <ArrowUpFromLine className="size-4" />}
+        {isPending ? "Preparing your payout…" : "Continue"}
+      </Button>
+
+      {availableAssets.length === 0 && (
+        <p className="text-destructive text-center text-sm">
+          None of your current wallet assets can be used for a fiat payout.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PayoutModalTabs({
+  assets,
+  publicKey,
+  onSuccess,
+}: {
+  assets: WalletAsset[];
+  publicKey: string | null;
+  onSuccess: () => void;
+}) {
+  const [activeTab, setActiveTab] = React.useState("crypto");
+
+  return (
+    <UnderlineTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <UnderlineTabsList>
+        <UnderlineTabsTrigger value="crypto">Crypto</UnderlineTabsTrigger>
+        <UnderlineTabsTrigger value="fiat">Fiat</UnderlineTabsTrigger>
+      </UnderlineTabsList>
+
+      <UnderlineTabsContent value="crypto" className="mt-6">
+        <PayoutForm assets={assets} publicKey={publicKey} onSuccess={onSuccess} />
+      </UnderlineTabsContent>
+
+      <UnderlineTabsContent value="fiat" className="mt-6">
+        <FiatPayoutForm assets={assets} onSuccess={onSuccess} />
+      </UnderlineTabsContent>
+    </UnderlineTabs>
+  );
+}
+
 export default function PayoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -332,9 +764,17 @@ export default function PayoutPage() {
     },
     {
       header: "Amount",
-      cell: ({ row }) => (
-        <div className="font-medium">{Money.formatFiat(row.original.amountCents, row.original.currencyCode)}</div>
-      ),
+      cell: ({ row }) => {
+        const isPendingProviderQuote =
+          row.original.method === "fiat" && row.original.metadata?.amountPendingProviderQuote === true;
+        return (
+          <div className="font-medium">
+            {isPendingProviderQuote
+              ? `Pending ${row.original.destinationCurrency ?? row.original.currencyCode} quote`
+              : Money.formatFiat(row.original.amountCents, row.original.currencyCode)}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "status",
@@ -385,9 +825,9 @@ export default function PayoutPage() {
   const openPayoutModal = () => {
     AppModal.open({
       title: "Request Payout",
-      description: "Send crypto directly from your Stellar wallet to any external address.",
+      description: "Send funds from your account to an external address or bank account.",
       content: (
-        <PayoutForm
+        <PayoutModalTabs
           assets={walletData?.assets ?? []}
           publicKey={walletData?.publicKey ?? null}
           onSuccess={() => {
@@ -420,8 +860,8 @@ export default function PayoutPage() {
           <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
             <Construction className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              <span className="font-semibold">Fiat payouts are coming soon.</span> For now, you can send crypto to your
-              personal wallet and swap to fiat on a DEX like{" "}
+              <span className="font-semibold">Fiat payouts are in test mode.</span> The Fiat tab currently uses the SDF
+              Test Anchor and does not send real money. For live withdrawals, continue using crypto and swap on{" "}
               <a
                 href="https://stellarterm.com"
                 target="_blank"

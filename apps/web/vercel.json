@@ -6,6 +6,10 @@
     {
       "path": "/dashboard/~api/cron/charge-subscription",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/dashboard/~api/cron/reconcile-offramps",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

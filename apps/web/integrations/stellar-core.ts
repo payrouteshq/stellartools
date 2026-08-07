@@ -161,6 +161,75 @@ export const sendAssetPayment = async (
   });
 };
 
+export type StellarPaymentMemo =
+  | { type: "text"; value: string }
+  | { type: "id"; value: string }
+  | { type: "hash"; value: string };
+
+function toStellarMemo(memo: StellarPaymentMemo): StellarSDK.Memo {
+  switch (memo.type) {
+    case "text":
+      return StellarSDK.Memo.text(memo.value);
+    case "id":
+      return StellarSDK.Memo.id(memo.value);
+    case "hash":
+      return StellarSDK.Memo.hash(memo.value);
+  }
+}
+
+export const prepareAssetPayment = async (params: {
+  sourceSecret: string;
+  destination: string;
+  assetCode: string;
+  assetIssuer: string;
+  amount: string;
+  network: Network;
+  memo?: StellarPaymentMemo;
+}): Promise<{ transactionXdr: string; transactionHash: string }> => {
+  const { server, passphrase } = getStellarConfig(params.network);
+  const keypair = StellarSDK.Keypair.fromSecret(params.sourceSecret);
+  const account = await server.loadAccount(keypair.publicKey());
+  const builder = new StellarSDK.TransactionBuilder(account, {
+    fee: StellarSDK.BASE_FEE,
+    networkPassphrase: passphrase,
+  }).addOperation(
+    StellarSDK.Operation.payment({
+      destination: params.destination,
+      asset: getAsset(params.assetCode, params.assetIssuer),
+      amount: params.amount,
+    })
+  );
+
+  if (params.memo) builder.addMemo(toStellarMemo(params.memo));
+  const transaction = builder.setTimeout(30 * 60).build();
+  transaction.sign(keypair);
+  return {
+    transactionXdr: transaction.toXDR(),
+    transactionHash: transaction.hash().toString("hex"),
+  };
+};
+
+export const submitPreparedAssetPayment = async (
+  transactionXdr: string,
+  network: Network
+): Promise<{ hash: string }> => {
+  const { server, passphrase } = getStellarConfig(network);
+  const transaction = StellarSDK.TransactionBuilder.fromXDR(transactionXdr, passphrase);
+  const transactionHash = transaction.hash().toString("hex");
+
+  try {
+    const submitted = await server.submitTransaction(transaction);
+    return { hash: submitted.hash };
+  } catch (error: unknown) {
+    try {
+      await server.transactions().transaction(transactionHash).call();
+      return { hash: transactionHash };
+    } catch {
+      throw error;
+    }
+  }
+};
+
 export const verifyPaymentByPagingToken = async (
   merchantAddress: string,
   memo: string,

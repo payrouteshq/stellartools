@@ -11,7 +11,9 @@ import { CheckMark2 } from "@/components/icon";
 import { PayoutReceipt } from "@/components/receipt-engine";
 import { TIMELINE_ROUTE_MAP } from "@/constant";
 import { PayoutStatus } from "@/constant/schema.client";
+import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
+import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { downloadReceipt } from "@/lib/utils";
 import {
@@ -28,11 +30,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Separator,
+  Spinner,
   Timeline,
   cn,
   toast,
   useCopy,
 } from "@stellartools/shared-ui";
+import { ApiClient } from "@stellartools/core";
 import { useQuery } from "@tanstack/react-query";
 import _ from "lodash";
 import {
@@ -42,6 +46,8 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Landmark,
+  LucideIcon,
   MoreHorizontal,
   RefreshCw,
   Wallet,
@@ -52,7 +58,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
 const getExplorerUrl = (hash: string, env?: string) =>
-  `https://stellar.expert/explorer/${env === "live" ? "public" : "testnet"}/tx/${hash}`;
+  `https://stellar.expert/explorer/${env === "mainnet" ? "public" : "testnet"}/tx/${hash}`;
 
 const StatusBadge = ({ status }: { status: PayoutStatus }) => {
   const config = {
@@ -97,7 +103,15 @@ const CopyBtn = ({ text }: { text: string | null }) => {
   ) : null;
 };
 
-const DetailRow = ({ label, value, icon: Icon, action, mono = false }: any) => (
+interface DetailRowProps {
+  label: string;
+  value: React.ReactNode;
+  icon?: LucideIcon;
+  action?: React.ReactNode;
+  mono?: boolean;
+}
+
+const DetailRow = ({ label, value, icon: Icon, action, mono = false }: DetailRowProps) => (
   <div className="flex items-start justify-between gap-2">
     <div className="min-w-0 flex-1">
       <p className="text-muted-foreground mb-1 text-xs">{label}</p>
@@ -125,6 +139,7 @@ export default function PayoutDetailPage() {
     data: payout,
     isLoading: isLoadingPayout,
     isFetching,
+    refetch: refetchPayout,
   } = useOrgQuery(["payout", payoutId], () => retrievePayoutById(payoutId), {
     refetchInterval: (query) => (query.state.data?.status === "pending" ? 4000 : false),
   });
@@ -164,11 +179,50 @@ export default function PayoutDetailPage() {
     });
   }, [payout]);
 
+  const refreshProvider = async () => {
+    if (!payout || payout.method !== "fiat") return;
+    if (!orgContext?.token) throw new AppError("NOT_FOUND", "No organization context");
+    const api = new ApiClient({
+      baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+      headers: { "x-session-token": orgContext.token },
+    });
+    const result = await api.get<{ providerStatus: string }>(`/offramp/${payout.id}`);
+    if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
+    return result.value;
+  };
+
+  const { mutate: confirmFunding, isPending: isConfirmingFunding } = useAction(
+    async () => {
+      if (!payout || !orgContext?.token) throw new AppError("NOT_FOUND", "No organization context");
+      const api = new ApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
+        headers: { "x-session-token": orgContext.token },
+      });
+      const result = await api.post<{ transactionHash: string | null }>(
+        `/offramp/${payout.id}`,
+        undefined,
+        { "Idempotency-Key": crypto.randomUUID() }
+      );
+      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
+      return result.value;
+    },
+    {
+      onSuccess: () => void refetchPayout(),
+      successMsg: "Funding payment submitted. The provider is processing your fiat payout.",
+    }
+  );
+
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    toast.success("Status refreshed");
-    setIsRefreshing(false);
+    try {
+      await refreshProvider();
+      await refetchPayout();
+      toast.success("Status refreshed");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Unable to refresh payout status");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const copyToClipboard = (text: string, msg: string) => {
@@ -226,7 +280,7 @@ export default function PayoutDetailPage() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold">Payout Details</h1>
-                <StatusBadge status={payout.status as any} />
+                <StatusBadge status={payout.status} />
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <p className="text-muted-foreground text-sm">Payout #{payout.id}</p>
@@ -242,6 +296,22 @@ export default function PayoutDetailPage() {
               </div>
             </div>
             <div className="flex gap-2">
+              {payout.method === "fiat" &&
+                payout.providerStatus === "pending_user_transfer_start" &&
+                !payout.transactionHash && (
+                  <Button
+                    onClick={() => confirmFunding(undefined)}
+                    disabled={isConfirmingFunding}
+                    className="gap-2"
+                  >
+                    {isConfirmingFunding ? (
+                      <Spinner size={16} strokeColor="currentColor" />
+                    ) : (
+                      <Landmark className="h-4 w-4" />
+                    )}
+                    Confirm & Send Funds
+                  </Button>
+                )}
               <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} className="gap-2 shadow-none">
                 <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} /> Refresh
               </Button>
@@ -274,7 +344,7 @@ export default function PayoutDetailPage() {
                 label: "Payout Amount",
                 value: `${Money.formatCrypto(Number(payout.cryptoAmount), payout.selectedAssetCode ?? "XLM")}`,
               },
-              { label: "Status", value: <StatusBadge status={payout.status as any} /> },
+              { label: "Status", value: <StatusBadge status={payout.status} /> },
               {
                 label: "Network",
                 value: payout.environment === "mainnet" ? "Live Mode" : "Test Mode",
@@ -299,11 +369,21 @@ export default function PayoutDetailPage() {
                   <Separator />
                   <DetailRow
                     label="Payout Method"
-                    value={payout.walletAddress}
-                    icon={Wallet}
+                    value={
+                      payout.method === "fiat"
+                        ? `${payout.withdrawalMethod ?? "Provider payout"} · ${payout.destinationCurrency ?? "Fiat"}`
+                        : payout.walletAddress
+                    }
+                    icon={payout.method === "fiat" ? Landmark : Wallet}
                     mono
-                    action={<CopyBtn text={payout.walletAddress} />}
+                    action={payout.method === "crypto" ? <CopyBtn text={payout.walletAddress} /> : undefined}
                   />
+                  {payout.method === "fiat" && (
+                    <>
+                      <Separator />
+                      <DetailRow label="Provider Status" value={_.startCase(payout.providerStatus ?? "initiating")} />
+                    </>
+                  )}
                   {payout.transactionHash && (
                     <>
                       <Separator />

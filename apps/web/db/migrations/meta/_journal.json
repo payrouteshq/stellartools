@@ -64,6 +64,13 @@
       "when": 1784542271329,
       "tag": "0008_delivery_log_app_installation_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786107525204,
+      "tag": "0009_fiat_offramp_initiation",
+      "breakpoints": true
     }
   ]
 }

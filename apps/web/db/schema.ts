@@ -367,6 +367,8 @@ export const charges = pgTable("charge", {
 
 export const payoutStatusEnum = pgEnum("payout_status", payoutStatusEnum$1);
 
+export const payoutMethodEnum = pgEnum("payout_method", ["crypto", "fiat"]);
+
 export const payouts = pgTable(
   "payout",
   {
@@ -379,6 +381,7 @@ export const payouts = pgTable(
     cryptoAmount: text("crypto_amount").notNull(),
     selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
     selectedAssetIssuer: text("selected_asset_issuer"),
+    method: payoutMethodEnum("method").notNull().default("crypto"),
     status: payoutStatusEnum("status").notNull(),
     walletAddress: text("wallet_address"),
     memo: text("memo"),
@@ -388,12 +391,25 @@ export const payouts = pgTable(
     environment: networkEnum("network").notNull(),
     transactionHash: text("transaction_hash").unique(),
     bankAccount: jsonb("bank_account").$type<Record<string, unknown> | null>(), // withdawal receipts, account number etc.
+    provider: text("provider"),
+    providerTransactionId: text("provider_transaction_id"),
+    providerStatus: text("provider_status"),
+    destinationCurrency: text("destination_currency"),
+    destinationCountry: text("destination_country"),
+    withdrawalMethod: text("withdrawal_method"),
+    quoteId: text("quote_id"),
+    quoteExpiresAt: timestamp("quote_expires_at"),
+    providerUpdatedAt: timestamp("provider_updated_at"),
+    failureCode: text("failure_code"),
+    failureMessage: text("failure_message"),
+    fundingTransactionXdr: text("funding_transaction_xdr"),
   },
   (table) => [
     check(
       "crypto_or_fiat_constraint",
-      sql`(${table.selectedAssetCode} IS NOT NULL AND (${table.transactionHash} IS NOT NULL OR ${table.status} = 'pending')) OR (${table.bankAccount} IS NOT NULL)`
+      sql`(${table.method} = 'crypto' AND ${table.selectedAssetCode} IS NOT NULL AND (${table.transactionHash} IS NOT NULL OR ${table.status} = 'pending')) OR (${table.method} = 'fiat' AND ${table.selectedAssetCode} IS NOT NULL)`
     ),
+    unique("payout_provider_transaction_unique").on(table.provider, table.providerTransactionId),
   ]
 );
 
