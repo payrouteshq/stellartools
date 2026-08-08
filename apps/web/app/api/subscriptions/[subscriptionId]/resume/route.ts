@@ -36,20 +36,11 @@ export const POST = apiHandler({
 
     if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
-    const { secret } = await resolveMerchantSecret(organizationId, environment);
-
-    if (!secret) {
-      return Result.err(
-        new AppError(
-          "VALIDATION_ERROR",
-          "Subscription management requires a stored secret key. Add your secret key in organization settings to enable this."
-        )
-      );
-    }
+    const merchantSecret = await resolveMerchantSecret(organizationId, environment);
 
     const resumeResult = await soroban$resumeSubscription(
       environment,
-      secret,
+      merchantSecret,
       customerWallet.address,
       subscription.productId
     );
