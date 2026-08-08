@@ -20,10 +20,11 @@ import { getCookie, setCookies } from "@/integrations/cookie-manager";
 import { encrypt } from "@/integrations/encryption";
 import { uploadFiles } from "@/integrations/file-upload";
 import { getFiatRates } from "@/integrations/price-feed";
-import { createAccount } from "@/integrations/stellar-core";
+import { fundAccount } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { computeOverviewStats } from "@/lib/overview-stats";
 import { generateResourceId } from "@/lib/utils";
+import * as StellarSDK from "@stellar/stellar-sdk";
 import { STELLARTOOLS_ID, signJwt, verifyJwt } from "@stellartools/core";
 import { and, eq, gte, sql } from "drizzle-orm";
 import moment from "moment";
@@ -32,7 +33,7 @@ export const postOrganizationAndSecret = safeAction(
   async (
     params: Omit<Organization, "id" | "accountId">,
     defaultEnvironment: Network,
-    options?: { formDataWithFiles?: FormData }
+    options?: { formDataWithFiles?: FormData; externalPublicKey?: string; externalSecretKey?: string | null }
   ) => {
     const logoFile = options?.formDataWithFiles?.get("logo");
 
@@ -42,8 +43,11 @@ export const postOrganizationAndSecret = safeAction(
     }
 
     const { accountId } = await resolveAccountContext();
-
     const organizationId = generateResourceId("org", accountId, 25);
+
+    if (params.walletStrategy === "direct" && !options?.externalPublicKey) {
+      throw new AppError("VALIDATION_ERROR", "A Stellar public key is required for self-custody wallets");
+    }
 
     return await runAtomic(async () => {
       const [organization] = await db
@@ -51,26 +55,65 @@ export const postOrganizationAndSecret = safeAction(
         .values({ ...params, id: organizationId, accountId })
         .returning();
 
-      const [testnetAccount, mainnetAccount] = await Promise.all([createAccount("testnet"), createAccount("mainnet")]);
+      if (params.walletStrategy === "direct") {
+        const pubKey = options!.externalPublicKey!;
+        const secretKey = options?.externalSecretKey || null;
 
-      if (testnetAccount.isErr()) throw new AppError("INTERNAL_ERROR", testnetAccount.error?.message);
-      if (mainnetAccount.isErr()) throw new AppError("INTERNAL_ERROR", mainnetAccount.error?.message);
+        if (!StellarSDK.StrKey.isValidEd25519PublicKey(pubKey)) {
+          throw new AppError("VALIDATION_ERROR", "Invalid Stellar public key");
+        }
 
-      const testnetBal = testnetAccount.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
-      const mainnetBal = mainnetAccount.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+        if (secretKey) {
+          // Validate secret key using SDK and verify it pairs with the public key
+          if (!StellarSDK.StrKey.isValidEd25519SecretSeed(secretKey)) {
+            throw new AppError("VALIDATION_ERROR", "Invalid Stellar secret key format");
+          }
 
-      await postOrganizationSecretWithEncryption(
-        {
-          testnetSecret: testnetAccount.value!.keypair.secret(),
-          testnetPublicKey: testnetAccount.value!.keypair.publicKey(),
-          mainnetSecret: mainnetAccount.value!.keypair.secret(),
-          mainnetPublicKey: mainnetAccount.value!.keypair.publicKey(),
-          testnetInitialBalance: testnetBal,
-          mainnetInitialBalance: mainnetBal,
-        },
-        organization.id,
-        defaultEnvironment
-      );
+          const derivedPubKey = StellarSDK.Keypair.fromSecret(secretKey).publicKey();
+
+          if (derivedPubKey !== pubKey) {
+            throw new AppError("VALIDATION_ERROR", "Secret key does not match the provided public key");
+          }
+        }
+
+        await postOrganizationSecretWithEncryption(
+          {
+            testnetPublicKey: pubKey,
+            mainnetPublicKey: pubKey,
+            testnetSecret: secretKey,
+            mainnetSecret: secretKey,
+            testnetInitialBalance: "0",
+            mainnetInitialBalance: "0",
+          },
+          organization.id,
+          defaultEnvironment
+        );
+      } else {
+        const keypair = StellarSDK.Keypair.random();
+        const [testnetResult, mainnetResult] = await Promise.all([
+          fundAccount(keypair, "testnet"),
+          fundAccount(keypair, "mainnet"),
+        ]);
+
+        if (testnetResult.isErr()) throw new AppError("INTERNAL_ERROR", testnetResult.error?.message);
+        if (mainnetResult.isErr()) throw new AppError("INTERNAL_ERROR", mainnetResult.error?.message);
+
+        const testnetBal = testnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+        const mainnetBal = mainnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+
+        await postOrganizationSecretWithEncryption(
+          {
+            testnetSecret: keypair.secret(),
+            testnetPublicKey: keypair.publicKey(),
+            mainnetSecret: keypair.secret(),
+            mainnetPublicKey: keypair.publicKey(),
+            testnetInitialBalance: testnetBal,
+            mainnetInitialBalance: mainnetBal,
+          },
+          organization.id,
+          defaultEnvironment
+        );
+      }
 
       return organization;
     })
@@ -113,6 +156,7 @@ export const retrieveOrganizationIdAndSecret = async (id: string, environment: N
 
   const [result] = await db
     .select({
+      walletStrategy: organizations.walletStrategy,
       organizationId: organizations.id,
       secret: sql<{ encrypted: string; publicKey: string } | null>`
         CASE WHEN ${sql.raw(`"organization_secret"."${prefix}_secret_encrypted"`)} IS NOT NULL THEN
@@ -193,13 +237,29 @@ export const getCurrentOrganization = async (onError?: (err: string) => Promise<
       STELLARTOOLS_ID
     );
 
-    const organization = await retrieveOrganization(orgId);
+    const [row] = await db
+      .select({
+        id: organizations.id,
+        selectedCurrency: organizations.selectedCurrency,
+        name: organizations.name,
+        walletStrategy: organizations.walletStrategy,
+        hasSecret: sql<boolean>`(${organizationSecrets.testnetSecretEncrypted} IS NOT NULL)`,
+      })
+      .from(organizations)
+      .leftJoin(organizationSecrets, eq(organizations.id, organizationSecrets.organizationId))
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+
+    if (!row) return null;
+
     return {
-      id: organization.id,
+      id: row.id,
       environment,
       token: selectedOrg,
-      selectedCurrency: organization.selectedCurrency,
-      name: organization.name,
+      selectedCurrency: row.selectedCurrency,
+      name: row.name,
+      walletStrategy: row.walletStrategy,
+      hasSecret: !!row.hasSecret,
     };
   } catch (error) {
     if (onError) await onError((error as Error)?.message);

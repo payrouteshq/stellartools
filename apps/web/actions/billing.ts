@@ -12,15 +12,22 @@ import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
 import { generateResourceId } from "@/lib/utils";
 
 export async function processPaymentBilling(paymentId: string, organizationId: string, environment: Network) {
-  const [payment, secret] = await Promise.all([
+  const [payment, organizationResult] = await Promise.all([
     retrievePayments(organizationId, environment, { paymentId, limit: 1 }).then((res) => res.data[0]),
-    retrieveOrganizationIdAndSecret(organizationId, environment).then((res) => res.secret),
+    retrieveOrganizationIdAndSecret(organizationId, environment),
   ]);
 
   if (!payment || payment.status !== "confirmed") return;
+  if (!payment.selectedAssetCode) return;
 
-  if (!secret || !payment.selectedAssetCode) {
-    throw new AppError("VALIDATION_ERROR", `Missing secret or asset for payment ${paymentId}`);
+  const isDirect = organizationResult.walletStrategy === "direct";
+  // Soroban subscription renewals send 100% to the merchant — no on-chain fee
+  // split. Only one-time direct-wallet payments have the 1%/99% split baked
+  // into the customer's XDR.
+  const isOneTimeDirectSplit = isDirect && !payment.subscriptionId && !!payment.checkoutId;
+
+  if (!isOneTimeDirectSplit && !organizationResult.secret) {
+    throw new AppError("VALIDATION_ERROR", `Missing secret for payment ${paymentId}`);
   }
 
   const {
@@ -32,6 +39,30 @@ export async function processPaymentBilling(paymentId: string, organizationId: s
   const feeCryptoAmount = (Number(payment.cryptoAmount) * PLATFORM_FEE_BPS) / BPS_DENOMINATOR;
   const feeAmountCents = Math.round((payment.amountCents * PLATFORM_FEE_BPS) / BPS_DENOMINATOR);
   const chargeId = generateResourceId("ch", paymentId, 20);
+
+  if (isOneTimeDirectSplit) {
+    // Fee was already split on-chain in the customer's transaction. Just record it.
+    await postCharge(
+      {
+        id: chargeId,
+        paymentId: payment.id,
+        amountCents: feeAmountCents,
+        currencyCode: payment.currencyCode,
+        cryptoAmount: feeCryptoAmount.toFixed(7),
+        selectedAssetCode: payment.selectedAssetCode,
+        selectedAssetIssuer: payment.selectedAssetIssuer,
+        type: "platform_fee",
+        status: "succeeded",
+        transactionHash: payment.transactionHash,
+        error: null,
+        clearedAt: new Date(),
+      },
+      organizationId,
+      environment,
+      { onConflict: "do_nothing" }
+    );
+    return;
+  }
 
   const claimedCharge = await postCharge(
     {
@@ -56,7 +87,7 @@ export async function processPaymentBilling(paymentId: string, organizationId: s
   if (!claimedCharge) return;
 
   try {
-    const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
+    const secretKey = decrypt(organizationResult.secret!.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 
     const res = await sendAssetPayment(
       secretKey,

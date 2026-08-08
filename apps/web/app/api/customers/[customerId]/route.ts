@@ -100,10 +100,11 @@ export const DELETE = apiHandler({
 
       if (!customerWallet?.address) continue;
 
-      const merchantSecret = await resolveMerchantSecret(auth.organizationId, auth.environment);
+      const secret = await resolveMerchantSecret(auth.organizationId, auth.environment, "cancel subscriptions");
+
       const cancellationResult = await soroban$cancelSubscription(
         auth.environment,
-        merchantSecret,
+        secret,
         customerWallet.address,
         subscription.productId
       );

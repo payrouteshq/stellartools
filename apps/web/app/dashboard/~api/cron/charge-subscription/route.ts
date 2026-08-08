@@ -33,6 +33,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     // 1. HANDLE CANCELLATION
     if (sub.cancelAtPeriodEnd) {
       const merchantSecret = await resolveMerchantSecret(orgId, env);
+
       const res = await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
 
       if (res.isOk()) {
@@ -102,6 +103,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
       if (shouldCancelAfterFailures(recentPayments.map((p) => p.status))) {
         try {
           const merchantSecret = await resolveMerchantSecret(orgId, env);
+
           await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
         } catch (cancelErr: any) {
           console.error(`[Cron] On-chain cancel failed for sub ${subId}:`, cancelErr?.message);

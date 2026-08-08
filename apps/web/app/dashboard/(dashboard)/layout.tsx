@@ -33,7 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const hasApps = installationsWithApps.length > 0;
 
   return (
-    <div className={cn(hasApps && "md:mr-12")}>
+    <div className={cn(hasApps && "transition-all duration-300 md:mr-12")}>
       {children}
       {hasApps && (
         <PluginLauncher

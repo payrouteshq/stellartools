@@ -19,12 +19,14 @@ import {
   SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
   buildPreSwapXdr,
   ensureTrustline,
+  getChargesPublicKey,
   getCustomerAssetIssuers,
   getStellarConfig,
   retrieveAssetContractId,
 } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
+import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { SubscriptionData } from "@stellartools/core";
@@ -77,18 +79,47 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const asset = sendAssetCode === "XLM" ? Asset.native() : new Asset(sendAssetCode, sendAssetIssuer!);
   const builder = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase });
 
+  const isDirect = checkout.walletStrategy === "direct";
+
   if (sendAssetIssuer) {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
-    if (!orgSecret) throw new AppError("VALIDATION_ERROR", "Merchant wallet not configured");
-    await ensureTrustline(
-      decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
-      sendAssetCode,
-      sendAssetIssuer,
-      checkout.environment
-    );
+
+    if (orgSecret) {
+      // Secret available (managed or self-custody with stored key): auto-set trustline.
+      await ensureTrustline(
+        decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
+        sendAssetCode,
+        sendAssetIssuer,
+        checkout.environment
+      );
+    } else {
+      // No secret stored — merchant must have the trustline set up on their own.
+      const merchantAccount = await server.loadAccount(checkout.merchantPublicKey).catch(() => null);
+      const hasTrustline = merchantAccount?.balances.some(
+        (b: any) => b.asset_code === sendAssetCode && b.asset_issuer === sendAssetIssuer
+      );
+      if (!hasTrustline) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `Merchant wallet has no trustline for ${sendAssetCode}. Merchant should add it from their Stellar wallet to accept this asset.`
+        );
+      }
+    }
   }
 
-  builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
+  if (isDirect) {
+    // Split payment on-chain: merchant receives 99%, StellarTools fee receives 1%.
+    const totalBig = new Big(amount);
+    const feeAmount = totalBig.times(PLATFORM_FEE_BPS).div(BPS_DENOMINATOR).toFixed(7);
+    const merchantAmount = totalBig.minus(new Big(feeAmount)).toFixed(7);
+
+    builder.addOperation(
+      Operation.payment({ destination: getChargesPublicKey(checkout.environment), asset, amount: feeAmount })
+    );
+    builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount: merchantAmount }));
+  } else {
+    builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
+  }
 
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };

@@ -19,11 +19,12 @@ export type ReconReport = {
 
 const DRIFT_THRESHOLD = 1;
 
-export async function reconcileOrganization(orgId?: string, env?: Network): Promise<ReconReport[]> {
+export async function reconcileOrganization(orgId?: string, env?: Network): Promise<ReconReport[] | undefined> {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
-  const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
 
-  if (!secret?.publicKey) return [];
+  const { secret, walletStrategy } = await retrieveOrganizationIdAndSecret(organizationId, environment);
+
+  if (!secret?.publicKey || walletStrategy === "direct") return undefined;
 
   const { server } = getStellarConfig(environment);
   const account = await server.loadAccount(secret.publicKey);

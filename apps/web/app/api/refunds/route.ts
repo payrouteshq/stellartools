@@ -40,7 +40,11 @@ export const POST = apiHandler({
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
 
-    if (!secret) throw new AppError("VALIDATION_ERROR", "Merchant keys not configured, please contact support");
+    if (!secret?.encrypted)
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Refunds require a stored secret key. Contact us at support@stellartools.dev to enable refunds."
+      );
 
     const refundToWalletAddress = wallet_address ?? payment?.wallets?.address;
 
@@ -105,7 +109,8 @@ export const POST = apiHandler({
 
         if (!subscription) throw new AppError("NOT_FOUND", "Subscription not found");
 
-        const merchantSecret = await resolveMerchantSecret(organizationId, environment);
+        const merchantSecret = await resolveMerchantSecret(organizationId, environment, "cancel subscriptions");
+
         const cancellationResult = await soroban$cancelSubscription(
           environment,
           merchantSecret,

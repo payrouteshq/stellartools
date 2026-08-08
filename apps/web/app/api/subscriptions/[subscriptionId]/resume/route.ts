@@ -37,6 +37,7 @@ export const POST = apiHandler({
     if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
     const merchantSecret = await resolveMerchantSecret(organizationId, environment);
+
     const resumeResult = await soroban$resumeSubscription(
       environment,
       merchantSecret,

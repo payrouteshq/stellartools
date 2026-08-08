@@ -5,12 +5,14 @@ import * as React from "react";
 import { postOrganizationAndSecret, retrieveOrganizations, setCurrentOrganization } from "@/actions/organization";
 import { StellarToolsIcon } from "@/components/icon";
 import ModeToggle from "@/components/mode-toggle";
+import { walletStrategyEnum } from "@/constant/schema.client";
 import { useAction } from "@/hooks/use-action";
 import { useClearStaleCookies } from "@/hooks/use-clear-stale-cookies";
 import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
+  Badge,
   Button,
   type FileRejection,
   FileUpload,
@@ -20,13 +22,17 @@ import {
   Skeleton,
   TextAreaField,
   TextField,
+  UnderlineTabs,
+  UnderlineTabsContent,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
   phoneNumberToString,
   toast,
 } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
 import countryToCurrency from "country-to-currency";
 import { getCurrency as getCurrencyFromLocale$AcceptHeaders } from "locale-currency";
-import { Building2, ChevronRight, Plus } from "lucide-react";
+import { AlertTriangle, Building2, ChevronRight, KeyRound, Plus } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as RHF from "react-hook-form";
@@ -186,7 +192,7 @@ export const Client$SelectOrganizationPage = ({
 
           <button
             className="border-border hover:bg-accent group flex w-full cursor-pointer items-center gap-3.5 rounded-xl border border-dashed bg-transparent px-4 py-3.5 text-left transition-all duration-150"
-            onClick={openCreateModal}
+            onClick={() => openCreateModal()}
           >
             <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
               <Plus className="text-muted-foreground size-4" />
@@ -265,19 +271,55 @@ const optionalPhoneNumberSchema = z
   .optional()
   .nullable();
 
-const createOrganizationSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  phoneNumber: optionalPhoneNumberSchema,
-  description: z.string().optional(),
-  physicalAddress: z.string().optional(),
-  supportEmail: z.email(),
-  logo: z
-    .custom<FileWithPreview[]>((val) => {
-      if (!Array.isArray(val)) return false;
-      return val.every((item) => item instanceof File);
-    })
-    .nullable(),
-});
+const STELLAR_PUBLIC_KEY_REGEX = /^G[A-Z2-7]{55}$/;
+const STELLAR_SECRET_KEY_REGEX = /^S[A-Z2-7]{55}$/;
+
+const createOrganizationSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    phoneNumber: optionalPhoneNumberSchema,
+    description: z.string().optional(),
+    physicalAddress: z.string().optional(),
+    supportEmail: z.email(),
+    walletStrategy: z.enum(walletStrategyEnum).default("managed"),
+    externalPublicKey: z
+      .string()
+      .optional()
+      .refine((val) => val === "" || val === undefined || STELLAR_PUBLIC_KEY_REGEX.test(val), {
+        message: "Enter a valid Stellar public key (starts with G, 56 characters)",
+        path: ["externalPublicKey"],
+      }),
+    externalSecretKey: z
+      .string()
+      .optional()
+      .refine((val) => !val || STELLAR_SECRET_KEY_REGEX.test(val), {
+        message: "Enter a valid Stellar secret key (starts with S, 56 characters)",
+      }),
+    logo: z
+      .custom<FileWithPreview[]>((val) => {
+        if (!Array.isArray(val)) return false;
+        return val.every((item) => item instanceof File);
+      })
+      .nullable(),
+  })
+  .refine(
+    (data) => {
+      if (data.walletStrategy === "direct") {
+        return STELLAR_PUBLIC_KEY_REGEX.test(data.externalPublicKey ?? "");
+      }
+      return true;
+    },
+    { message: "Enter a valid Stellar public key (starts with G, 56 characters)", path: ["externalPublicKey"] }
+  )
+  .refine(
+    (data) => {
+      if (data.walletStrategy === "direct" && data.externalSecretKey) {
+        return STELLAR_SECRET_KEY_REGEX.test(data.externalSecretKey);
+      }
+      return true;
+    },
+    { message: "Enter a valid Stellar secret key (starts with S, 56 characters)", path: ["externalSecretKey"] }
+  );
 
 type CreateOrganizationFormData = z.infer<typeof createOrganizationSchema>;
 
@@ -302,6 +344,9 @@ const CreateOrganizationModalContent = ({
       description: "",
       physicalAddress: "",
       supportEmail: "",
+      walletStrategy: "managed" as const,
+      externalPublicKey: "",
+      externalSecretKey: "",
       logo: null,
     },
   });
@@ -341,9 +386,14 @@ const CreateOrganizationModalContent = ({
           socialLinks: null,
           supportEmail: null,
           selectedCurrency: selectedCurrency ?? "USD",
+          walletStrategy: data.walletStrategy,
         },
         defaultEnvironment,
-        { formDataWithFiles: formData }
+        {
+          formDataWithFiles: formData,
+          externalPublicKey: data.externalPublicKey,
+          externalSecretKey: data.externalSecretKey || null,
+        }
       );
     },
     {
@@ -431,6 +481,7 @@ const CreateOrganizationModalContent = ({
                     enableTransformation
                     targetFormat="image/png"
                     error={error?.message}
+                    maxDimension={1024}
                   />
                 )}
               />
@@ -544,6 +595,94 @@ const CreateOrganizationModalContent = ({
                 )}
               />
             </div>
+          </div>
+
+          <div>
+            <h3 className="mb-1 text-lg font-semibold">Wallet Configuration</h3>
+            <p className="text-muted-foreground mb-4 text-xs">
+              Choose how payments are received into your organization.
+            </p>
+
+            <RHF.Controller
+              control={form.control}
+              name="walletStrategy"
+              render={({ field }) => (
+                <UnderlineTabs value={field.value} onValueChange={field.onChange}>
+                  <UnderlineTabsList>
+                    <UnderlineTabsTrigger value="managed" className="cursor-pointer">
+                      <span className="flex items-center gap-1.5">
+                        Managed
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-500/10 px-1.5 py-0 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+                        >
+                          Recommended
+                        </Badge>
+                      </span>
+                    </UnderlineTabsTrigger>
+                    <UnderlineTabsTrigger value="direct" className="cursor-pointer">
+                      Self-Custody
+                    </UnderlineTabsTrigger>
+                  </UnderlineTabsList>
+
+                  <UnderlineTabsContent value="managed" className="mt-4">
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      StellarTools generates and holds a secure vault for your organization. Refunds, trustlines, and
+                      subscription management are all handled automatically on your behalf.
+                    </p>
+                  </UnderlineTabsContent>
+
+                  <UnderlineTabsContent value="direct" className="mt-4 space-y-4">
+                    <RHF.Controller
+                      control={form.control}
+                      name="externalPublicKey"
+                      render={({ field: pkField, fieldState: { error } }) => (
+                        <TextField
+                          ref={pkField.ref}
+                          id="external-public-key"
+                          label="Your Stellar Public Key"
+                          value={pkField.value || ""}
+                          onChange={pkField.onChange}
+                          placeholder="GABC…XYZ"
+                          error={error?.message}
+                          className="w-full font-mono shadow-none"
+                          required
+                        />
+                      )}
+                    />
+
+                    <div className="space-y-3">
+                      <RHF.Controller
+                        control={form.control}
+                        name="externalSecretKey"
+                        render={({ field: skField, fieldState: { error } }) => (
+                          <TextField
+                            ref={skField.ref}
+                            id="external-secret-key"
+                            label="Secret Key (Optional)"
+                            helpText="Storing your secret key enables subscriptions, automated refunds, subscription management, and payouts"
+                            value={skField.value || ""}
+                            onChange={skField.onChange}
+                            type="password"
+                            placeholder="SABC…XYZ"
+                            error={error?.message}
+                            className="w-full font-mono shadow-none"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3.5 py-3">
+                      <AlertTriangle className="mt-px size-3.5 shrink-0 text-amber-500" />
+                      <p className="text-xs leading-relaxed text-amber-600 dark:text-amber-400">
+                        Without a secret key, subscriptions, refunds, subscription management, and payouts are
+                        unavailable.
+                      </p>
+                    </div>
+                  </UnderlineTabsContent>
+                </UnderlineTabs>
+              )}
+            />
           </div>
         </div>
       </form>
