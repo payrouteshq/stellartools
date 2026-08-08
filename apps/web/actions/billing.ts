@@ -21,8 +21,12 @@ export async function processPaymentBilling(paymentId: string, organizationId: s
   if (!payment.selectedAssetCode) return;
 
   const isDirect = organizationResult.walletStrategy === "direct";
+  // Soroban subscription renewals send 100% to the merchant — no on-chain fee
+  // split. Only one-time direct-wallet payments have the 1%/99% split baked
+  // into the customer's XDR.
+  const isOneTimeDirectSplit = isDirect && !payment.subscriptionId && !!payment.checkoutId;
 
-  if (!isDirect && !organizationResult.secret) {
+  if (!isOneTimeDirectSplit && !organizationResult.secret) {
     throw new AppError("VALIDATION_ERROR", `Missing secret for payment ${paymentId}`);
   }
 
@@ -36,8 +40,8 @@ export async function processPaymentBilling(paymentId: string, organizationId: s
   const feeAmountCents = Math.round((payment.amountCents * PLATFORM_FEE_BPS) / BPS_DENOMINATOR);
   const chargeId = generateResourceId("ch", paymentId, 20);
 
-  if (isDirect) {
-    // Fee was already split on-chain at checkout time. Just record it as collected.
+  if (isOneTimeDirectSplit) {
+    // Fee was already split on-chain in the customer's transaction. Just record it.
     await postCharge(
       {
         id: chargeId,

@@ -40,12 +40,22 @@ const getSorobanConfig = (network: Network) => {
   };
 };
 
-export const resolveMerchantSecretAndWalletStrategy = async (orgId: string, network: Network) => {
+export const resolveMerchantSecret = async (orgId: string, network: Network, feature?: string): Promise<string> => {
   const { secret, walletStrategy } = await retrieveOrganizationIdAndSecret(orgId, network);
-  if (!secret?.encrypted && walletStrategy === "managed") {
-    throw new AppError("VALIDATION_ERROR", "Merchant wallet not configured");
+  if (!secret?.encrypted) {
+    if (walletStrategy === "direct") {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Invalid wallet configuration. Contact us at support@stellartools.dev to get this resolved ASAP."
+      );
+    }
+
+    throw new AppError(
+      "VALIDATION_ERROR",
+      `Invalid wallet configuration. Contact us at support@stellartools.dev to enable ${feature ?? "this feature"}.`
+    );
   }
-  return { secret: decrypt(secret!.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? ""), walletStrategy };
+  return await decrypt(secret!.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
 };
 
 const parseContractEvent = (topics: unknown[], data: unknown): SorobanEvent => {

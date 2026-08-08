@@ -322,10 +322,10 @@ export const createProductCheckoutSession = async (params: {
 
   if (product.type === "subscription") {
     const { secret } = await retrieveOrganizationIdAndSecret(orgId, env);
-    if (!secret) {
+    if (!secret?.encrypted) {
       throw new AppError(
         "VALIDATION_ERROR",
-        "Subscription checkouts require a stored secret key. Add your secret key in organization settings to enable subscriptions."
+        "Subscription checkouts require a stored secret key. Contact us at support@stellartools.dev to enable subscriptions."
       );
     }
   }

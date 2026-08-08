@@ -1,9 +1,6 @@
 import { retrievePaymentCount } from "@/actions/payment";
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
-import {
-  resolveMerchantSecretAndWalletStrategy,
-  pauseSubscription as soroban$pauseSubscription,
-} from "@/integrations/soroban-contract";
+import { resolveMerchantSecret, pauseSubscription as soroban$pauseSubscription } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
@@ -36,20 +33,11 @@ export const POST = apiHandler({
 
     if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
-    const { secret } = await resolveMerchantSecretAndWalletStrategy(organizationId, environment);
-
-    if (!secret) {
-      return Result.err(
-        new AppError(
-          "VALIDATION_ERROR",
-          "Subscription management requires a stored secret key. Add your secret key in organization settings to enable this."
-        )
-      );
-    }
+    const merchantSecret = await resolveMerchantSecret(organizationId, environment, "pause subscriptions");
 
     const pauseResult = await soroban$pauseSubscription(
       environment,
-      secret,
+      merchantSecret,
       customerWallet.address,
       subscription.productId
     );

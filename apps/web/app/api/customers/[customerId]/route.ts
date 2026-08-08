@@ -1,7 +1,7 @@
 import { deleteCustomer, putCustomer, retrieveCustomers } from "@/actions/customers";
 import { retrieveSubscriptions } from "@/actions/subscription";
 import {
-  resolveMerchantSecretAndWalletStrategy,
+  resolveMerchantSecret,
   cancelSubscription as soroban$cancelSubscription,
 } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
@@ -100,19 +100,7 @@ export const DELETE = apiHandler({
 
       if (!customerWallet?.address) continue;
 
-      const { secret, walletStrategy } = await resolveMerchantSecretAndWalletStrategy(
-        auth.organizationId,
-        auth.environment
-      );
-
-      if (walletStrategy == "direct") {
-        return Result.err(
-          new AppError(
-            "VALIDATION_ERROR",
-            "Subscriptions are not supported for self custodied wallets, Please do it from your wallet"
-          )
-        );
-      }
+      const secret = await resolveMerchantSecret(auth.organizationId, auth.environment, "cancel subscriptions");
 
       const cancellationResult = await soroban$cancelSubscription(
         auth.environment,

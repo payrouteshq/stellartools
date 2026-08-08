@@ -6,7 +6,7 @@ import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } fro
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
 import {
-  resolveMerchantSecretAndWalletStrategy,
+  resolveMerchantSecret,
   cancelSubscription as soroban$cancelSubscription,
 } from "@/integrations/soroban-contract";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
@@ -34,16 +34,16 @@ export const POST = apiHandler({
       {
         data: [payment],
       },
-      { secret, walletStrategy },
+      { secret },
     ] = await Promise.all([
       retrievePayments(organizationId, environment, { paymentId }, { withWallets: true }),
       retrieveOrganizationIdAndSecret(organizationId, environment),
     ]);
 
-    if (!secret)
+    if (!secret?.encrypted)
       throw new AppError(
         "VALIDATION_ERROR",
-        "Refunds require a stored secret key. Add your secret key in organization settings to enable refunds."
+        "Refunds require a stored secret key. Contact us at support@stellartools.dev to enable refunds."
       );
 
     const refundToWalletAddress = wallet_address ?? payment?.wallets?.address;
@@ -109,15 +109,11 @@ export const POST = apiHandler({
 
         if (!subscription) throw new AppError("NOT_FOUND", "Subscription not found");
 
-        const { secret } = await resolveMerchantSecretAndWalletStrategy(organizationId, environment);
-
-        if (!secret) {
-          return Result.err(new AppError("VALIDATION_ERROR", "Secret key required to cancel subscription on-chain"));
-        }
+        const merchantSecret = await resolveMerchantSecret(organizationId, environment, "cancel subscriptions");
 
         const cancellationResult = await soroban$cancelSubscription(
           environment,
-          secret,
+          merchantSecret,
           payment.wallets!.address,
           subscription.productId!
         );

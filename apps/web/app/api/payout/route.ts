@@ -31,15 +31,15 @@ export const POST = apiHandler({
     const keyCheck = isValidPublicKey(walletAddress);
     if (keyCheck.isErr()) throw new AppError("INTERNAL_ERROR", keyCheck.error.message);
 
-    const [{ secret, walletStrategy }, org] = await Promise.all([
+    const [{ secret }, org] = await Promise.all([
       retrieveOrganizationIdAndSecret(organizationId, environment),
       retrieveOrganization(organizationId),
     ]);
 
-    if (!secret) {
+    if (!secret?.encrypted) {
       throw new AppError(
         "VALIDATION_ERROR",
-        "Payouts require a stored secret key. Add your secret key in organization settings to enable payouts."
+        "Payouts require a stored secret key. Contact us at support@stellartools.dev to enable payouts."
       );
     }
 

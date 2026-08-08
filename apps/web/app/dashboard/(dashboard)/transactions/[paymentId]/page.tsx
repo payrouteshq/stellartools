@@ -179,6 +179,7 @@ export default function TransactionDetailPage() {
   const refundModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [refundModalFooterProps, setRefundModalFooterProps] = React.useState({ isPending: false });
   const isRefundModalOpenRef = React.useRef(false);
+  const paymentRef = React.useRef<typeof payment | null>(null);
 
   React.useEffect(() => {
     if (!isRefundModalOpenRef.current) return;
@@ -201,7 +202,7 @@ export default function TransactionDetailPage() {
       description: "Process a refund for a transaction by providing the payment details.",
       content: (
         <RefundModalContent
-          payment={payment}
+          payment={paymentRef.current}
           initialPaymentId={paymentId}
           onSuccess={() => {
             isRefundModalOpenRef.current = false;
@@ -230,6 +231,7 @@ export default function TransactionDetailPage() {
   );
 
   const payment = data?.[0] ?? null;
+  paymentRef.current = payment;
   const customer = payment?.customer ?? null;
   const refund = payment?.refunds ?? null;
 
@@ -324,7 +326,7 @@ export default function TransactionDetailPage() {
                         <span className="sr-only">More options</span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent className="cursor-pointer" align="end">
                       <DropdownMenuItem
                         onClick={() => {
                           window.open(getStellarExplorerUrl(payment.transactionHash, payment.environment), "_blank");
@@ -422,6 +424,19 @@ export default function TransactionDetailPage() {
                           </div>
                         </>
                       )}
+
+                    {payment.status === "failed" && payment.failureReason && (
+                      <>
+                        <Separator />
+                        <div className="flex items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-muted-foreground mb-1 text-xs">Failure Reason</div>
+                            <div className="text-destructive text-sm">{payment.failureReason}</div>
+                          </div>
+                          <XCircle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -558,31 +573,30 @@ export default function TransactionDetailPage() {
                         <StatusBadge status={payment?.refunded ? "refunded" : payment.status} />
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold sm:text-xl">Actions</h3>
-                  <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      className="hover:bg-muted/50 h-auto w-full justify-start gap-2.5 px-3 py-2.5 shadow-none transition-colors"
-                      onClick={() => {
-                        window.open(getStellarExplorerUrl(payment.transactionHash, payment.environment), "_blank");
-                      }}
+                    <Separator />
+
+                    <button
+                      className="hover:text-foreground text-muted-foreground flex w-full items-center justify-between gap-2 py-0.5 text-sm transition-colors"
+                      onClick={() =>
+                        window.open(getStellarExplorerUrl(payment.transactionHash, payment.environment), "_blank")
+                      }
                     >
-                      <ExternalLink className="h-4 w-4 shrink-0" />
-                      <span className="text-sm font-medium">View on Stellar Explorer</span>
-                    </Button>
+                      <span>View on Stellar Explorer</span>
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    </button>
+
                     {payment.status === "confirmed" && !refund && (
-                      <Button
-                        variant="outline"
-                        className="hover:bg-muted/50 h-auto w-full justify-start gap-2.5 px-3 py-2.5 shadow-none transition-colors"
-                        onClick={openRefundModal}
-                      >
-                        <Wallet className="h-4 w-4 shrink-0" />
-                        <span className="text-sm font-medium">Process Refund</span>
-                      </Button>
+                      <>
+                        <Separator />
+                        <button
+                          className="hover:text-foreground text-muted-foreground flex w-full items-center justify-between gap-2 py-0.5 text-sm transition-colors"
+                          onClick={openRefundModal}
+                        >
+                          <span>Process Refund</span>
+                          <Wallet className="h-3.5 w-3.5 shrink-0" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

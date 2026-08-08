@@ -44,9 +44,8 @@ export const postOrganizationAndSecret = safeAction(
 
     const { accountId } = await resolveAccountContext();
     const organizationId = generateResourceId("org", accountId, 25);
-    const isDirect = params.walletStrategy === "direct";
 
-    if (isDirect && !options?.externalPublicKey) {
+    if (params.walletStrategy === "direct" && !options?.externalPublicKey) {
       throw new AppError("VALIDATION_ERROR", "A Stellar public key is required for self-custody wallets");
     }
 
@@ -56,7 +55,7 @@ export const postOrganizationAndSecret = safeAction(
         .values({ ...params, id: organizationId, accountId })
         .returning();
 
-      if (isDirect) {
+      if (params.walletStrategy === "direct") {
         const pubKey = options!.externalPublicKey!;
         const secretKey = options?.externalSecretKey || null;
 
@@ -90,7 +89,6 @@ export const postOrganizationAndSecret = safeAction(
           defaultEnvironment
         );
       } else {
-        // One keypair for both networks — same Stellar key works on testnet and mainnet independently.
         const keypair = StellarSDK.Keypair.random();
         const [testnetResult, mainnetResult] = await Promise.all([
           fundAccount(keypair, "testnet"),

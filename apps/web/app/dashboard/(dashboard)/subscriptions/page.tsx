@@ -124,8 +124,14 @@ export default function SubscriptionsPage() {
       header: "Status",
       meta: {
         filterable: true,
-        filterVariant: "select",
-        filterOptions: Object.values(subscriptionStatusEnum).map((s) => ({ label: moment().format(s), value: s })),
+        filterVariant: "multiselect",
+        filterOptions: [
+          { label: "Active", value: "active" },
+          { label: "Trialing", value: "trialing" },
+          { label: "Paused", value: "paused" },
+          { label: "Past Due", value: "past_due" },
+          { label: "Canceled", value: "canceled" },
+        ],
       },
       cell: ({ row }) => (
         <SubscriptionStatusBadge

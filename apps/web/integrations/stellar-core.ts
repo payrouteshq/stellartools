@@ -310,46 +310,50 @@ export const SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE = "You already have an active s
 
 const ERROR_MESSAGES: Record<string, string> = {
   // Transaction-level codes
-  txBadSeq: "Invalid sequence number — refresh and try again",
-  txBadAuth: "Failed - Please make sure you are in the correct network and try again",
-  txInsufficientBalance: "Insufficient XLM balance to cover fees",
-  txInsufficientFee: "Fee too low",
-  txTooLate: "Transaction expired — it was submitted too late",
-  txTooEarly: "Transaction submitted too early",
-  txMalformed: "Transaction is malformed",
-  txNoAccount: "Source account not found on the network",
-  txNoSourceAccount: "Source account not found on the network",
-  txSorobanInvalid: "Invalid Soroban transaction",
-  txMissingOperation: "Transaction has no operations",
+  txBadSeq: "Invalid sequence number. Refresh and try again.",
+  txBadAuth: "Wrong network or invalid signature. Try again.",
+  txInsufficientBalance: "Insufficient XLM balance to cover fees.",
+  txInsufficientFee: "Transaction fee too low.",
+  txTooLate: "Transaction expired. Please try again.",
+  txTooEarly: "Transaction submitted too early.",
+  txMalformed: "Transaction is malformed.",
+  txNoAccount: "Source account not found on the network.",
+  txNoSourceAccount: "Source account not found on the network.",
+  txSorobanInvalid: "Invalid smart contract transaction.",
+  txMissingOperation: "Transaction has no operations.",
   // Soroban host function codes
-  invokeHostFunctionTrapped: "Smart contract execution failed",
-  invokeHostFunctionInsufficientRefundableFee: "Insufficient refundable fee for contract execution",
-  invokeHostFunctionEntryArchived: "Required contract state entry is archived",
-  invokeHostFunctionResourceLimitExceeded: "Contract resource limit exceeded",
-  invokeHostFunctionMalformed: "Contract invocation is malformed",
-  // Path payment (strict receive) — these occur during XLM→asset checkout swaps
-  pathPaymentStrictReceiveNoTrust: "Destination account has no trustline for the destination asset",
-  pathPaymentStrictReceiveSrcNoTrust: "Source account has no trustline for the source asset",
-  pathPaymentStrictReceiveNotAuthorized: "Destination account is not authorized to hold the asset",
-  pathPaymentStrictReceiveSrcNotAuthorized: "Source account is not authorized to hold the asset",
-  pathPaymentStrictReceiveLineFull: "Destination trustline is at its limit",
-  pathPaymentStrictReceiveUnderfunded: "Insufficient source asset balance",
-  pathPaymentStrictReceiveTooFewOffers: "No viable conversion path found — try a different asset",
-  pathPaymentStrictReceiveOfferCrossSelf: "Path payment would cross your own offer",
-  pathPaymentStrictReceiveNoIssuer: "Asset issuer not found on the network",
-  pathPaymentStrictReceiveMalformed: "Path payment operation is malformed",
+  invokeHostFunctionTrapped: "Smart contract execution failed.",
+  invokeHostFunctionInsufficientRefundableFee: "Insufficient fee for contract execution.",
+  invokeHostFunctionEntryArchived: "Required contract state is archived.",
+  invokeHostFunctionResourceLimitExceeded: "Contract resource limit exceeded.",
+  invokeHostFunctionMalformed: "Contract invocation is malformed.",
+  // Path payment (strict receive)
+  pathPaymentStrictReceiveNoTrust: "Destination has no trustline for this asset.",
+  pathPaymentStrictReceiveSrcNoTrust: "Your wallet has no trustline for the source asset.",
+  pathPaymentStrictReceiveNotAuthorized: "Destination is not authorized to hold this asset.",
+  pathPaymentStrictReceiveSrcNotAuthorized: "Your wallet is not authorized to hold this asset.",
+  pathPaymentStrictReceiveLineFull: "Destination trustline is full.",
+  pathPaymentStrictReceiveUnderfunded: "Insufficient balance for this payment.",
+  pathPaymentStrictReceiveTooFewOffers: "No conversion path found. Try a different asset.",
+  pathPaymentStrictReceiveOfferCrossSelf: "Payment would cross your own offer.",
+  pathPaymentStrictReceiveNoIssuer: "Asset issuer not found.",
+  pathPaymentStrictReceiveMalformed: "Payment operation is malformed.",
   // Path payment (strict send)
-  pathPaymentStrictSendNoTrust: "Destination account has no trustline for the destination asset",
-  pathPaymentStrictSendLineFull: "Destination trustline is at its limit",
-  pathPaymentStrictSendUnderfunded: "Insufficient source asset balance",
-  pathPaymentStrictSendTooFewOffers: "No viable conversion path found — try a different asset",
+  pathPaymentStrictSendNoTrust: "Destination has no trustline for this asset.",
+  pathPaymentStrictSendLineFull: "Destination trustline is full.",
+  pathPaymentStrictSendUnderfunded: "Insufficient balance for this payment.",
+  pathPaymentStrictSendTooFewOffers: "No conversion path found. Try a different asset.",
   // Regular payment errors
-  paymentNoTrust: "Destination account has no trustline for this asset",
-  paymentLineFull: "Destination trustline is at its limit",
-  paymentUnderfunded: "Insufficient balance",
-  paymentSrcNoTrust: "Source account has no trustline for this asset",
-  paymentNoIssuer: "Asset issuer not found",
-  paymentNotAuthorized: "Destination account is not authorized for this asset",
+  paymentNoDestination: "Merchant wallet is not activated on this network. Contact the merchant.",
+  paymentNoTrust: "Merchant wallet has no trustline for this asset. Contact the merchant.",
+  paymentLineFull: "Merchant wallet trustline is full. Contact the merchant.",
+  paymentUnderfunded: "Insufficient balance to complete this payment.",
+  paymentSrcNoTrust: "Your wallet has no trustline for this asset.",
+  paymentNoIssuer: "Asset issuer not found on the network.",
+  paymentNotAuthorized: "Your wallet is not authorized to hold this asset.",
+  paymentMalformed: "Payment operation is malformed. Please try again.",
+  opNoDestination: "Destination account does not exist on the network.",
+  opNoAccount: "Source account not found on the network.",
 };
 
 /** Subscription contract panic strings and Soroban simulation fn+trap pairs. */
@@ -435,37 +439,39 @@ export function parseError(
       if (topCode === "txFailed") {
         try {
           const results = xdrResult.results();
-          if (results.length > 0) {
-            const opResult = results[0];
+          // Scan all ops — multi-op txs (e.g. direct-wallet fee split) have op 0 succeed
+          // and op 1 fail; always returning results[0] masks the real error.
+          for (let i = 0; i < results.length; i++) {
+            const opResult = results[i];
             const opSwitchName = opResult.switch().name as string;
 
             if (opSwitchName === "opInner") {
               const tr = opResult.tr();
-              const trTypeName = tr.switch().name as string; // e.g. "invokeHostFunction", "pathPaymentStrictReceive"
+              const trTypeName = tr.switch().name as string;
 
               if (trTypeName === "invokeHostFunction") {
                 const hostCode = tr.invokeHostFunctionResult().switch().name as string;
-                console.log("[parseError] soroban code:", hostCode);
-                return { code: hostCode, message: humanize(hostCode) };
+                console.log("[parseError] soroban code (op %d):", i, hostCode);
+                if (hostCode !== "invokeHostFunctionSuccess") {
+                  return { code: hostCode, message: humanize(hostCode) };
+                }
+              } else {
+                const armName = `${trTypeName}Result`;
+                const opSpecificResult = (tr as any)[armName]();
+                const opResultCode = opSpecificResult.switch().name as string;
+                console.log("[parseError] op result code (op %d):", i, trTypeName, "→", opResultCode);
+                if (!opResultCode.endsWith("Success")) {
+                  return { code: opResultCode, message: humanize(opResultCode) };
+                }
               }
-
-              // For all other op types (payments, path payments, etc.) — Stellar XDR
-              // always names the result accessor "{opType}Result", e.g.
-              // "pathPaymentStrictReceive" → tr.pathPaymentStrictReceiveResult()
-              const armName = `${trTypeName}Result`;
-              const opSpecificResult = (tr as any)[armName]();
-              const opResultCode = opSpecificResult.switch().name as string;
-              console.log("[parseError] op result code:", trTypeName, "→", opResultCode);
-              return { code: opResultCode, message: humanize(opResultCode) };
+            } else if (opSwitchName !== "opSuccess") {
+              console.log("[parseError] op-level code (op %d):", i, opSwitchName);
+              return { code: opSwitchName, message: humanize(opSwitchName) };
             }
-
-            console.log("[parseError] op-level code:", opSwitchName);
-            return { code: opSwitchName, message: humanize(opSwitchName) };
           }
         } catch (inner) {
           console.warn("[parseError] Could not dig into op results:", inner);
         }
-        // txFailed but couldn't dig deeper
         return { code: "txFailed", message: "Transaction failed" };
       }
 

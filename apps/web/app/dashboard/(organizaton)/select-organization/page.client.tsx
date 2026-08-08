@@ -12,6 +12,7 @@ import { capture, identifyOrganization } from "@/lib/posthog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
+  Badge,
   Button,
   type FileRejection,
   FileUpload,
@@ -309,6 +310,15 @@ const createOrganizationSchema = z
       return true;
     },
     { message: "Enter a valid Stellar public key (starts with G, 56 characters)", path: ["externalPublicKey"] }
+  )
+  .refine(
+    (data) => {
+      if (data.walletStrategy === "direct" && data.externalSecretKey) {
+        return STELLAR_SECRET_KEY_REGEX.test(data.externalSecretKey);
+      }
+      return true;
+    },
+    { message: "Enter a valid Stellar secret key (starts with S, 56 characters)", path: ["externalSecretKey"] }
   );
 
 type CreateOrganizationFormData = z.infer<typeof createOrganizationSchema>;
@@ -471,6 +481,7 @@ const CreateOrganizationModalContent = ({
                     enableTransformation
                     targetFormat="image/png"
                     error={error?.message}
+                    maxDimension={1024}
                   />
                 )}
               />
@@ -599,7 +610,15 @@ const CreateOrganizationModalContent = ({
                 <UnderlineTabs value={field.value} onValueChange={field.onChange}>
                   <UnderlineTabsList>
                     <UnderlineTabsTrigger value="managed" className="cursor-pointer">
-                      Managed
+                      <span className="flex items-center gap-1.5">
+                        Managed
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-500/10 px-1.5 py-0 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+                        >
+                          Recommended
+                        </Badge>
+                      </span>
                     </UnderlineTabsTrigger>
                     <UnderlineTabsTrigger value="direct" className="cursor-pointer">
                       Self-Custody
@@ -632,17 +651,7 @@ const CreateOrganizationModalContent = ({
                       )}
                     />
 
-                    <div className="space-y-3 p-3.5">
-                      <div className="flex items-start gap-2.5">
-                        <KeyRound className="text-muted-foreground mt-px size-3.5 shrink-0" />
-                        <div>
-                          <p className="text-foreground text-xs font-medium">Unlock advanced features</p>
-                          <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                            Providing your secret key enables subscriptions, automated refunds, subscription management,
-                            and payouts — all secured with encryption.
-                          </p>
-                        </div>
-                      </div>
+                    <div className="space-y-3">
                       <RHF.Controller
                         control={form.control}
                         name="externalSecretKey"
@@ -650,8 +659,8 @@ const CreateOrganizationModalContent = ({
                           <TextField
                             ref={skField.ref}
                             id="external-secret-key"
-                            label="Secret Key"
-                            helpText="Optional · Stored encrypted, never exposed"
+                            label="Secret Key (Optional)"
+                            helpText="Storing your secret key enables subscriptions, automated refunds, subscription management, and payouts"
                             value={skField.value || ""}
                             onChange={skField.onChange}
                             type="password"

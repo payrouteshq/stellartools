@@ -1,7 +1,7 @@
 import { retrievePaymentCount } from "@/actions/payment";
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
 import {
-  resolveMerchantSecretAndWalletStrategy,
+  resolveMerchantSecret,
   resumeSubscription as soroban$resumeSubscription,
 } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
@@ -36,7 +36,7 @@ export const POST = apiHandler({
 
     if (!customerWallet?.address) throw new AppError("NOT_FOUND", "Customer wallet not found");
 
-    const { secret } = await resolveMerchantSecretAndWalletStrategy(organizationId, environment);
+    const { secret } = await resolveMerchantSecret(organizationId, environment);
 
     if (!secret) {
       return Result.err(
