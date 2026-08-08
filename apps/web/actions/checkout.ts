@@ -166,6 +166,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
       organizationName: organizations.name,
       organizationLogo: organizations.logoUrl,
       organizationCurrency: organizations.selectedCurrency,
+      walletStrategy: organizations.walletStrategy,
       merchantEmail: accounts.email,
     })
     .from(checkouts)
@@ -205,6 +206,7 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationName,
     organizationLogo,
     merchantEmail,
+    walletStrategy: result.walletStrategy ?? "managed",
     customDurationMs: product?.customDurationMs,
   };
 };
@@ -317,6 +319,16 @@ export const createProductCheckoutSession = async (params: {
   } = await retrieveProducts(orgId, env, { productId });
 
   if (!product) throw new AppError("NOT_FOUND", `Product Not Found ${productId}`);
+
+  if (product.type === "subscription") {
+    const { secret } = await retrieveOrganizationIdAndSecret(orgId, env);
+    if (!secret?.encrypted) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Subscription checkouts require a stored secret key. Contact us at support@stellartools.dev to enable subscriptions."
+      );
+    }
+  }
 
   if (product.type === "subscription" && !product.recurringPeriod) {
     throw new AppError("VALIDATION_ERROR", "Subscription product does not have a recurring period");

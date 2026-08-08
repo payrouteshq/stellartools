@@ -36,8 +36,12 @@ export const POST = apiHandler({
       retrieveOrganization(organizationId),
     ]);
 
-    if (!secret)
-      throw new AppError("VALIDATION_ERROR", "Merchant Stellar wallet not configured. Set up your wallet in Settings.");
+    if (!secret?.encrypted) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Payouts require a stored secret key. Contact us at support@stellartools.dev to enable payouts."
+      );
+    }
 
     const [assetList, fiatRates] = await Promise.all([
       retrieveSupportedAssets({ code: assetCode }, environment),

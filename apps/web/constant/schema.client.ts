@@ -27,3 +27,7 @@ export type AssetIssuer = SuggestedString<"native">;
 export const paymentStatusEnum = ["pending", "confirmed", "failed"] as const;
 
 export type PaymentStatus = (typeof paymentStatusEnum)[number];
+
+export const walletStrategyEnum = ["managed", "direct"] as const;
+
+export type WalletStrategy = (typeof walletStrategyEnum)[number];

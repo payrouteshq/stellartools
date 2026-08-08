@@ -55,8 +55,8 @@ export class ApiClient {
         try {
           const body = await e.response.json();
           if (body?.error) {
-            // Flatten the error for simplicity, or keep code for logic
-            const msg = body.error.message || body.error.code || "Unknown Error";
+            const e = body.error;
+            const msg = typeof e === "string" ? e : e.message || e.code || "Unknown Error";
             return Result.err(new Error(msg));
           }
         } catch {

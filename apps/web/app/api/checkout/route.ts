@@ -41,7 +41,13 @@ export const POST = async (req: NextRequest) => {
             processCheckout(d, "direct")
           );
 
-    return result.isOk() ? send(toSnakeCase(result.value)) : send({ error: result.error.message }, 400);
+    if (result.isErr()) {
+      const err = result.error;
+      const code = (err as AppError).code ?? "ERROR";
+      const status = (err as AppError).status ?? 400;
+      return send({ error: { code, message: err.message } }, status);
+    }
+    return send(toSnakeCase(result.value));
 
     async function processCheckout(data: any, checkoutType: "product" | "direct") {
       const auth = await resolveAuthContext({ apiKey, sessionToken });
