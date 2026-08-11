@@ -75,6 +75,8 @@ function AuthenticationForm() {
 
       window.parent.postMessage({ type: "stellar:data-changed" }, "*");
       router.push(`/dashboard?st_token=${appToken}`);
+    } catch (e) {
+      setServerError(e instanceof Error ? e.message : "Failed to connect. Please try again.");
     } finally {
       setPending(false);
     }

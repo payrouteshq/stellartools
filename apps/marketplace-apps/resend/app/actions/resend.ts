@@ -35,11 +35,12 @@ export const validateApiKeyAndConnect = async (
 
   const st = new StellarTools({ api_key: appToken });
 
-  const result = await st.appInstallations
+  const errorMessage = await st.appInstallations
     .updateSettings({ resendApiKey: apiKey, fromEmail })
+    .then(() => null)
     .catch((error) => error.message);
 
-  return result ?? true;
+  return errorMessage ?? true;
 };
 
 export const updateSettings = async (appToken: string, patch: Record<string, Primitive>): Promise<void> => {
