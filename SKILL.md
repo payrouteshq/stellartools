@@ -1,3 +1,18 @@
+---
+name: stellartools-payments
+description: >
+  Use when integrating StellarTools payments into an app: accepting Stellar-native crypto or
+  fiat payments, creating hosted checkouts, running Soroban-enforced subscription billing,
+  verifying webhook deliveries, or connecting an agent to a StellarTools account through its
+  MCP server. Also use when users mention StellarTools, Stripe-like payment infrastructure on
+  Stellar, or Soroban subscription billing — even if they don't mention StellarTools by name.
+license: MIT
+compatibility: Designed for Claude Code and compatible AI coding assistants. Requires a StellarTools API key (test or live) for any live SDK, REST, or MCP calls; reading this skill alone needs no network access.
+metadata:
+  author: Payroutes
+  version: "1.0"
+---
+
 # Integrating StellarTools Payments
 
 Use this when a task involves accepting payments, running subscriptions, or handling webhooks with StellarTools — an open-source payment platform on the Stellar blockchain, via the `@stellartools/core` SDK. Everything below was checked against the actual SDK source, not just the marketing docs, because the two have drifted apart in places (noted below). When in doubt, the source is ground truth.
