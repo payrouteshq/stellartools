@@ -228,8 +228,7 @@ const Dashboard = () => {
 
         <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
           <div className="space-y-1">
-            <h3 className="text-sm font-medium">Customer emails</h3>
-            <p className="text-muted-foreground text-sm">Pick a template for each email you want to send.</p>
+           
           </div>
           <div className="divide-border/60 flex flex-col divide-y">
             {emailMoments.map((moment) => (
@@ -256,7 +255,7 @@ const Dashboard = () => {
               onClick={() => setShowAllEvents(true)}
               className="text-muted-foreground hover:text-foreground text-left text-sm underline-offset-4 hover:underline"
             >
-              Add more emails
+              More Options
             </button>
           )}
         </div>

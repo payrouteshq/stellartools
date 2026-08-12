@@ -11,7 +11,7 @@ import { useOrgContext } from "@/hooks/use-org-query";
 import { AppModal, Button, Separator, cn, useMounted } from "@stellartools/shared-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { PlusIcon, RotateCwIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -175,6 +175,16 @@ export function PluginLauncher({ installationsWithApps }: PluginLauncherProps) {
               }
             >
               <Trash2Icon className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              title="Reload app"
+              className="text-muted-foreground hover:text-foreground size-10 shrink-0"
+              onClick={() => setTokenRefreshKey((k) => k + 1)}
+            >
+              <RotateCwIcon className="size-4" />
             </Button>
             <Button
               type="button"
