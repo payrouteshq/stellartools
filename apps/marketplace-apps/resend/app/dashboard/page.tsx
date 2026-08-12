@@ -227,9 +227,7 @@ const Dashboard = () => {
         </div>
 
         <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
-          <div className="space-y-1">
-           
-          </div>
+          <div className="space-y-1" />
           <div className="divide-border/60 flex flex-col divide-y">
             {emailMoments.map((moment) => (
               <div key={moment.event} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">

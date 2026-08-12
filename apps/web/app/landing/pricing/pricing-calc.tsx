@@ -20,12 +20,9 @@ export function PricingCalc() {
   return (
     <main className="flex-1 px-6 py-24">
       <div className="mx-auto max-w-5xl">
-
         {/* Hero — compact */}
         <div className="mb-14 text-center">
-          <p className="text-muted-foreground mb-4 text-[11px] font-semibold tracking-[1.6px] uppercase">
-            Pricing
-          </p>
+          <p className="text-muted-foreground mb-4 text-[11px] font-semibold tracking-[1.6px] uppercase">Pricing</p>
           <h1 className="text-foreground mb-4 text-[clamp(32px,4.5vw,56px)] font-bold tracking-tight">
             Simple, honest pricing
           </h1>
@@ -39,11 +36,10 @@ export function PricingCalc() {
         </div>
 
         {/* Fee + comparison side by side */}
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 lg:items-start">
-
+        <div className="grid gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
           {/* Left: fee */}
           <div>
-            <div className="text-foreground mb-1 text-[80px] font-bold leading-none tracking-tight tabular-nums">
+            <div className="text-foreground mb-1 text-[80px] leading-none font-bold tracking-tight tabular-nums">
               1%
             </div>
             <p className="text-muted-foreground mb-8 text-sm">per transaction · no fixed fee</p>
@@ -76,7 +72,7 @@ export function PricingCalc() {
                   <th className="text-muted-foreground pb-3 text-center text-xs font-semibold tracking-wider uppercase">
                     Rate
                   </th>
-                  <th className="text-muted-foreground pb-3 text-right text-xs font-semibold tracking-wider uppercase whitespace-nowrap">
+                  <th className="text-muted-foreground pb-3 text-right text-xs font-semibold tracking-wider whitespace-nowrap uppercase">
                     Per $1,000
                   </th>
                 </tr>
@@ -86,15 +82,23 @@ export function PricingCalc() {
                   <tr key={row.provider} className="border-border border-b last:border-b-0">
                     <td className="py-3.5 pr-4">
                       <div className="flex items-center gap-2">
-                        <span className={row.highlight ? "text-foreground text-sm font-semibold" : "text-muted-foreground text-sm"}>
+                        <span
+                          className={
+                            row.highlight ? "text-foreground text-sm font-semibold" : "text-muted-foreground text-sm"
+                          }
+                        >
                           {row.provider}
                         </span>
                       </div>
                     </td>
-                    <td className={`py-3.5 text-center text-sm tabular-nums ${row.highlight ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+                    <td
+                      className={`py-3.5 text-center text-sm tabular-nums ${row.highlight ? "text-foreground font-semibold" : "text-muted-foreground"}`}
+                    >
                       {row.rate}
                     </td>
-                    <td className={`py-3.5 text-right text-sm font-semibold tabular-nums ${row.highlight ? "text-primary" : "text-muted-foreground"}`}>
+                    <td
+                      className={`py-3.5 text-right text-sm font-semibold tabular-nums ${row.highlight ? "text-primary" : "text-muted-foreground"}`}
+                    >
                       {row.costAt1k}
                     </td>
                   </tr>
@@ -103,7 +107,8 @@ export function PricingCalc() {
             </table>
 
             <p className="text-muted-foreground mt-4 text-xs">
-              Stripe and PayPal accept cards and fiat. StellarTools is crypto-native — payments settle on the Stellar blockchain, not through card networks or banks.
+              Stripe and PayPal accept cards and fiat. StellarTools is crypto-native — payments settle on the Stellar
+              blockchain, not through card networks or banks.
             </p>
           </div>
         </div>
@@ -111,12 +116,8 @@ export function PricingCalc() {
         {/* Volume — same strip style */}
         <div className="border-border mt-20 flex flex-col gap-6 border-t pt-16 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-muted-foreground mb-1 text-[11px] font-semibold tracking-[1.6px] uppercase">
-              Volume
-            </p>
-            <h2 className="text-foreground mb-2 text-2xl font-bold tracking-tight">
-              Processing over $50K/month?
-            </h2>
+            <p className="text-muted-foreground mb-1 text-[11px] font-semibold tracking-[1.6px] uppercase">Volume</p>
+            <h2 className="text-foreground mb-2 text-2xl font-bold tracking-tight">Processing over $50K/month?</h2>
             <p className="text-muted-foreground max-w-sm text-base">
               Below 1% is on the table. Reach out and we&apos;ll work something out.
             </p>
@@ -128,7 +129,6 @@ export function PricingCalc() {
             Talk to us <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-
       </div>
     </main>
   );
