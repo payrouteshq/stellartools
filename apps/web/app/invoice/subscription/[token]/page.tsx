@@ -1,4 +1,4 @@
-import { retrieveSubscriptionInvoice } from "@/actions/subscription-invoice";
+import { retrieveSubscriptionInvoice } from "@/actions/subscription";
 import { notFound } from "next/navigation";
 
 import { SubscriptionInvoiceUI } from "./subscription-invoice-ui";

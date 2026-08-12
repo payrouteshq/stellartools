@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { PublicSubscriptionInvoice, paySubscriptionInvoice } from "@/actions/subscription-invoice";
+import { PublicSubscriptionInvoice, paySubscriptionInvoice } from "@/actions/subscription";
 import { StellarToolsIcon } from "@/components/icon";
 import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { Money } from "@/lib/money";
@@ -10,8 +10,8 @@ import { Button, Spinner, toast } from "@stellartools/shared-ui";
 import { Building2, CheckCircle2, FileText } from "lucide-react";
 import moment from "moment";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function SubscriptionInvoiceUI({ invoice }: { invoice: NonNullable<PublicSubscriptionInvoice> }) {
   const wallet = useWallet();

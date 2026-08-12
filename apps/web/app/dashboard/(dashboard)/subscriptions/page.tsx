@@ -12,7 +12,7 @@ import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
-import { AppModal, Button, DataTable, cn, toast } from "@stellartools/shared-ui";
+import { AppModal, Button, DataTable, cn, useCopy } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import moment from "moment";
@@ -32,6 +32,7 @@ export default function SubscriptionsPage() {
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
   const actionKeys = React.useRef<Record<string, string>>({});
+  const { handleCopy } = useCopy();
 
   const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
     async ({
@@ -104,7 +105,7 @@ export default function SubscriptionsPage() {
             createdAt: s.createdAt,
             invoiceUrl:
               s.status === "overdue" && s.invoiceToken
-                ? `${process.env.NEXT_PUBLIC_APP_URL}/invoice/subscription/${s.invoiceToken}`
+                ? `${process.env.NEXT_PUBLIC_INVOICE_URL}/subscription/${s.invoiceToken}`
                 : null,
           })
         ),
@@ -238,10 +239,7 @@ export default function SubscriptionsPage() {
                 ? [
                     {
                       label: "Copy payment link",
-                      onClick: async () => {
-                        await navigator.clipboard.writeText(r.invoiceUrl!);
-                        toast.success("Payment link copied");
-                      },
+                      onClick: () => handleCopy({ text: r.invoiceUrl!, message: "Payment link copied" }),
                     },
                   ]
                 : []),
