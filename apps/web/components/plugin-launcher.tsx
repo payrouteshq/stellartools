@@ -4,14 +4,14 @@ import * as React from "react";
 
 import { createPortal } from "react-dom";
 
-import { generateAppToken } from "@/actions/app";
+import { deleteAppInstallation, generateAppToken } from "@/actions/app";
 import { App, AppInstallation } from "@/db/schema";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { useOrgContext } from "@/hooks/use-org-query";
-import { Button, Separator, cn, useMounted } from "@stellartools/shared-ui";
+import { AppModal, Button, Separator, cn, useMounted } from "@stellartools/shared-ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, RotateCwIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -39,6 +39,20 @@ export function PluginLauncher({ installationsWithApps }: PluginLauncherProps) {
 
   const [appToken, setAppToken] = React.useState<string | null>(null);
   const [tokenRefreshKey, setTokenRefreshKey] = React.useState(0);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const handleDeleteInstallation = async () => {
+    if (!activePlugin?.installation.id) return;
+    setIsDeleting(true);
+    try {
+      await deleteAppInstallation(activePlugin.installation.id, org?.id, org?.environment);
+      setIsOpen(false);
+      await queryClient.invalidateQueries();
+      router.refresh();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSelectApp = React.useCallback(
     (id: string) => {
@@ -135,15 +149,53 @@ export function PluginLauncher({ installationsWithApps }: PluginLauncherProps) {
               <p className="text-foreground truncate text-sm font-semibold tracking-tight">Integration</p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground size-10 shrink-0"
-            onClick={() => setIsOpen(false)}
-          >
-            <XIcon className="size-5" />
-          </Button>
+          <div className="flex shrink-0 items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              title="Delete installation"
+              className="text-muted-foreground hover:text-destructive size-10 shrink-0"
+              onClick={() =>
+                AppModal.open({
+                  title: `Delete ${activePlugin?.app.name ?? "app"} installation?`,
+                  description:
+                    "This removes the installation and its settings. This is different from disconnecting the app, which is done from inside the app itself. This action cannot be undone.",
+                  content: null,
+                  primaryButton: {
+                    children: isDeleting ? "Deleting..." : "Delete",
+                    onClick: handleDeleteInstallation,
+                    variant: "destructive",
+                    disabled: isDeleting,
+                  },
+                  secondaryButton: { children: "Cancel" },
+                  size: "small",
+                  showCloseButton: true,
+                })
+              }
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              title="Reload app"
+              className="text-muted-foreground hover:text-foreground size-10 shrink-0"
+              onClick={() => setTokenRefreshKey((k) => k + 1)}
+            >
+              <RotateCwIcon className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground size-10 shrink-0"
+              onClick={() => setIsOpen(false)}
+            >
+              <XIcon className="size-5" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -151,9 +203,9 @@ export function PluginLauncher({ installationsWithApps }: PluginLauncherProps) {
         {appToken && src ? (
           <iframe
             src={src}
-            className="w-full border-none transition-all duration-200"
-            style={{ height: `100%` }}
-            sandbox="allow-scripts allow-forms allow-popups allow-same-origin bg-background w-full border-none"
+            className="bg-background h-full w-full border-none transition-all duration-200"
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+            allow="clipboard-write"
           />
         ) : (
           <div className="bg-muted/60 m-4 h-48 animate-pulse rounded-md border border-dashed" />

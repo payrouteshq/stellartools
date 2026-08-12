@@ -186,6 +186,8 @@ export const deleteAppInstallation = async (id: string, orgId?: string, env?: Ne
   await db
     .delete(appInstallations)
     .where(and(eq(appInstallations.id, id), eq(appInstallations.organizationId, organizationId)));
+
+  revalidatePath("/dashboard", "layout");
 };
 
 export const installMarketplaceApp = async (appSlug: string) => {
