@@ -6,26 +6,13 @@ import { logout, retrieveEmailStats, retrieveEmailTemplates, updateSettings } fr
 import { EmailStats } from "@/app/types";
 import {
   type AppContext,
+  listEmailMoments,
   useStellarToolsContext,
   useStellarToolsMutation,
   useStellarToolsQuery,
 } from "@stellartools/app-sdk";
 import { Primitive, WEBHOOK_EVENT_TYPES, WebhookEventType } from "@stellartools/core";
-import {
-  Badge,
-  DataTable,
-  Input,
-  LineChart,
-  SelectField,
-  Spinner,
-  Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@stellartools/shared-ui";
+import { Badge, DataTable, Input, LineChart, SelectField, Spinner, Switch } from "@stellartools/shared-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type EmailRow = { original: EmailStats["emails"][number] };
@@ -105,8 +92,21 @@ const Dashboard = () => {
   );
 
   const templateOptions = React.useMemo(
-    () => [{ value: "__none__", label: "None" }, ...templates.map((t) => ({ value: t.id, label: t.name }))],
+    () => [{ value: "__none__", label: "Don't send" }, ...templates.map((t) => ({ value: t.id, label: t.name }))],
     [templates]
+  );
+
+  const [showAllEvents, setShowAllEvents] = React.useState(false);
+
+  const emailMoments = React.useMemo(
+    () =>
+      listEmailMoments({
+        all: showAllEvents,
+        include: Object.entries(templateIds)
+          .filter(([, value]) => value && value !== "__none__")
+          .map(([event]) => event),
+      }),
+    [showAllEvents, templateIds]
   );
 
   const filteredEmails = React.useMemo(() => {
@@ -227,38 +227,38 @@ const Dashboard = () => {
         </div>
 
         <div className="border-border/60 flex flex-col gap-4 border-t pt-6">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-sm font-medium">Notification rules</h3>
-            <span className="text-muted-foreground text-xs">Select a template to enable; leave blank to disable</span>
+          <div className="space-y-1">
+            <h3 className="text-sm font-medium">Customer emails</h3>
+            <p className="text-muted-foreground text-sm">Pick a template for each email you want to send.</p>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Template</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {WEBHOOK_EVENT_TYPES.map((event) => (
-                  <TableRow key={event}>
-                    <TableCell className="font-mono text-xs">{event}</TableCell>
-                    <TableCell>
-                      <SelectField
-                        id={event}
-                        value={templateIds[event] ?? "__none__"}
-                        onChange={(v: string) => handleTemplateChange(event, v)}
-                        items={templateOptions}
-                        isLoading={templatesLoading}
-                        disabled={isSaving}
-                        triggerClassName="shadow-none h-8 text-xs w-48"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="divide-border/60 flex flex-col divide-y">
+            {emailMoments.map((moment) => (
+              <div key={moment.event} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{moment.label}</p>
+                  <p className="text-muted-foreground text-sm">{moment.description}</p>
+                </div>
+                <SelectField
+                  id={moment.event}
+                  value={templateIds[moment.event] ?? "__none__"}
+                  onChange={(v: string) => handleTemplateChange(moment.event, v)}
+                  items={templateOptions}
+                  isLoading={templatesLoading}
+                  disabled={isSaving}
+                  triggerClassName="shadow-none h-9 text-xs w-40"
+                />
+              </div>
+            ))}
           </div>
+          {!showAllEvents && (
+            <button
+              type="button"
+              onClick={() => setShowAllEvents(true)}
+              className="text-muted-foreground hover:text-foreground text-left text-sm underline-offset-4 hover:underline"
+            >
+              Add more emails
+            </button>
+          )}
         </div>
       </section>
     </div>
