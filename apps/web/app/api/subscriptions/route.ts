@@ -59,6 +59,10 @@ export const GET = apiHandler({
         canceledAt: s.canceledAt ?? null,
         pausedAt: s.pausedAt ?? null,
         failedPaymentCount: countMap[s.id] ?? 0,
+        invoice_url:
+          s.status === "overdue" && s.invoiceToken
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/invoice/subscription/${s.invoiceToken}`
+            : null,
         createdAt: s.createdAt ?? null,
         updatedAt: s.updatedAt,
         metadata: s.metadata ?? null,

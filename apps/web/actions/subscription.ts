@@ -273,6 +273,9 @@ export const putSubscription = async (id: string, retUpdate: Partial<Subscriptio
         pausedAt: subscription.pausedAt?.toISOString() ?? null,
         createdAt: subscription.createdAt?.toISOString(),
         failedPaymentCount,
+        invoiceUrl: subscription.invoiceToken
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/invoice/subscription/${subscription.invoiceToken}`
+          : null,
         updatedAt: new Date().toISOString(),
         metadata: subscription.metadata,
         trialDays: subscription.trialDays,

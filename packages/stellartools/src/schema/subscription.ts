@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { schemaFor } from "..";
 
-export const subscriptionStatusEnum = z.enum(["trialing", "active", "past_due", "canceled", "paused"]);
+export const subscriptionStatusEnum = z.enum(["trialing", "active", "past_due", "overdue", "canceled", "paused"]);
 
 type SubscriptionStatus = z.infer<typeof subscriptionStatusEnum>;
 
@@ -57,6 +57,9 @@ export interface Subscription {
    */
   failed_payment_count: number | null;
 
+  /** Hosted payment URL when the subscription has an outstanding invoice. */
+  invoice_url: string | null;
+
   /**
    * The created at timestamp for the subscription.
    */
@@ -90,6 +93,7 @@ export const subscriptionSchema = schemaFor<Subscription>()(
     canceled_at: z.string(),
     paused_at: z.string(),
     failed_payment_count: z.number(),
+    invoice_url: z.string().nullable().default(null),
     created_at: z.string(),
     updated_at: z.string(),
     metadata: z.record(z.string(), z.any()).default({}),

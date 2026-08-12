@@ -12,7 +12,8 @@ import {
 } from "@/integrations/soroban-contract";
 import { apiHandler } from "@/lib/api-handler";
 import { Money } from "@/lib/money";
-import { MAX_CONSECUTIVE_FAILED_PAYMENTS, shouldCancelAfterFailures } from "@/lib/subscription";
+import { MAX_CONSECUTIVE_FAILED_PAYMENTS, shouldMarkOverdueAfterFailures } from "@/lib/subscription";
+import { generateResourceId } from "@/lib/utils";
 import { Result } from "@stellartools/core";
 import _ from "lodash";
 
@@ -93,26 +94,24 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
         );
       });
 
-      // Dunning: after N consecutive failed charges stop retrying and cancel,
-      // so wallets are not hit indefinitely.
+      // Dunning: after N consecutive failed charges stop automatic retries and
+      // expose a hosted invoice so the customer can recover the subscription.
       const { data: recentPayments } = await retrievePayments(orgId, env, {
         subscriptionId: subId,
         limit: MAX_CONSECUTIVE_FAILED_PAYMENTS,
       });
 
-      if (shouldCancelAfterFailures(recentPayments.map((p) => p.status))) {
-        try {
-          const merchantSecret = await resolveMerchantSecret(orgId, env);
-
-          await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
-        } catch (cancelErr: any) {
-          console.error(`[Cron] On-chain cancel failed for sub ${subId}:`, cancelErr?.message);
-        }
-        await putSubscription(subId, { status: "canceled", canceledAt: new Date() }, orgId, env);
+      if (shouldMarkOverdueAfterFailures(recentPayments.map((p) => p.status))) {
+        await putSubscription(
+          subId,
+          { status: "overdue", invoiceToken: sub.invoiceToken ?? generateResourceId("inv", orgId, 40) },
+          orgId,
+          env
+        );
         return {
           status: "failed",
           subId,
-          error: `Canceled after ${MAX_CONSECUTIVE_FAILED_PAYMENTS} consecutive failed charges: ${chargeRes.error.message}`,
+          error: `Overdue after ${MAX_CONSECUTIVE_FAILED_PAYMENTS} consecutive failed charges: ${chargeRes.error.message}`,
         };
       }
 

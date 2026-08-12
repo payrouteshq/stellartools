@@ -317,6 +317,7 @@ export const subscriptions = pgTable("subscription", {
   environment: networkEnum("network").notNull(),
   trialDays: integer("trial_days").default(0),
   customerWalletId: text("customer_wallet_id").references(() => customerWallets.id, { onDelete: "set null" }),
+  invoiceToken: text("invoice_token").unique(),
 });
 
 export const paymentStatusEnum = pgEnum("payment_status", paymentStatusEnum$1);
