@@ -54,6 +54,7 @@ export type SubscriptionRowEsquee = {
   customDurationMs: number | null | undefined;
   currentPeriodEnd: Date;
   createdAt: Date;
+  invoiceUrl?: string | null;
 };
 
 export const formatPeriod = (
@@ -81,6 +82,7 @@ const SUBSCRIPTION_STATUS_MAP: Record<string, { cls: string; label: string }> = 
   active: { cls: "bg-green-500/10 text-green-700 border-green-500/20", label: "Active" },
   trialing: { cls: "bg-blue-500/10 text-blue-700 border-blue-500/20", label: "Trialing" },
   past_due: { cls: "bg-destructive/10 text-destructive border-destructive/20", label: "Past due" },
+  overdue: { cls: "bg-destructive/10 text-destructive border-destructive/20", label: "Overdue" },
   canceled: { cls: "bg-muted text-muted-foreground border-border", label: "Canceled" },
   paused: { cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20", label: "Paused" },
 };

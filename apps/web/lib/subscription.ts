@@ -1,6 +1,6 @@
 import type { SubscriptionStatus } from "@/constant/schema.client";
 
-/** Consecutive failed charges after which a subscription is canceled instead of retried. */
+/** Consecutive failed charges after which a subscription becomes overdue. */
 export const MAX_CONSECUTIVE_FAILED_PAYMENTS = 3;
 
 export const initialSubscriptionStatus = (
@@ -16,7 +16,7 @@ export const initialSubscriptionStatus = (
  * run of failures at least `maxFailures` long. A confirmed
  * payment anywhere in the window resets the streak.
  */
-export const shouldCancelAfterFailures = (
+export const shouldMarkOverdueAfterFailures = (
   recentStatusesDesc: Array<string>,
   maxFailures: number = MAX_CONSECUTIVE_FAILED_PAYMENTS
 ): boolean => {

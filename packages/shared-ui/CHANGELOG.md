@@ -1,5 +1,11 @@
 # @stellartools/shared-ui
 
+## 0.0.13
+
+### Patch Changes
+
+- 84d5cf8: chore: make shared-ui publicly accessible
+
 ## 0.0.12
 
 ### Patch Changes

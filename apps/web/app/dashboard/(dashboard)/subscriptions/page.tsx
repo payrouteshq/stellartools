@@ -12,7 +12,7 @@ import { useSyncTableFilters } from "@/hooks/use-sync-table-filters";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { ApiClient } from "@stellartools/core";
-import { AppModal, Button, DataTable, cn } from "@stellartools/shared-ui";
+import { AppModal, Button, DataTable, cn, useCopy } from "@stellartools/shared-ui";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import moment from "moment";
@@ -32,6 +32,7 @@ export default function SubscriptionsPage() {
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [columnFilters, setColumnFilters] = useSyncTableFilters();
   const actionKeys = React.useRef<Record<string, string>>({});
+  const { handleCopy } = useCopy();
 
   const { mutate: updateSubscription, isPending: isUpdatingSubscription } = useAction(
     async ({
@@ -77,7 +78,7 @@ export default function SubscriptionsPage() {
   );
 
   const stats = React.useMemo(() => {
-    const counts = { all: subs.length, active: 0, paused: 0, canceled: 0 };
+    const counts = { all: subs.length, active: 0, paused: 0, overdue: 0, canceled: 0 };
     subs.forEach((s) => {
       if (s.status in counts) counts[s.status as keyof typeof counts]++;
     });
@@ -102,6 +103,10 @@ export default function SubscriptionsPage() {
             customDurationMs: s.product?.customDurationMs,
             currentPeriodEnd: s.currentPeriodEnd,
             createdAt: s.createdAt,
+            invoiceUrl:
+              s.status === "overdue" && s.invoiceToken
+                ? `${process.env.NEXT_PUBLIC_INVOICE_URL}/subscription/${s.invoiceToken}`
+                : null,
           })
         ),
     [subs, activeTab]
@@ -130,6 +135,7 @@ export default function SubscriptionsPage() {
           { label: "Trialing", value: "trialing" },
           { label: "Paused", value: "paused" },
           { label: "Past Due", value: "past_due" },
+          { label: "Overdue", value: "overdue" },
           { label: "Canceled", value: "canceled" },
         ],
       },
@@ -205,7 +211,7 @@ export default function SubscriptionsPage() {
           </div>
 
           <div className="border-border flex items-center gap-1 border-b">
-            {["all", "active", "paused", "canceled"].map((tab) => (
+            {["all", "active", "paused", "overdue", "canceled"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -229,6 +235,14 @@ export default function SubscriptionsPage() {
             isLoading={isLoading}
             onRowClick={(r) => router.push(`/subscriptions/${r.id}`)}
             actions={(r) => [
+              ...(r.status === "overdue" && r.invoiceUrl
+                ? [
+                    {
+                      label: "Copy payment link",
+                      onClick: () => handleCopy({ text: r.invoiceUrl!, message: "Payment link copied" }),
+                    },
+                  ]
+                : []),
               ...(r.status === "paused"
                 ? [
                     {

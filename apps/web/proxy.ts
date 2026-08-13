@@ -17,7 +17,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 
   if (apiHosts.includes(host)) {
     prefix = "/api";
-  } else if (host == new URL(process.env.NEXT_PUBLIC_INVOICE_URL!).host) {
+  } else if (process.env.NEXT_PUBLIC_INVOICE_URL && host === new URL(process.env.NEXT_PUBLIC_INVOICE_URL).host) {
     prefix = "/invoice";
   } else if (host == new URL(process.env.NEXT_PUBLIC_DASHBOARD_URL!).host) {
     prefix = "/dashboard";
