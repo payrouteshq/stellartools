@@ -1,9 +1,10 @@
 {
   "name": "@stellartools/shared-ui",
   "version": "0.0.12",
-  "private": true,
+  "description": "Shared React component library for Stellar Tools",
   "scripts": {
-    "prepare": "tsup --no-dts && tailwindcss -i ./src/global.css -o ./dist/output.css --minify",
+    "prepare": "tailwindcss -i ./src/global.css -o ./dist/output.css --minify",
+    "prepublishOnly": "pnpm run build",
     "build": "tsup && tsc --project tsconfig.build.json && tailwindcss -i ./src/global.css -o ./dist/output.css --minify && for f in dist/index.mjs dist/index.js; do { printf '\"use client\";\\n'; cat \"$f\"; } > \"${f}.tmp\" && mv \"${f}.tmp\" \"$f\"; done",
     "build:css": "tailwindcss -i ./src/global.css -o ./dist/output.css --minify",
     "dev": "tsup --watch",
@@ -20,14 +21,31 @@
     "./src/global.css": "./src/global.css",
     "./dist/output.css": "./dist/output.css"
   },
+  "keywords": [
+    "stellar",
+    "tools",
+    "ui",
+    "react",
+    "components"
+  ],
+  "author": "Emmanuel Odii",
+  "license": "ISC",
   "publishConfig": {
     "access": "public"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/payrouteshq/stellartools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/payrouteshq/stellartools/issues"
+  },
   "files": [
-    "dist"
+    "dist",
+    "src/global.css"
   ],
   "peerDependencies": {
-    "@stellartools/core": "*",
+    "@stellartools/core": "workspace:*",
     "next": ">=14",
     "react": ">=18",
     "react-dom": ">=18"
@@ -92,7 +110,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@stellartools/core": "file:../stellartools",
+    "@stellartools/core": "workspace:*",
     "@tailwindcss/cli": "^4",
     "@tailwindcss/postcss": "^4",
     "@types/lodash": "^4.17.20",

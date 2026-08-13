@@ -1,6 +1,12 @@
 # @stellartools/shared-ui
 
-Shared React component library for the Stellar Tools monorepo. Contains all story-backed UI components and primitives, consumed by `apps/web` and future embedded apps.
+Shared React component library for Stellar Tools. Contains all story-backed UI components and primitives.
+
+```bash
+pnpm add @stellartools/shared-ui
+```
+
+Peer dependencies: `react`, `react-dom`, `next`, and `@stellartools/core`.
 
 ## Storybook preview
 
