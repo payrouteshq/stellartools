@@ -427,7 +427,7 @@ export const retrieveSubscriptionInvoice = async (token: string) => {
 
 export type PublicSubscriptionInvoice = Awaited<ReturnType<typeof retrieveSubscriptionInvoice>>;
 
-export const paySubscriptionInvoice = async (token: string, connectedWalletAddress: string) => {
+export const paySubscriptionInvoice = async (token: string, connectedWalletAddress?: string) => {
   const invoice = await retrieveSubscriptionInvoice(token);
   if (!invoice) throw new AppError("NOT_FOUND", "Invoice not found");
   if (invoice.status !== "overdue") return { paid: true };
@@ -440,11 +440,9 @@ export const paySubscriptionInvoice = async (token: string, connectedWalletAddre
     .where(eq(subscriptions.invoiceToken, token))
     .limit(1);
 
-  if (!sub?.product || !sub.wallet) throw new AppError("NOT_FOUND", "Subscription payment details not found");
-  const wallet = sub.wallet;
-  if (wallet.address !== connectedWalletAddress) {
-    throw new AppError("VALIDATION_ERROR", "Connect the wallet used for this subscription to pay the invoice");
-  }
+  if (!sub?.product) throw new AppError("NOT_FOUND", "Subscription payment details not found");
+  const walletAddress = connectedWalletAddress || sub.wallet?.address;
+  if (!walletAddress) throw new AppError("VALIDATION_ERROR", "Connect a wallet to retry this payment");
 
   const record = sub.subscription;
   const { data: priorPayments } = await retrievePayments(record.organizationId, record.environment, {
@@ -463,7 +461,7 @@ export const paySubscriptionInvoice = async (token: string, connectedWalletAddre
   const billingMs = subscriptionPeriodMs(sub.product.recurringPeriod, sub.product.customDurationMs);
   if (!billingMs) throw new AppError("VALIDATION_ERROR", "Invalid subscription billing period");
 
-  const charge = await soroban$chargeSubscription(record.environment, wallet.address, record.productId, amountRaw);
+  const charge = await soroban$chargeSubscription(record.environment, walletAddress, record.productId, amountRaw);
   if (charge.isErr()) throw new AppError("STELLAR_ERROR", charge.error.message);
 
   const payEvent = charge.value.events.find((event) => event.topic.includes("sub_pay"));
@@ -475,9 +473,20 @@ export const paySubscriptionInvoice = async (token: string, connectedWalletAddre
     : new Date(Date.now() + billingMs);
 
   await runAtomic(async () => {
+    const replacementWallet = await upsertCustomerWallet(
+      record.customerId,
+      { walletAddress },
+      record.organizationId,
+      record.environment
+    );
     await putSubscription(
       record.id,
-      { status: "active", currentPeriodStart: new Date(), currentPeriodEnd: nextPeriod },
+      {
+        status: "active",
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: nextPeriod,
+        customerWalletId: replacementWallet?.id ?? record.customerWalletId,
+      },
       record.organizationId,
       record.environment
     );
@@ -499,7 +508,7 @@ export const paySubscriptionInvoice = async (token: string, connectedWalletAddre
       },
       record.organizationId,
       record.environment,
-      { customerWalletAddress: wallet.address }
+      { customerWalletAddress: walletAddress }
     );
   });
 

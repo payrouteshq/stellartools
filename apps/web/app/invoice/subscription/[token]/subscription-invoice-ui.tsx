@@ -17,6 +17,7 @@ export function SubscriptionInvoiceUI({ invoice }: { invoice: NonNullable<Public
   const wallet = useWallet();
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
+  const [needsWallet, setNeedsWallet] = React.useState(false);
   const isPaid = invoice.status !== "overdue";
 
   React.useEffect(() => {
@@ -24,7 +25,7 @@ export function SubscriptionInvoiceUI({ invoice }: { invoice: NonNullable<Public
   }, [invoice.environment, wallet]);
 
   const handlePay = () => {
-    if (!wallet.connected) {
+    if (needsWallet && !wallet.connected) {
       void wallet.connect((connected) => {
         if (!connected) toast.error("Wallet connection failed");
       });
@@ -34,12 +35,13 @@ export function SubscriptionInvoiceUI({ invoice }: { invoice: NonNullable<Public
     startTransition(async () => {
       wallet.setTxStatus(TxStatus.SUBMITTING);
       try {
-        await paySubscriptionInvoice(invoice.token, wallet.walletAddress);
+        await paySubscriptionInvoice(invoice.token, needsWallet ? wallet.walletAddress : undefined);
         wallet.setTxStatus(TxStatus.SUCCESS);
         toast.success("Invoice paid");
         router.refresh();
       } catch (error) {
         wallet.setTxStatus(TxStatus.FAIL);
+        setNeedsWallet(true);
         toast.error(error instanceof Error ? error.message : "Payment failed");
       }
     });
@@ -104,7 +106,11 @@ export function SubscriptionInvoiceUI({ invoice }: { invoice: NonNullable<Public
             <div className="mt-6 space-y-3">
               <Button className="w-full" onClick={handlePay} disabled={isPending || wallet.isLoading}>
                 {isPending || wallet.isLoading ? <Spinner size={14} className="mr-2" /> : null}
-                {wallet.connected ? "Pay invoice" : "Connect wallet to pay"}
+                {needsWallet
+                  ? wallet.connected
+                    ? "Retry with this wallet"
+                    : "Connect wallet to retry"
+                  : "Retry payment"}
               </Button>
               {wallet.connected && (
                 <p className="text-muted-foreground text-center font-mono text-xs">

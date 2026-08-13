@@ -1,4 +1,5 @@
 import { retrieveSupportedAssets } from "@/actions/asset";
+import { retrieveCustomerWallets } from "@/actions/customers";
 import { runAtomic } from "@/actions/event";
 import { postPayment, retrievePayments } from "@/actions/payment";
 import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscription";
@@ -21,10 +22,10 @@ const CONCURRENCY_LIMIT = 5;
 
 async function processSingleSubscription(sub: ResolvedSubscription) {
   const { id: subId, organizationId: orgId, environment: env, productId } = sub;
-  const walletAddress = sub?.customerWallet?.address;
+  let walletAddress = sub?.customerWallet?.address;
 
-  if (!walletAddress || !sub.product) {
-    return { status: "error", subId, error: `Customer wallet ${walletAddress} or Product ${productId} not found` };
+  if (!sub.product) {
+    return { status: "error", subId, error: `Product ${productId} not found` };
   }
 
   const { priceCents, currencyCode, recurringPeriod, customDurationMs } = sub.product;
@@ -33,6 +34,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
   try {
     // 1. HANDLE CANCELLATION
     if (sub.cancelAtPeriodEnd) {
+      if (!walletAddress) return { status: "error", subId, error: "Customer wallet not found" };
       const merchantSecret = await resolveMerchantSecret(orgId, env);
 
       const res = await soroban$cancelSubscription(env, merchantSecret, walletAddress, productId);
@@ -67,7 +69,23 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     });
 
     // 3. EXECUTE ON-CHAIN CHARGE
-    const chargeRes = await soroban$chargeSubscription(env, walletAddress, productId, chargeRaw);
+    const customerWallets = await retrieveCustomerWallets(sub.customerId, undefined, orgId, env);
+    const walletAddresses = [walletAddress, ...customerWallets.map((wallet) => wallet.address)].filter(
+      (address, index, addresses): address is string => !!address && addresses.indexOf(address) === index
+    );
+    if (walletAddresses.length === 0) {
+      return { status: "error", subId, error: "Customer wallet not found" };
+    }
+
+    let chargeRes: Awaited<ReturnType<typeof soroban$chargeSubscription>> | undefined;
+    for (const address of walletAddresses) {
+      walletAddress = address;
+      chargeRes = await soroban$chargeSubscription(env, address, productId, chargeRaw);
+      if (chargeRes.isOk()) break;
+    }
+
+    if (!chargeRes) return { status: "error", subId, error: "Customer wallet not found" };
+    const chargedWalletAddress = walletAddress!;
 
     if (chargeRes.isErr()) {
       await runAtomic(async () => {
@@ -90,7 +108,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
           },
           orgId,
           env,
-          { customerWalletAddress: walletAddress }
+          { customerWalletAddress: chargedWalletAddress }
         );
       });
 
@@ -136,7 +154,13 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
 
     // 5. UPDATE STATE
     await runAtomic(async () => {
-      await putSubscription(subId, { status: "active", currentPeriodEnd: nextPeriod }, orgId, env);
+      const chargedWallet = customerWallets.find((wallet) => wallet.address === chargedWalletAddress);
+      await putSubscription(
+        subId,
+        { status: "active", currentPeriodEnd: nextPeriod, customerWalletId: chargedWallet?.id ?? sub.customerWalletId },
+        orgId,
+        env
+      );
       await postPayment(
         {
           subscriptionId: subId,
@@ -155,7 +179,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
         },
         orgId,
         env,
-        { customerWalletAddress: walletAddress }
+        { customerWalletAddress: chargedWalletAddress }
       );
     });
 
@@ -163,7 +187,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     // payment is already recorded above.
     if (sub.status === "trialing") {
       const updateRes = await soroban$updateSubscriptionPeriod(env, {
-        customerAddress: walletAddress,
+        customerAddress: chargedWalletAddress,
         productId,
         periodDurationMs: billingMs,
         periodEnd: nextPeriod,
