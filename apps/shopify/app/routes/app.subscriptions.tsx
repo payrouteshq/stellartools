@@ -46,6 +46,7 @@ const STATUS_TONE: Record<string, string> = {
   past_due: "critical",
   paused: "warning",
   canceled: "subdued",
+  overdue: "warning",
 };
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
@@ -115,7 +116,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // 6. Stats
   const active = rows.filter((r) => r.sub.status === "active");
-  const pastDue = rows.filter((r) => r.sub.status === "past_due");
+  const pastDue = rows.filter((r) => r.sub.status === "past_due" || r.sub.status === "overdue");
   const mrr = active.reduce((sum, r) => sum + monthlyAmount(r.product), 0);
   const mrrUnit = active[0]?.product?.unit ?? "";
 
@@ -294,6 +295,15 @@ export default function Subscriptions() {
                           onClick={() => handleAction("resume", sub.id)}
                         >
                           Resume
+                        </s-button>
+                      )}
+                      {sub.status === "overdue" && sub.invoice_url && (
+                        <s-button
+                          variant="tertiary"
+                          tone="auto"
+                          onClick={() => navigator.clipboard.writeText(sub.invoice_url!)}
+                        >
+                          Copy payment link
                         </s-button>
                       )}
                       {sub.status !== "canceled" && !sub.cancel_at_period_end && (
