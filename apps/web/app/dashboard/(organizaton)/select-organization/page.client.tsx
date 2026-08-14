@@ -9,6 +9,7 @@ import { walletStrategyEnum } from "@/constant/schema.client";
 import { useAction } from "@/hooks/use-action";
 import { useClearStaleCookies } from "@/hooks/use-clear-stale-cookies";
 import { capture, identifyOrganization } from "@/lib/posthog";
+import Cal, { getCalApi } from "@calcom/embed-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AppModal,
@@ -42,12 +43,16 @@ interface Client$SelectOrganizationPageProps {
   xVercelIpCountry: string | null;
   acceptLanguage: string | null;
   autoOpen: boolean;
+  userEmail?: string;
+  userName?: string;
 }
 
 export const Client$SelectOrganizationPage = ({
   xVercelIpCountry,
   acceptLanguage,
   autoOpen,
+  userEmail,
+  userName,
 }: Client$SelectOrganizationPageProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,12 +69,15 @@ export const Client$SelectOrganizationPage = ({
   const createModalSubmitRef = React.useRef<(() => void) | null>(null);
   const [createModalFooterProps, setCreateModalFooterProps] = React.useState({ isPending: false });
   const isCreateModalOpenRef = React.useRef(false);
+  const isCalStepActiveRef = React.useRef(false);
 
   const [isNavigating, startNavigating] = React.useTransition();
 
   const openCreateModal = React.useCallback(() => {
     isCreateModalOpenRef.current = true;
+    isCalStepActiveRef.current = false;
     setCreateModalFooterProps({ isPending: false });
+
     AppModal.open({
       title: "Create Organization",
       description: "Set up your workspace to get started",
@@ -81,8 +89,27 @@ export const Client$SelectOrganizationPage = ({
           acceptLanguage={acceptLanguage}
           onSuccess={async (orgId) => {
             await setCurrentOrganization(orgId);
-            startNavigating(() => {
-              router.push(next ?? "/");
+            isCalStepActiveRef.current = true;
+            const handleProceed = () => {
+              isCalStepActiveRef.current = false;
+              AppModal.close();
+              startNavigating(() => router.push(next ?? "/"));
+            };
+            AppModal.updateConfig({
+              title: "Let's find the right setup for you",
+              description:
+                "Book a quick call to see how we can help you get the most out of StellarTools for your business.",
+              showCloseButton: true,
+              stepKey: "cal",
+              content: <CalBookingStep userEmail={userEmail} userName={userName} />,
+              footer: (
+                <div className="flex w-full items-center justify-between">
+                  <ModeToggle />
+                  <Button variant="outline" onClick={handleProceed}>
+                    Skip, go to dashboard →
+                  </Button>
+                </div>
+              ),
             });
           }}
         />
@@ -99,6 +126,7 @@ export const Client$SelectOrganizationPage = ({
       showCloseButton: hasOrganizations,
       onClose: () => {
         isCreateModalOpenRef.current = false;
+        isCalStepActiveRef.current = false;
       },
     });
   }, [
@@ -112,7 +140,7 @@ export const Client$SelectOrganizationPage = ({
   ]);
 
   React.useEffect(() => {
-    if (isCreateModalOpenRef.current) {
+    if (isCreateModalOpenRef.current && !isCalStepActiveRef.current) {
       AppModal.updateConfig({
         footer: (
           <CreateOrganizationModalFooter
@@ -232,6 +260,48 @@ const LoadingSkeleton = () => (
     </div>
   </div>
 );
+
+// -- CAL.COM BOOKING STEP --
+
+function CalBookingStep({ userEmail, userName }: { userEmail?: string; userName?: string }) {
+  const calLink = process.env.NEXT_PUBLIC_CAL_LINK;
+
+  React.useEffect(() => {
+    if (!calLink) return;
+    (async () => {
+      const cal = await getCalApi({ namespace: "stellartools-intro" });
+      const attr = document.documentElement.getAttribute("data-theme");
+      const theme: "dark" | "light" =
+        attr === "dark" || attr === "light"
+          ? attr
+          : window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+      cal("ui", {
+        theme,
+        hideEventTypeDetails: false,
+        layout: "month_view",
+      });
+    })();
+  }, [calLink]);
+
+  if (!calLink) return null;
+
+  return (
+    <div className="-mx-6 -mb-6">
+      <Cal
+        namespace="stellartools-intro"
+        calLink={calLink}
+        style={{ width: "100%", height: "680px", overflow: "scroll" }}
+        config={{
+          layout: "month_view",
+          ...(userName ? { name: userName } : {}),
+          ...(userEmail ? { email: userEmail } : {}),
+        }}
+      />
+    </div>
+  );
+}
 
 // -- CREATE ORGANIZATION  --
 

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
+import { useState } from "react";
+
 import { Button } from "../../ui/button";
 import { AppModal, AppModalProvider } from "../app-modal/index";
 
@@ -148,6 +150,140 @@ export const Destructive: Story = {
       }
     >
       Open delete confirmation
+    </Button>
+  ),
+};
+
+const STEPS = [
+  {
+    key: "step-1",
+    title: "Basic information",
+    description: "Tell us a bit about your organization to get started.",
+    body: "Enter your organization name, industry, and a short description. This helps us personalise your experience.",
+  },
+  {
+    key: "step-2",
+    title: "Contact details",
+    description: "How should customers and teammates reach you?",
+    body: "Add your support email, phone number, and physical address. These appear on invoices and payment pages.",
+  },
+  {
+    key: "step-3",
+    title: "You're all set",
+    description: "Your workspace is ready.",
+    body: "We've created your organization. You can now invite teammates, set up products, and start accepting payments.",
+  },
+];
+
+const MultiStepContent = () => {
+  const [index, setIndex] = useState(0);
+  const step = STEPS[index]!;
+  const isLast = index === STEPS.length - 1;
+
+  const goNext = () => {
+    if (isLast) {
+      AppModal.close();
+      return;
+    }
+    AppModal.updateConfig({
+      title: step.title,
+      description: step.description,
+      stepKey: STEPS[index + 1]!.key,
+      content: <StepBody text={STEPS[index + 1]!.body} />,
+      footer: (
+        <StepFooter
+          step={index + 1}
+          total={STEPS.length}
+          isLast={index + 1 === STEPS.length - 1}
+          onNext={() => {
+            setIndex((i) => i + 1);
+          }}
+          onBack={() => {
+            AppModal.updateConfig({
+              title: STEPS[index]!.title,
+              description: STEPS[index]!.description,
+              stepKey: STEPS[index]!.key,
+              stepDirection: "backward",
+              content: <StepBody text={STEPS[index]!.body} />,
+            });
+            setIndex((i) => i - 1);
+          }}
+        />
+      ),
+    });
+    setIndex((i) => i + 1);
+  };
+
+  const goBack = () => {
+    if (index === 0) return;
+    AppModal.updateConfig({
+      title: STEPS[index - 1]!.title,
+      description: STEPS[index - 1]!.description,
+      stepKey: STEPS[index - 1]!.key,
+      stepDirection: "backward",
+      content: <StepBody text={STEPS[index - 1]!.body} />,
+    });
+    setIndex((i) => i - 1);
+  };
+
+  return (
+    <div className="space-y-4">
+      <StepBody text={step.body} />
+      <StepFooter step={index} total={STEPS.length} isLast={isLast} onNext={goNext} onBack={goBack} />
+    </div>
+  );
+};
+
+const StepBody = ({ text }: { text: string }) => (
+  <p className="text-muted-foreground leading-relaxed">{text}</p>
+);
+
+const StepFooter = ({
+  step,
+  total,
+  isLast,
+  onNext,
+  onBack,
+}: {
+  step: number;
+  total: number;
+  isLast: boolean;
+  onNext: () => void;
+  onBack: () => void;
+}) => (
+  <div className="flex w-full items-center justify-between">
+    <span className="text-muted-foreground text-sm">
+      Step {step + 1} of {total}
+    </span>
+    <div className="flex gap-2">
+      {step > 0 && (
+        <Button variant="outline" size="sm" onClick={onBack}>
+          Back
+        </Button>
+      )}
+      <Button size="sm" onClick={onNext}>
+        {isLast ? "Finish" : "Continue →"}
+      </Button>
+    </div>
+  </div>
+);
+
+export const MultiStep: Story = {
+  render: () => (
+    <Button
+      onClick={() => {
+        const first = STEPS[0]!;
+        AppModal.open({
+          title: first.title,
+          description: first.description,
+          stepKey: first.key,
+          content: <MultiStepContent />,
+          size: "medium",
+          showCloseButton: true,
+        });
+      }}
+    >
+      Open multi-step modal
     </Button>
   ),
 };
