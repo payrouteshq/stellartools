@@ -24,7 +24,7 @@ Subscriptions are created automatically when a customer completes a checkout for
 </ResponseField>
 
 <ResponseField name="status" type="string">
-  One of `trialing`, `active`, `past_due`, `paused`, or `canceled`.
+  One of `trialing`, `active`, `past_due`, `paused` `canceled`, or `overdue`.
 </ResponseField>
 
 <ResponseField name="current_period_start" type="string">
@@ -65,6 +65,10 @@ Subscriptions are created automatically when a customer completes a checkout for
 
 <ResponseField name="updated_at" type="string">
   ISO 8601 timestamp.
+</ResponseField>
+
+<ResponseField name="invoice_url" type="string">
+  Invoice URL to send to your customer once the status is `overdue`
 </ResponseField>
 
 ---
