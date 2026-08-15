@@ -5,6 +5,7 @@ import { Resend as ResendClient } from "resend";
 type SendEmailOptions = {
   cc?: string[];
   replyTo?: string;
+  scheduledAt?: string;
 };
 
 export const sendEmail = async (
@@ -21,6 +22,7 @@ export const sendEmail = async (
     ...(typeof content === "string" ? { text: content } : { react: content }),
     ...(options?.cc && { cc: options.cc }),
     ...(options?.replyTo && { reply_to: options.replyTo }),
+    ...(options?.scheduledAt && { scheduledAt: options.scheduledAt }),
   });
   return result;
 };
