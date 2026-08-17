@@ -12,7 +12,11 @@ export const GET = apiHandler({
   handler: async ({ auth: { environment } }) => {
     const config = getAnchorConfig(environment, process.env.ACTIVE_OFFRAMP_ANCHOR);
     const toml = await discoverAnchor(config);
-    const info = await new Sep24Client(config, toml, "").getInfo();
+    const info = await new Sep24Client(config, toml, "").getInfo().catch((error) => {
+      if (!config.capabilitiesFallback) throw error;
+      console.warn("[OFFRAMP_CAPABILITIES_FALLBACK]", error instanceof Error ? error.message : "Unknown error");
+      return { withdraw: config.capabilitiesFallback };
+    });
 
     const assets = config.withdrawAssets
       .filter((asset) => info.withdraw[asset.sep24Code ?? asset.code]?.enabled)

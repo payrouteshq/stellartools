@@ -21,6 +21,12 @@ export interface AnchorConfig {
   domain: string;
   network: Network;
   withdrawAssets: readonly AnchorAssetConfig[];
+  discoveryFallback?: {
+    transferServerSep24: string;
+    webAuthEndpoint: string;
+    signingKey: string;
+  };
+  capabilitiesFallback?: Readonly<Record<string, { enabled: boolean; min_amount: string; max_amount: string }>>;
 }
 
 type AnchorRegistry = Readonly<Partial<Record<Network, Partial<Record<AnchorId, AnchorConfig>>>>>;
@@ -45,6 +51,16 @@ const ANCHOR_REGISTRY: AnchorRegistry = {
       domain: "testanchor.stellar.org",
       network: "testnet",
       withdrawAssets: SDF_TEST_ASSETS,
+      discoveryFallback: {
+        transferServerSep24: "https://testanchor.stellar.org/sep24",
+        webAuthEndpoint: "https://testanchor.stellar.org/auth",
+        signingKey: "GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR",
+      },
+      capabilitiesFallback: {
+        native: { enabled: true, min_amount: "1", max_amount: "10" },
+        SRT: { enabled: true, min_amount: "1", max_amount: "10" },
+        USDC: { enabled: true, min_amount: "1", max_amount: "10" },
+      },
     },
   },
 };

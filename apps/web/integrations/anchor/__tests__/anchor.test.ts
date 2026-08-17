@@ -1,17 +1,13 @@
+import { getAnchorConfig } from "@/integrations/anchor/config";
+import { discoverAnchor } from "@/integrations/anchor/discovery";
+import { validateFundingInstructions } from "@/integrations/anchor/funding";
+import { assertAllowedEndpoint } from "@/integrations/anchor/http";
+import { interactiveFlowResponseSchema, sep24InfoSchema, sep24TransactionSchema } from "@/integrations/anchor/schemas";
+import { Sep24Client } from "@/integrations/anchor/sep24";
+import { mapSep24Status } from "@/integrations/anchor/status";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-
-import { getAnchorConfig } from "@/integrations/anchor/config";
-import { assertAllowedEndpoint } from "@/integrations/anchor/http";
-import { validateFundingInstructions } from "@/integrations/anchor/funding";
-import {
-  interactiveFlowResponseSchema,
-  sep24InfoSchema,
-  sep24TransactionSchema,
-} from "@/integrations/anchor/schemas";
-import { Sep24Client } from "@/integrations/anchor/sep24";
-import { mapSep24Status } from "@/integrations/anchor/status";
 
 const config = getAnchorConfig("testnet");
 const toml = {
@@ -37,6 +33,45 @@ describe("anchor configuration", () => {
     expect(() => getAnchorConfig("testnet", "untrusted-anchor")).toThrow(
       "No valid offramp anchor is configured for testnet"
     );
+  });
+});
+
+describe("anchor discovery", () => {
+  it("retries a transient TOML resolution failure", async () => {
+    const resolver = vi
+      .spyOn((await import("@stellar/stellar-sdk")).StellarToml.Resolver, "resolve")
+      .mockRejectedValueOnce(new Error("DNS timeout"))
+      .mockResolvedValueOnce({
+        TRANSFER_SERVER_SEP0024: "https://testanchor.stellar.org/sep24",
+        WEB_AUTH_ENDPOINT: "https://testanchor.stellar.org/auth",
+        SIGNING_KEY: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+      });
+
+    await expect(discoverAnchor(config)).resolves.toMatchObject({
+      TRANSFER_SERVER_SEP0024: "https://testanchor.stellar.org/sep24",
+    });
+    expect(resolver).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the configured test-anchor fallback when discovery remains unavailable", async () => {
+    vi.spyOn((await import("@stellar/stellar-sdk")).StellarToml.Resolver, "resolve").mockRejectedValue(
+      new Error("DNS timeout")
+    );
+    const uncachedConfig = {
+      ...config,
+      domain: "fallback-anchor.example",
+      discoveryFallback: {
+        transferServerSep24: "https://fallback-anchor.example/sep24",
+        webAuthEndpoint: "https://fallback-anchor.example/auth",
+        signingKey: "GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR",
+      },
+    };
+
+    await expect(discoverAnchor(uncachedConfig)).resolves.toMatchObject({
+      TRANSFER_SERVER_SEP0024: "https://fallback-anchor.example/sep24",
+      WEB_AUTH_ENDPOINT: "https://fallback-anchor.example/auth",
+      SIGNING_KEY: "GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR",
+    });
   });
 });
 
@@ -134,6 +169,47 @@ describe("SEP-24 client", () => {
 
     await expect(client.getTransaction("anchor-tx-1")).rejects.toThrow("SEP-24 transaction request failed (500)");
   });
+
+  it("retries transient transaction lookup failures", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            transaction: {
+              id: "anchor-tx-1",
+              kind: "withdrawal",
+              status: "pending_external",
+              started_at: "2026-08-07T12:00:00Z",
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    const client = new Sep24Client(config, toml, "jwt-token");
+
+    const request = client.getTransaction("anchor-tx-1");
+    await vi.runAllTimersAsync();
+
+    await expect(request).resolves.toMatchObject({ id: "anchor-tx-1", status: "pending_external" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("does not retry permanent transaction lookup failures", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "Transaction not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    const client = new Sep24Client(config, toml, "jwt-token");
+
+    await expect(client.getTransaction("missing")).rejects.toThrow("Transaction not found");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("status mapping", () => {
@@ -162,8 +238,7 @@ describe("funding instruction validation", () => {
           kind: "withdrawal",
           status: "pending_user_transfer_start",
           amount_in: "5",
-          amount_in_asset:
-            "stellar:USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+          amount_in_asset: "stellar:USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
           started_at: "2026-08-07T12:00:00Z",
           withdraw_anchor_account: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
           withdraw_memo: "12345",

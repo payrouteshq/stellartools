@@ -23,6 +23,26 @@ export interface InitiateWithdrawalParams {
   callbackUrl?: string;
 }
 
+const TRANSACTION_READ_ATTEMPTS = 3;
+const TRANSACTION_RETRY_BASE_MS = 250;
+const MAX_RETRY_AFTER_MS = 5_000;
+
+function retryDelayMs(response: Response, attempt: number): number {
+  const retryAfter = response.headers.get("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.min(Math.max(seconds * 1000, 0), MAX_RETRY_AFTER_MS);
+
+    const retryAt = Date.parse(retryAfter);
+    if (Number.isFinite(retryAt)) return Math.min(Math.max(retryAt - Date.now(), 0), MAX_RETRY_AFTER_MS);
+  }
+  return TRANSACTION_RETRY_BASE_MS * 2 ** attempt;
+}
+
+function isTransientStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
 export class Sep24Client {
   readonly #baseUrl: URL;
 
@@ -70,13 +90,24 @@ export class Sep24Client {
   async getTransaction(id: string): Promise<Sep24Transaction> {
     const endpoint = new URL("transaction", this.withTrailingSlash());
     endpoint.searchParams.set("id", id);
-    const response = await fetch(endpoint, {
-      headers: { Authorization: `Bearer ${this.token}` },
-      cache: "no-store",
-      redirect: "error",
-    });
-    if (!response.ok) throw await this.anchorError(response, "SEP-24 transaction request failed");
-    return (await parseJsonResponse(response, getTransactionResponseSchema)).transaction;
+
+    for (let attempt = 0; attempt < TRANSACTION_READ_ATTEMPTS; attempt++) {
+      const response = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${this.token}` },
+        cache: "no-store",
+        redirect: "error",
+      });
+      if (response.ok) return (await parseJsonResponse(response, getTransactionResponseSchema)).transaction;
+
+      const isLastAttempt = attempt === TRANSACTION_READ_ATTEMPTS - 1;
+      if (!isTransientStatus(response.status) || isLastAttempt) {
+        throw await this.anchorError(response, "SEP-24 transaction request failed");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
+    }
+
+    throw new Error("SEP-24 transaction request failed");
   }
 
   private withTrailingSlash(): URL {
