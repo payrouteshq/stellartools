@@ -22,6 +22,10 @@ export interface AppModalOptions {
   size?: "small" | "medium" | "full";
   showCloseButton?: boolean;
   onClose?: () => void;
+  /** Change this value when swapping content via updateConfig to trigger a slide transition */
+  stepKey?: string | number;
+  /** Direction of the slide when stepKey changes. Defaults to "forward" */
+  stepDirection?: "forward" | "backward";
 }
 
 type SetModalState = React.Dispatch<React.SetStateAction<{ open: boolean; config: AppModalOptions | null }>>;
@@ -34,6 +38,20 @@ export const AppModal = {
   updateConfig: (partial: Partial<AppModalOptions>) =>
     setGlobalState?.((prev) => (prev.config ? { ...prev, config: { ...prev.config, ...partial } } : prev)),
 };
+
+const contentVariants = {
+  enter: (dir: "forward" | "backward") => ({
+    x: dir === "forward" ? 16 : -16,
+    opacity: 0,
+  }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: "forward" | "backward") => ({
+    x: dir === "forward" ? -16 : 16,
+    opacity: 0,
+  }),
+};
+
+const contentTransition = { type: "spring", stiffness: 400, damping: 40, mass: 0.6 } as const;
 
 interface AppModalProps extends AppModalOptions {
   open: boolean;
@@ -49,6 +67,8 @@ const AppModalUI = ({
   footer,
   size = "full",
   showCloseButton = true,
+  stepKey,
+  stepDirection = "forward",
 }: AppModalProps) => {
   const sizeStyles = {
     small: "max-h-[90vh] sm:max-w-md flex flex-col",
@@ -83,12 +103,28 @@ const AppModalUI = ({
               {content && (
                 <div
                   className={cn(
-                    "min-h-0 min-w-0 px-6 py-6",
+                    "min-h-0 min-w-0",
                     size === "full" && "flex flex-1 flex-col overflow-y-auto",
                     size !== "full" && "flex-1 overflow-auto"
                   )}
                 >
-                  {content}
+                  <AnimatePresence mode="wait" custom={stepDirection} initial={false}>
+                    <motion.div
+                      key={stepKey ?? "default"}
+                      custom={stepDirection}
+                      variants={contentVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={contentTransition}
+                      className={cn(
+                        "px-6 py-6",
+                        size === "full" && "flex flex-1 flex-col"
+                      )}
+                    >
+                      {content}
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               )}
 

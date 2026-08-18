@@ -14,6 +14,18 @@ const SPARKLINE_CONFIG = {
   value: { label: "", color: "hsl(var(--chart-1))" },
 };
 
+function bucketByWeek(points: SparkPoint[]): SparkPoint[] {
+  const result: SparkPoint[] = [];
+  for (let i = 0; i < points.length; i += 7) {
+    const bucket = points.slice(i, i + 7);
+    result.push({
+      i: bucket[0]!.i,
+      value: bucket.reduce((sum, p) => sum + p.value, 0),
+    });
+  }
+  return result;
+}
+
 export function StatCard({
   title,
   value,
@@ -42,7 +54,8 @@ export function StatCard({
   compact?: boolean;
 }) {
   const hasSpark = sparkData.length > 0;
-  const chartData = hasSpark ? sparkData : Array.from({ length: 7 }, (_, i) => ({ i: `d${i}`, value: 0 }));
+  const displayData = hasSpark && sparkData.length > 60 ? bucketByWeek(sparkData) : sparkData;
+  const chartData = hasSpark ? displayData : Array.from({ length: 7 }, (_, i) => ({ i: `d${i}`, value: 0 }));
 
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();

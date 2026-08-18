@@ -3,6 +3,7 @@
 import { postAccount, putAccount, retrieveAccount } from "@/actions/account";
 import { AuthProvider } from "@/constant/schema.client";
 import { Account, Auth, PasswordReset, auth, db, passwordReset } from "@/db";
+import { WelcomeFounderOutreachEmail } from "@/emails/welcome-founder-outreach";
 import { deleteCookies, getCookie, setCookies } from "@/integrations/cookie-manager";
 import { sendEmail } from "@/integrations/email";
 import { AppError, safeAction } from "@/lib/action-handler";
@@ -194,6 +195,12 @@ export const accountValidator = safeAction(
         sso: { values: [{ provider, sub }] },
         profile: profile ?? null,
       });
+
+      const sendAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      sendEmail(email, "Quick question", WelcomeFounderOutreachEmail({ firstName: profile?.firstName ?? null }), {
+        scheduledAt: sendAt,
+        replyTo: "odii@stellartools.dev",
+      }).catch(() => {});
     } else {
       const existingSso = account.sso?.values?.find((s) => s.provider === provider);
 

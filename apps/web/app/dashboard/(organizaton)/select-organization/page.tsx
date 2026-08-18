@@ -28,11 +28,15 @@ export default async function SelectOrganizationPage({
   const xVercelIpCountry = headersList.get("x-vercel-ip-country");
   const acceptLanguage = headersList.get("accept-language");
 
+  const userName = [user.profile.firstName, user.profile.lastName].filter(Boolean).join(" ") || undefined;
+
   return (
     <Client$SelectOrganizationPage
       xVercelIpCountry={xVercelIpCountry}
       acceptLanguage={acceptLanguage}
       autoOpen={!!searchParams?.newOverride}
+      userEmail={user.email}
+      userName={userName}
     />
   );
 }
