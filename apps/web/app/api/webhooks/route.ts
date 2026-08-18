@@ -1,13 +1,13 @@
 import { postWebhook } from "@/actions/webhook";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId } from "@/lib/utils";
-import { Result, z as Schema, WEBHOOK_SIGNATURE_PREFIX, createWebhookSchema } from "@stellartools/core";
+import { Result, z as Schema, WEBHOOK_SIGNATURE_PREFIX, CreateWebhookSchema_2026_08_18 } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
   auth: ["session", "apikey"],
-  schema: { body: createWebhookSchema.extend({ secret: Schema.string().optional() }) },
+  schema: { body: CreateWebhookSchema_2026_08_18.extend({ secret: Schema.string().optional() }) },
   handler: async ({ body, auth: { organizationId, environment }, sessionToken }) => {
     const webhookPayload = {
       name: body.name,

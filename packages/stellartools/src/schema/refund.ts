@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 
 export const refundStatusEnum = z.enum(["pending", "succeeded", "failed"]);
 
@@ -67,10 +68,14 @@ export const refundSchema = schemaFor<Refund>()(
   })
 );
 
-export const createRefundSchema = z.object({
+export const CreateRefundSchema_2026_08_18 = z.object({
   payment_id: z.string(),
   reason: z.string(),
   metadata: z.record(z.string(), z.any()).default({}).nullable(),
 });
 
-export interface CreateRefund extends z.infer<typeof createRefundSchema> {}
+export interface CreateRefund extends z.infer<typeof CreateRefundSchema_2026_08_18> {}
+
+export const REFUND_SCHEMAS = {
+  "2026-08-18": { create: CreateRefundSchema_2026_08_18 },
+} satisfies Record<ApiVersion, { create: z.ZodSchema }>;

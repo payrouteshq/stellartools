@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ApiVersion } from "../versioning";
+
 /**
  * 1. Define the base primitives
  */
@@ -11,7 +13,7 @@ export type AppInstallationSettings = {
   [key: string]: Primitive;
 };
 
-export const appInstallationSettingsSchema: z.ZodType<AppInstallationSettings> = z
+export const AppInstallationSettingsSchema_2026_08_18: z.ZodType<AppInstallationSettings> = z
   .lazy(() => z.record(z.string().max(64), settingValueSchema))
   .refine(
     (data) => {
@@ -26,3 +28,7 @@ export const appInstallationSettingsSchema: z.ZodType<AppInstallationSettings> =
 export const APP_INSTALLATION_STATUS = ["active", "suspended"] as const;
 
 export type AppInstallationStatus = (typeof APP_INSTALLATION_STATUS)[number];
+
+export const APP_INSTALLATION_SCHEMAS = {
+  "2026-08-18": { settings: AppInstallationSettingsSchema_2026_08_18 },
+} satisfies Record<ApiVersion, { settings: z.ZodSchema }>;

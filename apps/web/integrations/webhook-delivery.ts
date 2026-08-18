@@ -3,7 +3,7 @@ import "server-only";
 import { postDeliveryLog } from "@/actions/webhook";
 import { Webhook as WebhookSchema } from "@/db/schema";
 import { AppError } from "@/lib/action-handler";
-import { ApiClient, WebhookEventBase, WebhookEventType, WebhookSigner } from "@stellartools/core";
+import { ApiClient, LATEST_VERSION, WebhookEventBase, WebhookEventType, WebhookSigner } from "@stellartools/core";
 
 export const deliverWebhook = async <TName extends string, TObject>(
   webhook: WebhookSchema,
@@ -62,7 +62,7 @@ export const deliverWebhook = async <TName extends string, TObject>(
       createdAt: new Date(),
       updatedAt: new Date(),
       nextRetry: null,
-      apiVersion: "2025-12-27.stellartools",
+      apiVersion: LATEST_VERSION,
       appInstallationId: null,
     },
     webhook.organizationId,

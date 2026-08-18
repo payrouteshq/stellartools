@@ -108,7 +108,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     else return Networks.PUBLIC;
   }, [environment]);
 
-  const stellarRpc = React.useMemo(() => new rpc.Server(rpcUrl), [rpcUrl]);
+  const stellarRpc = React.useMemo(() => (rpcUrl ? new rpc.Server(rpcUrl) : null), [rpcUrl]);
 
   async function handleSetWalletAddress(): Promise<boolean> {
     try {
@@ -179,6 +179,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const txHash = signedTx.hash().toString("hex");
     console.log("[wallet] step 2 — built tx, hash:", txHash, "ops:", signedTx.operations.length);
 
+    if (!stellarRpc) throw new AppError("INTERNAL_ERROR", "RPC not configured");
     let send_tx_response = await stellarRpc.sendTransaction(signedTx);
     let curr_time = Date.now();
     console.log(
@@ -255,6 +256,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createTrustlines = async (assets: Asset[], network: Networks) => {
     setTxStatus(TxStatus.BUILDING);
     try {
+      if (!stellarRpc) throw new AppError("INTERNAL_ERROR", "RPC not configured");
       const account = await stellarRpc.getAccount(walletAddress);
       const builder = new TransactionBuilder(account, {
         fee: "1000",

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { schemaFor } from "../utils";
 import { CURRENCY_CODES } from "./currencies";
 import { Environment, environmentSchema } from "./shared";
+import { ApiVersion } from "../versioning";
 
 export const checkoutStatusEnum = z.enum(["open", "completed", "expired", "failed"]);
 
@@ -145,7 +146,7 @@ const baseCreateSchema = z.object({
   redirect_url: z.string().optional(),
 });
 
-export const createCheckoutSchema = baseCreateSchema.extend({
+export const CreateCheckoutSchema_2026_08_18 = baseCreateSchema.extend({
   product_id: z.string().min(1, "Product ID is required"),
   subscription_data: subscriptionDataSchema.partial().optional(),
 });
@@ -155,21 +156,30 @@ export const currencyCodeSchema = z
   .transform((v) => v.toUpperCase())
   .pipe(z.enum(CURRENCY_CODES, { message: "Invalid currency code, must be one of " + CURRENCY_CODES.join(", ") }));
 
-export const createDirectCheckoutSchema = baseCreateSchema.extend({
+export const CreateDirectCheckoutSchema_2026_08_18 = baseCreateSchema.extend({
   amount_cents: z.number().positive("Amount must be greater than 0"),
   currency_code: currencyCodeSchema,
 });
 
-export type CreateCheckout = z.infer<typeof createCheckoutSchema>;
-export type CreateDirectCheckout = z.infer<typeof createDirectCheckoutSchema>;
+export type CreateCheckout = z.infer<typeof CreateCheckoutSchema_2026_08_18>;
+export type CreateDirectCheckout = z.infer<typeof CreateDirectCheckoutSchema_2026_08_18>;
 
-export const updateCheckoutSchema = z.object({
+export const UpdateCheckoutSchema_2026_08_18 = z.object({
   status: checkoutStatusEnum.optional(),
   metadata: z.record(z.string(), z.any()).optional(),
 });
 
-export type UpdateCheckout = z.infer<typeof updateCheckoutSchema>;
+export type UpdateCheckout = z.infer<typeof UpdateCheckoutSchema_2026_08_18>;
 
-export const retrieveCheckoutSchema = checkoutSchema.pick({
+export const RetrieveCheckoutSchema_2026_08_18 = checkoutSchema.pick({
   id: true,
 });
+
+export const CHECKOUT_SCHEMAS = {
+  "2026-08-18": {
+    create: CreateCheckoutSchema_2026_08_18,
+    createDirect: CreateDirectCheckoutSchema_2026_08_18,
+    update: UpdateCheckoutSchema_2026_08_18,
+    retrieve: RetrieveCheckoutSchema_2026_08_18,
+  },
+} satisfies Record<ApiVersion, { create: z.ZodSchema; createDirect: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>;

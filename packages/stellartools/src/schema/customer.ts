@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 
 export interface CustomerWallet {
   /**
@@ -94,7 +95,7 @@ export const customerSchema = schemaFor<Customer>()(
   })
 );
 
-export const createCustomerSchema = z.object({
+export const CreateCustomerSchema_2026_08_18 = z.object({
   email: z.email(),
   name: z.string(),
   phone: z.string().optional(),
@@ -102,9 +103,9 @@ export const createCustomerSchema = z.object({
   image: z.url().nullable().optional(),
 });
 
-export interface CreateCustomer extends z.infer<typeof createCustomerSchema> {}
+export interface CreateCustomer extends z.infer<typeof CreateCustomerSchema_2026_08_18> {}
 
-export const updateCustomerSchema = z.object({
+export const UpdateCustomerSchema_2026_08_18 = z.object({
   email: z.email().optional(),
   name: z.string().optional(),
   phone: z.string().optional(),
@@ -112,11 +113,11 @@ export const updateCustomerSchema = z.object({
   image: z.url().nullable().optional(),
 });
 
-export interface UpdateCustomer extends z.infer<typeof updateCustomerSchema> {}
+export interface UpdateCustomer extends z.infer<typeof UpdateCustomerSchema_2026_08_18> {}
 
 export interface ListCustomers extends Partial<Pick<Customer, "email" | "phone">> {}
 
-export const listCustomersSchema = schemaFor<ListCustomers>()(
+export const ListCustomersSchema_2026_08_18 = schemaFor<ListCustomers>()(
   z.union([z.object({ email: z.email() }), z.object({ phone: z.string() })])
 );
 
@@ -131,3 +132,14 @@ export interface CustomerPortal {
    */
   expires_at: string;
 }
+
+export const RetrieveCustomerSchema_2026_08_18 = z.object({ id: z.string() });
+
+export const CUSTOMER_SCHEMAS = {
+  "2026-08-18": {
+    create: CreateCustomerSchema_2026_08_18,
+    update: UpdateCustomerSchema_2026_08_18,
+    list: ListCustomersSchema_2026_08_18,
+    retrieve: RetrieveCustomerSchema_2026_08_18,
+  },
+} satisfies Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; list: z.ZodSchema; retrieve: z.ZodSchema }>;

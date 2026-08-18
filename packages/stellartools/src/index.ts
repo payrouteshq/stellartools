@@ -12,6 +12,7 @@ import { RefundApi } from "./resources/refund";
 import { SubscriptionApi } from "./resources/subscription";
 import { WebhookApi } from "./resources/webhooks";
 import { StellarToolsConfig, stellarToolsConfigSchema } from "./schema/shared";
+import { LATEST_VERSION } from "./versioning";
 
 export const STELLARTOOLS_ID = "STELLARTOOLS";
 
@@ -54,15 +55,17 @@ export class StellarTools {
       maxRetries: 3,
     });
 
-    this.customers = new CustomerApi(apiClient);
-    this.refunds = new RefundApi(apiClient);
-    this.checkouts = new CheckoutApi(apiClient);
-    this.payments = new PaymentApi(apiClient);
-    this.products = new ProductApi(apiClient);
-    this.subscriptions = new SubscriptionApi(apiClient);
-    this.webhooks = new WebhookApi(apiClient);
-    this.appInstallations = new AppInstallationApi(apiClient);
-    this.balance = new BalanceApi(apiClient);
+    const version = this.config.version ?? LATEST_VERSION;
+
+    this.customers = new CustomerApi(apiClient, version);
+    this.refunds = new RefundApi(apiClient, version);
+    this.checkouts = new CheckoutApi(apiClient, version);
+    this.payments = new PaymentApi(apiClient, version);
+    this.products = new ProductApi(apiClient, version);
+    this.subscriptions = new SubscriptionApi(apiClient, version);
+    this.webhooks = new WebhookApi(apiClient, version);
+    this.appInstallations = new AppInstallationApi(apiClient, version);
+    this.balance = new BalanceApi(apiClient, version);
   }
 }
 
@@ -86,3 +89,4 @@ export * from "./schema/webhooks";
 export * from "./schema/app-installation";
 export * from "./jwt";
 export { SignatureVerificationError } from "./errors";
+export * from "./versioning";

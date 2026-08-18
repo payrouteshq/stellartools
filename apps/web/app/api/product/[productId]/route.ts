@@ -2,7 +2,7 @@ import { deleteProduct, putProduct, retrieveProducts } from "@/actions/product";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { toCamelCase } from "@/lib/utils";
-import { Result, z as Schema, updateProductSchema } from "@stellartools/core";
+import { Result, z as Schema, UpdateProductSchema_2026_08_18 } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -40,7 +40,7 @@ export const GET = apiHandler({
 
 export const PUT = apiHandler({
   auth: ["session", "apikey"],
-  schema: { body: updateProductSchema, params: paramsSchema },
+  schema: { body: UpdateProductSchema_2026_08_18, params: paramsSchema },
   mcp: { name: "update_product", description: "Update a product" },
   handler: async ({ body, auth: { organizationId, environment }, params: { productId } }) => {
     const product = await putProduct(

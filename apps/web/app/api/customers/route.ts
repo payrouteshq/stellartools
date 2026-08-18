@@ -1,13 +1,13 @@
 import { postCustomers, retrieveCustomers } from "@/actions/customers";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { apiListParamsSchema } from "@/types";
-import { Result, z as Schema, createCustomerSchema } from "@stellartools/core";
+import { Result, z as Schema, CreateCustomerSchema_2026_08_18 } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
   auth: ["session", "apikey"],
-  schema: { body: Schema.array(createCustomerSchema) },
+  schema: { body: Schema.array(CreateCustomerSchema_2026_08_18) },
   mcp: { name: "create_customers", description: "Create one or more customers" },
   handler: async ({ body, auth: { organizationId, environment }, req }) => {
     const arrayBody = Array.isArray(body) ? body : [body];

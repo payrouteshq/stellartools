@@ -1,6 +1,6 @@
 import { deleteCheckout, putCheckout, retrieveCheckout } from "@/actions/checkout";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { Result, z as Schema, updateCheckoutSchema } from "@stellartools/core";
+import { Result, z as Schema, UpdateCheckoutSchema_2026_08_18 } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -35,7 +35,7 @@ export const GET = apiHandler({
 export const PUT = apiHandler({
   auth: ["session", "apikey"],
   mcp: { name: "update_checkout", description: "Update a checkout" },
-  schema: { params: paramsSchema, body: updateCheckoutSchema },
+  schema: { params: paramsSchema, body: UpdateCheckoutSchema_2026_08_18 },
   handler: async ({ params: { checkoutId }, auth: { organizationId, environment }, body }) => {
     const checkout = await putCheckout(checkoutId, body, organizationId, environment);
     return Result.ok({

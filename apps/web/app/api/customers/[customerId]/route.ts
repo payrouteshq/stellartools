@@ -6,7 +6,7 @@ import {
 } from "@/integrations/soroban-contract";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import { Result, z as Schema, updateCustomerSchema } from "@stellartools/core";
+import { Result, z as Schema, UpdateCustomerSchema_2026_08_18 } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -50,10 +50,16 @@ export const PUT = apiHandler({
   auth: ["session", "apikey", "portal"],
   schema: {
     params: paramsSchema,
-    body: updateCustomerSchema,
+    body: UpdateCustomerSchema_2026_08_18,
   },
   mcp: { name: "update_customer", description: "Update a customer by ID" },
   handler: async ({ params, body, auth, req }) => {
+    /**
+     * @example API versioning updates where a field is removed in the latest version
+     *  const customerData = version === "2024-01-01" 
+      ? { firstName: body.name.split(' ')[0], lastName: body.name.split(' ')[1] }
+      : { firstName: body.first_name, lastName: body.last_name };
+     */
     const source = req.headers.get("x-source");
     const customer = await putCustomer(params.customerId, body, auth.organizationId, auth.environment, {
       ...(source && { source }),

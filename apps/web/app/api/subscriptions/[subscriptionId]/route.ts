@@ -7,7 +7,7 @@ import { retrieveSubscription as soroban$retrieveSubscription } from "@/integrat
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { computeDiff, toCamelCase } from "@/lib/utils";
-import { Result, z as Schema, UpdateSubscription, updateSubscriptionSchema } from "@stellartools/core";
+import { Result, z as Schema, UpdateSubscription, UpdateSubscriptionSchema_2026_08_18 } from "@stellartools/core";
 import _ from "lodash";
 
 export const OPTIONS = createOptionsHandler();
@@ -135,7 +135,7 @@ export const GET = apiHandler({
 
 export const PUT = apiHandler({
   auth: ["session", "apikey", "portal"],
-  schema: { body: updateSubscriptionSchema, params: Schema.object({ subscriptionId: Schema.string() }) },
+  schema: { body: UpdateSubscriptionSchema_2026_08_18, params: Schema.object({ subscriptionId: Schema.string() }) },
   handler: async ({ body, params: { subscriptionId }, auth: { organizationId, environment } }) => {
     const { metadata, cancelAtPeriodEnd } = toCamelCase<UpdateSubscription>(body);
 
