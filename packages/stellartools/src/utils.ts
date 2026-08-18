@@ -64,5 +64,9 @@ export function mapOptionsToHeaders(options?: RequestOptions): Record<string, st
     headers["Idempotency-Key"] = options.idempotencyKey;
   }
 
+  if (options?.version) {
+    headers["StellarTools-Version"] = options.version;
+  }
+
   return headers;
 }

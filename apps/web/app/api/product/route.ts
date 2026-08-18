@@ -1,7 +1,7 @@
 import { postProduct, retrieveProducts } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { apiListParamsSchema } from "@/types";
-import { Result, z as Schema, createProductSchema, productStatusEnum } from "@stellartools/core";
+import { Result, z as Schema, CreateProductSchema_2026_08_18, productStatusEnum } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -42,7 +42,7 @@ export const GET = apiHandler({
 export const POST = apiHandler({
   auth: ["session", "apikey"],
   mcp: { name: "create_product", description: "Create a product" },
-  schema: { body: createProductSchema },
+  schema: { body: CreateProductSchema_2026_08_18 },
   handler: async ({ body, auth: { organizationId, environment } }) => {
     const productData: Parameters<typeof postProduct>[0] = {
       name: body.name,

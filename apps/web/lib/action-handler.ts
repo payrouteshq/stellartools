@@ -8,6 +8,7 @@ const ERROR_STATUS = {
   INTERNAL_ERROR: 500,
   STRIPE_ERROR: 502,
   STELLAR_ERROR: 502,
+  TOO_MANY_REQUESTS: 429,
 };
 
 export type ErrorCode = keyof typeof ERROR_STATUS;

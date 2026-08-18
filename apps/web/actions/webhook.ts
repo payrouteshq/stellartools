@@ -10,7 +10,7 @@ import { AppError, safeAction } from "@/lib/action-handler";
 import { toSnakeCase } from "@/lib/utils";
 import { generateResourceId } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
-import { WebhookEventBase, WebhookEventType } from "@stellartools/core";
+import { LATEST_VERSION, WebhookEventBase, WebhookEventType } from "@stellartools/core";
 import { SQL, and, arrayOverlaps, desc, eq, isNull, sql } from "drizzle-orm";
 
 export const postWebhook = async (
@@ -279,6 +279,7 @@ function normalizeResendPayload(
       type: eventType,
       created: (loose.created as string) ?? new Date().toISOString(),
       livemode: (loose.livemode as boolean) ?? false,
+      api_version: (loose.api_version as string) ?? LATEST_VERSION,
       data: { object: eventObject },
     };
   }

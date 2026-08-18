@@ -612,6 +612,23 @@ export const idempotencyKeys = pgTable("idempotency_key", {
   lockedAt: timestamp("locked_at"), // To prevent race conditions
 });
 
+export const rateLimits = pgTable(
+  "rate_limit",
+  {
+    // unique key: "org_id:minute_timestamp"
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    count: integer("count").notNull().default(0),
+    resetAt: timestamp("reset_at").notNull(),
+  },
+  (table) => [
+    index("rate_limit_org_idx").on(table.organizationId),
+    index("rate_limit_reset_idx").on(table.resetAt), // Useful for background cleanup
+  ]
+);
+
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;
@@ -635,6 +652,7 @@ export type CustomerPortalSession = InferSelectModel<typeof customerPortalSessio
 export type App = InferSelectModel<typeof apps>;
 export type AppInstallation = InferSelectModel<typeof appInstallations>;
 export type AppLog = InferSelectModel<typeof appLogs>;
+export type RateLimit = InferSelectModel<typeof rateLimits>;
 
 export type Charge = InferSelectModel<typeof charges>;
 

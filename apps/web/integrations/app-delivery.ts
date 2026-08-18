@@ -7,7 +7,7 @@ import { App } from "@/db/schema";
 import { decrypt } from "@/integrations/encryption";
 import { AppError } from "@/lib/action-handler";
 import { unmaskData } from "@/lib/utils";
-import { AppInstallationSettings, Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
+import { AppInstallationSettings, LATEST_VERSION, Network, WebhookEventBase, WebhookSigner } from "@stellartools/core";
 
 export const deliverToApp = async <TName extends string, TObject>(
   app: App,
@@ -65,7 +65,7 @@ export const deliverToApp = async <TName extends string, TObject>(
         statusCode: response.status,
         responseTime: duration,
         description: `Plugin delivery to ${app.name}`,
-        apiVersion: app.version ?? "unknown",
+        apiVersion: LATEST_VERSION,
         response: await response.json().catch(() => ({ message: response.statusText || `HTTP ${response.status}` })),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -92,7 +92,7 @@ export const deliverToApp = async <TName extends string, TObject>(
         errorMessage: error.message,
         responseTime: duration,
         description: `Failed plugin delivery to ${app.name}`,
-        apiVersion: app.version ?? "unknown",
+        apiVersion: LATEST_VERSION,
         response: null,
         nextRetry: null,
         createdAt: new Date(),

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "..";
+import { ApiVersion } from "../versioning";
 
 export const subscriptionStatusEnum = z.enum(["trialing", "active", "past_due", "overdue", "canceled", "paused"]);
 
@@ -101,7 +102,7 @@ export const subscriptionSchema = schemaFor<Subscription>()(
   })
 );
 
-export const createSubscriptionSchema = z.object({
+export const CreateSubscriptionSchema_2026_08_18 = z.object({
   customer_id: z.string(),
   product_id: z.string(),
   metadata: z.record(z.string(), z.string()).optional(),
@@ -109,22 +110,38 @@ export const createSubscriptionSchema = z.object({
   trial_days: z.number().default(0).optional().nullable(),
 });
 
-export type CreateSubscription = z.infer<typeof createSubscriptionSchema>;
+export type CreateSubscription = z.infer<typeof CreateSubscriptionSchema_2026_08_18>;
 
-export const pauseSubscriptionSchema = subscriptionSchema.pick({ id: true });
+export const PauseSubscriptionSchema_2026_08_18 = subscriptionSchema.pick({ id: true });
 
 export type PauseSubscription = Pick<Subscription, "id">;
 
-export const resumeSubscriptionSchema = subscriptionSchema.pick({ id: true });
+export const ResumeSubscriptionSchema_2026_08_18 = subscriptionSchema.pick({ id: true });
 
 export type ResumeSubscription = Pick<Subscription, "id">;
 
-export const updateSubscriptionSchema = z.object({
+export const UpdateSubscriptionSchema_2026_08_18 = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   cancel_at_period_end: z.boolean().optional(),
 });
 
-export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
+export type UpdateSubscription = z.infer<typeof UpdateSubscriptionSchema_2026_08_18>;
+
+export const RetrieveSubscriptionSchema_2026_08_18 = z.object({ id: z.string() });
+export const ListSubscriptionsSchema_2026_08_18 = z.object({ customerId: z.string() });
+export const CancelSubscriptionSchema_2026_08_18 = z.object({ id: z.string() });
+
+export const SUBSCRIPTION_SCHEMAS = {
+  "2026-08-18": {
+    create: CreateSubscriptionSchema_2026_08_18,
+    update: UpdateSubscriptionSchema_2026_08_18,
+    pause: PauseSubscriptionSchema_2026_08_18,
+    resume: ResumeSubscriptionSchema_2026_08_18,
+    retrieve: RetrieveSubscriptionSchema_2026_08_18,
+    list: ListSubscriptionsSchema_2026_08_18,
+    cancel: CancelSubscriptionSchema_2026_08_18,
+  },
+} satisfies Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; pause: z.ZodSchema; resume: z.ZodSchema; retrieve: z.ZodSchema; list: z.ZodSchema; cancel: z.ZodSchema }>;
 
 /** Whether a subscription currently grants product access. */
 export const internal$hasSubscriptionAccess = (sub: Pick<Subscription, "status" | "current_period_end">): boolean => {

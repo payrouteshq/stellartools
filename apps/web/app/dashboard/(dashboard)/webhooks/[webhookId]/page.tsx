@@ -89,7 +89,12 @@ const columns: ColumnDef<DeliveryLog>[] = [
       return (
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate font-mono text-sm font-medium">{log.eventType}</span>
-          <span className="text-muted-foreground text-xs">{log.source ?? "Automatic"}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-xs">{log.source ?? "Automatic"}</span>
+            {log.apiVersion && (
+              <span className="text-muted-foreground/70 font-mono text-[10px] tabular-nums">{log.apiVersion}</span>
+            )}
+          </div>
         </div>
       );
     },

@@ -1,18 +1,17 @@
-import { Result } from "better-result";
-
 import { ApiClient } from "../api-client";
-import { CreateRefund, Refund, createRefundSchema } from "../schema/refund";
+import { CreateRefund, REFUND_SCHEMAS, Refund } from "../schema/refund";
 import { RequestOptions } from "../types";
-import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
+import { unwrap } from "../utils";
+import { ApiVersion } from "../versioning";
+import { BaseApiResource } from "./base";
 
-export class RefundApi {
-  constructor(private apiClient: ApiClient) {}
+export class RefundApi extends BaseApiResource {
+  constructor(apiClient: ApiClient, version?: ApiVersion) {
+    super(apiClient, version);
+  }
 
   async create(params: CreateRefund, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(createRefundSchema, params), async (data) => {
-        return await this.apiClient.post<Refund>("/refunds", data, mapOptionsToHeaders(options));
-      })
-    );
+    const data = this.validate<CreateRefund>(REFUND_SCHEMAS, "create", params);
+    return unwrap(await this.apiClient.post<Refund>("/refunds", data, this.getHeaders(options)));
   }
 }
