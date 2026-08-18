@@ -1,7 +1,7 @@
 import { postProduct, retrieveProducts } from "@/actions/product";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { apiListParamsSchema } from "@/types";
-import { Result, z as Schema, CreateProductSchema_2026_08_18, productStatusEnum } from "@stellartools/core";
+import { CreateProductSchema_2026_08_18, Result, z as Schema, productStatusEnum } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 

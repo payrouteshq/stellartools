@@ -22,11 +22,7 @@ export class BalanceApi extends BaseApiResource {
 
   async retrieve(options?: RequestOptions): Promise<{ value: Balance[]; network: Network }> {
     return unwrap(
-      await this.apiClient.get<{ value: Balance[]; network: Network }>(
-        "/balance",
-        undefined,
-        this.getHeaders(options)
-      )
+      await this.apiClient.get<{ value: Balance[]; network: Network }>("/balance", undefined, this.getHeaders(options))
     );
   }
 }

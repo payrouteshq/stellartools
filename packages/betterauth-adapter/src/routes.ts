@@ -1,4 +1,9 @@
-import { z as Schema, createRefundSchema, createSubscriptionSchema, updateCustomerSchema } from "@stellartools/core";
+import {
+  CreateRefundSchema_2026_08_18,
+  CreateSubscriptionSchema_2026_08_18,
+  z as Schema,
+  UpdateCustomerSchema_2026_08_18,
+} from "@stellartools/core";
 import { GenericEndpointContext } from "better-auth";
 import { createAuthEndpoint, sessionMiddleware } from "better-auth/api";
 
@@ -58,7 +63,7 @@ export const updateCustomer = (options: BillingConfig) =>
     "/stellar/customer/update",
     {
       method: "POST",
-      body: updateCustomerSchema,
+      body: UpdateCustomerSchema_2026_08_18,
       use: [sessionMiddleware],
     },
     async (ctx) => {
@@ -74,7 +79,7 @@ export const createSubscription = (options: BillingConfig) =>
     "/stellar/subscription/create",
     {
       method: "POST",
-      body: createSubscriptionSchema.omit({ customer_id: true }),
+      body: CreateSubscriptionSchema_2026_08_18.omit({ customer_id: true }),
       use: [sessionMiddleware],
     },
     async (ctx) => {
@@ -101,7 +106,7 @@ export const createRefund = (options: BillingConfig) =>
     "/stellar/refund/create",
     {
       method: "POST",
-      body: createRefundSchema,
+      body: CreateRefundSchema_2026_08_18,
       use: [sessionMiddleware],
     },
     async (ctx) => {

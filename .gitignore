@@ -75,3 +75,5 @@ apps/**/coverage
 examples/**/.next
 examples/**/dist
 examples/**/node_modules
+
+apps/shopify/build

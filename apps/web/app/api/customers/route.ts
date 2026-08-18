@@ -1,7 +1,7 @@
 import { postCustomers, retrieveCustomers } from "@/actions/customers";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { apiListParamsSchema } from "@/types";
-import { Result, z as Schema, CreateCustomerSchema_2026_08_18 } from "@stellartools/core";
+import { CreateCustomerSchema_2026_08_18, Result, z as Schema } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 

@@ -1,9 +1,5 @@
 import { ApiClient } from "../api-client";
-import {
-  APP_INSTALLATION_SCHEMAS,
-  AppInstallationSettings,
-  AppInstallationStatus,
-} from "../schema/app-installation";
+import { APP_INSTALLATION_SCHEMAS, AppInstallationSettings, AppInstallationStatus } from "../schema/app-installation";
 import { RequestOptions } from "../types";
 import { unwrap } from "../utils";
 import { ApiVersion } from "../versioning";

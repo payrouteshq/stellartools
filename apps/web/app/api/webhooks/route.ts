@@ -1,7 +1,7 @@
 import { postWebhook } from "@/actions/webhook";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId } from "@/lib/utils";
-import { Result, z as Schema, WEBHOOK_SIGNATURE_PREFIX, CreateWebhookSchema_2026_08_18 } from "@stellartools/core";
+import { CreateWebhookSchema_2026_08_18, Result, z as Schema, WEBHOOK_SIGNATURE_PREFIX } from "@stellartools/core";
 
 export const OPTIONS = createOptionsHandler();
 

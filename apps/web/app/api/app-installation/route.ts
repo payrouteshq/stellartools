@@ -1,6 +1,11 @@
 import { retrieveAppInstallations, updateAppInstallation } from "@/actions/app";
 import { apiHandler } from "@/lib/api-handler";
-import { APP_INSTALLATION_STATUS, Result, z as Schema, AppInstallationSettingsSchema_2026_08_18 } from "@stellartools/core";
+import {
+  APP_INSTALLATION_STATUS,
+  AppInstallationSettingsSchema_2026_08_18,
+  Result,
+  z as Schema,
+} from "@stellartools/core";
 
 export const GET = apiHandler({
   auth: ["app"],

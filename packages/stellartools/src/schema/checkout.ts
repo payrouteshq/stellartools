@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 import { CURRENCY_CODES } from "./currencies";
 import { Environment, environmentSchema } from "./shared";
-import { ApiVersion } from "../versioning";
 
 export const checkoutStatusEnum = z.enum(["open", "completed", "expired", "failed"]);
 
@@ -182,4 +182,7 @@ export const CHECKOUT_SCHEMAS = {
     update: UpdateCheckoutSchema_2026_08_18,
     retrieve: RetrieveCheckoutSchema_2026_08_18,
   },
-} satisfies Record<ApiVersion, { create: z.ZodSchema; createDirect: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>;
+} satisfies Record<
+  ApiVersion,
+  { create: z.ZodSchema; createDirect: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }
+>;

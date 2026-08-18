@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 import { currencyCodeSchema } from "./checkout";
 import { Environment, environmentSchema } from "./shared";
-import { ApiVersion } from "../versioning";
 
 export const productTypeEnum = z.enum(["one_time", "subscription"]);
 

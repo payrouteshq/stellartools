@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/react";
-
 import { useState } from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button } from "../../ui/button";
 import { AppModal, AppModalProvider } from "../app-modal/index";
@@ -234,9 +234,7 @@ const MultiStepContent = () => {
   );
 };
 
-const StepBody = ({ text }: { text: string }) => (
-  <p className="text-muted-foreground leading-relaxed">{text}</p>
-);
+const StepBody = ({ text }: { text: string }) => <p className="text-muted-foreground leading-relaxed">{text}</p>;
 
 const StepFooter = ({
   step,

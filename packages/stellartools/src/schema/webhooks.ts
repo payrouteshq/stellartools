@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 import { Checkout } from "./checkout";
 import { Customer, CustomerWallet } from "./customer";
 import { Payment } from "./payment";
 import { Refund } from "./refund";
 import { Subscription } from "./subscription";
-import { ApiVersion } from "../versioning";
 
 export const WEBHOOK_EVENT_TYPES = [
   "customer.created",

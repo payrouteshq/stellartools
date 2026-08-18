@@ -117,10 +117,7 @@ const AppModalUI = ({
                       animate="center"
                       exit="exit"
                       transition={contentTransition}
-                      className={cn(
-                        "px-6 py-6",
-                        size === "full" && "flex flex-1 flex-col"
-                      )}
+                      className={cn("px-6 py-6", size === "full" && "flex flex-1 flex-col")}
                     >
                       {content}
                     </motion.div>

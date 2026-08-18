@@ -1,10 +1,5 @@
 import { ApiClient } from "../api-client";
-import {
-  CreateSubscription,
-  SUBSCRIPTION_SCHEMAS,
-  Subscription,
-  UpdateSubscription,
-} from "../schema/subscription";
+import { CreateSubscription, SUBSCRIPTION_SCHEMAS, Subscription, UpdateSubscription } from "../schema/subscription";
 import { RequestOptions } from "../types";
 import { unwrap } from "../utils";
 import { ApiVersion } from "../versioning";
@@ -22,7 +17,9 @@ export class SubscriptionApi extends BaseApiResource {
 
   async retrieve(id: string, options?: RequestOptions) {
     const { id: validId } = this.validate<{ id: string }>(SUBSCRIPTION_SCHEMAS, "retrieve", { id });
-    return unwrap(await this.apiClient.get<Subscription>(`/subscriptions/${validId}`, undefined, this.getHeaders(options)));
+    return unwrap(
+      await this.apiClient.get<Subscription>(`/subscriptions/${validId}`, undefined, this.getHeaders(options))
+    );
   }
 
   async list(customerId: string, options?: RequestOptions) {
@@ -38,12 +35,16 @@ export class SubscriptionApi extends BaseApiResource {
 
   async pause(id: string, options?: RequestOptions) {
     const { id: validId } = this.validate<{ id: string }>(SUBSCRIPTION_SCHEMAS, "pause", { id });
-    return unwrap(await this.apiClient.post<Subscription>(`/subscriptions/${validId}/pause`, undefined, this.getHeaders(options)));
+    return unwrap(
+      await this.apiClient.post<Subscription>(`/subscriptions/${validId}/pause`, undefined, this.getHeaders(options))
+    );
   }
 
   async resume(id: string, options?: RequestOptions) {
     const { id: validId } = this.validate<{ id: string }>(SUBSCRIPTION_SCHEMAS, "resume", { id });
-    return unwrap(await this.apiClient.post<Subscription>(`/subscriptions/${validId}/resume`, undefined, this.getHeaders(options)));
+    return unwrap(
+      await this.apiClient.post<Subscription>(`/subscriptions/${validId}/resume`, undefined, this.getHeaders(options))
+    );
   }
 
   async update(id: string, params: UpdateSubscription, options?: RequestOptions) {
@@ -53,6 +54,12 @@ export class SubscriptionApi extends BaseApiResource {
 
   async cancel(id: string, options?: RequestOptions) {
     const { id: validId } = this.validate<{ id: string }>(SUBSCRIPTION_SCHEMAS, "cancel", { id });
-    return unwrap(await this.apiClient.post<{ success: boolean }>(`/subscriptions/${validId}/cancel`, undefined, this.getHeaders(options)));
+    return unwrap(
+      await this.apiClient.post<{ success: boolean }>(
+        `/subscriptions/${validId}/cancel`,
+        undefined,
+        this.getHeaders(options)
+      )
+    );
   }
 }

@@ -1,11 +1,5 @@
 import { ApiClient } from "../api-client";
-import {
-  CHECKOUT_SCHEMAS,
-  Checkout,
-  CreateCheckout,
-  CreateDirectCheckout,
-  UpdateCheckout,
-} from "../schema/checkout";
+import { CHECKOUT_SCHEMAS, Checkout, CreateCheckout, CreateDirectCheckout, UpdateCheckout } from "../schema/checkout";
 import { RequestOptions } from "../types";
 import { unwrap } from "../utils";
 import { ApiVersion } from "../versioning";

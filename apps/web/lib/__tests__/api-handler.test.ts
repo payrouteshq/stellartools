@@ -114,7 +114,9 @@ describe("apiHandler: Permissions & Validation", () => {
       const res = await appHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(403);
-      expect(await res.json()).toMatchObject({ error: { code: "FORBIDDEN", message: "Forbidden: App missing scope [read:payments]" } });
+      expect(await res.json()).toMatchObject({
+        error: { code: "FORBIDDEN", message: "Forbidden: App missing scope [read:payments]" },
+      });
     });
 
     it("allows access if the app token has a wildcard '*' scope", async () => {

@@ -2,13 +2,7 @@ import crypto from "crypto";
 
 import { ApiClient } from "../api-client";
 import { SignatureVerificationError } from "../errors";
-import {
-  CreateWebhook,
-  UpdateWebhook,
-  WEBHOOK_SCHEMAS,
-  Webhook,
-  WebhookEvent,
-} from "../schema/webhooks";
+import { CreateWebhook, UpdateWebhook, WEBHOOK_SCHEMAS, Webhook, WebhookEvent } from "../schema/webhooks";
 import { RequestOptions } from "../types";
 import { unwrap } from "../utils";
 import { ApiVersion } from "../versioning";
