@@ -1,9 +1,10 @@
 import { getAnchorConfig } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { validateFundingInstructions } from "@/integrations/anchor/funding";
-import { assertAllowedEndpoint } from "@/integrations/anchor/http";
+import { AnchorRequestError, assertAllowedEndpoint } from "@/integrations/anchor/http";
 import { interactiveFlowResponseSchema, sep24InfoSchema, sep24TransactionSchema } from "@/integrations/anchor/schemas";
-import { Sep24Client } from "@/integrations/anchor/sep24";
+import { Sep24Client, isExpiredQuoteError } from "@/integrations/anchor/sep24";
+import { Sep38Client } from "@/integrations/anchor/sep38";
 import { mapSep24Status } from "@/integrations/anchor/status";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +15,7 @@ const toml = {
   TRANSFER_SERVER_SEP0024: "https://testanchor.stellar.org/sep24",
   WEB_AUTH_ENDPOINT: "https://testanchor.stellar.org/auth",
   SIGNING_KEY: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+  ANCHOR_QUOTE_SERVER: "https://testanchor.stellar.org/sep38",
 };
 
 beforeEach(() => {
@@ -145,7 +147,12 @@ describe("SEP-24 client", () => {
     );
     const client = new Sep24Client(config, toml, "jwt-token");
 
-    await client.initiateWithdrawal({ assetCode: "USDC", amount: "10.50" });
+    await client.initiateWithdrawal({
+      assetCode: "USDC",
+      amount: "10.50",
+      quoteId: "quote-1",
+      destinationAsset: "iso4217:NGN",
+    });
 
     const [requestUrl, requestInit] = fetchMock.mock.calls[0] ?? [];
     expect(String(requestUrl)).toBe("https://testanchor.stellar.org/sep24/transactions/withdraw/interactive");
@@ -156,6 +163,8 @@ describe("SEP-24 client", () => {
     const body = requestInit?.body as FormData;
     expect(body.get("asset_code")).toBe("USDC");
     expect(body.get("amount")).toBe("10.50");
+    expect(body.get("quote_id")).toBe("quote-1");
+    expect(body.get("destination_asset")).toBe("iso4217:NGN");
   });
 
   it("does not leak an invalid provider error body", async () => {
@@ -209,6 +218,57 @@ describe("SEP-24 client", () => {
 
     await expect(client.getTransaction("missing")).rejects.toThrow("Transaction not found");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("only identifies explicit expired-quote rejections as retryable", () => {
+    expect(isExpiredQuoteError(new AnchorRequestError("Quote has expired", 400))).toBe(true);
+    expect(isExpiredQuoteError(new AnchorRequestError("Quote has expired", 500))).toBe(false);
+    expect(isExpiredQuoteError(new AnchorRequestError("Invalid destination asset", 400))).toBe(false);
+  });
+});
+
+describe("SEP-38 client", () => {
+  it("creates an authenticated firm quote for the SEP-24 conversion", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "quote-1",
+          expires_at: "2026-08-18T12:00:00Z",
+          total_price: "1600",
+          price: "1580",
+          sell_asset: "stellar:USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+          sell_amount: "2.01",
+          buy_asset: "iso4217:NGN",
+          buy_amount: "3200",
+          fee: { total: "16", asset: "iso4217:NGN" },
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const client = new Sep38Client(config, toml, "jwt-token");
+
+    await expect(
+      client.createQuote({
+        sellAsset: "stellar:USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        buyAsset: "iso4217:NGN",
+        sellAmount: "2",
+        countryCode: "NG",
+      })
+    ).resolves.toMatchObject({ id: "quote-1", sell_amount: "2.01", buy_amount: "3200" });
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] ?? [];
+    expect(String(requestUrl)).toBe("https://testanchor.stellar.org/sep38/quote");
+    expect(requestInit?.headers).toEqual({
+      Authorization: "Bearer jwt-token",
+      "Content-Type": "application/json",
+    });
+    expect(JSON.parse(String(requestInit?.body))).toEqual({
+      sell_asset: "stellar:USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+      buy_asset: "iso4217:NGN",
+      sell_amount: "2",
+      country_code: "NG",
+      context: "sep24",
+    });
   });
 });
 

@@ -1,6 +1,7 @@
-import { getAnchorConfig } from "@/integrations/anchor/config";
+import { getAnchorConfig, supportedFiatCurrencySchema } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { Sep24Client } from "@/integrations/anchor/sep24";
+import { Sep38Client } from "@/integrations/anchor/sep38";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result } from "@stellartools/core";
 
@@ -26,13 +27,33 @@ export const GET = apiHandler({
         minAmount: info.withdraw[asset.sep24Code ?? asset.code]?.min_amount ?? null,
         maxAmount: info.withdraw[asset.sep24Code ?? asset.code]?.max_amount ?? null,
       }));
+    const destinationCurrencies = toml.ANCHOR_QUOTE_SERVER
+      ? await new Sep38Client(config, toml, "")
+          .getInfo()
+          .then((quoteInfo) =>
+            quoteInfo.assets.flatMap((asset) => {
+              if (!asset.asset.startsWith("iso4217:")) return [];
+              const currency = asset.asset.slice("iso4217:".length);
+              const parsedCurrency = supportedFiatCurrencySchema.safeParse(currency);
+              return parsedCurrency.success ? [parsedCurrency.data] : [];
+            })
+          )
+          .catch((error) => {
+            if (!config.destinationCurrenciesFallback) throw error;
+            console.warn(
+              "[OFFRAMP_QUOTE_CAPABILITIES_FALLBACK]",
+              error instanceof Error ? error.message : "Unknown error"
+            );
+            return [...config.destinationCurrenciesFallback];
+          })
+      : (["NGN", "USD", "GBP", "EUR"] as const);
 
     return Result.ok({
       provider: { id: config.id, name: config.displayName },
       environment,
       sandbox: config.id === "sdf-test-anchor",
       assets,
-      destinationCurrencies: ["NGN", "USD", "GBP", "EUR"] as const,
+      destinationCurrencies,
       payoutRails: ["bank_account"] as const,
     });
   },

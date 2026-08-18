@@ -1,7 +1,7 @@
 import "server-only";
 
 import { AnchorConfig } from "@/integrations/anchor/config";
-import { assertAllowedEndpoint, parseJsonResponse } from "@/integrations/anchor/http";
+import { AnchorRequestError, assertAllowedEndpoint, parseJsonResponse } from "@/integrations/anchor/http";
 import {
   AnchorToml,
   InteractiveFlowResponse,
@@ -18,9 +18,16 @@ export interface InitiateWithdrawalParams {
   assetIssuer?: string;
   amount?: string;
   quoteId?: string;
+  destinationAsset?: string;
   account?: string;
   lang?: string;
   callbackUrl?: string;
+}
+
+export function isExpiredQuoteError(error: unknown): boolean {
+  return (
+    error instanceof AnchorRequestError && error.status === 400 && /(?:quote.*expir|expir.*quote)/i.test(error.message)
+  );
 }
 
 const TRANSACTION_READ_ATTEMPTS = 3;
@@ -70,6 +77,7 @@ export class Sep24Client {
     if (params.assetIssuer) body.set("asset_issuer", params.assetIssuer);
     if (params.amount) body.set("amount", params.amount);
     if (params.quoteId) body.set("quote_id", params.quoteId);
+    if (params.destinationAsset) body.set("destination_asset", params.destinationAsset);
     if (params.account) body.set("account", params.account);
     if (params.lang) body.set("lang", params.lang);
     if (params.callbackUrl) body.set("on_change_callback", params.callbackUrl);
@@ -116,9 +124,12 @@ export class Sep24Client {
     return url;
   }
 
-  private async anchorError(response: Response, fallback: string): Promise<Error> {
+  private async anchorError(response: Response, fallback: string): Promise<AnchorRequestError> {
     const payload: unknown = await response.json().catch(() => null);
     const parsed = sep24AnchorErrorSchema.safeParse(payload);
-    return new Error(parsed.success ? parsed.data.error : `${fallback} (${response.status})`);
+    return new AnchorRequestError(
+      parsed.success ? parsed.data.error : `${fallback} (${response.status})`,
+      response.status
+    );
   }
 }

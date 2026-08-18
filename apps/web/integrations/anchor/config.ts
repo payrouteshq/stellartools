@@ -25,8 +25,10 @@ export interface AnchorConfig {
     transferServerSep24: string;
     webAuthEndpoint: string;
     signingKey: string;
+    anchorQuoteServer?: string;
   };
   capabilitiesFallback?: Readonly<Record<string, { enabled: boolean; min_amount: string; max_amount: string }>>;
+  destinationCurrenciesFallback?: readonly SupportedFiatCurrency[];
 }
 
 type AnchorRegistry = Readonly<Partial<Record<Network, Partial<Record<AnchorId, AnchorConfig>>>>>;
@@ -55,12 +57,14 @@ const ANCHOR_REGISTRY: AnchorRegistry = {
         transferServerSep24: "https://testanchor.stellar.org/sep24",
         webAuthEndpoint: "https://testanchor.stellar.org/auth",
         signingKey: "GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR",
+        anchorQuoteServer: "https://testanchor.stellar.org/sep38",
       },
       capabilitiesFallback: {
         native: { enabled: true, min_amount: "1", max_amount: "10" },
         SRT: { enabled: true, min_amount: "1", max_amount: "10" },
         USDC: { enabled: true, min_amount: "1", max_amount: "10" },
       },
+      destinationCurrenciesFallback: ["USD"],
     },
   },
 };

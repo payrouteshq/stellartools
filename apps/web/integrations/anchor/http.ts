@@ -2,6 +2,16 @@ import "server-only";
 
 import { z } from "zod";
 
+export class AnchorRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "AnchorRequestError";
+  }
+}
+
 export async function parseJsonResponse<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
   const payload: unknown = await response.json().catch(() => null);
   const parsed = schema.safeParse(payload);
@@ -20,4 +30,3 @@ export function assertAllowedEndpoint(endpoint: string, anchorDomain: string): U
   }
   return url;
 }
-

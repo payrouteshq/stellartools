@@ -114,3 +114,26 @@ export const sep24InfoSchema = z.object({
     .optional(),
 });
 export type Sep24Info = z.infer<typeof sep24InfoSchema>;
+
+export const sep38QuoteSchema = z.object({
+  id: z.string().min(1),
+  expires_at: z.iso.datetime(),
+  total_price: decimalStringSchema,
+  price: decimalStringSchema,
+  sell_asset: z.string().min(1),
+  sell_amount: decimalStringSchema,
+  buy_asset: z.string().min(1),
+  buy_amount: decimalStringSchema,
+  fee: feeDetailsSchema,
+});
+export type Sep38Quote = z.infer<typeof sep38QuoteSchema>;
+
+export const sep38InfoSchema = z.object({
+  assets: z.array(
+    z.object({
+      asset: z.string().min(1),
+      country_codes: z.array(z.string().min(2)).optional(),
+    })
+  ),
+});
+export type Sep38Info = z.infer<typeof sep38InfoSchema>;

@@ -1,17 +1,18 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayout, putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
-import { decrypt } from "@/integrations/encryption";
 import { getAnchorConfig, supportedFiatCurrencySchema } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { authenticateWithSep10 } from "@/integrations/anchor/sep10";
-import { Sep24Client } from "@/integrations/anchor/sep24";
+import { Sep24Client, isExpiredQuoteError } from "@/integrations/anchor/sep24";
+import { Sep38Client } from "@/integrations/anchor/sep38";
+import { decrypt } from "@/integrations/encryption";
 import { getStellarConfig, retrieveAccount } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId } from "@/lib/utils";
-import Big from "big.js";
 import { Result } from "@stellartools/core";
+import Big from "big.js";
 import { z } from "zod";
 
 const createOfframpSchema = z.object({
@@ -20,11 +21,18 @@ const createOfframpSchema = z.object({
   assetIssuer: z.string().nullable(),
   cryptoAmount: z.string().regex(/^\d+(?:\.\d{1,7})?$/),
   destinationCurrency: supportedFiatCurrencySchema,
-  destinationCountry: z.string().length(2).transform((value) => value.toUpperCase()),
+  destinationCountry: z
+    .string()
+    .length(2)
+    .transform((value) => value.toUpperCase()),
   payoutRail: z.literal("bank_account"),
 });
 
 export const OPTIONS = createOptionsHandler();
+
+function toSep38StellarAsset(code: string, issuer: string | null): string {
+  return issuer ? `stellar:${code}:${issuer}` : "stellar:native";
+}
 
 export const POST = apiHandler({
   auth: ["session"],
@@ -59,6 +67,7 @@ export const POST = apiHandler({
     if (!balance || requestedAmount.gt(new Big(balance.balance))) {
       throw new AppError("VALIDATION_ERROR", "Payout amount exceeds the available wallet balance");
     }
+    let spendableAmount = new Big(balance.balance);
     if (configuredAsset.issuer === null) {
       const { server } = getStellarConfig(environment);
       const { records } = await server.ledgers().order("desc").limit(1).call();
@@ -69,8 +78,8 @@ export const POST = apiHandler({
         .plus(accountResult.value.subentry_count)
         .plus(accountResult.value.num_sponsoring)
         .minus(accountResult.value.num_sponsored);
-      const spendable = new Big(balance.balance).minus(baseReserve.times(reserveEntries)).minus("0.00001");
-      if (requestedAmount.gt(spendable)) {
+      spendableAmount = new Big(balance.balance).minus(baseReserve.times(reserveEntries)).minus("0.00001");
+      if (requestedAmount.gt(spendableAmount)) {
         throw new AppError(
           "VALIDATION_ERROR",
           `Payout amount exceeds the spendable XLM balance after reserving ${baseReserve
@@ -120,21 +129,70 @@ export const POST = apiHandler({
         throw new AppError("VALIDATION_ERROR", "Asset withdrawals are disabled by the provider");
       }
       if (assetInfo.min_amount && requestedAmount.lt(new Big(assetInfo.min_amount))) {
-        throw new AppError("VALIDATION_ERROR", `Minimum payout amount is ${assetInfo.min_amount} ${configuredAsset.code}`);
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `Minimum payout amount is ${assetInfo.min_amount} ${configuredAsset.code}`
+        );
       }
       if (assetInfo.max_amount && requestedAmount.gt(new Big(assetInfo.max_amount))) {
-        throw new AppError("VALIDATION_ERROR", `Maximum payout amount is ${assetInfo.max_amount} ${configuredAsset.code}`);
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `Maximum payout amount is ${assetInfo.max_amount} ${configuredAsset.code}`
+        );
       }
 
-      const interactive = await sep24.initiateWithdrawal({
-        assetCode: configuredAsset.sep24Code ?? configuredAsset.code,
-        assetIssuer: configuredAsset.issuer ?? undefined,
-        amount: body.cryptoAmount,
-        account: secret.publicKey,
-      });
+      const sellAsset = toSep38StellarAsset(configuredAsset.code, configuredAsset.issuer);
+      const buyAsset = `iso4217:${body.destinationCurrency}`;
+      const createQuote = toml.ANCHOR_QUOTE_SERVER
+        ? () =>
+            new Sep38Client(config, toml, token).createQuote({
+              sellAsset,
+              buyAsset,
+              sellAmount: body.cryptoAmount,
+            })
+        : null;
+
+      let quote = createQuote ? await createQuote() : null;
+      const assertQuoteIsSpendable = () => {
+        if (quote && new Big(quote.sell_amount).gt(spendableAmount)) {
+          throw new AppError("VALIDATION_ERROR", "Quoted payout amount exceeds the available wallet balance");
+        }
+      };
+      assertQuoteIsSpendable();
+      const initiate = () =>
+        sep24.initiateWithdrawal({
+          assetCode: configuredAsset.sep24Code ?? configuredAsset.code,
+          assetIssuer: configuredAsset.issuer ?? undefined,
+          amount: quote?.sell_amount ?? body.cryptoAmount,
+          account: secret.publicKey,
+          quoteId: quote?.id,
+          destinationAsset: quote?.buy_asset,
+        });
+
+      let interactive;
+      try {
+        interactive = await initiate();
+      } catch (error) {
+        if (!createQuote || !isExpiredQuoteError(error)) throw error;
+        quote = await createQuote();
+        assertQuoteIsSpendable();
+        interactive = await initiate();
+      }
       await putPayout(payoutId, {
+        amountCents: quote ? new Big(quote.buy_amount).times(100).round(0, Big.roundHalfUp).toNumber() : 0,
+        cryptoAmount: quote?.sell_amount ?? body.cryptoAmount,
         providerTransactionId: interactive.id,
         providerStatus: "incomplete",
+        quoteId: quote?.id ?? null,
+        quoteExpiresAt: quote ? new Date(quote.expires_at) : null,
+        metadata: quote
+          ? {
+              amountPendingProviderQuote: false,
+              quotedBuyAsset: quote.buy_asset,
+              quotedBuyAmount: quote.buy_amount,
+              quoteFee: quote.fee,
+            }
+          : { amountPendingProviderQuote: true },
         providerUpdatedAt: new Date(),
       });
 

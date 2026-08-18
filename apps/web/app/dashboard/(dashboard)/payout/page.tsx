@@ -365,8 +365,7 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
     () =>
       assets.filter((walletAsset) =>
         capabilities?.assets.some(
-          (providerAsset) =>
-            providerAsset.code === walletAsset.code && providerAsset.issuer === walletAsset.issuer
+          (providerAsset) => providerAsset.code === walletAsset.code && providerAsset.issuer === walletAsset.issuer
         )
       ),
     [assets, capabilities]
@@ -388,6 +387,12 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
       form.setValue("assetCode", availableAssets[0].code, { shouldValidate: true });
     }
   }, [availableAssets, form]);
+
+  React.useEffect(() => {
+    const supportedCurrencies = capabilities?.destinationCurrencies;
+    if (!supportedCurrencies?.length || supportedCurrencies.includes(form.getValues("destinationCurrency"))) return;
+    form.setValue("destinationCurrency", supportedCurrencies[0], { shouldValidate: true });
+  }, [capabilities?.destinationCurrencies, form]);
 
   const selectedCode = form.watch("assetCode");
   const cryptoAmount = form.watch("cryptoAmount");
@@ -657,8 +662,8 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
         <div>
           <p className="text-sm font-medium">Your details stay with the payout partner</p>
           <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-            {capabilities?.provider.name ?? "The payout partner"} will securely collect your bank and identity
-            details in the next step. StellarTools does not store them.
+            {capabilities?.provider.name ?? "The payout partner"} will securely collect your bank and identity details
+            in the next step. StellarTools does not store them.
           </p>
         </div>
       </div>

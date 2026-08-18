@@ -37,6 +37,7 @@ export async function discoverAnchor(config: AnchorConfig): Promise<AnchorToml> 
             TRANSFER_SERVER_SEP0024: config.discoveryFallback.transferServerSep24,
             WEB_AUTH_ENDPOINT: config.discoveryFallback.webAuthEndpoint,
             SIGNING_KEY: config.discoveryFallback.signingKey,
+            ANCHOR_QUOTE_SERVER: config.discoveryFallback.anchorQuoteServer,
           };
           break;
         }
