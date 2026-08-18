@@ -19,10 +19,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { AppError } from "./action-handler";
 
-const API_KEY_RATE_LIMIT = 20;
-const SESSION_RATE_LIMIT = 20;
-const PORTAL_RATE_LIMIT = 20;
-const APP_RATE_LIMIT = 50;
+const DEFAULT_LIMITS: Record<Exclude<AuthScope, "vercelToken">, number> = {
+  apikey: 20,
+  session: 20,
+  portal: 20,
+  app: 100,
+};
 
 /**
  * @type {DangerouslyAllowedAppScopes} This type is marked as dangerous because it allows appTokens to write to the db,
@@ -125,17 +127,12 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
 
       // 2. RATE LIMITING
       if (authResult && authResult.type !== "vercelToken") {
-        const rl = await consumeRateLimit(
-          authResult.organizationId,
-          authResult.type === "apikey"
-            ? API_KEY_RATE_LIMIT
-            : authResult.type === "session"
-              ? SESSION_RATE_LIMIT
-              : authResult.type === "portal"
-                ? PORTAL_RATE_LIMIT
-                : APP_RATE_LIMIT,
-          authResult.type
-        );
+        const baseLimit = DEFAULT_LIMITS[authResult.type];
+
+        const customLimit = authResult.customApiRateLimit;
+        const finalLimit = customLimit ?? baseLimit;
+
+        const rl = await consumeRateLimit(authResult.organizationId, finalLimit, authResult.type);
 
         rateLimitHeaders = {
           "X-RateLimit-Limit": rl.limit.toString(),

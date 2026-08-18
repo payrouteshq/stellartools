@@ -186,7 +186,12 @@ export const resolveAuthContext = async (params: {
   }
 
   const [row] = await db
-    .select({ organizationId: organizations.id, environment: apiKeys.environment, apiKeyId: apiKeys.id })
+    .select({
+      organizationId: organizations.id,
+      environment: apiKeys.environment,
+      apiKeyId: apiKeys.id,
+      settings: organizations.settings,
+    })
     .from(apiKeys)
     .innerJoin(organizations, eq(apiKeys.organizationId, organizations.id))
     .where(
@@ -199,5 +204,5 @@ export const resolveAuthContext = async (params: {
 
   if (!row) return null;
 
-  return { ...row, type: "apikey" };
+  return { ...row, type: "apikey", customApiRateLimit: row.settings?.apiRateLimit as number | undefined };
 };

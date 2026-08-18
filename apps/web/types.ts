@@ -47,6 +47,7 @@ export type AuthContext = {
   installationId?: string; // Only present if type === "app"
   scopes?: AppScope[];
   apiKeyId?: string; // Only present if type === "apikey"
+  customApiRateLimit?: number; // Only present if type === "apikey"
 };
 
 export const apiListParamsSchema = Schema.object({
