@@ -1,6 +1,12 @@
 import "server-only";
 
-import { consumeRateLimit, getStoredResponse, saveIdempotencyResult, tryAcquireLock } from "@/actions/api-utils";
+import {
+  consumeRateLimit,
+  getStoredResponse,
+  releaseIdempotencyLock,
+  saveIdempotencyResult,
+  tryAcquireLock,
+} from "@/actions/api-utils";
 import { resolveAuthContext } from "@/actions/apikey";
 import { getCorsHeaders } from "@/constant";
 import { AuthContext } from "@/types";

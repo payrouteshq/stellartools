@@ -2,7 +2,7 @@ import "server-only";
 
 import { db, idempotencyKeys, rateLimits } from "@/db";
 import { AppError } from "@/lib/action-handler";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 // -- IDEMPOTENCY --
 
@@ -21,6 +21,18 @@ export async function saveIdempotencyResult(key: string, orgId: string, status: 
       lockedAt: null, // Release the lock
     })
     .where(and(eq(idempotencyKeys.id, key), eq(idempotencyKeys.organizationId, orgId)));
+}
+
+export async function releaseIdempotencyLock(key: string, orgId: string) {
+  await db
+    .delete(idempotencyKeys)
+    .where(
+      and(
+        eq(idempotencyKeys.id, key),
+        eq(idempotencyKeys.organizationId, orgId),
+        isNull(idempotencyKeys.responseStatus)
+      )
+    );
 }
 
 // Atomic "Lock" to prevent two identical requests from running at the same time
