@@ -24,11 +24,24 @@ beforeEach(() => {
 
 describe("anchor configuration", () => {
   it("resolves the SDF test anchor only on testnet", () => {
-    expect(config.domain).toBe("testanchor.stellar.org");
+    const defaultDomain = process.env.SDF_TEST_ANCHOR_DOMAIN || "testanchor.stellar.org";
+    expect(config.domain).toBe(defaultDomain);
     expect(config.withdrawAssets).toContainEqual({ code: "XLM", issuer: null, sep24Code: "native" });
     expect(() => getAnchorConfig("mainnet", "sdf-test-anchor")).toThrow(
       "Anchor sdf-test-anchor is not available on mainnet"
     );
+  });
+
+  it("supports domain override via SDF_TEST_ANCHOR_DOMAIN environment variable", () => {
+    const originalDomain = process.env.SDF_TEST_ANCHOR_DOMAIN;
+    process.env.SDF_TEST_ANCHOR_DOMAIN = "custom-anchor.example.com";
+    try {
+      const overrideConfig = getAnchorConfig("testnet");
+      expect(overrideConfig.domain).toBe("custom-anchor.example.com");
+      expect(overrideConfig.discoveryFallback?.transferServerSep24).toBe("https://custom-anchor.example.com/sep24");
+    } finally {
+      process.env.SDF_TEST_ANCHOR_DOMAIN = originalDomain;
+    }
   });
 
   it("rejects unknown anchor identifiers without a type assertion", () => {

@@ -3,8 +3,15 @@ import "server-only";
 import { AssetCode, Network } from "@/constant/schema.client";
 import { z } from "zod";
 
-export const supportedFiatCurrencySchema = z.enum(["NGN", "USD", "GBP", "EUR"]);
-export type SupportedFiatCurrency = z.infer<typeof supportedFiatCurrencySchema>;
+export const supportedFiatCurrencySchema = z
+  .string()
+  .length(3)
+  .regex(/^[A-Za-z]{3}$/)
+  .transform((val) => val.toUpperCase());
+export type SupportedFiatCurrency = string;
+
+export const supportedPayoutRailSchema = z.enum(["bank_account", "mobile_money", "paypal", "cash_pickup", "card_transfer"]);
+export type SupportedPayoutRail = z.infer<typeof supportedPayoutRailSchema>;
 
 export const anchorIdSchema = z.enum(["sdf-test-anchor"]);
 export type AnchorId = z.infer<typeof anchorIdSchema>;
@@ -79,5 +86,20 @@ export function getAnchorConfig(network: Network, rawAnchorId?: string): AnchorC
 
   const config = ANCHOR_REGISTRY[network]?.[parsedId.data];
   if (!config) throw new Error(`Anchor ${parsedId.data} is not available on ${network}`);
+
+  if (parsedId.data === "sdf-test-anchor" && process.env.SDF_TEST_ANCHOR_DOMAIN) {
+    const domain = process.env.SDF_TEST_ANCHOR_DOMAIN;
+    return {
+      ...config,
+      domain,
+      discoveryFallback: {
+        transferServerSep24: `https://${domain}/sep24`,
+        webAuthEndpoint: `https://${domain}/auth`,
+        signingKey: config.discoveryFallback?.signingKey ?? "GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR",
+        anchorQuoteServer: `https://${domain}/sep38`,
+      },
+    };
+  }
+
   return config;
 }

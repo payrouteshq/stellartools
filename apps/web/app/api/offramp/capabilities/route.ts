@@ -54,7 +54,7 @@ export const GET = apiHandler({
       sandbox: config.id === "sdf-test-anchor",
       assets,
       destinationCurrencies,
-      payoutRails: ["bank_account"] as const,
+      payoutRails: ["bank_account", "mobile_money", "paypal", "cash_pickup", "card_transfer"] as const,
     });
   },
 });

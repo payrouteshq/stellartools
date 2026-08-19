@@ -8,6 +8,7 @@ import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PayoutReceipt } from "@/components/receipt-engine";
 import { PayoutStatus } from "@/constant/schema.client";
+import { COUNTRIES, FIAT_CURRENCIES, PAYOUT_RAILS } from "@/constant/countries";
 import { Payout } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
@@ -610,15 +611,13 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
                 label="Currency"
                 value={field.value}
                 onChange={field.onChange}
-                items={(capabilities?.destinationCurrencies ?? ["NGN", "USD", "GBP", "EUR"]).map((currency) => ({
-                  value: currency,
-                  label: {
-                    NGN: "NGN — Nigerian naira",
-                    USD: "USD — US dollar",
-                    GBP: "GBP — British pound",
-                    EUR: "EUR — Euro",
-                  }[currency],
-                }))}
+                items={(capabilities?.destinationCurrencies ?? FIAT_CURRENCIES.map((f) => f.code)).map((currency) => {
+                  const match = FIAT_CURRENCIES.find((f) => f.code === currency);
+                  return {
+                    value: currency,
+                    label: match ? match.name : `${currency} — Currency`,
+                  };
+                })}
                 error={fieldState.error?.message}
               />
             )}
@@ -627,15 +626,25 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
             control={form.control}
             name="destinationCountry"
             render={({ field, fieldState }) => (
-              <TextField
+              <SelectField
                 id="fiat-country"
                 label="Country"
                 value={field.value}
-                onChange={(value) => field.onChange(value.toUpperCase())}
-                placeholder="NG"
-                maxLength={2}
+                onChange={(code) => {
+                  field.onChange(code);
+                  const countryObj = COUNTRIES.find((c) => c.code === code);
+                  if (countryObj?.currency) {
+                    const availableCurrencies = capabilities?.destinationCurrencies ?? FIAT_CURRENCIES.map((f) => f.code);
+                    if (availableCurrencies.includes(countryObj.currency as any)) {
+                      form.setValue("destinationCurrency", countryObj.currency as any);
+                    }
+                  }
+                }}
+                items={COUNTRIES.map((c) => ({
+                  value: c.code,
+                  label: `${c.name} (${c.code})`,
+                }))}
                 error={fieldState.error?.message}
-                helpText="Use a two-letter code, such as NG, US or GB"
               />
             )}
           />
@@ -650,7 +659,13 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
               label="Receive money via"
               value={field.value}
               onChange={field.onChange}
-              items={[{ value: "bank_account", label: "Bank account" }]}
+              items={(capabilities?.payoutRails ?? PAYOUT_RAILS.map((r) => r.value)).map((rail) => {
+                const match = PAYOUT_RAILS.find((r) => r.value === rail);
+                return {
+                  value: rail,
+                  label: match ? match.label : _.startCase(rail),
+                };
+              })}
               error={fieldState.error?.message}
             />
           )}

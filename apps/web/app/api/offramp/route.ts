@@ -1,7 +1,7 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayout, putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
-import { getAnchorConfig, supportedFiatCurrencySchema } from "@/integrations/anchor/config";
+import { getAnchorConfig, supportedFiatCurrencySchema, supportedPayoutRailSchema } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { authenticateWithSep10 } from "@/integrations/anchor/sep10";
 import { Sep24Client, isExpiredQuoteError } from "@/integrations/anchor/sep24";
@@ -25,7 +25,7 @@ const createOfframpSchema = z.object({
     .string()
     .length(2)
     .transform((value) => value.toUpperCase()),
-  payoutRail: z.literal("bank_account"),
+  payoutRail: supportedPayoutRailSchema,
 });
 
 export const OPTIONS = createOptionsHandler();

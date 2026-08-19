@@ -37,7 +37,7 @@ import {
   useCopy,
 } from "@stellartools/shared-ui";
 import { ApiClient } from "@stellartools/core";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import _ from "lodash";
 import {
   CheckCircle2,
@@ -126,6 +126,7 @@ const DetailRow = ({ label, value, icon: Icon, action, mono = false }: DetailRow
 
 export default function PayoutDetailPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { payoutId } = useParams()! as { payoutId: string };
   const { data: orgContext } = useOrgContext();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -144,7 +145,11 @@ export default function PayoutDetailPage() {
     refetchInterval: (query) => (query.state.data?.status === "pending" ? 4000 : false),
   });
 
-  const { data: payoutEvents, isLoading: isLoadingPayoutEvents } = useOrgQuery(["payout-events", payoutId], () =>
+  const {
+    data: payoutEvents,
+    isLoading: isLoadingPayoutEvents,
+    refetch: refetchPayoutEvents,
+  } = useOrgQuery(["payout-events", payoutId], () =>
     retrieveEvents({ payoutId }, ["payout::requested", "payout::processed"])
   );
 
@@ -207,7 +212,15 @@ export default function PayoutDetailPage() {
       return result.value;
     },
     {
-      onSuccess: () => void refetchPayout(),
+      onSuccess: async () => {
+        try {
+          await refreshProvider();
+        } catch {}
+        await refetchPayout();
+        await refetchPayoutEvents();
+        queryClient.invalidateQueries({ queryKey: ["payout-events", payoutId] });
+        queryClient.invalidateQueries({ queryKey: ["payout", payoutId] });
+      },
       successMsg: "Funding payment submitted. The provider is processing your fiat payout.",
     }
   );
@@ -217,6 +230,8 @@ export default function PayoutDetailPage() {
     try {
       await refreshProvider();
       await refetchPayout();
+      await refetchPayoutEvents();
+      queryClient.invalidateQueries({ queryKey: ["payout-events", payoutId] });
       toast.success("Status refreshed");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Unable to refresh payout status");
@@ -224,6 +239,31 @@ export default function PayoutDetailPage() {
       setIsRefreshing(false);
     }
   };
+
+  React.useEffect(() => {
+    if (!payout || payout.method !== "fiat" || payout.status !== "pending") return;
+    let isCancelled = false;
+
+    const performRefresh = async () => {
+      try {
+        await refreshProvider();
+        if (!isCancelled) {
+          await refetchPayout();
+          await refetchPayoutEvents();
+          queryClient.invalidateQueries({ queryKey: ["payout-events", payoutId] });
+        }
+      } catch {
+        // silent background polling
+      }
+    };
+
+    performRefresh();
+    const interval = setInterval(performRefresh, 4000);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [payout?.id, payout?.status, payout?.method]);
 
   const copyToClipboard = (text: string, msg: string) => {
     navigator.clipboard.writeText(text);
