@@ -1,5 +1,12 @@
 # @stellartools/app-sdk
 
+## 0.0.14
+
+### Patch Changes
+
+- Updated dependencies [4c49087]
+  - @stellartools/core@0.0.13
+
 ## 0.0.13
 
 ### Patch Changes

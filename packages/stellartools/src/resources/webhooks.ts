@@ -1,19 +1,12 @@
-import { Result } from "better-result";
 import crypto from "crypto";
-import { z } from "zod";
 
 import { ApiClient } from "../api-client";
 import { SignatureVerificationError } from "../errors";
-import {
-  CreateWebhook,
-  UpdateWebhook,
-  Webhook,
-  WebhookEvent,
-  createWebhookSchema,
-  updateWebhookSchema,
-} from "../schema/webhooks";
+import { CreateWebhook, UpdateWebhook, WEBHOOK_SCHEMAS, Webhook, WebhookEvent } from "../schema/webhooks";
 import { RequestOptions } from "../types";
-import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
+import { unwrap } from "../utils";
+import { ApiVersion } from "../versioning";
+import { BaseApiResource } from "./base";
 
 export class WebhookSigner {
   constructor() {}
@@ -21,9 +14,7 @@ export class WebhookSigner {
   generateSignature(payload: string, secret: string): string {
     const timestamp = Math.floor(Date.now() / 1000);
     const signedPayload = `${timestamp}.${payload}`;
-
     const hmac = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
-
     return `t=${timestamp},v1=${hmac}`;
   }
 
@@ -37,15 +28,12 @@ export class WebhookSigner {
       const parts = signature.split(",");
       const timestamp = parseInt(parts[0].split("=")[1]);
       const receivedSignature = parts[1].split("=")[1];
-
       const now = Math.floor(Date.now() / 1000);
 
       if (Math.abs(now - timestamp) > tolerance) throw new SignatureVerificationError("Invalid Webhook Signature");
 
       const signedPayload = `${timestamp}.${payload}`;
-
       const expectedSignature = crypto.createHmac("sha256", secret).update(signedPayload).digest("hex");
-
       const isVerified = crypto.timingSafeEqual(Buffer.from(receivedSignature), Buffer.from(expectedSignature));
 
       if (!isVerified) throw new SignatureVerificationError("Invalid Webhook Signature");
@@ -58,39 +46,52 @@ export class WebhookSigner {
 }
 
 export class WebhookApi extends WebhookSigner {
-  constructor(private apiClient: ApiClient) {
+  private resource: WebhookResourceApi;
+
+  constructor(apiClient: ApiClient, version?: ApiVersion) {
     super();
+    this.resource = new WebhookResourceApi(apiClient, version);
   }
 
   async create(params: CreateWebhook, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(createWebhookSchema, params), async (data) => {
-        return await this.apiClient.post<Webhook>("/webhooks", data, mapOptionsToHeaders(options));
-      })
-    );
+    return this.resource.create(params, options);
   }
 
   async retrieve(id: string, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.get<Webhook>(`/webhooks/${id}`, undefined, mapOptionsToHeaders(options));
-      })
-    );
+    return this.resource.retrieve(id, options);
   }
 
   async update(id: string, params: UpdateWebhook, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(updateWebhookSchema, params), async (data) => {
-        return await this.apiClient.put<Webhook>(`/webhooks/${id}`, data, mapOptionsToHeaders(options));
-      })
-    );
+    return this.resource.update(id, params, options);
   }
 
   async delete(id: string, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(z.string(), id), async (id) => {
-        return await this.apiClient.delete<Webhook>(`/webhooks/${id}`, mapOptionsToHeaders(options));
-      })
-    );
+    return this.resource.delete(id, options);
+  }
+}
+
+class WebhookResourceApi extends BaseApiResource {
+  constructor(apiClient: ApiClient, version?: ApiVersion) {
+    super(apiClient, version);
+  }
+
+  async create(params: CreateWebhook, options?: RequestOptions) {
+    const data = this.validate<CreateWebhook>(WEBHOOK_SCHEMAS, "create", params);
+    return unwrap(await this.apiClient.post<Webhook>("/webhooks", data, this.getHeaders(options)));
+  }
+
+  async retrieve(id: string, options?: RequestOptions) {
+    const { id: validId } = this.validate<{ id: string }>(WEBHOOK_SCHEMAS, "retrieve", { id });
+    return unwrap(await this.apiClient.get<Webhook>(`/webhooks/${validId}`, undefined, this.getHeaders(options)));
+  }
+
+  async update(id: string, params: UpdateWebhook, options?: RequestOptions) {
+    const data = this.validate<UpdateWebhook>(WEBHOOK_SCHEMAS, "update", params);
+    return unwrap(await this.apiClient.put<Webhook>(`/webhooks/${id}`, data, this.getHeaders(options)));
+  }
+
+  async delete(id: string, options?: RequestOptions) {
+    const { id: validId } = this.validate<{ id: string }>(WEBHOOK_SCHEMAS, "retrieve", { id });
+    return unwrap(await this.apiClient.delete<Webhook>(`/webhooks/${validId}`, this.getHeaders(options)));
   }
 }

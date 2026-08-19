@@ -1,12 +1,12 @@
+import { consumeRateLimit, getStoredResponse, saveIdempotencyResult, tryAcquireLock } from "@/actions/api-utils";
 import { resolveAuthContext } from "@/actions/apikey";
-import { getStoredResponse, saveIdempotencyResult, tryAcquireLock } from "@/actions/idempotency";
 import { apiHandler } from "@/lib/api-handler";
-import { Result, z as Schema } from "@stellartools/core";
+import { LATEST_VERSION, Result, z as Schema } from "@stellartools/core";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/actions/apikey");
-vi.mock("@/actions/idempotency");
+vi.mock("@/actions/api-utils");
 vi.mock("@/constant", () => ({
   getCorsHeaders: () => ({ "Access-Control-Allow-Origin": "*" }),
 }));
@@ -30,10 +30,13 @@ beforeEach(() => {
   vi.mocked(resolveAuthContext).mockResolvedValue(MOCK_AUTH_CONTEXT);
   vi.mocked(getStoredResponse).mockResolvedValue(undefined);
   vi.mocked(tryAcquireLock).mockResolvedValue([{ id: "lock" }] as any);
+  vi.mocked(consumeRateLimit).mockResolvedValue({ limit: 20, remaining: 19, reset: new Date() } as any);
 });
 
 describe("apiHandler: Authentication & Lifecycle", () => {
   it("denies access if no credentials are provided for a protected route", async () => {
+    vi.mocked(resolveAuthContext).mockResolvedValue(null);
+
     const handler = apiHandler({
       auth: ["apikey"],
       handler: async () => Result.ok({ success: true }),
@@ -44,7 +47,7 @@ describe("apiHandler: Authentication & Lifecycle", () => {
 
     expect(res.status).toBe(401);
     const body = await res.json();
-    expect(body.error).toContain("API Key required");
+    expect(body.error.message).toContain("Unauthorized");
   });
 
   it("denies access if the auth resolver returns null", async () => {
@@ -59,7 +62,7 @@ describe("apiHandler: Authentication & Lifecycle", () => {
     const res = await handler(req, { params: Promise.resolve({}) });
 
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: "Unauthorized" });
+    expect(await res.json()).toMatchObject({ error: { code: "UNAUTHORIZED" } });
   });
 
   it("correctly routes multiple auth scopes (Vercel Cron example)", async () => {
@@ -111,7 +114,9 @@ describe("apiHandler: Permissions & Validation", () => {
       const res = await appHandler(req, { params: Promise.resolve({}) });
 
       expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({ error: "Forbidden: App missing scope [read:payments]" });
+      expect(await res.json()).toMatchObject({
+        error: { code: "FORBIDDEN", message: "Forbidden: App missing scope [read:payments]" },
+      });
     });
 
     it("allows access if the app token has a wildcard '*' scope", async () => {
@@ -169,7 +174,7 @@ describe("apiHandler: Permissions & Validation", () => {
 
       expect(res.status).toBe(400);
       const data = await res.json();
-      expect(data.error).toContain("Expected string, received number");
+      expect(data.error).toContain("expected string, received number");
     });
 
     it("correctly coerces query parameters and validates params", async () => {
@@ -183,9 +188,10 @@ describe("apiHandler: Permissions & Validation", () => {
       const res = await validatedHandler(req, { params: Promise.resolve({ id: "valid_id" }) });
       const body = await res.json();
 
-      expect(body.queryType).toBe("number"); // Coerced
-      expect(body.bodyType).toBe("string");
-      expect(body.paramsId).toBe("valid_id");
+      // snake_case conversion is applied by default
+      expect(body.query_type).toBe("number"); // Coerced
+      expect(body.body_type).toBe("string");
+      expect(body.params_id).toBe("valid_id");
       expect(res.status).toBe(200);
     });
   });
@@ -324,7 +330,101 @@ describe("apiHandler: Advanced Logic", () => {
 
       const { mcpToolsRegistry } = await import("@/lib/api-handler");
       expect(mcpToolsRegistry.has("get_balance")).toBe(true);
-      expect(mcpToolsRegistry.get("get_balance")?.mcp?.description).toBe("Fetch Account balance");
+      expect(mcpToolsRegistry.get("get_balance")?.mcp?.description).toBe("Fetch XLM balance");
     });
+  });
+});
+
+describe("apiHandler: Versioning", () => {
+  it("returns 400 for an unrecognised API version", async () => {
+    const handler = apiHandler({
+      auth: ["apikey"],
+      handler: async () => Result.ok({ ok: true }),
+    });
+
+    const req = createReq("GET", {
+      "x-api-key": "key",
+      "StellarTools-Version": "1999-01-01",
+    });
+    const res = await handler(req, { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error?.message ?? body.error).toContain("Invalid API version");
+  });
+
+  it("defaults to LATEST_VERSION when no StellarTools-Version header is provided", async () => {
+    let receivedVersion: string | undefined;
+
+    const handler = apiHandler({
+      auth: ["apikey"],
+      handler: async ({ version }) => {
+        receivedVersion = version;
+        return Result.ok({ ok: true });
+      },
+    });
+
+    const req = createReq("GET", { "x-api-key": "key" });
+    await handler(req, { params: Promise.resolve({}) });
+
+    expect(receivedVersion).toBe(LATEST_VERSION);
+  });
+
+  it("passes the requested version to the handler", async () => {
+    let receivedVersion: string | undefined;
+
+    const handler = apiHandler({
+      auth: ["apikey"],
+      handler: async ({ version }) => {
+        receivedVersion = version;
+        return Result.ok({ ok: true });
+      },
+    });
+
+    const req = createReq("GET", {
+      "x-api-key": "key",
+      "StellarTools-Version": "2026-08-18",
+    });
+    await handler(req, { params: Promise.resolve({}) });
+
+    expect(receivedVersion).toBe("2026-08-18");
+  });
+
+  it("echoes the StellarTools-Version header in the response", async () => {
+    const handler = apiHandler({
+      auth: ["apikey"],
+      handler: async () => Result.ok({ ok: true }),
+    });
+
+    const req = createReq("GET", {
+      "x-api-key": "key",
+      "StellarTools-Version": "2026-08-18",
+    });
+    const res = await handler(req, { params: Promise.resolve({}) });
+
+    expect(res.headers.get("StellarTools-Version")).toBe("2026-08-18");
+  });
+
+  it("returns 400 for a deprecated version", async () => {
+    const handler = apiHandler({
+      auth: ["apikey"],
+      versioning: {
+        "2026-08-18": {
+          deprecated: true,
+          deprecationMessage: "Version 2026-08-18 is deprecated, please upgrade",
+        },
+      },
+      handler: async () => Result.ok({ ok: true }),
+    });
+
+    const req = createReq("GET", {
+      "x-api-key": "key",
+      "StellarTools-Version": "2026-08-18",
+    });
+    const res = await handler(req, { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error?.message ?? body.error).toContain("deprecated");
   });
 });

@@ -63,6 +63,44 @@ List responses always have this shape:
 }
 ```
 
+## Versioning
+
+Every request is pinned to an API version. Pass the version header to lock your integration to a specific behavior:
+
+```http
+StellarTools-Version: 2026-08-18
+```
+
+If the header is omitted, the latest version is used. The resolved version is always echoed back in the response header. Invalid or deprecated versions return `400`.
+
+**Current version:** `2026-08-18`
+
+### Reading versioned docs
+
+When a field is added or removed in a version, it is noted inline next to the field — not on a separate changelog page. Here is what those annotations look like:
+
+<ResponseField name="invoice_url" type="string">
+  The public URL for the current unpaid invoice. Only present when `status` is `overdue`. Added in `2026-08-18`.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Full name of the customer. Deprecated in `2026-08-18` — use `first_name` and `last_name` instead.
+</ResponseField>
+
+When a request body changes, the affected fields are listed with inline notes:
+
+<ParamField body="name" type="string">
+  Full name. Accepted in all versions but deprecated in `2026-08-18` — prefer the split fields below.
+</ParamField>
+
+<ParamField body="first_name" type="string">
+  Given name. Added in `2026-08-18`.
+</ParamField>
+
+<ParamField body="last_name" type="string">
+  Family name. Added in `2026-08-18`.
+</ParamField>
+
 ## Rate limits
 
-There are no rate limits at this time.
+20 requests per minute per API key.

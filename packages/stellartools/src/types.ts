@@ -1,3 +1,5 @@
+import { ApiVersion } from "./versioning";
+
 export type OverrideProps<T, V> = V & Omit<T, keyof V>;
 
 export type MaybeArray<T> = T | Array<T>;
@@ -65,4 +67,9 @@ export interface RequestOptions {
    * Additional headers to include in the request.
    */
   headers?: Record<string, string>;
+
+  /**
+   * Override the API version for this specific request.
+   */
+  version?: ApiVersion;
 }

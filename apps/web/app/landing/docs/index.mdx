@@ -34,6 +34,28 @@ const st = new StellarTools({
 
 That is all the setup you need. From here, `st.customers`, `st.checkout`, `st.subscriptions`, and the rest are ready to use.
 
+## API versioning
+
+Every request is pinned to a specific API version via the `StellarTools-Version` header. The SDK defaults to the latest version (`2026-08-18`). To lock your integration to a specific version, pass `version` at initialization:
+
+```ts
+const st = new StellarTools({
+  api_key: process.env.STELLAR_TOOLS_API_KEY!,
+  version: "2026-08-18",
+});
+```
+
+You can also override the version per-request using the `options` argument on any method:
+
+```ts
+const customer = await st.customers.create(
+  { email: "...", name: "..." },
+  { version: "2026-08-18" }
+);
+```
+
+Webhook events and delivery logs always record the API version that was active when the event fired, so you can correlate events to the version your code was running against.
+
 ## Explore
 
 <CardGroup cols={2}>

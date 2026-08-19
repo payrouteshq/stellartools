@@ -13,14 +13,14 @@ import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core"
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
-import { CreateRefund, Result, z as Schema, createRefundSchema } from "@stellartools/core";
+import { CreateRefund, CreateRefundSchema_2026_08_18, Result, z as Schema } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
   auth: ["session", "apikey"],
-  schema: { body: createRefundSchema.extend({ wallet_address: Schema.string().optional() }) },
+  schema: { body: CreateRefundSchema_2026_08_18.extend({ wallet_address: Schema.string().optional() }) },
   mcp: { name: "create_refund", description: "Create a refund" },
   handler: async ({ body: rawBody, auth: { organizationId, environment } }) => {
     const {

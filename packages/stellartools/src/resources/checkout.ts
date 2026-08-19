@@ -1,59 +1,37 @@
-import { Result } from "better-result";
-
 import { ApiClient } from "../api-client";
-import {
-  Checkout,
-  CreateCheckout,
-  CreateDirectCheckout,
-  UpdateCheckout,
-  createCheckoutSchema,
-  createDirectCheckoutSchema,
-  retrieveCheckoutSchema,
-  updateCheckoutSchema,
-} from "../schema/checkout";
+import { CHECKOUT_SCHEMAS, Checkout, CreateCheckout, CreateDirectCheckout, UpdateCheckout } from "../schema/checkout";
 import { RequestOptions } from "../types";
-import { mapOptionsToHeaders, unwrap, validateSchema } from "../utils";
+import { unwrap } from "../utils";
+import { ApiVersion } from "../versioning";
+import { BaseApiResource } from "./base";
 
-export class CheckoutApi {
-  constructor(private apiClient: ApiClient) {}
+export class CheckoutApi extends BaseApiResource {
+  constructor(apiClient: ApiClient, version?: ApiVersion) {
+    super(apiClient, version);
+  }
 
   async create(params: CreateCheckout, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(createCheckoutSchema, params), (data) =>
-        this.apiClient.post<Checkout>("checkout?type=product", data, mapOptionsToHeaders(options))
-      )
-    );
+    const data = this.validate<CreateCheckout>(CHECKOUT_SCHEMAS, "create", params);
+    return unwrap(await this.apiClient.post<Checkout>("checkout?type=product", data, this.getHeaders(options)));
   }
 
   async createDirect(params: CreateDirectCheckout, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(createDirectCheckoutSchema, params), (data) =>
-        this.apiClient.post<Checkout>("checkout?type=direct", data, mapOptionsToHeaders(options))
-      )
-    );
+    const data = this.validate<CreateDirectCheckout>(CHECKOUT_SCHEMAS, "createDirect", params);
+    return unwrap(await this.apiClient.post<Checkout>("checkout?type=direct", data, this.getHeaders(options)));
   }
 
   async retrieve(id: string, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(retrieveCheckoutSchema, { id }), async ({ id }) => {
-        return await this.apiClient.get<Checkout>(`checkout/${id}`, undefined, mapOptionsToHeaders(options));
-      })
-    );
+    const { id: validId } = this.validate<{ id: string }>(CHECKOUT_SCHEMAS, "retrieve", { id });
+    return unwrap(await this.apiClient.get<Checkout>(`checkout/${validId}`, undefined, this.getHeaders(options)));
   }
 
   async update(id: string, params: UpdateCheckout, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(updateCheckoutSchema, params), async (data) => {
-        return await this.apiClient.put<Checkout>(`checkout/${id}`, data, mapOptionsToHeaders(options));
-      })
-    );
+    const data = this.validate<UpdateCheckout>(CHECKOUT_SCHEMAS, "update", params);
+    return unwrap(await this.apiClient.put<Checkout>(`checkout/${id}`, data, this.getHeaders(options)));
   }
 
   async delete(id: string, options?: RequestOptions) {
-    return unwrap(
-      await Result.andThenAsync(validateSchema(retrieveCheckoutSchema, { id }), async (id) => {
-        return await this.apiClient.delete<Checkout>(`checkout/${id}`, mapOptionsToHeaders(options));
-      })
-    );
+    const { id: validId } = this.validate<{ id: string }>(CHECKOUT_SCHEMAS, "retrieve", { id });
+    return unwrap(await this.apiClient.delete<Checkout>(`checkout/${validId}`, this.getHeaders(options)));
   }
 }

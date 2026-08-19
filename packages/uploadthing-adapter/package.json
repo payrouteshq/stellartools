@@ -1,6 +1,6 @@
 {
   "name": "@stellartools/uploadthing-adapter",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Stellar Tools UploadThing Adapter",
   "main": "dist/index.js",
   "scripts": {
@@ -8,9 +8,9 @@
   },
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     }
   },
   "keywords": [

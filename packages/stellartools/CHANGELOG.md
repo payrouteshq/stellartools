@@ -1,5 +1,11 @@
 # @stellartools/core
 
+## 0.0.13
+
+### Patch Changes
+
+- 4c49087: feat: api versioning, rate limiting and more
+
 ## 0.0.12
 
 ### Patch Changes

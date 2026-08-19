@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 import { Checkout } from "./checkout";
 import { Customer, CustomerWallet } from "./customer";
 import { Payment } from "./payment";
@@ -89,7 +90,7 @@ export const webhookSchema = schemaFor<Webhook>()(
   })
 );
 
-export const createWebhookSchema = z.object({
+export const CreateWebhookSchema_2026_08_18 = z.object({
   name: z.string(),
   url: httpsUrlSchema,
   description: z.string().optional(),
@@ -98,9 +99,9 @@ export const createWebhookSchema = z.object({
     .refine((e) => e.length > 0, { message: "At least one event is required" }),
 });
 
-export type CreateWebhook = z.infer<typeof createWebhookSchema>;
+export type CreateWebhook = z.infer<typeof CreateWebhookSchema_2026_08_18>;
 
-export const updateWebhookSchema = z.object({
+export const UpdateWebhookSchema_2026_08_18 = z.object({
   name: z.string().optional(),
   url: httpsUrlSchema.optional(),
   description: z.string().optional(),
@@ -111,7 +112,17 @@ export const updateWebhookSchema = z.object({
   is_disabled: z.boolean().optional(),
 });
 
-export type UpdateWebhook = z.infer<typeof updateWebhookSchema>;
+export type UpdateWebhook = z.infer<typeof UpdateWebhookSchema_2026_08_18>;
+
+export const RetrieveWebhookSchema_2026_08_18 = z.object({ id: z.string() });
+
+export const WEBHOOK_SCHEMAS = {
+  "2026-08-18": {
+    create: CreateWebhookSchema_2026_08_18,
+    update: UpdateWebhookSchema_2026_08_18,
+    retrieve: RetrieveWebhookSchema_2026_08_18,
+  },
+} satisfies Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>;
 
 // --- Core Event Envelopes ---
 
@@ -132,6 +143,10 @@ export interface WebhookEventBase<TName extends string, TObject> {
    * Whether the event is live or test.
    */
   livemode: boolean;
+  /**
+   * The API version active when the event was triggered.
+   */
+  api_version: string;
   /**
    * The data of the event.
    */

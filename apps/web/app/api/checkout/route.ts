@@ -5,7 +5,12 @@ import { getCorsHeaders } from "@/constant";
 import { AppError } from "@/lib/action-handler";
 import { createOptionsHandler } from "@/lib/api-handler";
 import { toSnakeCase } from "@/lib/utils";
-import { Result, createCheckoutSchema, createDirectCheckoutSchema, validateSchema } from "@stellartools/core";
+import {
+  CreateCheckoutSchema_2026_08_18,
+  CreateDirectCheckoutSchema_2026_08_18,
+  Result,
+  validateSchema,
+} from "@stellartools/core";
 import { NextRequest, NextResponse } from "next/server";
 
 export const OPTIONS = createOptionsHandler();
@@ -36,8 +41,10 @@ export const POST = async (req: NextRequest) => {
 
     const result =
       type === "product"
-        ? await Result.andThenAsync(validateSchema(createCheckoutSchema, body), (d) => processCheckout(d, "product"))
-        : await Result.andThenAsync(validateSchema(createDirectCheckoutSchema, body), (d) =>
+        ? await Result.andThenAsync(validateSchema(CreateCheckoutSchema_2026_08_18, body), (d) =>
+            processCheckout(d, "product")
+          )
+        : await Result.andThenAsync(validateSchema(CreateDirectCheckoutSchema_2026_08_18, body), (d) =>
             processCheckout(d, "direct")
           );
 

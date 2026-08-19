@@ -120,4 +120,3 @@ What's actually reachable through it turns out to be narrower than the docs sugg
 
 - **Marketplace apps** — third-party integrations installed from the dashboard, like Resend or Loops — are a different thing from a direct SDK integration; they're built against a separate app SDK. Only relevant if the actual task is building one of those. See [Marketplace: Building Apps](https://docs.stellartools.dev/marketplace/building-apps).
 - **Platform-specific adapters** exist for MedusaJS, WooCommerce, BetterAuth, the Vercel AI SDK, LangChain, and UploadThing — use one of those instead of the raw SDK if the app already runs on one of those platforms. Each has its own doc page under [Integrations](https://docs.stellartools.dev/integrations/aisdk).
-

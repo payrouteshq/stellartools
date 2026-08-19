@@ -1,6 +1,11 @@
 import { retrieveAppInstallations, updateAppInstallation } from "@/actions/app";
 import { apiHandler } from "@/lib/api-handler";
-import { APP_INSTALLATION_STATUS, Result, z as Schema, appInstallationSettingsSchema } from "@stellartools/core";
+import {
+  APP_INSTALLATION_STATUS,
+  AppInstallationSettingsSchema_2026_08_18,
+  Result,
+  z as Schema,
+} from "@stellartools/core";
 
 export const GET = apiHandler({
   auth: ["app"],
@@ -22,7 +27,7 @@ export const PUT = apiHandler({
   requiredAppScope: "write:app-installation",
   schema: {
     body: Schema.object({
-      settings: appInstallationSettingsSchema,
+      settings: AppInstallationSettingsSchema_2026_08_18,
       status: Schema.enum(APP_INSTALLATION_STATUS).optional(),
     }),
   },

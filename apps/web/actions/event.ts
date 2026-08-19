@@ -8,7 +8,7 @@ import { deliverToApp } from "@/integrations/app-delivery";
 import { generateResourceId } from "@/lib/utils";
 import { EventConfig, EventEmitParams, PaginatedResult } from "@/types";
 import { APP_CONFIG, AppResource, EventType } from "@stellartools/app-sdk/schema";
-import { MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
+import { LATEST_VERSION, MaybePromise, SuggestedString, WebhookEventBase } from "@stellartools/core";
 import { waitUntil } from "@vercel/functions";
 import { SQL, and, desc, eq, inArray, sql } from "drizzle-orm";
 import _ from "lodash";
@@ -105,6 +105,7 @@ export async function withEvent<T>(
             type: trigger.event,
             created: new Date().toISOString(),
             livemode: env === "mainnet",
+            api_version: LATEST_VERSION,
             data: buildWebhookData(mapped),
           };
 
@@ -131,6 +132,7 @@ export async function withEvent<T>(
               type: trigger.event,
               created: new Date().toISOString(),
               livemode: env === "mainnet",
+              api_version: LATEST_VERSION,
               data: buildWebhookData(mapped),
             };
 

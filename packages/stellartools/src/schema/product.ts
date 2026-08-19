@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { schemaFor } from "../utils";
+import { ApiVersion } from "../versioning";
 import { currencyCodeSchema } from "./checkout";
 import { Environment, environmentSchema } from "./shared";
 
@@ -120,7 +121,7 @@ export const productSchema = schemaFor<Product>()(
   })
 );
 
-export const createProductSchema = z.object({
+export const CreateProductSchema_2026_08_18 = z.object({
   name: z.string(),
   description: z.string().optional(),
   images: z.array(z.string()).optional().default([]),
@@ -136,13 +137,23 @@ export const createProductSchema = z.object({
   currency_code: currencyCodeSchema,
 });
 
-export type CreateProduct = z.infer<typeof createProductSchema>;
+export type CreateProduct = z.infer<typeof CreateProductSchema_2026_08_18>;
 
-export const updateProductSchema = z.object({
+export const UpdateProductSchema_2026_08_18 = z.object({
   name: z.string().optional(),
   description: z.string().nullable().optional(),
   images: z.array(z.string()).optional(),
   metadata: z.record(z.string(), z.any()).optional(),
 });
 
-export type UpdateProduct = z.infer<typeof updateProductSchema>;
+export type UpdateProduct = z.infer<typeof UpdateProductSchema_2026_08_18>;
+
+export const RetrieveProductSchema_2026_08_18 = z.object({ productId: z.string() });
+
+export const PRODUCT_SCHEMAS = {
+  "2026-08-18": {
+    create: CreateProductSchema_2026_08_18,
+    update: UpdateProductSchema_2026_08_18,
+    retrieve: RetrieveProductSchema_2026_08_18,
+  },
+} satisfies Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>;
