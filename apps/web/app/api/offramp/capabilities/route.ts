@@ -2,6 +2,7 @@ import { getAnchorConfig, supportedFiatCurrencySchema } from "@/integrations/anc
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { Sep24Client } from "@/integrations/anchor/sep24";
 import { Sep38Client } from "@/integrations/anchor/sep38";
+import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result } from "@stellartools/core";
 
@@ -11,6 +12,10 @@ export const GET = apiHandler({
   auth: ["session"],
   convertToSnakeCase: false,
   handler: async ({ auth: { environment } }) => {
+    if (environment === "mainnet") {
+      throw new AppError("VALIDATION_ERROR", "Fiat offramp payouts are currently only available on Testnet");
+    }
+
     const config = getAnchorConfig(environment, process.env.ACTIVE_OFFRAMP_ANCHOR);
     const toml = await discoverAnchor(config);
     const info = await new Sep24Client(config, toml, "").getInfo().catch((error) => {

@@ -77,6 +77,10 @@ const ANCHOR_REGISTRY: AnchorRegistry = {
 };
 
 export function getAnchorConfig(network: Network, rawAnchorId?: string): AnchorConfig {
+  if (network === "mainnet") {
+    throw new Error("Fiat offramp payouts are currently only available on Testnet");
+  }
+
   const defaultId = network === "testnet" ? "sdf-test-anchor" : undefined;
   const parsedId = anchorIdSchema.safeParse(rawAnchorId ?? defaultId);
 

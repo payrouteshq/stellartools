@@ -18,6 +18,7 @@ import { Money } from "@/lib/money";
 import { downloadReceipt } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
+import _ from "lodash";
 import {
   AppModal,
   Badge,
@@ -489,6 +490,22 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
       : aboveProviderMaximum
         ? `Maximum provider amount is ${providerAsset?.maxAmount} ${selectedCode}`
         : form.formState.errors.cryptoAmount?.message;
+
+  if (org?.environment === "mainnet") {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center gap-4 py-12 text-center">
+        <div className="bg-amber-500/10 flex size-12 items-center justify-center rounded-full">
+          <ShieldCheck className="text-amber-600 size-6" />
+        </div>
+        <div className="max-w-sm">
+          <p className="font-semibold">Fiat offramp payouts are only available in Test Mode</p>
+          <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
+            Fiat payout is unavailable at the moment.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoadingCapabilities) {
     return (

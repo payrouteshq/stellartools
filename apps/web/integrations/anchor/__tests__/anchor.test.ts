@@ -28,7 +28,7 @@ describe("anchor configuration", () => {
     expect(config.domain).toBe(defaultDomain);
     expect(config.withdrawAssets).toContainEqual({ code: "XLM", issuer: null, sep24Code: "native" });
     expect(() => getAnchorConfig("mainnet", "sdf-test-anchor")).toThrow(
-      "Anchor sdf-test-anchor is not available on mainnet"
+      "Fiat offramp payouts are currently only available on Testnet"
     );
   });
 

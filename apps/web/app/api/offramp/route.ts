@@ -39,6 +39,10 @@ export const POST = apiHandler({
   convertToSnakeCase: false,
   schema: { body: createOfframpSchema },
   handler: async ({ body, auth: { organizationId, environment } }) => {
+    if (environment === "mainnet") {
+      throw new AppError("VALIDATION_ERROR", "Fiat offramp payouts are currently only available on Testnet");
+    }
+
     const requestedAmount = new Big(body.cryptoAmount);
     if (requestedAmount.lte(0)) throw new AppError("VALIDATION_ERROR", "Payout amount must be greater than zero");
 
