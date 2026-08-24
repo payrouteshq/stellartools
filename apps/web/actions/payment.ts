@@ -137,7 +137,7 @@ const paymentActionHandler = async (
         map: (p) => ({
           customerId: p.customerId,
           data: {
-            id: p.id,
+            paymentId: p.id,
             checkoutId: payment.checkoutId!,
             customerId: payment.customerId!,
             amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
@@ -163,7 +163,7 @@ const paymentActionHandler = async (
           customerId: p.customerId,
           subscriptionId: p.subscriptionId,
           data: {
-            id: p.id,
+            paymentId: p.id,
             checkoutId: p.checkoutId,
             customerId: p.customerId,
             amount: Money.formatFiat(p.amountCents, p.currencyCode),

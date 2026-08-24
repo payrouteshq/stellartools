@@ -133,7 +133,9 @@ function TimelineDiff({ changes }: { changes: any }) {
               {from === null || from === "" ? "none" : String(from)}
             </span>
             <span className="text-muted-foreground/40 mx-1.5">→</span>
-            <span className="text-primary font-medium">{to === null || to === "" ? "none" : String(to)}</span>
+            <span className="text-primary font-medium">
+              {to === null || to === "" ? "none" : typeof to === "object" ? JSON.stringify(to) : String(to)}
+            </span>
           </div>
         );
       })}
@@ -204,6 +206,7 @@ export function Timeline<T>({
 
         {displayItems.map((item, index) => {
           const entry = renderItem(item, index);
+          if (entry.data?.$changes && Object.keys(entry.data?.$changes ?? {}).length < 1) return null;
           return (
             <li key={entry.key ?? index} className="group relative pb-8 pl-7 last:pb-0">
               <div className="bg-primary ring-background absolute top-1.5 left-0 z-10 size-3 rounded-full ring-4 transition-transform group-hover:scale-110" />

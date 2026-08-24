@@ -36,6 +36,8 @@ const NAV_LINKS = [
   { href: "https://github.com/payrouteshq/stellartools", label: "GitHub" },
 ] as const;
 
+const BOOK_DEMO_URL = process.env.NEXT_PUBLIC_CAL_LINK!;
+
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -46,8 +48,6 @@ export function Header() {
     queryKey: ["current-user"],
     queryFn: () => getCurrentUser(),
   });
-
-  console.log({ user });
 
   const isAuthenticated = !!user;
 
@@ -111,13 +111,24 @@ export function Header() {
             </Link>
           </div>
 
-          <button
-            aria-label="Open menu"
-            onClick={() => setMenuOpen(true)}
-            className="border-border hover:bg-muted flex h-9 w-9 items-center justify-center rounded-xl border transition-colors"
-          >
-            <Menu className="size-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <a
+              href={BOOK_DEMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-[13px] font-semibold whitespace-nowrap no-underline"
+            >
+              Book a demo
+            </a>
+
+            <button
+              aria-label="Open menu"
+              onClick={() => setMenuOpen(true)}
+              className="border-border hover:bg-muted flex h-9 w-9 items-center justify-center rounded-xl border transition-colors"
+            >
+              <Menu className="size-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -159,13 +170,15 @@ export function Header() {
           </nav>
 
           <div className="flex flex-col gap-3 px-8 pb-12">
-            <Link
-              href="/book-call"
+            <a
+              href={BOOK_DEMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => setMenuOpen(false)}
               className="border-border block rounded-xl border px-5 py-4 text-center text-[15px] font-semibold no-underline"
             >
-              Talk to us →
-            </Link>
+              Book a demo →
+            </a>
             {isAuthenticated ? (
               <>
                 <Link
@@ -248,12 +261,14 @@ export function Header() {
           </ul>
 
           <div className="flex shrink-0 items-center gap-3">
-            <Link
-              href="/book-call"
-              className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 rounded-lg px-4 py-2 text-[14.5px] font-medium whitespace-nowrap no-underline transition-colors"
+            <a
+              href={BOOK_DEMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border-border hover:bg-muted text-foreground shrink-0 rounded-lg border px-4 py-2 text-[14.5px] font-semibold whitespace-nowrap no-underline transition-colors"
             >
-              Talk to us →
-            </Link>
+              Book a demo
+            </a>
             {isLoading ? (
               <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />
             ) : isAuthenticated ? (

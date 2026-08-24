@@ -16,19 +16,13 @@ export const WelcomeFounderOutreachEmail = ({ firstName }: WelcomeFounderOutreac
       <Body style={body}>
         <Container style={container}>
           <Text style={wordmark}>StellarTools</Text>
-
           <Text style={paragraph}>{greeting}</Text>
-
-          <Text style={paragraph}>I&apos;m Emmanuel, one of the founders of StellarTools. Just saw you signed up.</Text>
-
+          <Text style={paragraph}>I&apos;m Odii, one of the founders of StellarTools. Just saw you signed up.</Text>
           <Text style={paragraph}>
             Quick question: what brought you here? Are you looking to accept crypto payments for your business, or is
             there a specific problem you&apos;re trying to solve?
           </Text>
-
-          <Text style={paragraph}>I read every reply.</Text>
-
-          <Text style={paragraph}>- Emmanuel</Text>
+          <Text style={paragraph}>I read every reply.</Text>{" "}
         </Container>
       </Body>
     </Html>

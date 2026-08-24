@@ -197,9 +197,10 @@ export const accountValidator = safeAction(
       });
 
       const sendAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
       sendEmail(email, "Quick question", WelcomeFounderOutreachEmail({ firstName: profile?.firstName ?? null }), {
         scheduledAt: sendAt,
-        replyTo: "odii@stellartools.dev",
+        replyTo: process.env.RESEND_FROM_EMAIL,
       }).catch(() => {});
     } else {
       const existingSso = account.sso?.values?.find((s) => s.provider === provider);

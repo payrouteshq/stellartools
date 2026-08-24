@@ -122,12 +122,14 @@ export function PricingCalc() {
               Below 1% is on the table. Reach out and we&apos;ll work something out.
             </p>
           </div>
-          <Link
-            href="/book-call"
+          <a
+            href={process.env.NEXT_PUBLIC_CAL_LINK!}
+            target="_blank"
+            rel="noopener noreferrer"
             className="border-border text-foreground hover:bg-muted inline-flex shrink-0 items-center gap-2 rounded-[9px] border px-5 py-3 text-[14.5px] font-semibold no-underline transition-colors"
           >
-            Talk to us <ArrowRight className="h-4 w-4" />
-          </Link>
+            Book a demo <ArrowRight className="h-4 w-4" />
+          </a>
         </div>
       </div>
     </main>
