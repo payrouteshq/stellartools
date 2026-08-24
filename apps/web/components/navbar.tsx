@@ -112,15 +112,6 @@ export function Header() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <a
-              href={BOOK_DEMO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-[13px] font-semibold whitespace-nowrap no-underline"
-            >
-              Book a demo
-            </a>
-
             <button
               aria-label="Open menu"
               onClick={() => setMenuOpen(true)}
@@ -261,14 +252,6 @@ export function Header() {
           </ul>
 
           <div className="flex shrink-0 items-center gap-3">
-            <a
-              href={BOOK_DEMO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="border-border hover:bg-muted text-foreground shrink-0 rounded-lg border px-4 py-2 text-[14.5px] font-semibold whitespace-nowrap no-underline transition-colors"
-            >
-              Book a demo
-            </a>
             {isLoading ? (
               <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />
             ) : isAuthenticated ? (
@@ -317,20 +300,23 @@ export function Header() {
                 </DropdownMenu>
               </>
             ) : (
-              <>
-                <Link
-                  href={`${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signin`}
-                  className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-4 py-2 text-[14.5px] font-medium no-underline transition-colors"
+              <div className="flex items-center gap-3">
+                <a
+                  href={BOOK_DEMO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border-border text-foreground hover:bg-muted inline-flex items-center rounded-[9px] border px-5 py-2 text-[14.5px] font-semibold whitespace-nowrap no-underline transition-colors"
                 >
-                  Sign in
-                </Link>
+                  Book a demo
+                </a>
+
                 <Link
                   href={`${process.env.NEXT_PUBLIC_DASHBOARD_URL!}/signup`}
-                  className="bg-primary text-primary-foreground rounded-[9px] px-5 py-2 text-[14.5px] font-semibold no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
+                  className="bg-primary text-primary-foreground inline-flex items-center rounded-[9px] border border-transparent px-5 py-2 text-[14.5px] font-semibold whitespace-nowrap no-underline transition-all hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(91,79,255,0.35)]"
                 >
                   Start for free →
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>
