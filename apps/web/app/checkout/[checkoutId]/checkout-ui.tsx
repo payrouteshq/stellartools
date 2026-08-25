@@ -11,7 +11,6 @@ import {
   Button,
   PhoneNumber,
   PhoneNumberField,
-  SelectField,
   Separator,
   Skeleton,
   TextField,
@@ -40,10 +39,7 @@ export default function CheckoutUI() {
     updateDetails,
     wallet,
     banner,
-    publicData,
-    publicDataLoading,
     selectedAsset,
-    setSelectedAsset,
     cryptoAmount,
   } = useCheckout();
 
@@ -131,39 +127,6 @@ export default function CheckoutUI() {
                 ) : (
                   <Skeleton className="h-10 w-48 rounded-md" />
                 )}
-
-                {(publicData?.assets?.length ?? 0) > 0 && (
-                  <SelectField
-                    id="pay-with-asset"
-                    value={selectedAsset?.code ?? ""}
-                    onChange={(code) => {
-                      const asset = publicData?.assets?.find((a) => a.code === code);
-                      if (asset) {
-                        setSelectedAsset({ code: asset.code, canonicalIssuer: asset.canonicalIssuer ?? null });
-                      }
-                    }}
-                    isLoading={publicDataLoading}
-                    placeholder="Pay in"
-                    className="w-fit shrink-0"
-                    triggerClassName="h-8 w-fit shrink-0 gap-1.5 rounded-full border-none bg-accent px-3 text-xs font-semibold shadow-none"
-                    items={(publicData?.assets ?? []).map((asset) => {
-                      const imageUrl = asset.images?.[0];
-                      return {
-                        value: asset.code,
-                        label: `Pay in ${asset.code}`,
-                        icon: imageUrl ? (
-                          <Image
-                            src={imageUrl}
-                            alt={asset.code}
-                            width={16}
-                            height={16}
-                            className="size-4 shrink-0 rounded-full object-cover"
-                          />
-                        ) : null,
-                      };
-                    })}
-                  />
-                )}
               </div>
               {trialDays > 0 && (
                 <p className="text-muted-foreground text-sm font-medium">
@@ -171,11 +134,7 @@ export default function CheckoutUI() {
                   {billingPeriodLabel ? `, then billed every ${billingPeriodLabel.replaceAll("every ", "")}` : ""}
                 </p>
               )}
-              {selectedAsset && cryptoAmount && (
-                <p className="text-muted-foreground text-sm">
-                  ≈ {cryptoAmount} {selectedAsset.code}
-                </p>
-              )}
+              {cryptoAmount && <p className="text-muted-foreground text-sm">{cryptoAmount} USDC</p>}
             </div>
           </div>
         </div>

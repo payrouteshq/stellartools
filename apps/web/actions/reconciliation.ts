@@ -104,18 +104,22 @@ export async function reconcileOrganization(orgId?: string, env?: Network): Prom
       const outRefunds = Number(refundsRow[0]?.total ?? 0);
       const outCharges = Number(chargesRow[0]?.total ?? 0);
 
-      const genesisBalance = Number(baseRow?.balance ?? 0);
+      // genesisBalance is the XLM snapshot taken at wallet creation (Friendbot).
+      // Only apply it when reconciling XLM — non-native assets always start at 0.
+      const genesisBalance = code === "XLM" ? Number(baseRow?.balance ?? 0) : 0;
 
       const dbNetBalance = genesisBalance + inflow - outPayouts - outRefunds - outCharges;
 
-      const balanceEntry =
+      // Sum ALL trustlines with the same asset code — a wallet can hold the same
+      // asset from multiple issuers (e.g. after a canonical issuer change).
+      const chainActualBalance =
         code === "XLM"
-          ? account.balances.find((b) => b.asset_type === "native")
-          : account.balances.find(
-              (b): b is StellarSDK.Horizon.HorizonApi.BalanceLineAsset => "asset_code" in b && b.asset_code === code
-            );
-
-      const chainActualBalance = Number(balanceEntry?.balance ?? 0);
+          ? Number(account.balances.find((b) => b.asset_type === "native")?.balance ?? 0)
+          : account.balances
+              .filter(
+                (b): b is StellarSDK.Horizon.HorizonApi.BalanceLineAsset => "asset_code" in b && b.asset_code === code
+              )
+              .reduce((sum, b) => sum + Number(b.balance), 0);
       const drift = Math.abs(dbNetBalance - chainActualBalance);
 
       return {

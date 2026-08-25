@@ -46,4 +46,3 @@ export function validateFundingInstructions(params: {
     memo: { type: transaction.withdraw_memo_type, value: transaction.withdraw_memo },
   };
 }
-

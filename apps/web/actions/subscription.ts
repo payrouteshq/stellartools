@@ -1,6 +1,5 @@
 "use server";
 
-import { retrieveSupportedAssets } from "@/actions/asset";
 import { upsertCustomerWallet } from "@/actions/customers";
 import { paginate, parseOffset, runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
@@ -452,11 +451,10 @@ export const paySubscriptionInvoice = async (token: string, connectedWalletAddre
   const prior = priorPayments[0];
   if (!prior) throw new AppError("NOT_FOUND", "No previous subscription payment found");
 
-  const [asset] = await retrieveSupportedAssets({ code: prior.selectedAssetCode }, record.environment);
   const { cryptoAmount: chargeDisplay, amountRaw } = await Money.calculateSubscriptionAmount({
     priceCents: sub.product.priceCents,
     currencyCode: sub.product.currencyCode,
-    assetMetadata: asset?.metadata ?? {},
+    assetMetadata: { usdPeg: true },
   });
   const billingMs = subscriptionPeriodMs(sub.product.recurringPeriod, sub.product.customDurationMs);
   if (!billingMs) throw new AppError("VALIDATION_ERROR", "Invalid subscription billing period");

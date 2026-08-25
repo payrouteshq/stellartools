@@ -9,13 +9,14 @@ import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2 } from "@/components/icon";
 import { PayoutReceipt } from "@/components/receipt-engine";
-import { TIMELINE_ROUTE_MAP } from "@/constant";
+import { TIMELINE_ROUTE_MAP, stellarExplorerUrl } from "@/constant";
 import { PayoutStatus } from "@/constant/schema.client";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { downloadReceipt } from "@/lib/utils";
+import { ApiClient } from "@stellartools/core";
 import {
   Badge,
   Breadcrumb,
@@ -36,7 +37,6 @@ import {
   toast,
   useCopy,
 } from "@stellartools/shared-ui";
-import { ApiClient } from "@stellartools/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import _ from "lodash";
 import {
@@ -56,9 +56,6 @@ import {
 import moment from "moment";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-
-const getExplorerUrl = (hash: string, env?: string) =>
-  `https://stellar.expert/explorer/${env === "mainnet" ? "public" : "testnet"}/tx/${hash}`;
 
 const StatusBadge = ({ status }: { status: PayoutStatus }) => {
   const config = {
@@ -203,11 +200,9 @@ export default function PayoutDetailPage() {
         baseUrl: process.env.NEXT_PUBLIC_API_URL!,
         headers: { "x-session-token": orgContext.token },
       });
-      const result = await api.post<{ transactionHash: string | null }>(
-        `/offramp/${payout.id}`,
-        undefined,
-        { "Idempotency-Key": crypto.randomUUID() }
-      );
+      const result = await api.post<{ transactionHash: string | null }>(`/offramp/${payout.id}`, undefined, {
+        "Idempotency-Key": crypto.randomUUID(),
+      });
       if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
       return result.value;
     },
@@ -339,11 +334,7 @@ export default function PayoutDetailPage() {
               {payout.method === "fiat" &&
                 payout.providerStatus === "pending_user_transfer_start" &&
                 !payout.transactionHash && (
-                  <Button
-                    onClick={() => confirmFunding(undefined)}
-                    disabled={isConfirmingFunding}
-                    className="gap-2"
-                  >
+                  <Button onClick={() => confirmFunding(undefined)} disabled={isConfirmingFunding} className="gap-2">
                     {isConfirmingFunding ? (
                       <Spinner size={16} strokeColor="currentColor" />
                     ) : (
@@ -368,7 +359,9 @@ export default function PayoutDetailPage() {
                   <DropdownMenuItem onClick={() => copyToClipboard(payout.id, "ID Copied")}>Copy ID</DropdownMenuItem>
                   {payout.transactionHash && (
                     <DropdownMenuItem
-                      onClick={() => window.open(getExplorerUrl(payout.transactionHash!, payout.environment), "_blank")}
+                      onClick={() =>
+                        window.open(stellarExplorerUrl(payout.transactionHash!, payout.environment), "_blank")
+                      }
                     >
                       View on Explorer
                     </DropdownMenuItem>
@@ -437,7 +430,7 @@ export default function PayoutDetailPage() {
                             <ExternalLink
                               className="h-4 w-4 cursor-pointer"
                               onClick={() =>
-                                window.open(getExplorerUrl(payout.transactionHash!, payout.environment), "_blank")
+                                window.open(stellarExplorerUrl(payout.transactionHash!, payout.environment), "_blank")
                               }
                             />
                           </div>
@@ -453,11 +446,16 @@ export default function PayoutDetailPage() {
                 <Timeline
                   isLoading={isLoadingPayoutEvents}
                   items={payoutEvents ?? []}
-                  renderItem={(evt) => ({
-                    title: _.startCase(evt.type.replace(/[::$]/g, " ")),
-                    date: moment(evt.createdAt).format("MMM DD, YYYY"),
-                    data: evt.data,
-                  })}
+                  renderItem={(evt) => {
+                    const { transactionHash, ...rest } = (evt.data ?? {}) as Record<string, unknown>;
+                    return {
+                      title: _.startCase(evt.type.replace(/[::$]/g, " ")),
+                      date: moment(evt.createdAt).format("MMM DD, YYYY"),
+                      data: transactionHash
+                        ? { ...rest, externalUrl: stellarExplorerUrl(String(transactionHash), evt.environment) }
+                        : evt.data,
+                    };
+                  }}
                   routeMap={TIMELINE_ROUTE_MAP}
                   linkComponent={Link}
                 />

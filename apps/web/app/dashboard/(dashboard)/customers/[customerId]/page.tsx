@@ -11,7 +11,7 @@ import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared"
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { CheckMark2, Stellar } from "@/components/icon";
-import { TIMELINE_ROUTE_MAP } from "@/constant";
+import { TIMELINE_ROUTE_MAP, stellarExplorerUrl } from "@/constant";
 import { Payment, ResolvedPayment } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useCurrencyConverter } from "@/hooks/use-currency-converter";
@@ -512,11 +512,16 @@ export default function CustomerDetailPage() {
                   limit={3}
                   isLoading={isLoadingCustomerEvents}
                   items={customerEvents ?? []}
-                  renderItem={(evt) => ({
-                    title: _.startCase(evt.type.replace(/[::$]/g, " ")),
-                    date: moment(evt.createdAt).format("MMM DD, YYYY hh:mm A"),
-                    data: evt.data,
-                  })}
+                  renderItem={(evt) => {
+                    const { transactionHash, ...rest } = (evt.data ?? {}) as Record<string, unknown>;
+                    return {
+                      title: _.startCase(evt.type.replace(/[::$]/g, " ")),
+                      date: moment(evt.createdAt).format("MMM DD, YYYY hh:mm A"),
+                      data: transactionHash
+                        ? { ...rest, externalUrl: stellarExplorerUrl(String(transactionHash), evt.environment) }
+                        : evt.data,
+                    };
+                  }}
                   routeMap={TIMELINE_ROUTE_MAP}
                   linkComponent={Link}
                 />

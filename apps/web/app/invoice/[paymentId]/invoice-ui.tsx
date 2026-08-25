@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { StellarToolsIcon } from "@/components/icon";
 import { CustomerReceipt } from "@/components/receipt-engine";
+import { stellarExplorerUrl } from "@/constant";
 import { ResolvedPayment } from "@/db";
 import { Money } from "@/lib/money";
 import { downloadReceipt, truncate } from "@/lib/utils";
@@ -13,11 +14,6 @@ import moment from "moment";
 
 interface InvoiceUIProps {
   resolvedPayment: ResolvedPayment;
-}
-
-function getExplorerUrl(hash: string, environment: string) {
-  const network = environment === "mainnet" ? "public" : "testnet";
-  return `https://stellar.expert/explorer/${network}/tx/${hash}`;
 }
 
 export function InvoiceUI({ resolvedPayment }: InvoiceUIProps) {
@@ -60,7 +56,7 @@ export function InvoiceUI({ resolvedPayment }: InvoiceUIProps) {
 
   const isPaid = resolvedPayment.status === "confirmed";
   const fiatAmount = Money.formatFiat(resolvedPayment.amountCents, resolvedPayment.currencyCode);
-  const explorerUrl = getExplorerUrl(resolvedPayment.transactionHash, resolvedPayment.environment);
+  const explorerUrl = stellarExplorerUrl(resolvedPayment.transactionHash, resolvedPayment.environment);
 
   return (
     <div className="bg-background flex min-h-screen flex-col items-center justify-between px-4 py-10">

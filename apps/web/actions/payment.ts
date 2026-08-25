@@ -192,7 +192,7 @@ const paymentActionHandler = async (
 
             await sendEmail(
               ctx.customer.email,
-              "Payment Confirmed",
+              `Receipt from ${ctx.org.name} [${payment.id}]`,
               CustomerPaymentReceiptEmail({
                 customerName: ctx.customer.name,
                 amount: Money.formatFiat(payment.amountCents, payment.currencyCode),
@@ -200,7 +200,10 @@ const paymentActionHandler = async (
                 date: moment().format("MMMM DD, YYYY [at] h:mm A"),
                 organizationName: ctx.org.name,
                 organizationLogo: ctx.org.logoUrl,
-              })
+                supportEmail: ctx.org.supportEmail,
+                environment,
+              }),
+              ctx.org.supportEmail ? { cc: [ctx.org.supportEmail] } : undefined
             );
           }
 

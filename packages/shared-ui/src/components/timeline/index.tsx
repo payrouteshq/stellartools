@@ -65,6 +65,12 @@ function TimelineSummary({
         .map(([key, val]) => {
           const href = routeMap?.[key]?.(String(val));
 
+          const strVal = String(val);
+          const displayVal =
+            href && strVal.startsWith("http")
+              ? strVal.replace(/^https?:\/\//, "").replace(/^([\w.-]+\/[\w.-]+\/[\w.-]+\/).*(\w{6})$/, "$1…$2")
+              : strVal;
+
           return (
             <span key={key} className="inline-flex items-center">
               <span className="text-muted-foreground mr-1 font-medium">{formatLabel(key)}:</span>
@@ -75,7 +81,7 @@ function TimelineSummary({
                   href={href}
                   className="text-primary font-mono text-[13px] underline"
                 >
-                  {String(val)}
+                  {displayVal}
                 </LinkComponent>
               ) : (
                 <span className="text-foreground/80">{String(val)}</span>

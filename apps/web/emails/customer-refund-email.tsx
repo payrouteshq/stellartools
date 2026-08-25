@@ -1,7 +1,7 @@
 import { EmailLayout } from "@/emails/components/email-layout";
 import { Hr, Section, Text } from "@react-email/components";
 
-interface CustomerPaymentReceiptEmailProps {
+interface CustomerRefundEmailProps {
   customerName?: string | null;
   amount: string;
   reference: string;
@@ -12,10 +12,10 @@ interface CustomerPaymentReceiptEmailProps {
   environment?: string | null;
 }
 
-export const CustomerPaymentReceiptEmail = (props: CustomerPaymentReceiptEmailProps) => {
+export const CustomerRefundEmail = (props: CustomerRefundEmailProps) => {
   const { customerName, amount, reference, date, organizationName, organizationLogo, supportEmail, environment } = props;
 
-  const preview = `${organizationName} received your payment of ${amount}`;
+  const preview = `Your refund of ${amount} from ${organizationName} is on its way`;
 
   return (
     <EmailLayout
@@ -25,26 +25,20 @@ export const CustomerPaymentReceiptEmail = (props: CustomerPaymentReceiptEmailPr
       supportEmail={supportEmail}
       environment={environment}
     >
-      {/* Dark header */}
-      <Section
-        style={{
-          backgroundColor: "#111827",
-          padding: "32px",
-          textAlign: "center",
-        }}
-      >
+      {/* Header */}
+      <Section style={{ backgroundColor: "#111827", padding: "32px", textAlign: "center" }}>
         <Text style={{ margin: "0 0 6px", fontSize: "13px", color: "#9ca3af" }}>
-          {organizationName} received your payment of
+          {organizationName} refunded
         </Text>
         <Text style={{ margin: 0, fontSize: "36px", color: "#ffffff", fontWeight: 600, lineHeight: "1.2" }}>
           {amount}
         </Text>
       </Section>
 
-      {/* Transaction details */}
+      {/* Details */}
       <Section style={{ padding: "24px 32px 8px" }}>
         <Text style={{ margin: "0 0 16px", fontSize: "13px", color: "#374151", fontWeight: 600 }}>
-          Transaction details
+          Refund details
         </Text>
         <Row label="Reference" value={reference} mono />
         <Row label="Date" value={date} />
@@ -57,7 +51,8 @@ export const CustomerPaymentReceiptEmail = (props: CustomerPaymentReceiptEmailPr
           <Text style={{ margin: "0 0 6px", fontSize: "13px", color: "#374151" }}>Hi {customerName},</Text>
         )}
         <Text style={{ margin: "0 0 12px", fontSize: "13px", color: "#6b7280", lineHeight: "1.6" }}>
-          This email confirms your payment was successfully completed.
+          Your refund has been processed and is on its way to your wallet. Depending on the asset, it may take a moment
+          to settle on-chain.
         </Text>
         <Text style={{ margin: 0, fontSize: "12px", color: "#9ca3af", lineHeight: "1.6" }}>
           If you have any questions, reply to this email or contact {organizationName} through their usual support
@@ -91,4 +86,4 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   );
 }
 
-export default CustomerPaymentReceiptEmail;
+export default CustomerRefundEmail;

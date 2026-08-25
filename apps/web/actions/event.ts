@@ -73,11 +73,7 @@ export async function withEvent<T>(
       const deliveryLogId = subscribers.length > 0 ? generateResourceId("wh_evt", orgId, 52) : undefined;
 
       // 3. EMIT INTERNAL EVENTS (Dashboard Timeline)
-      const normalizedEventConfigs = eventConfigs
-        ? Array.isArray(eventConfigs)
-          ? eventConfigs
-          : [eventConfigs]
-        : [];
+      const normalizedEventConfigs = eventConfigs ? (Array.isArray(eventConfigs) ? eventConfigs : [eventConfigs]) : [];
       if (normalizedEventConfigs.length > 0) {
         const eventsToEmit = normalizedEventConfigs.flatMap((cfg) => {
           const mapped = cfg.map(result);

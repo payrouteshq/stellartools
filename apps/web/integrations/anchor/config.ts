@@ -10,7 +10,13 @@ export const supportedFiatCurrencySchema = z
   .transform((val) => val.toUpperCase());
 export type SupportedFiatCurrency = string;
 
-export const supportedPayoutRailSchema = z.enum(["bank_account", "mobile_money", "paypal", "cash_pickup", "card_transfer"]);
+export const supportedPayoutRailSchema = z.enum([
+  "bank_account",
+  "mobile_money",
+  "paypal",
+  "cash_pickup",
+  "card_transfer",
+]);
 export type SupportedPayoutRail = z.infer<typeof supportedPayoutRailSchema>;
 
 export const anchorIdSchema = z.enum(["sdf-test-anchor"]);

@@ -39,9 +39,9 @@ export const postRefund = async (
       if (refund.status == "failed") {
         events.push({
           type: "refund::failed",
-          map: ({ id: refundId, customerId, paymentId, cryptoAmount, selectedAssetCode }) => ({
+          map: ({ id: refundId, customerId, paymentId, cryptoAmount, selectedAssetCode, transactionHash }) => ({
             customerId,
-            data: { paymentId, refundId, amount: `${cryptoAmount} ${selectedAssetCode}` },
+            data: { paymentId, refundId, amount: `${cryptoAmount} ${selectedAssetCode}`, transactionHash },
           }),
         });
 
@@ -89,6 +89,7 @@ export const postRefund = async (
             selectedAssetCode,
             cryptoAmount,
             reason,
+            transactionHash,
           }) => ({
             customerId,
             data: {
@@ -97,6 +98,7 @@ export const postRefund = async (
               amount: Money.formatFiat(amountCents, currencyCode),
               cryptoAmount: `${cryptoAmount} ${selectedAssetCode}`,
               reason,
+              transactionHash,
             },
           }),
         });

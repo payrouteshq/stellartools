@@ -7,8 +7,8 @@ import { WalletAsset, retrievePayouts, retrieveWalletBalance } from "@/actions/p
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PayoutReceipt } from "@/components/receipt-engine";
-import { PayoutStatus } from "@/constant/schema.client";
 import { COUNTRIES, FIAT_CURRENCIES, PAYOUT_RAILS } from "@/constant/countries";
+import { PayoutStatus } from "@/constant/schema.client";
 import { Payout } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
@@ -18,7 +18,6 @@ import { Money } from "@/lib/money";
 import { downloadReceipt } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiClient } from "@stellartools/core";
-import _ from "lodash";
 import {
   AppModal,
   Badge,
@@ -42,6 +41,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
+import _ from "lodash";
 import {
   ArrowUpFromLine,
   CheckCircle2,
@@ -494,8 +494,8 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
   if (org?.environment === "mainnet") {
     return (
       <div className="flex min-h-72 flex-col items-center justify-center gap-4 py-12 text-center">
-        <div className="bg-amber-500/10 flex size-12 items-center justify-center rounded-full">
-          <ShieldCheck className="text-amber-600 size-6" />
+        <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
+          <ShieldCheck className="size-6 text-amber-600" />
         </div>
         <div className="max-w-sm">
           <p className="font-semibold">Fiat offramp payouts are only available in Test Mode</p>
@@ -651,7 +651,8 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
                   field.onChange(code);
                   const countryObj = COUNTRIES.find((c) => c.code === code);
                   if (countryObj?.currency) {
-                    const availableCurrencies = capabilities?.destinationCurrencies ?? FIAT_CURRENCIES.map((f) => f.code);
+                    const availableCurrencies =
+                      capabilities?.destinationCurrencies ?? FIAT_CURRENCIES.map((f) => f.code);
                     if (availableCurrencies.includes(countryObj.currency as any)) {
                       form.setValue("destinationCurrency", countryObj.currency as any);
                     }

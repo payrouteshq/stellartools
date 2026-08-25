@@ -148,22 +148,6 @@ export type AssetMetadata = {
   fiatPeg?: string; // Pegged to a fiat currency, ISO 4217 (e.g. "EUR" for EURC)
 };
 
-export const supportedAssets = pgTable(
-  "supported_asset",
-  {
-    id: text("id").primaryKey(),
-    code: text("code").notNull().$type<AssetCode>(),
-    canonicalIssuer: text("canonical_issuer").$type<AssetIssuer>(),
-    description: text("description"),
-    environment: networkEnum("network").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    metadata: jsonb("metadata").$type<AssetMetadata | null>(),
-    images: text("images").array(),
-  },
-  (table) => [unique().on(table.code, table.canonicalIssuer, table.environment)]
-);
-
 export type CustomerMetadata = Record<string, string>;
 
 export type CustomerWalletAddress = {
@@ -648,7 +632,6 @@ export const rateLimits = pgTable(
 export type Account = InferSelectModel<typeof accounts>;
 export type Organization = InferSelectModel<typeof organizations>;
 export type ApiKey = InferSelectModel<typeof apiKeys>;
-export type SupportedAsset = InferSelectModel<typeof supportedAssets>;
 export type Customer = InferSelectModel<typeof customers>;
 export type CustomerWallet = InferSelectModel<typeof customerWallets>;
 export type Product = InferSelectModel<typeof products>;

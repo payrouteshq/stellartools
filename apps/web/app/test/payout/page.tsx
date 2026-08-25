@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+
 import { COUNTRIES, FIAT_CURRENCIES, PAYOUT_RAILS } from "@/constant/countries";
 
 export default function TestPayoutPage() {
@@ -123,7 +124,8 @@ export default function TestPayoutPage() {
     <main style={{ maxWidth: 480, margin: "40px auto", fontFamily: "system-ui", padding: "0 16px" }}>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>SEP-38 / SEP-24 Payout Test</h1>
       <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>
-        Test page for end-to-end offramp: Initiates quote + withdrawal, opens reference UI, polls status, and submits on-chain funding payment.
+        Test page for end-to-end offramp: Initiates quote + withdrawal, opens reference UI, polls status, and submits
+        on-chain funding payment.
       </p>
 
       <form onSubmit={handleInitiate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -132,7 +134,14 @@ export default function TestPayoutPage() {
           <select
             value={assetCode}
             onChange={(e) => setAssetCode(e.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: 4,
+              padding: 8,
+              borderRadius: 6,
+              border: "1px solid #ccc",
+            }}
           >
             <option value="USDC">USDC</option>
             <option value="XLM">XLM (native)</option>
@@ -145,7 +154,14 @@ export default function TestPayoutPage() {
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: 4,
+              padding: 8,
+              borderRadius: 6,
+              border: "1px solid #ccc",
+            }}
           />
         </label>
 
@@ -154,7 +170,14 @@ export default function TestPayoutPage() {
           <select
             value={country}
             onChange={(e) => handleCountryChange(e.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: 4,
+              padding: 8,
+              borderRadius: 6,
+              border: "1px solid #ccc",
+            }}
           >
             {COUNTRIES.map((c) => (
               <option key={c.code} value={c.code}>
@@ -169,7 +192,14 @@ export default function TestPayoutPage() {
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: 4,
+              padding: 8,
+              borderRadius: 6,
+              border: "1px solid #ccc",
+            }}
           >
             {FIAT_CURRENCIES.map((f) => (
               <option key={f.code} value={f.code}>
@@ -184,7 +214,14 @@ export default function TestPayoutPage() {
           <select
             value={payoutRail}
             onChange={(e) => setPayoutRail(e.target.value)}
-            style={{ display: "block", width: "100%", marginTop: 4, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: 4,
+              padding: 8,
+              borderRadius: 6,
+              border: "1px solid #ccc",
+            }}
           >
             {PAYOUT_RAILS.map((r) => (
               <option key={r.value} value={r.value}>
@@ -219,7 +256,8 @@ export default function TestPayoutPage() {
             <strong>Transaction ID:</strong> {transactionId}
           </p>
           <p style={{ margin: "4px 0", fontSize: 13 }}>
-            <strong>Selected Country Code:</strong> <code style={{ background: "#eee", padding: "2px 6px", borderRadius: 4 }}>{country}</code>
+            <strong>Selected Country Code:</strong>{" "}
+            <code style={{ background: "#eee", padding: "2px 6px", borderRadius: 4 }}>{country}</code>
           </p>
           <p style={{ margin: "4px 0", fontSize: 13 }}>
             <strong>Current Status:</strong>{" "}
@@ -237,10 +275,7 @@ export default function TestPayoutPage() {
           )}
 
           <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <button
-              onClick={handleCheckStatus}
-              style={{ padding: "6px 12px", fontSize: 13, cursor: "pointer" }}
-            >
+            <button onClick={handleCheckStatus} style={{ padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>
               Refresh Status
             </button>
 
@@ -273,7 +308,17 @@ export default function TestPayoutPage() {
       )}
 
       {error && (
-        <div style={{ marginTop: 16, background: "#fee", border: "1px solid #fcc", borderRadius: 6, padding: 12, fontSize: 13, color: "#c00" }}>
+        <div
+          style={{
+            marginTop: 16,
+            background: "#fee",
+            border: "1px solid #fcc",
+            borderRadius: 6,
+            padding: 12,
+            fontSize: 13,
+            color: "#c00",
+          }}
+        >
           {error}
         </div>
       )}

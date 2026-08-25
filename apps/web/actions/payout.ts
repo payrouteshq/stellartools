@@ -136,7 +136,7 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
               cryptoAmount: Money.formatCrypto(payout.cryptoAmount, payout.selectedAssetCode ?? "XLM"),
               walletAddress: payout.walletAddress,
               memo: payout.memo,
-              transactionHash: payout.transactionHash,
+              transactionHash: `${payout.transactionHash}:${payout.environment}`,
               status: "succeeded",
             },
           }),
@@ -157,7 +157,7 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
               cryptoAmount: String(payout.cryptoAmount ?? ""),
               assetCode: payout.selectedAssetCode ?? "XLM",
               walletAddress: payout.walletAddress ?? "",
-              transactionHash: payout.transactionHash ?? "",
+              transactionHash: `${payout.transactionHash}:${payout.environment}`,
               payoutMethod: payout.method,
               fiatAmount:
                 payout.method === "fiat" ? Money.formatFiat(payout.amountCents, payout.currencyCode) : undefined,

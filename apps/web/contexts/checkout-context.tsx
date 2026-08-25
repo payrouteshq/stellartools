@@ -12,6 +12,7 @@ import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { AppError, execute } from "@/lib/action-handler";
 import { buildOneTimePaymentXdr, finalizeSubscriptionCheckout, prepareSubscriptionApproval } from "@/lib/checkout-tx";
 import { Money } from "@/lib/money";
+import { getUsdcAsset } from "@/lib/usdc";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Networks, Transaction } from "@stellar/stellar-sdk";
 import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString, toast } from "@stellartools/shared-ui";
@@ -20,7 +21,6 @@ import * as RHF from "react-hook-form";
 import { z as Schema } from "zod";
 
 type Checkout = Awaited<ReturnType<typeof retrieveCheckoutAndCustomer>>;
-type PublicData = Awaited<ReturnType<typeof retrieveCheckoutPublicData>>;
 
 type SelectedAsset = {
   code: string;
@@ -37,10 +37,7 @@ interface CheckoutContextValue {
   isFailed: boolean;
   hasDetails: boolean;
   isProcessing: boolean;
-  publicData: PublicData | null | undefined;
-  publicDataLoading: boolean;
   selectedAsset: SelectedAsset | null;
-  setSelectedAsset: (asset: SelectedAsset | null) => void;
   cryptoAmount: string | null;
   finalAmountUsdCents: number;
   wallet: {
@@ -63,15 +60,6 @@ const baseSchema = Schema.object({
 
 type CheckoutFormData = Schema.infer<typeof baseSchema>;
 
-export const calculateRates = (checkout: Checkout, publicData: PublicData, selectedAsset: any) => {
-  if (!checkout || !publicData) return { cents: 0, crypto: null };
-  const rate = publicData.fiatRates?.[checkout.currencyCode ?? "USD"] ?? 1;
-  const cents = checkout.finalAmount / rate;
-  const usdPrice = selectedAsset ? publicData.assetUsdPrices[selectedAsset.code] : null;
-  const crypto = usdPrice ? Money.calculateCryptoNeeded(cents, usdPrice) : null;
-  return { cents, crypto };
-};
-
 export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string; children: React.ReactNode }) => {
   const queryClient = useQueryClient();
   const wallet = useWallet();
@@ -81,8 +69,9 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     queryFn: () => retrieveCheckoutAndCustomer(checkoutId),
   });
 
-  const publicDataQuery = useQuery({
-    queryKey: ["checkout-public-data", checkoutId],
+  // Fiat rates only — needed to convert non-USD product prices to USD cents for crypto display.
+  const fiatRatesQuery = useQuery({
+    queryKey: ["checkout-fiat-rates", checkoutId],
     queryFn: () => retrieveCheckoutPublicData(checkoutId),
     staleTime: 25_000,
     refetchInterval: 30_000,
@@ -90,18 +79,28 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
   const checkout = query.data;
 
-  const [selectedAsset, setSelectedAsset] = React.useState<SelectedAsset | null>(null);
+  // Always settle on USDC — path payments handle conversion from whatever the customer holds.
+  const selectedAsset = React.useMemo<SelectedAsset | null>(() => {
+    if (!checkout?.environment) return null;
+    return getUsdcAsset(checkout.environment);
+  }, [checkout?.environment]);
 
   React.useEffect(() => {
     if (checkout?.environment) wallet.setEnvironment(checkout.environment);
   }, [checkout?.environment]);
 
-  React.useEffect(() => {
-    if (!selectedAsset && publicDataQuery.data?.assets?.[0]) {
-      const first = publicDataQuery.data.assets[0];
-      setSelectedAsset({ code: first.code, canonicalIssuer: first.canonicalIssuer ?? null });
-    }
-  }, [publicDataQuery.data?.assets, selectedAsset]);
+  const finalAmountUsdCents = React.useMemo(() => {
+    if (!checkout?.finalAmount) return 0;
+    const currencyCode = checkout.currencyCode ?? "USD";
+    const fiatRate = fiatRatesQuery.data?.fiatRates?.[currencyCode] ?? 1;
+    return checkout.finalAmount / fiatRate;
+  }, [checkout?.finalAmount, checkout?.currencyCode, fiatRatesQuery.data]);
+
+  // USDC is always $1, so cryptoAmount = USD cents / 100.
+  const cryptoAmount = React.useMemo(() => {
+    if (!finalAmountUsdCents) return null;
+    return Money.calculateCryptoNeeded(finalAmountUsdCents, 1);
+  }, [finalAmountUsdCents]);
 
   const reportFailure = async (txHash: string, reason: string) => {
     await postPayment(
@@ -126,20 +125,6 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     );
     queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
   };
-
-  const finalAmountUsdCents = React.useMemo(() => {
-    if (!checkout?.finalAmount || !publicDataQuery.data) return 0;
-    const currencyCode = checkout.currencyCode ?? "USD";
-    const fiatRate = publicDataQuery.data.fiatRates?.[currencyCode] ?? 1;
-    return checkout.finalAmount / fiatRate;
-  }, [checkout?.finalAmount, checkout?.currencyCode, publicDataQuery.data]);
-
-  const cryptoAmount = React.useMemo(() => {
-    if (!finalAmountUsdCents || !selectedAsset || !publicDataQuery.data) return null;
-    const usdPrice = publicDataQuery.data.assetUsdPrices[selectedAsset.code];
-    if (!usdPrice) return null;
-    return Money.calculateCryptoNeeded(finalAmountUsdCents, usdPrice);
-  }, [finalAmountUsdCents, selectedAsset, publicDataQuery.data]);
 
   const form = RHF.useForm({
     resolver: zodResolver(baseSchema),
@@ -257,10 +242,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     isFailed,
     hasDetails,
     isProcessing,
-    publicData: publicDataQuery.data,
-    publicDataLoading: publicDataQuery.isLoading,
     selectedAsset,
-    setSelectedAsset,
     cryptoAmount,
     finalAmountUsdCents,
     updateDetails,

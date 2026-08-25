@@ -1,6 +1,5 @@
 "use server";
 
-import { retrieveSupportedAssets } from "@/actions/asset";
 import { putCheckout, retrieveCheckoutAndCustomer, retrieveCheckoutPublicData } from "@/actions/checkout";
 import { runAtomic } from "@/actions/event";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
@@ -8,7 +7,7 @@ import { postPayment } from "@/actions/payment";
 import { postSubscriptionsBulk } from "@/actions/subscription";
 import { MS_PER_DAY, SENSITIVE_KEY_PREFIX, subscriptionPeriodMs, trialEndAt } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
-import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
+import { getFiatRates } from "@/integrations/price-feed";
 import {
   buildSubscriptionApprovalXdr as soroban$buildSubscriptionApprovalXdr,
   retrieveSubscription as soroban$retrieveSubscription,
@@ -20,13 +19,13 @@ import {
   buildPreSwapXdr,
   ensureTrustline,
   getChargesPublicKey,
-  getCustomerAssetIssuers,
   getStellarConfig,
   retrieveAssetContractId,
 } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
+import { getUsdcAsset } from "@/lib/usdc";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { SubscriptionData } from "@stellartools/core";
@@ -65,8 +64,8 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const fiatRate = pub?.fiatRates?.[checkout.currencyCode] ?? 1;
   const usdCents = checkout.finalAmount / fiatRate;
 
-  const usdPrice = pub?.assetUsdPrices?.[sendAssetCode] ?? 0;
-  const amount = usdPrice > 0 ? Money.calculateCryptoNeeded(usdCents, usdPrice) : sendMaxEstimate;
+  // USDC is always $1 — amount = USD cents / 100.
+  const amount: string = Money.calculateCryptoNeeded(usdCents, 1);
 
   const { server, passphrase } = getStellarConfig(checkout.environment);
   const account = await server.loadAccount(customerPublicKey).catch((e) => {
@@ -85,7 +84,6 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
 
     if (orgSecret) {
-      // Secret available (managed or self-custody with stored key): auto-set trustline.
       await ensureTrustline(
         decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
         sendAssetCode,
@@ -93,7 +91,6 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
         checkout.environment
       );
     } else {
-      // No secret stored — merchant must have the trustline set up on their own.
       const merchantAccount = await server.loadAccount(checkout.merchantPublicKey).catch(() => null);
       const hasTrustline = merchantAccount?.balances.some(
         (b: any) => b.asset_code === sendAssetCode && b.asset_issuer === sendAssetIssuer
@@ -101,24 +98,70 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
       if (!hasTrustline) {
         throw new AppError(
           "VALIDATION_ERROR",
-          `Merchant wallet has no trustline for ${sendAssetCode}. Merchant should add it from their Stellar wallet to accept this asset.`
+          `Merchant wallet has no trustline for ${sendAssetCode}. Add it from your Stellar wallet to accept this asset.`
         );
       }
     }
   }
 
+  // Always use path finding — Stellar's DEX handles any issuer mismatch, partial balances,
+  // and non-USDC holdings automatically. If the customer has canonical USDC, the path finder
+  // returns source=USDC path=[] which is a zero-hop direct transfer.
+  const pathsResult = await server.strictReceivePaths(customerPublicKey, asset, amount).call();
+
+  if (pathsResult.records.length === 0) {
+    throw new AppError("VALIDATION_ERROR", `No payment route found. Add USDC or XLM to your wallet to continue.`);
+  }
+
+  const best = pathsResult.records[0] as any;
+  const pathSourceAsset =
+    best.source_asset_type === "native"
+      ? Asset.native()
+      : new Asset(best.source_asset_code!, best.source_asset_issuer!);
+  const pathSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
+  const pathIntermediates = (best.path ?? []).map((p: any) =>
+    p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
+  );
+
   if (isDirect) {
-    // Split payment on-chain: merchant receives 99%, StellarTools fee receives 1%.
-    const totalBig = new Big(amount);
+    const totalBig: Big = new Big(amount);
     const feeAmount = totalBig.times(PLATFORM_FEE_BPS).div(BPS_DENOMINATOR).toFixed(7);
     const merchantAmount = totalBig.minus(new Big(feeAmount)).toFixed(7);
-
-    builder.addOperation(
-      Operation.payment({ destination: getChargesPublicKey(checkout.environment), asset, amount: feeAmount })
-    );
-    builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount: merchantAmount }));
+    const sendMaxBig = new Big(pathSendMax);
+    const feeSendMax = sendMaxBig.times(new Big(feeAmount)).div(totalBig).times(1.02).toFixed(7);
+    const merchantSendMax = sendMaxBig.times(new Big(merchantAmount)).div(totalBig).times(1.02).toFixed(7);
+    builder
+      .addOperation(
+        Operation.pathPaymentStrictReceive({
+          sendAsset: pathSourceAsset,
+          sendMax: feeSendMax,
+          destination: getChargesPublicKey(checkout.environment),
+          destAsset: asset,
+          destAmount: feeAmount,
+          path: pathIntermediates,
+        })
+      )
+      .addOperation(
+        Operation.pathPaymentStrictReceive({
+          sendAsset: pathSourceAsset,
+          sendMax: merchantSendMax,
+          destination: checkout.merchantPublicKey,
+          destAsset: asset,
+          destAmount: merchantAmount,
+          path: pathIntermediates,
+        })
+      );
   } else {
-    builder.addOperation(Operation.payment({ destination: checkout.merchantPublicKey, asset, amount }));
+    builder.addOperation(
+      Operation.pathPaymentStrictReceive({
+        sendAsset: pathSourceAsset,
+        sendMax: pathSendMax,
+        destination: checkout.merchantPublicKey,
+        destAsset: asset,
+        destAmount: amount,
+        path: pathIntermediates,
+      })
+    );
   }
 
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
@@ -151,11 +194,10 @@ export async function prepareSubscriptionApproval(
     const fiatRate = fiatRates[checkout.currencyCode ?? "USD"] ?? 1;
     const finalAmountUsdCents = checkout.finalAmount / fiatRate;
 
-    const [asset] = await retrieveSupportedAssets({ code: selectedAssetCode }, checkout.environment);
     const { amountRaw } = await Money.calculateSubscriptionAmount({
       priceCents: checkout.finalAmount,
       currencyCode: checkout.currencyCode ?? "USD",
-      assetMetadata: asset?.metadata ?? {},
+      assetMetadata: { usdPeg: true },
     });
     if (amountRaw <= BigInt(0)) return { error: `Unable to price subscription in ${selectedAssetCode}` };
 
@@ -172,23 +214,37 @@ export async function prepareSubscriptionApproval(
     let preSwapXdr: string | undefined;
 
     if (canonicalIssuer) {
-      const heldIssuers = await getCustomerAssetIssuers(customerAddress, selectedAssetCode, checkout.environment);
-      const hasCanonical = heldIssuers.includes(canonicalIssuer);
+      const { server } = getStellarConfig(checkout.environment);
+      const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
+      const pathsResult = await server
+        .strictReceivePaths(customerAddress, destAssetForPath, neededStellarAmount)
+        .call();
 
-      if (!hasCanonical) {
-        needsPreSwap = true;
-        const xlmPrice = await getAssetUsdPrice({ coingeckoId: "stellar" });
-        const xlmNeeded = Money.calculateCryptoNeeded(finalAmountUsdCents, xlmPrice);
-        const sendMax = new Big(xlmNeeded).times(1.02).toFixed(7);
+      if (pathsResult.records.length === 0) {
+        return { error: `No payment route found. Add USDC or XLM to your wallet to continue.` };
+      }
 
+      const best = pathsResult.records[0] as any;
+      const swapSourceCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
+      const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
+      const isSameAsset = swapSourceCode === selectedAssetCode && swapSourceIssuer === canonicalIssuer;
+
+      // Only pre-swap if the best path isn't already the canonical asset itself.
+      needsPreSwap = !isSameAsset;
+      if (needsPreSwap) {
+        const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
+        const swapIntermediates = (best.path ?? []).map((p: any) =>
+          p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
+        );
         preSwapXdr = await buildPreSwapXdr({
           customerPublicKey: customerAddress,
-          sendAssetCode: "XLM",
-          sendAssetIssuer: null,
+          sendAssetCode: swapSourceCode,
+          sendAssetIssuer: swapSourceIssuer,
           destAssetCode: selectedAssetCode,
           canonicalIssuer,
           neededStellarAmount,
-          sendMax,
+          sendMax: swapSendMax,
+          path: swapIntermediates,
           network: checkout.environment,
           timeoutSeconds: txTimeout,
         });
@@ -266,11 +322,10 @@ export async function finalizeSubscriptionCheckout(
       return { success: false, error: `Approval not confirmed: ${verifyResult.error.message}` };
     }
 
-    const [asset] = await retrieveSupportedAssets({ code: selectedAssetCode }, environment);
     const { cryptoAmount, amountRaw } = await Money.calculateSubscriptionAmount({
       priceCents: checkout.finalAmount,
       currencyCode: checkout.currencyCode ?? "USD",
-      assetMetadata: asset?.metadata ?? {},
+      assetMetadata: { usdPeg: true },
     });
     if (amountRaw <= BigInt(0))
       return { success: false, error: `Unable to price subscription in ${selectedAssetCode}` };

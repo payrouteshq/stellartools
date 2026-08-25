@@ -1,6 +1,5 @@
 "use server";
 
-import { retrieveSupportedAssets } from "@/actions/asset";
 import { putCustomer, upsertCustomer } from "@/actions/customers";
 import { runAtomic, withEvent } from "@/actions/event";
 import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
@@ -18,7 +17,7 @@ import {
   organizations,
   products,
 } from "@/db";
-import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
+import { getFiatRates } from "@/integrations/price-feed";
 import { getLatestPagingToken } from "@/integrations/stellar-core";
 import { AppError, safeAction } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
@@ -224,19 +223,10 @@ export const retrieveCheckoutPublicData = async (checkoutId: string) => {
     .from(organizations)
     .where(eq(organizations.id, row.organizationId));
 
-  const assets = await retrieveSupportedAssets(null, row.environment);
-
-  const [fiatRates, ...assetPriceResults] = await Promise.all([
-    getFiatRates(),
-    ...assets.map((a) => getAssetUsdPrice(a.metadata ?? {}).then((price) => ({ code: a.code, price }))),
-  ]);
-
-  const assetUsdPrices = Object.fromEntries(assetPriceResults.map((r) => [r.code, r.price]));
+  const fiatRates = await getFiatRates();
 
   return {
-    assets,
     fiatRates: fiatRates as Record<string, number>,
-    assetUsdPrices,
     orgCurrency: orgRow.selectedCurrency,
   };
 };

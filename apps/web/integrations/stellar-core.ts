@@ -133,23 +133,42 @@ export const sendAssetPayment = async (
   assetIssuer: string,
   amount: string,
   network: Network,
-  memo?: string
+  memo?: string,
+  usePathPayment?: boolean
 ) => {
   return Result.tryPromise(async () => {
     const { server, passphrase } = getStellarConfig(network);
     const keypair = StellarSDK.Keypair.fromSecret(sourceSecret);
     const account = await server.loadAccount(keypair.publicKey());
+    const asset: StellarSDK.Asset = getAsset(assetCode, assetIssuer);
+
+    let op: StellarSDK.xdr.Operation;
+    if (usePathPayment) {
+      // Use DEX path discovery so the destination receives value in whatever asset
+      // they can hold (avoids op_no_trust when refunding to a wallet with no trustline).
+      const pathsResult = await server.strictSendPaths(asset, amount, destination).call();
+      const best = pathsResult.records[0] as any;
+      if (best) {
+        const destAsset: StellarSDK.Asset =
+          best.destination_asset_type === "native"
+            ? StellarSDK.Asset.native()
+            : new StellarSDK.Asset(best.destination_asset_code!, best.destination_asset_issuer!);
+        const destMin = (Math.floor(Number(best.destination_amount) * 0.99 * 1e7) / 1e7).toFixed(7);
+        const path: StellarSDK.Asset[] = (best.path ?? []).map((p: any) =>
+          p.asset_type === "native" ? StellarSDK.Asset.native() : new StellarSDK.Asset(p.asset_code!, p.asset_issuer!)
+        );
+        op = StellarSDK.Operation.pathPaymentStrictSend({ sendAsset: asset, sendAmount: amount, destination, destAsset, destMin, path });
+      } else {
+        op = StellarSDK.Operation.payment({ destination, asset, amount });
+      }
+    } else {
+      op = StellarSDK.Operation.payment({ destination, asset, amount });
+    }
 
     const txBuilder = new StellarSDK.TransactionBuilder(account, {
       fee: StellarSDK.BASE_FEE,
       networkPassphrase: passphrase,
-    }).addOperation(
-      StellarSDK.Operation.payment({
-        destination,
-        asset: getAsset(assetCode, assetIssuer),
-        amount,
-      })
-    );
+    }).addOperation(op);
 
     if (memo) txBuilder.addMemo(StellarSDK.Memo.text(memo));
 
@@ -244,10 +263,15 @@ export const verifyPaymentByPagingToken = async (
     const ops = await server.payments().forTransaction(match.hash).call();
     // Find the payment op directed TO the merchant — handles both single-op (managed)
     // and split two-op (direct: fee + merchant) transactions.
+    // Accept regular payments AND DEX path payments — path_payment_strict_receive is used
+    // when the customer pays with XLM and the DEX converts it to the merchant's asset.
     const paymentOp = ops.records.find(
-      (op): op is StellarSDK.Horizon.ServerApi.PaymentOperationRecord =>
-        op.type === "payment" && op.to === merchantAddress
-    );
+      (op) =>
+        (op.type === "payment" ||
+          op.type === "path_payment_strict_receive" ||
+          op.type === "path_payment_strict_send") &&
+        op.to === merchantAddress
+    ) as StellarSDK.Horizon.ServerApi.PaymentOperationRecord | undefined;
 
     return paymentOp
       ? {
@@ -260,21 +284,6 @@ export const verifyPaymentByPagingToken = async (
         }
       : null;
   });
-};
-
-export const getCustomerAssetIssuers = async (
-  publicKey: string,
-  assetCode: string,
-  network: Network
-): Promise<string[]> => {
-  if (assetCode.toUpperCase() === "XLM") return [];
-  const account = await retrieveAccount(publicKey, network);
-
-  if (account.isErr()) return [];
-
-  return account.value.balances
-    .filter((b): b is StellarSDK.Horizon.HorizonApi.BalanceLineAsset => "asset_code" in b && b.asset_code === assetCode)
-    .map((b) => b.asset_issuer);
 };
 
 /**
@@ -290,6 +299,7 @@ export const buildPreSwapXdr = async (params: {
   canonicalIssuer: string;
   neededStellarAmount: string;
   sendMax: string;
+  path?: StellarSDK.Asset[];
   network: Network;
   timeoutSeconds: number;
 }): Promise<string> => {
@@ -301,6 +311,7 @@ export const buildPreSwapXdr = async (params: {
     canonicalIssuer,
     neededStellarAmount,
     sendMax,
+    path,
     network,
     timeoutSeconds,
   } = params;
@@ -325,7 +336,7 @@ export const buildPreSwapXdr = async (params: {
         destination: customerPublicKey,
         destAsset,
         destAmount: neededStellarAmount,
-        path: [],
+        path: path ?? [],
       })
     )
     .setTimeout(timeoutSeconds)

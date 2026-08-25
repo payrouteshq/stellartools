@@ -7,7 +7,7 @@ import { retrievePayments } from "@/actions/payment";
 import { retrieveSubscriptions } from "@/actions/subscription";
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { TIMELINE_ROUTE_MAP } from "@/constant";
+import { TIMELINE_ROUTE_MAP, stellarExplorerUrl } from "@/constant";
 import { ResolvedPayment } from "@/db";
 import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
@@ -53,8 +53,6 @@ import {
 
 const formatDate = (d: Date | string) => moment(d).format("D MMM, YYYY");
 const formatDateTime = (d: Date | string) => moment(d).format("D MMM, YYYY [at] HH:mm");
-const getExplorerUrl = (h: string, e: string) =>
-  `https://stellar.expert/explorer/${e === "live" ? "public" : "testnet"}/tx/${h}`;
 
 type PricingRow = {
   name: string;
@@ -126,7 +124,11 @@ const invoiceColumns = (environment: string): ColumnDef<ResolvedPayment>[] => [
     cell: ({ row }) => (
       <div className="text-right">
         {row.original.transactionHash && (
-          <a href={getExplorerUrl(row.original.transactionHash, environment)} target="_blank" className="text-primary">
+          <a
+            href={stellarExplorerUrl(row.original.transactionHash, environment)}
+            target="_blank"
+            className="text-primary"
+          >
             <ExternalLink className="inline h-3 w-3" />
           </a>
         )}
@@ -450,7 +452,7 @@ export default function SubscriptionDetailPage() {
                     data: evt.data,
                     contentOverride: evt.data?.transactionHash ? (
                       <a
-                        href={getExplorerUrl(String(evt.data.transactionHash), s.environment)}
+                        href={stellarExplorerUrl(String(evt.data.transactionHash), s.environment)}
                         target="_blank"
                         className="text-primary mt-1 flex items-center gap-1 text-xs hover:underline"
                       >

@@ -1,4 +1,3 @@
-import { retrieveSupportedAssets } from "@/actions/asset";
 import { retrieveCustomerWallets } from "@/actions/customers";
 import { runAtomic } from "@/actions/event";
 import { postPayment, retrievePayments } from "@/actions/payment";
@@ -60,12 +59,10 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
       return { status: "error", subId, error: "No prior payment found to determine the charge asset" };
     }
 
-    const [asset] = await retrieveSupportedAssets({ code: prior.selectedAssetCode }, env);
-
     const { cryptoAmount: chargeDisplay, amountRaw: chargeRaw } = await Money.calculateSubscriptionAmount({
       priceCents,
       currencyCode,
-      assetMetadata: asset?.metadata ?? {},
+      assetMetadata: { usdPeg: true },
     });
 
     // 3. EXECUTE ON-CHAIN CHARGE

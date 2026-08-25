@@ -48,13 +48,15 @@ export function getCorsHeaders(requestOrigin?: string | null): Record<string, st
   };
 }
 
+export const stellarExplorerUrl = (hash: string, environment?: string | null) =>
+  `https://stellar.expert/explorer/${environment === "mainnet" ? "public" : "testnet"}/tx/${hash}`;
+
 export const TIMELINE_ROUTE_MAP: Record<string, (id: string) => string> = {
   customerId: (id) => `/customers/${id}`,
   productId: (id) => `/products/${id}`,
   paymentId: (id) => `/transactions/${id}`,
   externalUrl: (url) => url,
   deliveryLogId: (id) => `/webhooks/~?eventId=${id}`,
-  transactionHash: (hash) => `https://stellar.expert/explorer/public/tx/${hash}`,
 };
 
 export const SENSITIVE_KEY_PREFIX = "__ST_ENC__:";

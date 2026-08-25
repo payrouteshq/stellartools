@@ -1,9 +1,12 @@
 import { retrieveCharges } from "@/actions/charges";
-import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
+import { retrieveCustomers } from "@/actions/customers";
+import { retrieveOrganization, retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
 import { postRefund } from "@/actions/refund";
 import { putSubscription, retrieveSubscriptions as retrieveDBSubscriptions } from "@/actions/subscription";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
+import { CustomerRefundEmail } from "@/emails/customer-refund-email";
+import { sendEmail } from "@/integrations/email";
 import { decrypt } from "@/integrations/encryption";
 import {
   resolveMerchantSecret,
@@ -12,8 +15,10 @@ import {
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
+import { Money } from "@/lib/money";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { CreateRefund, CreateRefundSchema_2026_08_18, Result, z as Schema } from "@stellartools/core";
+import moment from "moment";
 import { waitUntil } from "@vercel/functions";
 
 export const OPTIONS = createOptionsHandler();
@@ -69,10 +74,11 @@ export const POST = apiHandler({
       secretKey,
       refundToWalletAddress!,
       payment.selectedAssetCode,
-      payment.selectedAssetIssuer!,
+      payment.selectedAssetIssuer ?? "",
       refundCryptoAmount,
       environment,
-      refundId
+      refundId,
+      true
     );
 
     const refund = await postRefund(
@@ -97,6 +103,30 @@ export const POST = apiHandler({
     );
 
     const runSidedEffects = async () => {
+      if (res.isOk() && payment.customerId) {
+        const [{ data: [customer] }, org] = await Promise.all([
+          retrieveCustomers({ id: payment.customerId }, { requireLookUpParams: true }, organizationId, environment),
+          retrieveOrganization(organizationId),
+        ]);
+        if (customer?.email) {
+          await sendEmail(
+            customer.email,
+            `Refund from ${org.name} [${refundId}]`,
+            CustomerRefundEmail({
+              customerName: customer.name,
+              amount: Money.formatFiat(refundAmountCents, payment.currencyCode),
+              reference: refundId,
+              date: moment().format("MMMM DD, YYYY [at] h:mm A"),
+              organizationName: org.name,
+              organizationLogo: org.logoUrl,
+              supportEmail: org.supportEmail,
+              environment,
+            }),
+            org.supportEmail ? { cc: [org.supportEmail] } : undefined
+          ).catch(() => {});
+        }
+      }
+
       if (payment.subscriptionId && payment.customerId) {
         const {
           data: [subscription],

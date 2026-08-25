@@ -2,17 +2,13 @@ import * as React from "react";
 
 import {
   Body,
-  Column,
   Container,
   Font,
   Head,
-  Hr,
   Html,
   Img,
   Preview,
-  Row,
   Section,
-  Tailwind,
   Text,
 } from "@react-email/components";
 
@@ -20,140 +16,100 @@ interface EmailLayoutProps {
   preview: string;
   organizationName: string;
   organizationLogo?: string | null;
+  supportEmail?: string | null;
+  environment?: string | null;
   children: React.ReactNode;
 }
 
-export const emailFonts = {
-  sans: ["DM Sans", "sans-serif"],
-  serif: ["Instrument Serif", "serif"],
-} as const;
+export function EmailLayout({ preview, organizationName, organizationLogo, supportEmail, environment, children }: EmailLayoutProps) {
+  const isTestnet = environment === "testnet";
 
-export const emailColors = {
-  primary: "#fdda24",
-  "primary-foreground": "#0f0f0f",
-  background: "#f6f7f8",
-  foreground: "#0f0f0f",
-  card: "#ffffff",
-  muted: "#d6d2c4",
-  "muted-foreground": "#5a5750",
-  border: "#d6d2c4",
-} as const;
-
-export function EmailLayout({ preview, organizationName, organizationLogo, children }: EmailLayoutProps) {
   return (
     <Html lang="en">
-      <Tailwind
-        config={{
-          theme: {
-            extend: {
-              colors: emailColors,
-              fontFamily: emailFonts,
-            },
-          },
-        }}
-      >
-        <Head>
-          <Font
-            fontFamily="DM Sans"
-            fallbackFontFamily="sans-serif"
-            webFont={{
-              url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywxg089UriCZOIHQ.woff2",
-              format: "woff2",
-            }}
-            fontWeight={400}
-            fontStyle="normal"
-          />
-          <Font
-            fontFamily="DM Sans"
-            fallbackFontFamily="sans-serif"
-            webFont={{
-              url: "https://fonts.gstatic.com/s/dmsans/v15/rP2Cp2ywxg089UriAZSKGYguYg.woff2",
-              format: "woff2",
-            }}
-            fontWeight={700}
-            fontStyle="normal"
-          />
-          {/* ponytail: style tag applies serif to headings — Gmail strips it and falls back to system serif */}
-          <style>{`@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');h1,h2,h3,h4,h5,h6,em{font-family:'Instrument Serif',serif!important}`}</style>
-        </Head>
-        <Preview>{preview}</Preview>
-        <Body className="bg-background font-sans">
-          <Container className="mx-auto max-w-140 py-10">
-            {/* Org header */}
-            <Section className="mb-4 px-1">
-              <Row>
-                <Column>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    {organizationLogo ? (
-                      <Img
-                        src={organizationLogo}
-                        width={20}
-                        height={20}
-                        alt={organizationName}
-                        style={{ borderRadius: "4px", display: "inline-block", verticalAlign: "middle" }}
-                      />
-                    ) : null}
-                    <Text
-                      style={{
-                        margin: 0,
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#0f0f0f",
-                        display: "inline",
-                        verticalAlign: "middle",
-                      }}
-                    >
-                      {organizationName}
-                    </Text>
-                  </div>
-                </Column>
-              </Row>
-            </Section>
+      <Head>
+        <Font
+          fontFamily="Inter"
+          fallbackFontFamily="Helvetica"
+          webFont={{
+            url: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2",
+            format: "woff2",
+          }}
+          fontWeight={400}
+          fontStyle="normal"
+        />
+        <Font
+          fontFamily="Inter"
+          fallbackFontFamily="Helvetica"
+          webFont={{
+            url: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2",
+            format: "woff2",
+          }}
+          fontWeight={600}
+          fontStyle="normal"
+        />
+      </Head>
+      <Preview>{preview}</Preview>
+      <Body style={{ backgroundColor: "#ffffff", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif", margin: 0, padding: 0 }}>
+        <Container style={{ maxWidth: "560px", margin: "0 auto", padding: "40px 24px 48px" }}>
 
-            {/* Main card */}
-            <Section
-              style={{
-                backgroundColor: "#ffffff",
-                borderRadius: "12px",
-                border: "1px solid #e4e4e7",
-                padding: "32px",
-              }}
-            >
-              {children}
-            </Section>
+          {/* Org identity — centered above card */}
+          <Section style={{ textAlign: "center", marginBottom: "20px" }}>
+            {organizationLogo ? (
+              <Img
+                src={organizationLogo}
+                width={40}
+                height={40}
+                alt={organizationName}
+                style={{ borderRadius: "8px", margin: "0 auto 10px", display: "block" }}
+              />
+            ) : null}
+            <Text style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "#111827" }}>
+              {organizationName}
+            </Text>
+          </Section>
 
-            {/* Footer */}
-            <Section className="mt-6 px-1">
-              <Hr style={{ borderColor: "#e4e4e7", marginBottom: "16px" }} />
-              <Row>
-                <Column align="center">
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <Img
-                      src="https://xlkijtc9st.ufs.sh/f/vCOBlQjXN5w7U4OBdbvs1DcodmjBUHtCP4IE7bazNT8ORYfK"
-                      width={16}
-                      height={16}
-                      alt="StellarTools"
-                      style={{ display: "inline-block", verticalAlign: "middle" }}
-                    />
-                    <Text
-                      style={{
-                        margin: 0,
-                        fontSize: "11px",
-                        color: "#5a5750",
-                        display: "inline",
-                        verticalAlign: "middle",
-                      }}
-                    >
-                      Powered by <span style={{ color: "#0f0f0f", fontWeight: 600 }}>StellarTools</span> — Stellar
-                      Payments Infrastructure
-                    </Text>
-                  </div>
-                </Column>
-              </Row>
+          {/* Support line */}
+          {supportEmail && (
+            <Section style={{ textAlign: "center", marginBottom: "20px" }}>
+              <Text style={{ margin: 0, fontSize: "13px", color: "#6b7280", lineHeight: "1.5" }}>
+                If you have any issues with this transaction, reply to this email or send a message to{" "}
+                <a href={`mailto:${supportEmail}`} style={{ color: "#374151", fontWeight: 500 }}>
+                  {supportEmail}
+                </a>
+              </Text>
             </Section>
-          </Container>
-        </Body>
-      </Tailwind>
+          )}
+
+          {/* Testnet notice — plain text, no background */}
+          {isTestnet && (
+            <Section style={{ textAlign: "center", marginBottom: "16px" }}>
+              <Text style={{ margin: 0, fontSize: "12px", color: "#9a3412" }}>
+                This receipt is for a test transaction. No real money was transferred.
+              </Text>
+            </Section>
+          )}
+
+          {/* Main card */}
+          <Section
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "8px",
+              border: "1px solid #e5e7eb",
+              overflow: "hidden",
+            }}
+          >
+            {children}
+
+            {/* Footer inside card */}
+            <Section style={{ padding: "16px 32px", borderTop: "1px solid #f3f4f6", textAlign: "center" }}>
+              <Text style={{ margin: 0, fontSize: "12px", color: "#9ca3af" }}>
+                Powered by StellarTools
+              </Text>
+            </Section>
+          </Section>
+
+        </Container>
+      </Body>
     </Html>
   );
 }

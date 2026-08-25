@@ -1,9 +1,8 @@
-import { retrieveSupportedAssets } from "@/actions/asset";
 import { retrieveOrganization, retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayout, putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { decrypt } from "@/integrations/encryption";
-import { getAssetUsdPrice, getFiatRates } from "@/integrations/price-feed";
+import { getFiatRates } from "@/integrations/price-feed";
 import { isValidPublicKey, sendAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
@@ -43,14 +42,10 @@ export const POST = apiHandler({
       );
     }
 
-    const [assetList, fiatRates] = await Promise.all([
-      retrieveSupportedAssets({ code: assetCode }, environment),
-      getFiatRates(),
-    ]);
+    const fiatRates = await getFiatRates();
 
-    const assetMeta = assetList?.[0] ?? null;
-    const usdPrice = assetMeta?.metadata ? await getAssetUsdPrice(assetMeta.metadata) : 0;
-    const usdCents = Math.round(Number(cryptoAmount) * usdPrice * 100);
+    // USDC is always $1
+    const usdCents = Math.round(Number(cryptoAmount) * 100);
     const amountCents = Money.convert(usdCents, "USD", org.selectedCurrency, fiatRates);
 
     const secretKey = decrypt(secret.encrypted.replace(SENSITIVE_KEY_PREFIX, ""));

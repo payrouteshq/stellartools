@@ -2,18 +2,18 @@ import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Payout, db, payouts } from "@/db";
-import { decrypt } from "@/integrations/encryption";
 import { getAnchorConfig } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { validateFundingInstructions } from "@/integrations/anchor/funding";
 import { authenticateWithSep10 } from "@/integrations/anchor/sep10";
 import { Sep24Client } from "@/integrations/anchor/sep24";
 import { mapSep24Status } from "@/integrations/anchor/status";
+import { decrypt } from "@/integrations/encryption";
 import { prepareAssetPayment, submitPreparedAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
-import Big from "big.js";
 import { Result, z as Schema } from "@stellartools/core";
+import Big from "big.js";
 import { and, eq, isNull } from "drizzle-orm";
 
 const paramsSchema = Schema.object({ payoutId: Schema.string() });
@@ -129,8 +129,7 @@ export const POST = apiHandler({
     }
 
     const asset = config.withdrawAssets.find(
-      (candidate) =>
-        candidate.code === payout.selectedAssetCode && candidate.issuer === payout.selectedAssetIssuer
+      (candidate) => candidate.code === payout.selectedAssetCode && candidate.issuer === payout.selectedAssetIssuer
     );
     if (!asset) throw new AppError("CONFLICT", "The stored payout asset is not supported by this provider");
     const instructions = validateFundingInstructions({

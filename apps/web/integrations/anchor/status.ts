@@ -24,4 +24,3 @@ export function mapSep24Status(status: Sep24TransactionStatus): PayoutStatus {
       return "pending";
   }
 }
-
