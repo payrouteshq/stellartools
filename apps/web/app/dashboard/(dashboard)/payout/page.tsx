@@ -899,7 +899,7 @@ export default function PayoutPage() {
             <Construction className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-sm text-amber-800 dark:text-amber-300">
               <span className="font-semibold">Fiat payouts are in test mode.</span> The Fiat tab currently uses the SDF
-              Test Anchor and does not send real money. For live withdrawals, continue using crypto and swap on{" "}
+              Test Anchor and does not send real money.
               <a
                 href="https://stellarterm.com"
                 target="_blank"

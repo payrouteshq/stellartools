@@ -41,23 +41,33 @@ export class Sep38Client {
   }
 
   async createQuote(params: CreateQuoteParams): Promise<Sep38Quote> {
+    const payload: Record<string, unknown> = {
+      sell_asset: params.sellAsset,
+      buy_asset: params.buyAsset,
+      sell_amount: params.sellAmount,
+      context: "sep24",
+    };
+    if (params.countryCode) {
+      payload.country_code = params.countryCode;
+    }
+
     const response = await fetch(new URL("quote", this.withTrailingSlash()), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        sell_asset: params.sellAsset,
-        buy_asset: params.buyAsset,
-        sell_amount: params.sellAmount,
-        country_code: params.countryCode,
-        context: "sep24",
-      }),
+      body: JSON.stringify(payload),
       cache: "no-store",
       redirect: "error",
     });
-    if (!response.ok) throw await this.anchorError(response, "SEP-38 quote request failed");
+    if (!response.ok) {
+      const err = await this.anchorError(response, "SEP-38 quote request failed");
+      if (params.countryCode && /country/i.test(err.message)) {
+        return this.createQuote({ ...params, countryCode: undefined });
+      }
+      throw err;
+    }
     return parseJsonResponse(response, sep38QuoteSchema);
   }
 

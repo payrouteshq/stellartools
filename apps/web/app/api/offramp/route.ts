@@ -1,6 +1,7 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayout, putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
+import { AnchorRequestError } from "@/integrations/anchor/http";
 import { getAnchorConfig, supportedFiatCurrencySchema, supportedPayoutRailSchema } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { authenticateWithSep10 } from "@/integrations/anchor/sep10";
@@ -153,6 +154,7 @@ export const POST = apiHandler({
               sellAsset,
               buyAsset,
               sellAmount: body.cryptoAmount,
+              countryCode: body.destinationCountry,
             })
         : null;
 
@@ -208,16 +210,22 @@ export const POST = apiHandler({
         sandbox: config.id === "sdf-test-anchor",
       });
     } catch (error: unknown) {
-      console.error("[OFFRAMP_INITIATION_FAILURE]", error instanceof Error ? error.message : "Unknown provider error");
+      console.error("[OFFRAMP_INITIATION_FAILURE]", error);
+      const failureMessage =
+        error instanceof AnchorRequestError || error instanceof AppError || error instanceof Error
+          ? error.message
+          : "The payout provider could not start the withdrawal";
+
       await putPayout(payoutId, {
         status: "failed",
         providerStatus: "error",
         failureCode: "provider_initiation_failed",
-        failureMessage: "The payout provider could not start the withdrawal",
+        failureMessage,
         providerUpdatedAt: new Date(),
       });
       if (error instanceof AppError) throw error;
-      throw new AppError("INTERNAL_ERROR", "The payout provider could not start the withdrawal");
+      if (error instanceof AnchorRequestError) throw new AppError("VALIDATION_ERROR", error.message);
+      throw new AppError("INTERNAL_ERROR", failureMessage);
     }
   },
 });
