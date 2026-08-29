@@ -1,11 +1,12 @@
 import { getAnchorConfig } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { validateFundingInstructions } from "@/integrations/anchor/funding";
-import { AnchorRequestError, assertAllowedEndpoint } from "@/integrations/anchor/http";
+import { assertAllowedEndpoint } from "@/integrations/anchor/http";
 import { interactiveFlowResponseSchema, sep24InfoSchema, sep24TransactionSchema } from "@/integrations/anchor/schemas";
 import { Sep24Client, isExpiredQuoteError } from "@/integrations/anchor/sep24";
 import { Sep38Client } from "@/integrations/anchor/sep38";
 import { mapSep24Status } from "@/integrations/anchor/status";
+import { AppError } from "@/lib/action-handler";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -234,9 +235,9 @@ describe("SEP-24 client", () => {
   });
 
   it("only identifies explicit expired-quote rejections as retryable", () => {
-    expect(isExpiredQuoteError(new AnchorRequestError("Quote has expired", 400))).toBe(true);
-    expect(isExpiredQuoteError(new AnchorRequestError("Quote has expired", 500))).toBe(false);
-    expect(isExpiredQuoteError(new AnchorRequestError("Invalid destination asset", 400))).toBe(false);
+    expect(isExpiredQuoteError(new AppError("VALIDATION_ERROR", "Quote has expired", 400))).toBe(true);
+    expect(isExpiredQuoteError(new AppError("STELLAR_ERROR", "Quote has expired", 500))).toBe(false);
+    expect(isExpiredQuoteError(new AppError("VALIDATION_ERROR", "Invalid destination asset", 400))).toBe(false);
   });
 });
 

@@ -1,7 +1,6 @@
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayout, putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
-import { AnchorRequestError } from "@/integrations/anchor/http";
 import { getAnchorConfig, supportedFiatCurrencySchema, supportedPayoutRailSchema } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
 import { authenticateWithSep10 } from "@/integrations/anchor/sep10";
@@ -212,7 +211,7 @@ export const POST = apiHandler({
     } catch (error: unknown) {
       console.error("[OFFRAMP_INITIATION_FAILURE]", error);
       const failureMessage =
-        error instanceof AnchorRequestError || error instanceof AppError || error instanceof Error
+        error instanceof AppError || error instanceof Error
           ? error.message
           : "The payout provider could not start the withdrawal";
 
@@ -224,8 +223,7 @@ export const POST = apiHandler({
         providerUpdatedAt: new Date(),
       });
       if (error instanceof AppError) throw error;
-      if (error instanceof AnchorRequestError) throw new AppError("VALIDATION_ERROR", error.message);
-      throw new AppError("INTERNAL_ERROR", failureMessage);
+      throw new AppError("VALIDATION_ERROR", failureMessage);
     }
   },
 });

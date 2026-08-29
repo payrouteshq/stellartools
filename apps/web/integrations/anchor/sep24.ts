@@ -1,7 +1,7 @@
 import "server-only";
 
 import { AnchorConfig } from "@/integrations/anchor/config";
-import { AnchorRequestError, assertAllowedEndpoint, parseJsonResponse } from "@/integrations/anchor/http";
+import { assertAllowedEndpoint, getErrorCodeFromStatus, parseJsonResponse } from "@/integrations/anchor/http";
 import {
   AnchorToml,
   InteractiveFlowResponse,
@@ -12,6 +12,7 @@ import {
   sep24AnchorErrorSchema,
   sep24InfoSchema,
 } from "@/integrations/anchor/schemas";
+import { AppError } from "@/lib/action-handler";
 
 export interface InitiateWithdrawalParams {
   assetCode: string;
@@ -26,7 +27,7 @@ export interface InitiateWithdrawalParams {
 
 export function isExpiredQuoteError(error: unknown): boolean {
   return (
-    error instanceof AnchorRequestError && error.status === 400 && /(?:quote.*expir|expir.*quote)/i.test(error.message)
+    error instanceof AppError && error.status === 400 && /(?:quote.*expir|expir.*quote)/i.test(error.message)
   );
 }
 
@@ -115,7 +116,7 @@ export class Sep24Client {
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs(response, attempt)));
     }
 
-    throw new Error("SEP-24 transaction request failed");
+    throw new AppError("STELLAR_ERROR", "SEP-24 transaction request failed", 500);
   }
 
   private withTrailingSlash(): URL {
@@ -124,12 +125,10 @@ export class Sep24Client {
     return url;
   }
 
-  private async anchorError(response: Response, fallback: string): Promise<AnchorRequestError> {
+  private async anchorError(response: Response, fallback: string): Promise<AppError> {
     const payload: unknown = await response.json().catch(() => null);
     const parsed = sep24AnchorErrorSchema.safeParse(payload);
-    return new AnchorRequestError(
-      parsed.success ? parsed.data.error : `${fallback} (${response.status})`,
-      response.status
-    );
+    const message = parsed.success ? parsed.data.error : `${fallback} (${response.status})`;
+    return new AppError(getErrorCodeFromStatus(response.status), message, response.status);
   }
 }

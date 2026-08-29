@@ -1,7 +1,7 @@
 import "server-only";
 
 import { AnchorConfig } from "@/integrations/anchor/config";
-import { AnchorRequestError, assertAllowedEndpoint, parseJsonResponse } from "@/integrations/anchor/http";
+import { assertAllowedEndpoint, getErrorCodeFromStatus, parseJsonResponse } from "@/integrations/anchor/http";
 import {
   AnchorToml,
   Sep38Info,
@@ -10,6 +10,7 @@ import {
   sep38InfoSchema,
   sep38QuoteSchema,
 } from "@/integrations/anchor/schemas";
+import { AppError } from "@/lib/action-handler";
 
 export interface CreateQuoteParams {
   sellAsset: string;
@@ -26,7 +27,7 @@ export class Sep38Client {
     toml: AnchorToml,
     private readonly token: string
   ) {
-    if (!toml.ANCHOR_QUOTE_SERVER) throw new Error("Anchor does not support SEP-38 quotes");
+    if (!toml.ANCHOR_QUOTE_SERVER) throw new AppError("VALIDATION_ERROR", "Anchor does not support SEP-38 quotes", 400);
     this.#baseUrl = assertAllowedEndpoint(toml.ANCHOR_QUOTE_SERVER, config.domain);
   }
 
@@ -77,12 +78,10 @@ export class Sep38Client {
     return url;
   }
 
-  private async anchorError(response: Response, fallback: string): Promise<AnchorRequestError> {
+  private async anchorError(response: Response, fallback: string): Promise<AppError> {
     const payload: unknown = await response.json().catch(() => null);
     const parsed = sep24AnchorErrorSchema.safeParse(payload);
-    return new AnchorRequestError(
-      parsed.success ? parsed.data.error : `${fallback} (${response.status})`,
-      response.status
-    );
+    const message = parsed.success ? parsed.data.error : `${fallback} (${response.status})`;
+    return new AppError(getErrorCodeFromStatus(response.status), message, response.status);
   }
 }
