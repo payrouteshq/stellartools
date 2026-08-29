@@ -3,6 +3,7 @@ import "server-only";
 import { AnchorConfig } from "@/integrations/anchor/config";
 import { assertAllowedEndpoint } from "@/integrations/anchor/http";
 import { AnchorToml, anchorTomlSchema } from "@/integrations/anchor/schemas";
+import { AppError } from "@/lib/action-handler";
 import { StellarToml } from "@stellar/stellar-sdk";
 
 const DISCOVERY_TTL_MS = 5 * 60 * 1000;
@@ -44,7 +45,15 @@ export async function discoverAnchor(config: AnchorConfig): Promise<AnchorToml> 
         await new Promise((resolve) => setTimeout(resolve, DISCOVERY_RETRY_DELAY_MS));
       }
     }
-    if (!rawToml) throw lastError instanceof Error ? lastError : new Error("Anchor discovery failed");
+    if (!rawToml) {
+      throw lastError instanceof AppError
+        ? lastError
+        : new AppError(
+            "STELLAR_ERROR",
+            lastError instanceof Error ? lastError.message : "Anchor discovery failed",
+            502
+          );
+    }
     const toml = anchorTomlSchema.parse(rawToml);
 
     assertAllowedEndpoint(toml.TRANSFER_SERVER_SEP0024, config.domain);

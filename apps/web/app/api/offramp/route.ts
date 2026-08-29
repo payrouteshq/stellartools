@@ -153,6 +153,7 @@ export const POST = apiHandler({
               sellAsset,
               buyAsset,
               sellAmount: body.cryptoAmount,
+              countryCode: body.destinationCountry,
             })
         : null;
 
@@ -208,16 +209,21 @@ export const POST = apiHandler({
         sandbox: config.id === "sdf-test-anchor",
       });
     } catch (error: unknown) {
-      console.error("[OFFRAMP_INITIATION_FAILURE]", error instanceof Error ? error.message : "Unknown provider error");
+      console.error("[OFFRAMP_INITIATION_FAILURE]", error);
+      const failureMessage =
+        error instanceof AppError || error instanceof Error
+          ? error.message
+          : "The payout provider could not start the withdrawal";
+
       await putPayout(payoutId, {
         status: "failed",
         providerStatus: "error",
         failureCode: "provider_initiation_failed",
-        failureMessage: "The payout provider could not start the withdrawal",
+        failureMessage,
         providerUpdatedAt: new Date(),
       });
       if (error instanceof AppError) throw error;
-      throw new AppError("INTERNAL_ERROR", "The payout provider could not start the withdrawal");
+      throw new AppError("VALIDATION_ERROR", failureMessage);
     }
   },
 });

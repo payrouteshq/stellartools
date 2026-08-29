@@ -32,10 +32,6 @@ import {
   Spinner,
   TableAction,
   TextField,
-  UnderlineTabs,
-  UnderlineTabsContent,
-  UnderlineTabsList,
-  UnderlineTabsTrigger,
   cn,
   toast,
 } from "@stellartools/shared-ui";
@@ -43,8 +39,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import _ from "lodash";
 import {
+  ArrowRight,
   ArrowUpFromLine,
   CheckCircle2,
+  ChevronLeft,
   CircleAlert,
   Clock,
   Construction,
@@ -539,23 +537,33 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6 py-2">
+    <div className="mx-auto w-full max-w-2xl space-y-5 py-2">
       {capabilities?.sandbox && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-          <ShieldCheck className="mt-0.5 size-5 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold">Test mode</p>
-            <p className="mt-1 text-xs">
-              You can complete the full payout flow, but no real fiat will be sent to a bank account.
-            </p>
-          </div>
+        <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 dark:border-amber-900/50 dark:bg-amber-950/30">
+          <ShieldCheck className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            <span className="font-semibold">Test mode —</span> No real fiat will be sent.
+          </p>
         </div>
       )}
 
       <section className="space-y-3">
-        <div>
-          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">You send</p>
-          <p className="text-muted-foreground mt-1 text-xs">Choose an asset and enter how much you want to cash out.</p>
+        <div className="flex items-baseline justify-between">
+          <p className="text-foreground text-sm font-semibold">You send</p>
+          {selectedAsset && maximumSelectableAmount && (
+            <button
+              type="button"
+              className="text-primary cursor-pointer text-xs font-medium hover:underline"
+              onClick={() =>
+                form.setValue("cryptoAmount", maximumSelectableAmount, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            >
+              Max: {Money.formatCrypto(selectedAsset.balance, selectedAsset.code)}
+            </button>
+          )}
         </div>
         <SelectInput
           id="fiat-payout-amount"
@@ -579,33 +587,10 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
           )}
           error={amountError ?? form.formState.errors.assetCode?.message}
         />
-
-        {selectedAsset && (
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <p className="text-muted-foreground">
-              Available: {Money.formatCrypto(selectedAsset.balance, selectedAsset.code)}
-            </p>
-            {maximumSelectableAmount && (
-              <button
-                type="button"
-                className="text-primary cursor-pointer font-medium hover:underline"
-                onClick={() =>
-                  form.setValue("cryptoAmount", maximumSelectableAmount, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  })
-                }
-              >
-                Max
-              </button>
-            )}
-          </div>
-        )}
-
         {transactionLimitLabel && (
-          <div className="bg-muted/40 flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs">
-            <span className="text-muted-foreground">Transaction limit</span>
-            <span className="font-medium tabular-nums">{transactionLimitLabel}</span>
+          <div className="bg-muted/50 flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Provider limit</span>
+            <span className="font-mono font-medium tabular-nums">{transactionLimitLabel}</span>
           </div>
         )}
       </section>
@@ -613,10 +598,7 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
       <Separator />
 
       <section className="space-y-4">
-        <div>
-          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">You receive</p>
-          <p className="text-muted-foreground mt-1 text-xs">Choose your currency and where you want to receive it.</p>
-        </div>
+        <p className="text-foreground text-sm font-semibold">You receive</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Controller
@@ -674,7 +656,7 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
           render={({ field, fieldState }) => (
             <SelectField
               id="fiat-payout-rail"
-              label="Receive money via"
+              label="Receive via"
               value={field.value}
               onChange={field.onChange}
               items={(capabilities?.payoutRails ?? PAYOUT_RAILS.map((r) => r.value)).map((rail) => {
@@ -690,15 +672,12 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
         />
       </section>
 
-      <div className="bg-muted/40 flex items-start gap-3 rounded-xl border p-4">
-        <Landmark className="text-muted-foreground mt-0.5 size-5 shrink-0" />
-        <div>
-          <p className="text-sm font-medium">Your details stay with the payout partner</p>
-          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-            {capabilities?.provider.name ?? "The payout partner"} will securely collect your bank and identity details
-            in the next step. StellarTools does not store them.
-          </p>
-        </div>
+      <div className="flex items-start gap-2.5 rounded-xl border px-4 py-3">
+        <Landmark className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          <span className="text-foreground font-medium">{capabilities?.provider.name ?? "The payout partner"}</span>
+          {" "}will securely collect your bank and identity details in the next step. StellarTools does not store them.
+        </p>
       </div>
 
       <Button
@@ -709,7 +688,7 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
         size="lg"
       >
         {isPending ? <Spinner size={16} strokeColor="currentColor" /> : <ArrowUpFromLine className="size-4" />}
-        {isPending ? "Preparing your payout…" : "Continue"}
+        {isPending ? "Preparing your payout…" : "Continue to payout"}
       </Button>
 
       {availableAssets.length === 0 && (
@@ -721,7 +700,66 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
   );
 }
 
-function PayoutModalTabs({
+type PayoutMethod = "select" | "crypto" | "fiat";
+
+function PayoutMethodPicker({ onSelect }: { onSelect: (method: PayoutMethod) => void }) {
+  return (
+    <div className="space-y-6 py-1">
+      <div className="space-y-1">
+        <p className="text-base font-semibold">How would you like to send?</p>
+        <p className="text-muted-foreground text-sm">Choose a payout method to continue.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onSelect("crypto")}
+          className="group flex flex-col gap-4 rounded-2xl border-2 border-border/60 bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+        >
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <Wallet className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold">Crypto Transfer</p>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Send directly to any Stellar wallet address instantly.
+            </p>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-primary text-xs font-medium">Select</span>
+            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelect("fiat")}
+          className="group flex flex-col gap-4 rounded-2xl border-2 border-border/60 bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+              <Landmark className="size-5 text-primary" />
+            </div>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              Test mode
+            </span>
+          </div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold">Fiat Withdrawal</p>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Convert your crypto and cash out to a bank account in your local currency.
+            </p>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-primary text-xs font-medium">Select</span>
+            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PayoutModalContent({
   assets,
   publicKey,
   onSuccess,
@@ -730,23 +768,28 @@ function PayoutModalTabs({
   publicKey: string | null;
   onSuccess: () => void;
 }) {
-  const [activeTab, setActiveTab] = React.useState("crypto");
+  const [method, setMethod] = React.useState<PayoutMethod>("select");
+
+  if (method === "select") {
+    return <PayoutMethodPicker onSelect={setMethod} />;
+  }
 
   return (
-    <UnderlineTabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <UnderlineTabsList>
-        <UnderlineTabsTrigger value="crypto">Crypto</UnderlineTabsTrigger>
-        <UnderlineTabsTrigger value="fiat">Fiat</UnderlineTabsTrigger>
-      </UnderlineTabsList>
-
-      <UnderlineTabsContent value="crypto" className="mt-6">
+    <div className="space-y-5">
+      <button
+        type="button"
+        onClick={() => setMethod("select")}
+        className="text-muted-foreground hover:text-foreground -ml-1 flex items-center gap-1 text-sm transition-colors"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </button>
+      {method === "crypto" ? (
         <PayoutForm assets={assets} publicKey={publicKey} onSuccess={onSuccess} />
-      </UnderlineTabsContent>
-
-      <UnderlineTabsContent value="fiat" className="mt-6">
+      ) : (
         <FiatPayoutForm assets={assets} onSuccess={onSuccess} />
-      </UnderlineTabsContent>
-    </UnderlineTabs>
+      )}
+    </div>
   );
 }
 
@@ -863,9 +906,9 @@ export default function PayoutPage() {
   const openPayoutModal = () => {
     AppModal.open({
       title: "Request Payout",
-      description: "Send funds from your account to an external address or bank account.",
+      description: "Send funds from your Stellar wallet.",
       content: (
-        <PayoutModalTabs
+        <PayoutModalContent
           assets={walletData?.assets ?? []}
           publicKey={walletData?.publicKey ?? null}
           onSuccess={() => {
@@ -899,7 +942,7 @@ export default function PayoutPage() {
             <Construction className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-sm text-amber-800 dark:text-amber-300">
               <span className="font-semibold">Fiat payouts are in test mode.</span> The Fiat tab currently uses the SDF
-              Test Anchor and does not send real money. For live withdrawals, continue using crypto and swap on{" "}
+              Test Anchor and does not send real money.
               <a
                 href="https://stellarterm.com"
                 target="_blank"

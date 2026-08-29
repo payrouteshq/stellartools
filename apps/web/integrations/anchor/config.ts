@@ -1,6 +1,7 @@
 import "server-only";
 
 import { AssetCode, Network } from "@/constant/schema.client";
+import { AppError } from "@/lib/action-handler";
 import { z } from "zod";
 
 export const supportedFiatCurrencySchema = z
@@ -84,18 +85,18 @@ const ANCHOR_REGISTRY: AnchorRegistry = {
 
 export function getAnchorConfig(network: Network, rawAnchorId?: string): AnchorConfig {
   if (network === "mainnet") {
-    throw new Error("Fiat offramp payouts are currently only available on Testnet");
+    throw new AppError("VALIDATION_ERROR", "Fiat offramp payouts are currently only available on Testnet", 400);
   }
 
   const defaultId = network === "testnet" ? "sdf-test-anchor" : undefined;
   const parsedId = anchorIdSchema.safeParse(rawAnchorId ?? defaultId);
 
   if (!parsedId.success) {
-    throw new Error(`No valid offramp anchor is configured for ${network}`);
+    throw new AppError("VALIDATION_ERROR", `No valid offramp anchor is configured for ${network}`, 400);
   }
 
   const config = ANCHOR_REGISTRY[network]?.[parsedId.data];
-  if (!config) throw new Error(`Anchor ${parsedId.data} is not available on ${network}`);
+  if (!config) throw new AppError("VALIDATION_ERROR", `Anchor ${parsedId.data} is not available on ${network}`, 400);
 
   if (parsedId.data === "sdf-test-anchor" && process.env.SDF_TEST_ANCHOR_DOMAIN) {
     const domain = process.env.SDF_TEST_ANCHOR_DOMAIN;
