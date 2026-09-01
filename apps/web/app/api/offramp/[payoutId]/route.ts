@@ -1,20 +1,18 @@
+import { processFiatPayoutFunding, reconcileFiatPayout } from "@/actions/offramp";
 import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { putPayout } from "@/actions/payout";
 import { SENSITIVE_KEY_PREFIX } from "@/constant";
 import { Payout, db, payouts } from "@/db";
 import { getAnchorConfig } from "@/integrations/anchor/config";
 import { discoverAnchor } from "@/integrations/anchor/discovery";
-import { validateFundingInstructions } from "@/integrations/anchor/funding";
 import { authenticateWithSep10 } from "@/integrations/anchor/sep10";
 import { Sep24Client } from "@/integrations/anchor/sep24";
 import { mapSep24Status } from "@/integrations/anchor/status";
 import { decrypt } from "@/integrations/encryption";
-import { prepareAssetPayment, submitPreparedAssetPayment } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Result, z as Schema } from "@stellartools/core";
-import Big from "big.js";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const paramsSchema = Schema.object({ payoutId: Schema.string() });
 
@@ -57,38 +55,21 @@ async function createProviderClient(payout: Payout): Promise<{
   return { client: new Sep24Client(config, toml, token), secretKey, config };
 }
 
-function transactionAmountCents(amountOut: string | undefined): number | undefined {
-  if (!amountOut) return undefined;
-  return Number(new Big(amountOut).times(100).round(0, Big.roundHalfUp).toString());
-}
-
 export const GET = apiHandler({
   auth: ["session"],
   convertToSnakeCase: false,
   schema: { params: paramsSchema },
   handler: async ({ params: { payoutId }, auth: { organizationId, environment } }) => {
     const payout = await retrieveFiatPayout({ payoutId, organizationId, environment });
-    const { client } = await createProviderClient(payout);
-    const transaction = await client.getTransaction(payout.providerTransactionId!);
-    const localStatus = mapSep24Status(transaction.status);
-    const amountCents = transactionAmountCents(transaction.amount_out);
-
-    await putPayout(payout.id, {
-      status: localStatus,
-      providerStatus: transaction.status,
-      providerUpdatedAt: new Date(),
-      completedAt: localStatus === "succeeded" ? new Date() : payout.completedAt,
-      ...(amountCents === undefined ? {} : { amountCents, metadata: null }),
-      ...(localStatus === "failed" ? { failureCode: transaction.status, failureMessage: transaction.message } : {}),
-    });
+    const reconciled = await reconcileFiatPayout(payout);
 
     return Result.ok({
       id: payout.id,
-      status: localStatus,
-      providerStatus: transaction.status,
-      requiresFundingConfirmation: transaction.status === "pending_user_transfer_start" && !payout.transactionHash,
-      transactionHash: payout.transactionHash,
-      message: transaction.message ?? null,
+      status: reconciled.status,
+      providerStatus: reconciled.providerStatus,
+      requiresFundingConfirmation:
+        reconciled.providerStatus === "pending_user_transfer_start" && !reconciled.transactionHash,
+      transactionHash: reconciled.transactionHash ?? payout.transactionHash,
     });
   },
 });
@@ -98,8 +79,8 @@ export const POST = apiHandler({
   convertToSnakeCase: false,
   schema: { params: paramsSchema },
   handler: async ({ params: { payoutId }, auth: { organizationId, environment } }) => {
-    let payout = await retrieveFiatPayout({ payoutId, organizationId, environment });
-    const { client, secretKey, config } = await createProviderClient(payout);
+    const payout = await retrieveFiatPayout({ payoutId, organizationId, environment });
+    const { client, secretKey } = await createProviderClient(payout);
     const transaction = await client.getTransaction(payout.providerTransactionId!);
     const localStatus = mapSep24Status(transaction.status);
 
@@ -118,6 +99,7 @@ export const POST = apiHandler({
         transactionHash: payout.transactionHash,
       });
     }
+
     if (payout.transactionHash) {
       return Result.ok({
         id: payout.id,
@@ -128,70 +110,18 @@ export const POST = apiHandler({
       });
     }
 
-    const asset = config.withdrawAssets.find(
-      (candidate) => candidate.code === payout.selectedAssetCode && candidate.issuer === payout.selectedAssetIssuer
-    );
-    if (!asset) throw new AppError("CONFLICT", "The stored payout asset is not supported by this provider");
-    const instructions = validateFundingInstructions({
-      transaction,
-      requestedAmount: payout.cryptoAmount,
-      asset,
-    });
-
-    if (!payout.fundingTransactionXdr) {
-      const prepared = await prepareAssetPayment({
-        sourceSecret: secretKey,
-        destination: instructions.destination,
-        assetCode: asset.code,
-        assetIssuer: asset.issuer ?? "",
-        amount: instructions.amount,
-        network: environment,
-        memo: instructions.memo,
-      });
-      const [claimed] = await db
-        .update(payouts)
-        .set({ fundingTransactionXdr: prepared.transactionXdr })
-        .where(
-          and(
-            eq(payouts.id, payout.id),
-            eq(payouts.organizationId, organizationId),
-            eq(payouts.environment, environment),
-            isNull(payouts.fundingTransactionXdr),
-            isNull(payouts.transactionHash)
-          )
-        )
-        .returning();
-      if (!claimed) {
-        payout = await retrieveFiatPayout({ payoutId, organizationId, environment });
-      } else {
-        payout = claimed;
-      }
-    }
-
-    if (!payout.fundingTransactionXdr) {
-      throw new AppError("CONFLICT", "Another request is preparing this payout transaction");
-    }
-
     try {
-      const submitted = await submitPreparedAssetPayment(payout.fundingTransactionXdr, environment);
-      await putPayout(payout.id, {
-        transactionHash: submitted.hash,
-        failureCode: null,
-        failureMessage: null,
-      });
+      const { transactionHash } = await processFiatPayoutFunding(payout, secretKey, transaction);
       return Result.ok({
         id: payout.id,
         status: "pending" as const,
         providerStatus: transaction.status,
         funded: true,
-        transactionHash: submitted.hash,
+        transactionHash,
       });
     } catch {
-      await putPayout(payout.id, {
-        failureCode: "stellar_submission_failed",
-        failureMessage: "The prepared Stellar payment could not be submitted and can be retried safely",
-      });
       throw new AppError("STELLAR_ERROR", "The Stellar funding payment could not be submitted");
     }
   },
 });
+
