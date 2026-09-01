@@ -2,6 +2,7 @@ import { resolveAppContext } from "@/app/actions/context";
 import { indexEmail } from "@/app/actions/db";
 import {
   AppInstallationSettings,
+  HandlerError,
   Network,
   STELLARTOOLS_ID,
   z as Schema,
@@ -12,8 +13,9 @@ import {
   WebhookObjectMap,
   WebhookSigner,
   parseJSON,
+  routeHandler,
 } from "@stellartools/core";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { Resend } from "resend";
 
 type WebhookHandlers = {
@@ -231,7 +233,7 @@ const HANDLERS: WebhookHandlers = {
   },
 };
 
-export async function POST(req: NextRequest) {
+export const POST = routeHandler<NextRequest>(async (req) => {
   const rawBody = await req.text();
   const signature = req.headers.get("x-stellartools-signature") ?? "";
   const appToken = req.headers.get("x-stellartools-app-token") ?? "";
@@ -241,7 +243,7 @@ export async function POST(req: NextRequest) {
   try {
     signer.constructEvent(rawBody, signature, process.env.RESEND_APP_SECRET!);
   } catch {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    throw new HandlerError("Invalid signature", 401);
   }
 
   const { event, settings } = parseJSON<{ event: WebhookEvent; settings: AppInstallationSettings }>(
@@ -249,37 +251,34 @@ export async function POST(req: NextRequest) {
     Schema.object({ event: Schema.any(), settings: Schema.any() })
   );
 
+  const st = new StellarTools({ api_key: appToken });
+
+  if (!settings["resendApiKey"]) throw new HandlerError("No API key configured", 404);
+
+  const resend = new Resend(settings["resendApiKey"] as string);
+  const appContext = await resolveAppContext(appToken);
+  const orgId = appContext?.orgId ?? null;
+  const environment: Network = event.livemode ? "mainnet" : "testnet";
+
+  const handler = HANDLERS[event.type] as
+    | ((
+        st: StellarTools,
+        resend: Resend,
+        event: WebhookEvent,
+        settings: AppInstallationSettings,
+        orgId: string | null,
+        environment: Network
+      ) => Promise<void>)
+    | undefined;
+
+  if (!handler) throw new HandlerError("No handler found for event type", 404);
+
   try {
-    const st = new StellarTools({ api_key: appToken });
-
-    if (!settings["resendApiKey"]) {
-      return NextResponse.json({ error: "No API key configured" }, { status: 404 });
-    }
-
-    const resend = new Resend(settings["resendApiKey"] as string);
-    const appContext = await resolveAppContext(appToken);
-    const orgId = appContext?.orgId ?? null;
-    const environment: Network = event.livemode ? "mainnet" : "testnet";
-
-    const handler = HANDLERS[event.type] as
-      | ((
-          st: StellarTools,
-          resend: Resend,
-          event: WebhookEvent,
-          settings: AppInstallationSettings,
-          orgId: string | null,
-          environment: Network
-        ) => Promise<void>)
-      | undefined;
-
-    if (!handler) {
-      return NextResponse.json({ error: "No handler found for event type" }, { status: 404 });
-    }
-
     await handler(st, resend, event, settings, orgId, environment);
-    return NextResponse.json({ ok: true });
-  } catch (err: unknown) {
+  } catch (err) {
     console.error("[Webhook Error]:", err);
-    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
+    throw new HandlerError("Processing failed", 500);
   }
-}
+
+  return { ok: true };
+});
