@@ -334,14 +334,21 @@ export default function PayoutDetailPage() {
               {payout.method === "fiat" &&
                 payout.providerStatus === "pending_user_transfer_start" &&
                 !payout.transactionHash && (
-                  <Button onClick={() => confirmFunding(undefined)} disabled={isConfirmingFunding} className="gap-2">
-                    {isConfirmingFunding ? (
-                      <Spinner size={16} strokeColor="currentColor" />
-                    ) : (
-                      <Landmark className="h-4 w-4" />
-                    )}
-                    Confirm & Send Funds
-                  </Button>
+                  payout.failureCode ? (
+                    <Button onClick={() => confirmFunding(undefined)} disabled={isConfirmingFunding} variant="outline" className="gap-2">
+                      {isConfirmingFunding ? (
+                        <Spinner size={16} strokeColor="currentColor" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Retry Funding
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-600 font-medium">
+                      <Spinner size={14} />
+                      Funding payout to provider...
+                    </div>
+                  )
                 )}
               <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} className="gap-2 shadow-none">
                 <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} /> Refresh
