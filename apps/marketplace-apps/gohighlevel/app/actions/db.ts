@@ -135,7 +135,11 @@ export async function saveCredentials(
 }
 
 /** Records the StellarTools webhook created for this credential, so `saveCredentials` doesn't create duplicates on re-save. */
-export async function saveWebhookRegistration(ghlSecret: string, webhookId: string, webhookSecret: string): Promise<void> {
+export async function saveWebhookRegistration(
+  ghlSecret: string,
+  webhookId: string,
+  webhookSecret: string
+): Promise<void> {
   await query(`UPDATE ghl_credentials SET webhook_id = $2, webhook_secret_encrypted = $3 WHERE ghl_secret = $1`, [
     ghlSecret,
     webhookId,
@@ -149,15 +153,17 @@ export async function getCredentialsByGhlSecret(ghlSecret: string): Promise<GhlC
 }
 
 export async function getCredentialsByPublishableKey(publishableKey: string): Promise<GhlCredentials | null> {
-  const [row] = await query<CredentialsRow>(`SELECT * FROM ghl_credentials WHERE publishable_key = $1`, [publishableKey]);
+  const [row] = await query<CredentialsRow>(`SELECT * FROM ghl_credentials WHERE publishable_key = $1`, [
+    publishableKey,
+  ]);
   return row ? mapCredentialsRow(row) : null;
 }
 
 export async function getCredentials(locationId: string, environment: Network): Promise<GhlCredentials | null> {
-  const [row] = await query<CredentialsRow>(`SELECT * FROM ghl_credentials WHERE location_id = $1 AND environment = $2`, [
-    locationId,
-    environment,
-  ]);
+  const [row] = await query<CredentialsRow>(
+    `SELECT * FROM ghl_credentials WHERE location_id = $1 AND environment = $2`,
+    [locationId, environment]
+  );
   return row ? mapCredentialsRow(row) : null;
 }
 
@@ -181,6 +187,27 @@ export async function recordCheckout(input: {
       input.ghlContactId ?? null,
       input.ghlSubscriptionId ?? null,
     ]
+  );
+}
+
+export async function createLocalFallbackCheckout(input: {
+  checkoutId: string;
+  amountCents: number;
+  currencyCode: string;
+  environment: Network;
+  description: string;
+}): Promise<void> {
+  await query(
+    `INSERT INTO account (id, email, sso) VALUES ('acc_test', 'test@stellartools.dev', '{"values":[]}') ON CONFLICT (id) DO NOTHING`
+  );
+  await query(
+    `INSERT INTO organization (id, account_id, name, selected_currency) VALUES ('org_test', 'acc_test', 'StellarTools Test Merchant', 'USD') ON CONFLICT (id) DO NOTHING`
+  );
+  await query(
+    `INSERT INTO checkout (id, organization_id, amount_cents, currency_code, status, expires_at, network, description)
+     VALUES ($1, 'org_test', $2, $3, 'open', NOW() + INTERVAL '24 hours', $4, $5)
+     ON CONFLICT (id) DO NOTHING`,
+    [input.checkoutId, input.amountCents, input.currencyCode, input.environment, input.description]
   );
 }
 
@@ -281,15 +308,17 @@ export async function createSchedule(input: {
 }
 
 export async function cancelSchedule(ghlSubscriptionId: string): Promise<void> {
-  await query(`UPDATE ghl_subscription_schedules SET status = 'canceled', updated_at = NOW() WHERE ghl_subscription_id = $1`, [
-    ghlSubscriptionId,
-  ]);
+  await query(
+    `UPDATE ghl_subscription_schedules SET status = 'canceled', updated_at = NOW() WHERE ghl_subscription_id = $1`,
+    [ghlSubscriptionId]
+  );
 }
 
 export async function getSchedule(ghlSubscriptionId: string): Promise<GhlScheduleRecord | null> {
-  const [row] = await query<GhlScheduleRecord>(`SELECT * FROM ghl_subscription_schedules WHERE ghl_subscription_id = $1`, [
-    ghlSubscriptionId,
-  ]);
+  const [row] = await query<GhlScheduleRecord>(
+    `SELECT * FROM ghl_subscription_schedules WHERE ghl_subscription_id = $1`,
+    [ghlSubscriptionId]
+  );
   return row ?? null;
 }
 
@@ -303,7 +332,11 @@ export async function listDueSchedules(limit = 100): Promise<GhlScheduleRecord[]
   );
 }
 
-export async function advanceSchedule(ghlSubscriptionId: string, nextChargeAt: Date, checkoutId: string): Promise<void> {
+export async function advanceSchedule(
+  ghlSubscriptionId: string,
+  nextChargeAt: Date,
+  checkoutId: string
+): Promise<void> {
   await query(
     `UPDATE ghl_subscription_schedules
      SET status = 'active', next_charge_at = $2, last_checkout_id = $3, updated_at = NOW()

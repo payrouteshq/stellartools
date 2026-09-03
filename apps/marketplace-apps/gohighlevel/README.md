@@ -68,6 +68,7 @@ GoHighLevel's servers need a real HTTPS URL to reach `/install` and `/api/ghl/qu
 GoHighLevel account at all:
 
 **Without a GHL account:**
+
 1. Run a local Postgres, apply `db/init.sql`, start this app (`pnpm dev`, port 3002) and apps/web
    (port 3000) with matching `.env` files (`GHL_INTERNAL_API_SECRET` must match on both).
 2. Manually insert a `ghl_locations` row (a real one only ever gets created by `/install`) so the
@@ -90,7 +91,7 @@ GoHighLevel account at all:
 in the HighLevel developer portal (no review needed — see the docs page), point its redirect
 URL/queryUrl/install-webhook at a tunnel (`ngrok http 3002`, or the `cloudflared` setup already
 in this repo's `docker-compose.yml`) fronting this app, point `paymentsUrl` at wherever apps/web
-is actually reachable (a deployed instance is easiest — you only need to tunnel *this* app while
+is actually reachable (a deployed instance is easiest — you only need to tunnel _this_ app while
 iterating on it), and install it on a test sub-account.
 
 ## Structure

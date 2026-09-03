@@ -48,7 +48,10 @@ export const GET = routeHandler(async (req) => {
 
       results.push({ ghlSubscriptionId: schedule.ghl_subscription_id, checkoutId: checkout.id });
     } catch (err) {
-      results.push({ ghlSubscriptionId: schedule.ghl_subscription_id, error: err instanceof Error ? err.message : "Unknown error" });
+      results.push({
+        ghlSubscriptionId: schedule.ghl_subscription_id,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
     }
   }
 

@@ -1,4 +1,10 @@
-import { advanceSchedule, getCheckout, getCredentialsByGhlSecret, getSchedule, markCheckoutPaid } from "@/app/actions/db";
+import {
+  advanceSchedule,
+  getCheckout,
+  getCredentialsByGhlSecret,
+  getSchedule,
+  markCheckoutPaid,
+} from "@/app/actions/db";
 import {
   buildPaymentCapturedWebhook,
   buildSubscriptionChargedWebhook,

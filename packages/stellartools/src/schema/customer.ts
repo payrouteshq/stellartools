@@ -142,4 +142,6 @@ export const CUSTOMER_SCHEMAS = {
     list: ListCustomersSchema_2026_08_18,
     retrieve: RetrieveCustomerSchema_2026_08_18,
   },
-} satisfies Partial<Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; list: z.ZodSchema; retrieve: z.ZodSchema }>>;
+} satisfies Partial<
+  Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; list: z.ZodSchema; retrieve: z.ZodSchema }>
+>;

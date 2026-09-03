@@ -69,8 +69,8 @@ function ConfigForm() {
         <div className="space-y-1">
           <h2 className="text-base font-medium">Connect StellarTools</h2>
           <p className="text-muted-foreground text-sm">
-            Paste your StellarTools secret API keys. Test mode accepts testnet payments; live mode accepts real
-            payments and requires a mainnet key.
+            Paste your StellarTools secret API keys. Test mode accepts testnet payments; live mode accepts real payments
+            and requires a mainnet key.
           </p>
         </div>
 

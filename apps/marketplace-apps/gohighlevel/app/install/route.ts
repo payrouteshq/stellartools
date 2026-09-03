@@ -1,6 +1,11 @@
-import { connectStellarAccount } from "@/app/actions/stellar";
 import { getLocation, markProviderRegistered, upsertLocationTokens } from "@/app/actions/db";
-import { createGhlProviderConfig, exchangeGhlAuthorizationCode, verifyGhlConnectState } from "@/lib/ghl";
+import { connectStellarAccount } from "@/app/actions/stellar";
+import {
+  createGhlProviderConfig,
+  enableGhlManualSubscriptions,
+  exchangeGhlAuthorizationCode,
+  verifyGhlConnectState,
+} from "@/lib/ghl";
 import { HandlerError, routeHandler } from "@stellartools/core";
 
 export const GET = routeHandler(async (req) => {
@@ -43,6 +48,12 @@ export const GET = routeHandler(async (req) => {
       await markProviderRegistered(token.locationId);
     } catch (err) {
       console.error("[install] provider config registration failed, will retry on next install:", err);
+    }
+
+    try {
+      await enableGhlManualSubscriptions(token.access_token, { locationId: token.locationId });
+    } catch (err) {
+      console.error("[install] enable manual subscriptions failed:", err);
     }
   }
 

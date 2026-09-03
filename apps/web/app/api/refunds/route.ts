@@ -18,8 +18,8 @@ import { apiHandler, createOptionsHandler } from "@/lib/api-handler";
 import { Money } from "@/lib/money";
 import { generateResourceId, toCamelCase } from "@/lib/utils";
 import { CreateRefund, CreateRefundSchema_2026_08_18, Result, z as Schema } from "@stellartools/core";
-import moment from "moment";
 import { waitUntil } from "@vercel/functions";
+import moment from "moment";
 
 export const OPTIONS = createOptionsHandler();
 
@@ -104,7 +104,12 @@ export const POST = apiHandler({
 
     const runSidedEffects = async () => {
       if (res.isOk() && payment.customerId) {
-        const [{ data: [customer] }, org] = await Promise.all([
+        const [
+          {
+            data: [customer],
+          },
+          org,
+        ] = await Promise.all([
           retrieveCustomers({ id: payment.customerId }, { requireLookUpParams: true }, organizationId, environment),
           retrieveOrganization(organizationId),
         ]);

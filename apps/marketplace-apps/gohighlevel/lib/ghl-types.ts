@@ -48,7 +48,7 @@ export interface GhlConnectConfigInput {
   test?: { apiKey: string; publishableKey: string };
 }
 
-const ChargeSnapshotSchema = z.object({
+export const ChargeSnapshotSchema = z.object({
   id: z.string().optional(),
   status: z.enum(["succeeded", "failed", "pending", "processing"]),
   amount: z.number(),
@@ -60,7 +60,7 @@ const ChargeSnapshotSchema = z.object({
 
 export type GhlChargeSnapshot = z.infer<typeof ChargeSnapshotSchema>;
 
-const SubscriptionSnapshotSchema = z.object({
+export const SubscriptionSnapshotSchema = z.object({
   id: z.string(),
   status: z.enum(["scheduled", "trialing", "active", "expired", "canceled", "unpaid", "incomplete", "pending"]),
   trialEnd: z.number().optional(),

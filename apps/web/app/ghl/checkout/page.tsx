@@ -4,7 +4,13 @@ import * as React from "react";
 
 import CheckoutUI from "@/app/checkout/[checkoutId]/checkout-ui";
 import { CheckoutProvider, useCheckout } from "@/contexts/checkout-context";
-import { IframeInboundMessage, buildErrorMessage, buildReadyMessage, buildSuccessMessage, parseGhlIframeMessage } from "@/lib/ghl-iframe";
+import {
+  IframeInboundMessage,
+  buildErrorMessage,
+  buildReadyMessage,
+  buildSuccessMessage,
+  parseGhlIframeMessage,
+} from "@/lib/ghl-iframe";
 
 /** Reports payment completion back to the HighLevel parent frame without touching CheckoutUI itself. */
 function GhlBridge() {
@@ -37,7 +43,10 @@ export default function GhlCheckoutPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(props),
         });
-        if (!res.ok) throw new Error("Could not start checkout");
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(data.error ?? "Could not start checkout");
+        }
         const data = (await res.json()) as { checkoutId: string };
         setCheckoutId(data.checkoutId);
       } catch (err) {

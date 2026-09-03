@@ -1,3 +1,6 @@
+CREATE SCHEMA IF NOT EXISTS public;
+SET search_path TO public;
+
 -- One row per installed GHL sub-account (location), holding the OAuth tokens we got from the
 -- install flow and whether we've already registered the provider config with HighLevel.
 CREATE TABLE IF NOT EXISTS ghl_locations (
