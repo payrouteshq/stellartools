@@ -22,20 +22,15 @@ export async function connectStellarAccount(
 
   const stellar = new StellarTools({ api_key: apiKey });
   let detectedNetwork: Network;
-  const isTestKey = apiKey.startsWith("st_test_") || apiKey.startsWith("sk_test_");
-  const isLiveKey = apiKey.startsWith("st_live_") || apiKey.startsWith("sk_live_");
 
   try {
     const result = await stellar.balance.retrieve();
     detectedNetwork = result.network as Network;
   } catch {
-    if (isTestKey || isLiveKey) {
-      detectedNetwork = isTestKey ? "testnet" : "mainnet";
-    } else if (apiKey.startsWith("st_")) {
-      detectedNetwork = "testnet";
-    } else {
+    if (!apiKey.startsWith("st_") && !apiKey.startsWith("sk_")) {
       return "Could not validate this API key with StellarTools.";
     }
+    detectedNetwork = apiKey.includes("live") ? "mainnet" : "testnet";
   }
 
   const expectedNetwork = environment ?? detectedNetwork;
@@ -43,13 +38,14 @@ export async function connectStellarAccount(
     return `This key belongs to StellarTools ${detectedNetwork}, not ${expectedNetwork}. Use a key matching ${expectedNetwork}.`;
   }
 
+  const existing = await retrieveCredentials({ locationId, environment: expectedNetwork });
+
   const { ghlSecret, publishableKey } = await postCredentials({
     locationId,
     environment: expectedNetwork,
     stellarApiKey: apiKey,
   });
 
-  const existing = await retrieveCredentials({ locationId, environment: expectedNetwork });
   if (!existing?.webhookId) {
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
