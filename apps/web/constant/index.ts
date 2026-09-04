@@ -60,3 +60,5 @@ export const TIMELINE_ROUTE_MAP: Record<string, (id: string) => string> = {
 };
 
 export const SENSITIVE_KEY_PREFIX = "__ST_ENC__:";
+
+export const INTERNAL_PRODUCT_ID_SUFFIX = ":-i";

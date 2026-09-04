@@ -122,7 +122,7 @@ export const WEBHOOK_SCHEMAS = {
     update: UpdateWebhookSchema_2026_08_18,
     retrieve: RetrieveWebhookSchema_2026_08_18,
   },
-} satisfies Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>;
+} satisfies Partial<Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>>;
 
 // --- Core Event Envelopes ---
 

@@ -3,12 +3,13 @@
 import { paginate, parseOffset } from "@/actions/event";
 import { resolveOrgContext } from "@/actions/organization";
 import { subscriptionPeriodMs } from "@/constant";
+import { INTERNAL_PRODUCT_ID_SUFFIX } from "@/constant";
 import { Network, Product, ProductStatus, db, products } from "@/db";
 import { uploadFiles } from "@/integrations/file-upload";
 import { AppError } from "@/lib/action-handler";
 import { generateResourceId } from "@/lib/utils";
 import { ApiListParams, PaginatedResult } from "@/types";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, notLike } from "drizzle-orm";
 
 const resolveSubscriptionBilling = (
   type: Product["type"],
@@ -44,7 +45,8 @@ export const createProductImage = async (formData: FormData) => {
 export const postProduct = async (
   params: Omit<Product, "id" | "organizationId" | "environment">,
   orgId?: string,
-  env?: Network
+  env?: Network,
+  options?: { internal?: boolean }
 ) => {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
@@ -53,13 +55,14 @@ export const postProduct = async (
   }
 
   const billing = resolveSubscriptionBilling(params.type, params.recurringPeriod, params.customDurationMs);
+  const id = generateResourceId("prod", organizationId, 16) + (options?.internal ? INTERNAL_PRODUCT_ID_SUFFIX : "");
 
   const [product] = await db
     .insert(products)
     .values({
       ...params,
       ...billing,
-      id: generateResourceId("prod", organizationId, 16),
+      id,
       organizationId,
       environment,
     })
@@ -71,7 +74,12 @@ export const postProduct = async (
 export const retrieveProducts = async (
   orgId?: string,
   env?: Network,
-  filters: { productId?: string; status?: ProductStatus; requiresAuth?: boolean } & ApiListParams = {}
+  filters: {
+    productId?: string;
+    status?: ProductStatus;
+    requiresAuth?: boolean;
+    includeInternal?: boolean;
+  } & ApiListParams = {}
 ): Promise<PaginatedResult<Product>> => {
   const requiresAuth = filters?.requiresAuth ?? true;
 
@@ -96,7 +104,10 @@ export const retrieveProducts = async (
           ? [eq(products.organizationId, orgContext.organizationId), eq(products.environment, orgContext.environment)]
           : []),
         ...(filters.productId ? [eq(products.id, filters.productId)] : []),
-        ...(filters.status ? [eq(products.status, filters.status)] : [])
+        ...(filters.status ? [eq(products.status, filters.status)] : []),
+        ...(filters.productId || filters.includeInternal
+          ? [] // No filtering if we're looking for a specific product or including internal products
+          : [notLike(products.id, `%${INTERNAL_PRODUCT_ID_SUFFIX}`)])
       )
     )
     .limit(limit + 1)

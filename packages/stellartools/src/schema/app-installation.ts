@@ -31,4 +31,4 @@ export type AppInstallationStatus = (typeof APP_INSTALLATION_STATUS)[number];
 
 export const APP_INSTALLATION_SCHEMAS = {
   "2026-08-18": { settings: AppInstallationSettingsSchema_2026_08_18 },
-} satisfies Record<ApiVersion, { settings: z.ZodSchema }>;
+} satisfies Partial<Record<ApiVersion, { settings: z.ZodSchema }>>;

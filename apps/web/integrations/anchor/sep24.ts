@@ -26,9 +26,7 @@ export interface InitiateWithdrawalParams {
 }
 
 export function isExpiredQuoteError(error: unknown): boolean {
-  return (
-    error instanceof AppError && error.status === 400 && /(?:quote.*expir|expir.*quote)/i.test(error.message)
-  );
+  return error instanceof AppError && error.status === 400 && /(?:quote.*expir|expir.*quote)/i.test(error.message);
 }
 
 const TRANSACTION_READ_ATTEMPTS = 3;

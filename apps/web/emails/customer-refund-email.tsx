@@ -13,7 +13,8 @@ interface CustomerRefundEmailProps {
 }
 
 export const CustomerRefundEmail = (props: CustomerRefundEmailProps) => {
-  const { customerName, amount, reference, date, organizationName, organizationLogo, supportEmail, environment } = props;
+  const { customerName, amount, reference, date, organizationName, organizationLogo, supportEmail, environment } =
+    props;
 
   const preview = `Your refund of ${amount} from ${organizationName} is on its way`;
 
@@ -27,9 +28,7 @@ export const CustomerRefundEmail = (props: CustomerRefundEmailProps) => {
     >
       {/* Header */}
       <Section style={{ backgroundColor: "#111827", padding: "32px", textAlign: "center" }}>
-        <Text style={{ margin: "0 0 6px", fontSize: "13px", color: "#9ca3af" }}>
-          {organizationName} refunded
-        </Text>
+        <Text style={{ margin: "0 0 6px", fontSize: "13px", color: "#9ca3af" }}>{organizationName} refunded</Text>
         <Text style={{ margin: 0, fontSize: "36px", color: "#ffffff", fontWeight: 600, lineHeight: "1.2" }}>
           {amount}
         </Text>
@@ -37,9 +36,7 @@ export const CustomerRefundEmail = (props: CustomerRefundEmailProps) => {
 
       {/* Details */}
       <Section style={{ padding: "24px 32px 8px" }}>
-        <Text style={{ margin: "0 0 16px", fontSize: "13px", color: "#374151", fontWeight: 600 }}>
-          Refund details
-        </Text>
+        <Text style={{ margin: "0 0 16px", fontSize: "13px", color: "#374151", fontWeight: 600 }}>Refund details</Text>
         <Row label="Reference" value={reference} mono />
         <Row label="Date" value={date} />
       </Section>

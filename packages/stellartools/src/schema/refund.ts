@@ -78,4 +78,4 @@ export interface CreateRefund extends z.infer<typeof CreateRefundSchema_2026_08_
 
 export const REFUND_SCHEMAS = {
   "2026-08-18": { create: CreateRefundSchema_2026_08_18 },
-} satisfies Record<ApiVersion, { create: z.ZodSchema }>;
+} satisfies Partial<Record<ApiVersion, { create: z.ZodSchema }>>;
