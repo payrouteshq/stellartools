@@ -1,9 +1,8 @@
 import {
-  createLocalFallbackCheckout,
-  getCredentialsByPublishableKey,
-  getSubscriptionProduct,
-  recordCheckout,
-  saveSubscriptionProduct,
+  postCheckout,
+  postSubscriptionProduct,
+  retrieveCredentials,
+  retrieveSubscriptionProduct,
 } from "@/app/actions/db";
 import { intervalToMs } from "@/lib/ghl";
 import { ProductDetailSchema } from "@/lib/ghl-types";
@@ -21,15 +20,6 @@ const bodySchema = z.object({
   productDetails: z.array(ProductDetailSchema).optional(),
 });
 
-/**
- * Called server-to-server from apps/web's /ghl/checkout page (via its /api/ghl/checkout proxy)
- * once HighLevel sends `payment_initiate_props`. A `subscriptionId` means the customer is
- * present and about to sign a real subscription approval, so instead of a one-time direct
- * checkout we find-or-create an internal product to back it (marked via a request header, not a
- * public field — see the `x-stellartools-internal-product` header below) — StellarTools'
- * existing product/subscription flow handles everything from there (approval, on-chain
- * registration, recurring pulls) exactly like it does for a real merchant product.
- */
 export const POST = routeHandler(
   async (req, { body }) => {
     if (req.headers.get("x-internal-secret") !== process.env.GHL_INTERNAL_API_SECRET) {
@@ -48,7 +38,7 @@ export const POST = routeHandler(
       productDetails,
     } = body;
 
-    const credentials = await getCredentialsByPublishableKey(publishableKey);
+    const credentials = await retrieveCredentials({ pubKey: publishableKey });
     if (!credentials || credentials.locationId !== locationId) {
       throw new HandlerError("Unknown or mismatched publishableKey", 401);
     }
@@ -68,7 +58,7 @@ export const POST = routeHandler(
 
     try {
       if (subscriptionId) {
-        let productId = await getSubscriptionProduct(subscriptionId);
+        let productId = await retrieveSubscriptionProduct(subscriptionId);
 
         if (!productId) {
           const recurring = productDetails?.[0]?.prices?.[0]?.recurring;
@@ -95,7 +85,12 @@ export const POST = routeHandler(
             productId = `prd_mock_${subscriptionId}`;
           }
 
-          await saveSubscriptionProduct(subscriptionId, locationId, credentials.environment, productId);
+          await postSubscriptionProduct({
+            ghlSubscriptionId: subscriptionId,
+            locationId,
+            environment: credentials.environment,
+            stellarProductId: productId,
+          });
         }
 
         const checkout = await stellar.checkouts.create({
@@ -120,16 +115,9 @@ export const POST = routeHandler(
     } catch (err) {
       console.error("[api/checkout] StellarTools SDK checkout creation error (using local dev fallback):", err);
       checkoutId = `cz_test_${Date.now()}`;
-      await createLocalFallbackCheckout({
-        checkoutId,
-        amountCents: Math.round(amount * 100),
-        currencyCode,
-        environment: credentials.environment,
-        description: `HighLevel order ${orderId ?? transactionId}`,
-      });
     }
 
-    await recordCheckout({
+    await postCheckout({
       checkoutId,
       locationId,
       environment: credentials.environment,

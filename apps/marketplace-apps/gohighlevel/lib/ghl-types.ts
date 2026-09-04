@@ -1,13 +1,5 @@
 import { z } from "@stellartools/core";
 
-/**
- * Wire types for GoHighLevel's "Custom Payments Integration" contract:
- * https://help.gohighlevel.com/support/solutions/articles/155000002620-how-to-build-a-custom-payments-integration-on-the-platform
- *
- * Field names/casing below are dictated by GHL, not by our own conventions (camelCase, "type"
- * discriminators, etc). Keep them verbatim so the wire format matches what HighLevel actually sends.
- */
-
 export const GHL_REQUIRED_SCOPES = [
   "payments/orders.readonly",
   "payments/orders.write",

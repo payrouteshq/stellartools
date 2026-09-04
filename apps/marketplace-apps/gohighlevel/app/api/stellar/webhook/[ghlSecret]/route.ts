@@ -1,10 +1,4 @@
-import {
-  advanceSchedule,
-  getCheckout,
-  getCredentialsByGhlSecret,
-  getSchedule,
-  markCheckoutPaid,
-} from "@/app/actions/db";
+import { putCheckout, putSchedule, retrieveCheckout, retrieveCredentials, retrieveSchedule } from "@/app/actions/db";
 import {
   buildPaymentCapturedWebhook,
   buildSubscriptionChargedWebhook,
@@ -13,14 +7,9 @@ import {
 } from "@/lib/ghl";
 import { HandlerError, StellarTools, WebhookSigner, routeHandler } from "@stellartools/core";
 
-/**
- * StellarTools webhook receiver, one unique URL per (location, mode) credential — the
- * `ghlSecret` path segment is how we know which org's signing secret to verify with, since a
- * shared endpoint across many orgs can't know that before parsing the (untrusted) body.
- */
 export const POST = routeHandler(async (req, { params }) => {
   const { ghlSecret } = params;
-  const credentials = await getCredentialsByGhlSecret(ghlSecret);
+  const credentials = await retrieveCredentials({ secret: ghlSecret });
   if (!credentials?.webhookSecret) throw new HandlerError("Unknown webhook", 404);
 
   const rawBody = await req.text();
@@ -36,25 +25,24 @@ export const POST = routeHandler(async (req, { params }) => {
   if (event.type !== "payment.confirmed") return { ok: true };
 
   const payment = event.data.object;
-  await markCheckoutPaid(payment.checkout_id, payment.id);
+  await putCheckout(payment.checkout_id, { paymentId: payment.id, status: "completed" });
 
-  const checkout = await getCheckout(payment.checkout_id);
+  const checkout = await retrieveCheckout(payment.checkout_id);
   if (!checkout) return { ok: true };
 
   const chargeSnapshot = chargeSnapshotFromPayment(payment);
 
   if (checkout.ghl_subscription_id) {
-    // Two ways a checkout ends up tied to a GHL subscription: our own cron-driven schedule
-    // (create_subscription queryUrl path, no customer wallet at signup time — a row exists in
-    // ghl_subscription_schedules), or a real on-chain subscription backed by a hidden product
-    // (checkout iframe path — no schedule row, but the payment carries a real subscription_id
-    // we can ask StellarTools for the authoritative next billing date).
-    const schedule = await getSchedule(checkout.ghl_subscription_id);
+    const schedule = await retrieveSchedule(checkout.ghl_subscription_id);
     let nextChargeAt: Date;
 
     if (schedule) {
       nextChargeAt = new Date(Date.now() + schedule.interval_days * 24 * 60 * 60 * 1000);
-      await advanceSchedule(checkout.ghl_subscription_id, nextChargeAt, payment.checkout_id);
+      await putSchedule(checkout.ghl_subscription_id, {
+        status: "active",
+        nextChargeAt,
+        lastCheckoutId: payment.checkout_id,
+      });
     } else if (payment.subscription_id) {
       const stellar = new StellarTools({ api_key: credentials.stellarApiKey });
       const subscription = await stellar.subscriptions.retrieve(payment.subscription_id);

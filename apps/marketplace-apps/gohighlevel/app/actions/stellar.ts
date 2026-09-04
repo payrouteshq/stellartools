@@ -1,76 +1,85 @@
 "use server";
 
-import { getCredentials, getLocation, saveCredentials, saveWebhookRegistration } from "@/app/actions/db";
+import { postCredentials, retrieveCredentials, retrieveLocation } from "@/app/actions/db";
 import { connectGhlProviderConfig } from "@/lib/ghl";
-import { StellarTools } from "@stellartools/core";
+import { Network, StellarTools } from "@stellartools/core";
 
-export async function getConnectionStatus(locationId: string): Promise<{ test: boolean; live: boolean }> {
+export async function getConnectionStatus(locationId: string): Promise<{ testnet: boolean; mainnet: boolean }> {
   const [testnet, mainnet] = await Promise.all([
-    getCredentials(locationId, "testnet"),
-    getCredentials(locationId, "mainnet"),
+    retrieveCredentials({ locationId, environment: "testnet" }),
+    retrieveCredentials({ locationId, environment: "mainnet" }),
   ]);
-  return { test: !!testnet, live: !!mainnet };
+  return { testnet: !!testnet, mainnet: !!mainnet };
 }
 
-/**
- * `mode` is required from the manual /config form (the merchant picked which slot they're
- * filling). It's omitted for the auto-provision path off an app-installation token, where the
- * token's own network tells us which slot it belongs to.
- */
 export async function connectStellarAccount(
   locationId: string,
-  mode: "test" | "live" | undefined,
+  environment: Network | undefined,
   apiKey: string
 ): Promise<true | string> {
-  const location = await getLocation(locationId);
+  const location = await retrieveLocation(locationId);
   if (!location) return "This location hasn't completed installation. Reopen the app from HighLevel.";
 
   const stellar = new StellarTools({ api_key: apiKey });
-  let network: string;
+  let detectedNetwork: Network;
   const isTestKey = apiKey.startsWith("st_test_") || apiKey.startsWith("sk_test_");
   const isLiveKey = apiKey.startsWith("st_live_") || apiKey.startsWith("sk_live_");
 
   try {
     const result = await stellar.balance.retrieve();
-    network = result.network;
+    detectedNetwork = result.network as Network;
   } catch {
     if (isTestKey || isLiveKey) {
-      network = isTestKey ? "testnet" : "mainnet";
+      detectedNetwork = isTestKey ? "testnet" : "mainnet";
     } else if (apiKey.startsWith("st_")) {
-      network = "testnet";
+      detectedNetwork = "testnet";
     } else {
       return "Could not validate this API key with StellarTools.";
     }
   }
 
-  const resolvedMode = mode ?? (network === "mainnet" ? "live" : "test");
-  const expectedNetwork = resolvedMode === "live" ? "mainnet" : "testnet";
-  if (network !== expectedNetwork) {
-    return `This key belongs to StellarTools ${network}, not ${expectedNetwork}. Use the matching ${resolvedMode} key.`;
+  const expectedNetwork = environment ?? detectedNetwork;
+  if (detectedNetwork !== expectedNetwork) {
+    return `This key belongs to StellarTools ${detectedNetwork}, not ${expectedNetwork}. Use a key matching ${expectedNetwork}.`;
   }
-  const { ghlSecret, publishableKey } = await saveCredentials(locationId, resolvedMode, apiKey);
 
-  const existing = await getCredentials(locationId, expectedNetwork);
+  const { ghlSecret, publishableKey } = await postCredentials({
+    locationId,
+    environment: expectedNetwork,
+    stellarApiKey: apiKey,
+  });
+
+  const existing = await retrieveCredentials({ locationId, environment: expectedNetwork });
   if (!existing?.webhookId) {
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
       const webhook = await stellar.webhooks.create({
-        name: `HighLevel (${resolvedMode}) — ${locationId}`,
+        name: `HighLevel (${expectedNetwork}) — ${locationId}`,
         url: `${appUrl}/api/stellar/webhook/${ghlSecret}`,
-        description: "Relays payment confirmations to the HighLevel custom payments provider.",
+        description: "Relays payment confirmations to HighLevel custom payments provider.",
         events: ["payment.confirmed", "payment.failed"],
       });
-      await saveWebhookRegistration(ghlSecret, webhook.id, webhook.secret);
+
+      await postCredentials({
+        locationId,
+        environment: expectedNetwork,
+        stellarApiKey: apiKey,
+        publishableKey,
+        ghlSecret,
+        webhookId: webhook.id,
+        webhookSecret: webhook.secret,
+      });
     } catch (err) {
       console.error("[connectStellarAccount] webhook registration skipped in local dev:", err);
     }
   }
 
+  // Skip HighLevel API registration call when using a dummy token ("x") in local development
   if (location.access_token !== "x") {
     try {
       await connectGhlProviderConfig(location.access_token, {
         locationId,
-        ...(resolvedMode === "live"
+        ...(expectedNetwork === "mainnet"
           ? { live: { apiKey: ghlSecret, publishableKey } }
           : { test: { apiKey: ghlSecret, publishableKey } }),
       });

@@ -32,8 +32,15 @@ export default function GhlCheckoutPage() {
   const post = React.useCallback((message: unknown) => window.parent.postMessage(message, "*"), []);
 
   React.useEffect(() => {
+    if (checkoutId || error) return;
+
     post(buildReadyMessage());
-  }, [post]);
+    const interval = setInterval(() => {
+      post(buildReadyMessage());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [post, checkoutId, error]);
 
   const startCheckout = React.useCallback(
     async (props: Extract<IframeInboundMessage, { type: "payment_initiate_props" }>) => {

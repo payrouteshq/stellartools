@@ -2,9 +2,6 @@ import { StellarTools, signJwt, verifyJwt } from "@stellartools/core";
 import { timingSafeEqual } from "node:crypto";
 
 import {
-  CancelSubscriptionResponse,
-  ChargePaymentResponse,
-  CreateSubscriptionResponse,
   GHL_REQUIRED_SCOPES,
   GHL_WEBHOOK_URL,
   GhlChargeSnapshot,
@@ -17,11 +14,8 @@ import {
   GhlQueryRequestSchema,
   GhlQueryResponse,
   GhlSubscriptionSnapshot,
-  RefundResponse,
   VerifyResponse,
 } from "./ghl-types";
-
-// ── HighLevel's own API: OAuth, provider registration, outbound webhook ─────
 
 const API_BASE = "https://services.leadconnectorhq.com";
 const API_VERSION = "2021-07-28";
@@ -125,7 +119,6 @@ export async function connectGhlProviderConfig(accessToken: string, input: GhlCo
   });
 }
 
-/** Declares support for HighLevel admins creating manual subscription schedules through this provider. */
 export async function enableGhlManualSubscriptions(
   accessToken: string,
   target: { locationId: string } | { companyId: string }
@@ -147,8 +140,6 @@ export async function sendGhlCustomProviderWebhook(payload: GhlOutboundWebhookPa
     throw new Error(`HighLevel webhook delivery failed (${res.status}): ${await res.text().catch(() => "")}`);
 }
 
-// ── Connect flow: links a StellarTools org to a GHL location via OAuth `state` ──
-
 const AUTHORIZE_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
 const STATE_TOKEN_ISSUER = "stellartools-ghl-connect";
 
@@ -162,7 +153,6 @@ export function buildGhlAuthorizeUrl(params: { clientId: string; redirectUri: st
   return url.toString();
 }
 
-/** Carries a StellarTools app token through GHL's OAuth `state` round-trip so `/install` can auto-provision it. Signed and verified with our own secret only — no cross-app sharing needed. */
 export function signGhlConnectState(stellarAppToken: string, secret: string): string {
   return signJwt({ stellarAppToken }, "10m", secret, STATE_TOKEN_ISSUER);
 }
@@ -170,8 +160,6 @@ export function signGhlConnectState(stellarAppToken: string, secret: string): st
 export function verifyGhlConnectState(token: string, secret: string): string {
   return verifyJwt<{ stellarAppToken: string }>(token, secret, STATE_TOKEN_ISSUER).stellarAppToken;
 }
-
-// ── queryUrl dispatcher: HighLevel calling us (verify/charge/refund/subscriptions) ──
 
 export function verifyGhlApiKey(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
@@ -191,7 +179,6 @@ export interface CreateSubscriptionScheduleInput {
 
 export interface GhlQueryHandlerDeps {
   stellar: StellarTools;
-  /** No "get payment by checkout id" lookup exists on the public SDK — the host app fills this in from `payment.confirmed` webhooks. */
   resolvePaymentId: (checkoutId: string) => Promise<string | null>;
   createSubscriptionSchedule: (
     input: CreateSubscriptionScheduleInput
@@ -236,17 +223,15 @@ export async function handleGhlQuery(
     }
 
     case "list_payment_methods": {
-      // Stellar payments are customer-signed on-chain transactions, not reusable tokens.
       return [];
     }
 
     case "charge_payment": {
-      const response: ChargePaymentResponse = {
+      return {
         success: false,
         failed: true,
         message: "Saved payment methods are not supported; the customer must complete a new checkout.",
       };
-      return response;
     }
 
     case "create_subscription": {
@@ -272,36 +257,32 @@ export async function handleGhlQuery(
         nextCharge: Math.floor(schedule.nextChargeAt.getTime() / 1000),
       };
 
-      const response: CreateSubscriptionResponse = {
+      return {
         success: true,
         failed: false,
         message: "Subscription scheduled; the customer will be prompted to pay each billing cycle.",
         subscription: { subscriptionId: request.subscriptionId, subscriptionSnapshot },
       };
-      return response;
     }
 
     case "cancel_subscription": {
       await deps.cancelSubscriptionSchedule(request.subscriptionId);
-      const response: CancelSubscriptionResponse = { status: "canceled" };
-      return response;
+      return { status: "canceled" };
     }
 
     case "refund": {
       const paymentId = await deps.resolvePaymentId(request.chargeId);
       if (!paymentId) {
-        const response: RefundResponse = { success: false, message: "No payment found for this charge." };
-        return response;
+        return { success: false, message: "No payment found for this charge." };
       }
 
       const payment = await deps.stellar.payments.retrieve(paymentId);
       const requestedCents = Math.round(request.amount * 100);
       if (requestedCents !== payment.amount_cents) {
-        const response: RefundResponse = {
+        return {
           success: false,
           message: `Partial refunds are not supported; refund must equal the full charge amount (${(payment.amount_cents / 100).toFixed(2)} ${payment.currency_code}).`,
         };
-        return response;
       }
 
       const refund = await deps.stellar.refunds.create({
@@ -310,19 +291,16 @@ export async function handleGhlQuery(
         metadata: { ghl_transaction_id: request.transactionId, source: "GHL app" },
       });
 
-      const response: RefundResponse = {
+      return {
         success: true,
         message: "Refund successful",
         id: refund.id,
         amount: request.amount,
         currency: payment.currency_code,
       };
-      return response;
     }
   }
 }
-
-// ── Outbound webhook payload builders (StellarTools payment.confirmed → HighLevel) ──
 
 export function chargeSnapshotFromPayment(payment: {
   id: string;

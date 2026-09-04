@@ -60,10 +60,7 @@ export const POST = apiHandler({
       updatedAt: new Date(),
     };
 
-    // Undocumented — not part of the public request schema. Marks a product created to back
-    // internal plumbing (e.g. a platform integration's subscription) with a `-i`-suffixed id, so
-    // it's fully functional for checkout but excluded from list results and never has a visible
-    // "what does this field mean" flag on it.
+    // Internal products (e.g. platform integration subscriptions) are hidden from public queries using a suffix.
     const internal = req.headers.get("x-stellartools-internal-product") === "true";
 
     const response = await postProduct(productData, organizationId, environment, { internal });

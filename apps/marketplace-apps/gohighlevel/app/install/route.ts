@@ -1,4 +1,4 @@
-import { getLocation, markProviderRegistered, upsertLocationTokens } from "@/app/actions/db";
+import { postLocation, retrieveLocation } from "@/app/actions/db";
 import { connectStellarAccount } from "@/app/actions/stellar";
 import {
   createGhlProviderConfig,
@@ -26,15 +26,16 @@ export const GET = routeHandler(async (req) => {
 
   if (!token.locationId) throw new HandlerError("OAuth response did not include a locationId", 400);
 
-  await upsertLocationTokens(
-    token.locationId,
-    token.companyId ?? null,
-    token.access_token,
-    token.refresh_token,
-    new Date(Date.now() + token.expires_in * 1000)
-  );
+  const expiresAt = new Date(Date.now() + token.expires_in * 1000);
+  await postLocation({
+    locationId: token.locationId,
+    companyId: token.companyId ?? null,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token,
+    expiresAt,
+  });
 
-  const existing = await getLocation(token.locationId);
+  const existing = await retrieveLocation(token.locationId);
   if (!existing?.provider_registered_at) {
     try {
       await createGhlProviderConfig(token.access_token, {
@@ -45,7 +46,14 @@ export const GET = routeHandler(async (req) => {
         queryUrl: `${appUrl}/api/ghl/query`,
         paymentsUrl: `${webAppUrl}/ghl/checkout`,
       });
-      await markProviderRegistered(token.locationId);
+
+      await postLocation({
+        locationId: token.locationId,
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token,
+        expiresAt,
+        providerRegisteredAt: new Date(),
+      });
     } catch (err) {
       console.error("[install] provider config registration failed, will retry on next install:", err);
     }

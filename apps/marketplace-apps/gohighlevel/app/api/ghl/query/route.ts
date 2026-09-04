@@ -1,4 +1,4 @@
-import { cancelSchedule, createSchedule, getCredentialsByGhlSecret, resolvePaymentId } from "@/app/actions/db";
+import { postSchedule, putSchedule, resolvePaymentId, retrieveCredentials } from "@/app/actions/db";
 import { handleGhlQuery } from "@/lib/ghl";
 import { HandlerError, StellarTools, routeHandler, z } from "@stellartools/core";
 
@@ -8,7 +8,7 @@ export const POST = routeHandler(
       typeof body === "object" && body && "apiKey" in body ? String((body as { apiKey: unknown }).apiKey) : null;
     if (!apiKey) throw new HandlerError("Missing apiKey", 400);
 
-    const credentials = await getCredentialsByGhlSecret(apiKey);
+    const credentials = await retrieveCredentials({ secret: apiKey });
     if (!credentials) throw new HandlerError("Unknown apiKey", 401);
 
     try {
@@ -17,7 +17,7 @@ export const POST = routeHandler(
         resolvePaymentId,
         createSubscriptionSchedule: async (input) => {
           const nextChargeAt = new Date(Date.now() + input.intervalDays * 24 * 60 * 60 * 1000);
-          await createSchedule({
+          await postSchedule({
             ...input,
             locationId: credentials.locationId,
             environment: credentials.environment,
@@ -25,7 +25,9 @@ export const POST = routeHandler(
           });
           return { status: "scheduled", nextChargeAt };
         },
-        cancelSubscriptionSchedule: cancelSchedule,
+        cancelSubscriptionSchedule: async (subscriptionId) => {
+          await putSchedule(subscriptionId, { status: "canceled" });
+        },
       });
     } catch (err) {
       console.error("[ghl/query] failed:", err);
