@@ -64,7 +64,6 @@ export const POST = apiHandler({
         memo: memo ?? null,
         transactionHash: null,
         completedAt: null,
-        bankAccount: null,
         metadata: null,
       },
       organizationId,

@@ -31,7 +31,6 @@ import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { href: process.env.NEXT_PUBLIC_DOCS_URL!, label: "Docs" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/team", label: "Team" },
   { href: "https://github.com/payrouteshq/stellartools", label: "GitHub" },
 ] as const;

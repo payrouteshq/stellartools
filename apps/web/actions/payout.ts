@@ -158,13 +158,6 @@ export const putPayout = async (id: string, params: Partial<Payout>) => {
               assetCode: payout.selectedAssetCode ?? "XLM",
               walletAddress: payout.walletAddress ?? "",
               transactionHash: `${payout.transactionHash}:${payout.environment}`,
-              payoutMethod: payout.method,
-              fiatAmount:
-                payout.method === "fiat" ? Money.formatFiat(payout.amountCents, payout.currencyCode) : undefined,
-              destinationLabel:
-                payout.method === "fiat"
-                  ? `${payout.withdrawalMethod ?? "Provider payout"} · ${payout.destinationCurrency ?? payout.currencyCode}`
-                  : undefined,
             })
           );
         });

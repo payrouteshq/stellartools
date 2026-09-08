@@ -33,7 +33,7 @@ export const postOrganizationAndSecret = safeAction(
   async (
     params: Omit<Organization, "id" | "accountId">,
     defaultEnvironment: Network,
-    options?: { formDataWithFiles?: FormData; externalPublicKey?: string; externalSecretKey?: string | null }
+    options?: { formDataWithFiles?: FormData }
   ) => {
     const logoFile = options?.formDataWithFiles?.get("logo");
 
@@ -45,75 +45,36 @@ export const postOrganizationAndSecret = safeAction(
     const { accountId } = await resolveAccountContext();
     const organizationId = generateResourceId("org", accountId, 25);
 
-    if (params.walletStrategy === "direct" && !options?.externalPublicKey) {
-      throw new AppError("VALIDATION_ERROR", "A Stellar public key is required for self-custody wallets");
-    }
-
     return await runAtomic(async () => {
       const [organization] = await db
         .insert(organizations)
         .values({ ...params, id: organizationId, accountId })
         .returning();
 
-      if (params.walletStrategy === "direct") {
-        const pubKey = options!.externalPublicKey!;
-        const secretKey = options?.externalSecretKey || null;
+      const keypair = StellarSDK.Keypair.random();
+      const [testnetResult, mainnetResult] = await Promise.all([
+        fundAccount(keypair, "testnet"),
+        fundAccount(keypair, "mainnet"),
+      ]);
 
-        if (!StellarSDK.StrKey.isValidEd25519PublicKey(pubKey)) {
-          throw new AppError("VALIDATION_ERROR", "Invalid Stellar public key");
-        }
+      if (testnetResult.isErr()) throw new AppError("INTERNAL_ERROR", testnetResult.error?.message);
+      if (mainnetResult.isErr()) throw new AppError("INTERNAL_ERROR", mainnetResult.error?.message);
 
-        if (secretKey) {
-          // Validate secret key using SDK and verify it pairs with the public key
-          if (!StellarSDK.StrKey.isValidEd25519SecretSeed(secretKey)) {
-            throw new AppError("VALIDATION_ERROR", "Invalid Stellar secret key format");
-          }
+      const testnetBal = testnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
+      const mainnetBal = mainnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
 
-          const derivedPubKey = StellarSDK.Keypair.fromSecret(secretKey).publicKey();
-
-          if (derivedPubKey !== pubKey) {
-            throw new AppError("VALIDATION_ERROR", "Secret key does not match the provided public key");
-          }
-        }
-
-        await postOrganizationSecretWithEncryption(
-          {
-            testnetPublicKey: pubKey,
-            mainnetPublicKey: pubKey,
-            testnetSecret: secretKey,
-            mainnetSecret: secretKey,
-            testnetInitialBalance: "0",
-            mainnetInitialBalance: "0",
-          },
-          organization.id,
-          defaultEnvironment
-        );
-      } else {
-        const keypair = StellarSDK.Keypair.random();
-        const [testnetResult, mainnetResult] = await Promise.all([
-          fundAccount(keypair, "testnet"),
-          fundAccount(keypair, "mainnet"),
-        ]);
-
-        if (testnetResult.isErr()) throw new AppError("INTERNAL_ERROR", testnetResult.error?.message);
-        if (mainnetResult.isErr()) throw new AppError("INTERNAL_ERROR", mainnetResult.error?.message);
-
-        const testnetBal = testnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
-        const mainnetBal = mainnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
-
-        await postOrganizationSecretWithEncryption(
-          {
-            testnetSecret: keypair.secret(),
-            testnetPublicKey: keypair.publicKey(),
-            mainnetSecret: keypair.secret(),
-            mainnetPublicKey: keypair.publicKey(),
-            testnetInitialBalance: testnetBal,
-            mainnetInitialBalance: mainnetBal,
-          },
-          organization.id,
-          defaultEnvironment
-        );
-      }
+      await postOrganizationSecretWithEncryption(
+        {
+          testnetSecret: keypair.secret(),
+          testnetPublicKey: keypair.publicKey(),
+          mainnetSecret: keypair.secret(),
+          mainnetPublicKey: keypair.publicKey(),
+          testnetInitialBalance: testnetBal,
+          mainnetInitialBalance: mainnetBal,
+        },
+        organization.id,
+        defaultEnvironment
+      );
 
       return organization;
     })
@@ -156,7 +117,6 @@ export const retrieveOrganizationIdAndSecret = async (id: string, environment: N
 
   const [result] = await db
     .select({
-      walletStrategy: organizations.walletStrategy,
       organizationId: organizations.id,
       secret: sql<{ encrypted: string; publicKey: string } | null>`
         CASE WHEN ${sql.raw(`"organization_secret"."${prefix}_secret_encrypted"`)} IS NOT NULL THEN
@@ -242,7 +202,6 @@ export const getCurrentOrganization = async (onError?: (err: string) => Promise<
         id: organizations.id,
         selectedCurrency: organizations.selectedCurrency,
         name: organizations.name,
-        walletStrategy: organizations.walletStrategy,
         hasSecret: sql<boolean>`(${organizationSecrets.testnetSecretEncrypted} IS NOT NULL)`,
       })
       .from(organizations)
@@ -258,7 +217,6 @@ export const getCurrentOrganization = async (onError?: (err: string) => Promise<
       token: selectedOrg,
       selectedCurrency: row.selectedCurrency,
       name: row.name,
-      walletStrategy: row.walletStrategy,
       hasSecret: !!row.hasSecret,
     };
   } catch (error) {

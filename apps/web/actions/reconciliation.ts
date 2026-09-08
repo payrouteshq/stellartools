@@ -4,7 +4,7 @@ import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/or
 import { sweepAndProcessPayment } from "@/actions/payment";
 import { Network } from "@/constant/schema.client";
 import { db } from "@/db";
-import { charges, organizationSecrets, payments, payouts, refunds } from "@/db/schema";
+import { organizationSecrets, payments, payouts, refunds } from "@/db/schema";
 import { getStellarConfig } from "@/integrations/stellar-core";
 import * as StellarSDK from "@stellar/stellar-sdk";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
@@ -22,9 +22,9 @@ const DRIFT_THRESHOLD = 1;
 export async function reconcileOrganization(orgId?: string, env?: Network): Promise<ReconReport[] | undefined> {
   const { organizationId, environment } = await resolveOrgContext(orgId, env);
 
-  const { secret, walletStrategy } = await retrieveOrganizationIdAndSecret(organizationId, environment);
+  const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
 
-  if (!secret?.publicKey || walletStrategy === "direct") return undefined;
+  if (!secret?.publicKey) return undefined;
 
   const { server } = getStellarConfig(environment);
   const account = await server.loadAccount(secret.publicKey);
@@ -52,7 +52,7 @@ export async function reconcileOrganization(orgId?: string, env?: Network): Prom
 
   return Promise.all(
     assetRows.map(async ({ code }) => {
-      const [paymentsRow, payoutsRow, refundsRow, chargesRow] = await Promise.all([
+      const [paymentsRow, payoutsRow, refundsRow] = await Promise.all([
         db
           .select({ total: sql<string>`COALESCE(SUM(CAST(${payments.cryptoAmount} AS NUMERIC)), '0')` })
           .from(payments)
@@ -86,29 +86,17 @@ export async function reconcileOrganization(orgId?: string, env?: Network): Prom
               eq(refunds.selectedAssetCode, code)
             )
           ),
-        db
-          .select({ total: sql<string>`COALESCE(SUM(CAST(${charges.cryptoAmount} AS NUMERIC)), '0')` })
-          .from(charges)
-          .where(
-            and(
-              eq(charges.organizationId, organizationId),
-              eq(charges.environment, environment),
-              eq(charges.status, "succeeded"),
-              eq(charges.selectedAssetCode, code)
-            )
-          ),
       ]);
 
       const inflow = Number(paymentsRow[0]?.total ?? 0);
       const outPayouts = Number(payoutsRow[0]?.total ?? 0);
       const outRefunds = Number(refundsRow[0]?.total ?? 0);
-      const outCharges = Number(chargesRow[0]?.total ?? 0);
 
       // genesisBalance is the XLM snapshot taken at wallet creation (Friendbot).
       // Only apply it when reconciling XLM — non-native assets always start at 0.
       const genesisBalance = code === "XLM" ? Number(baseRow?.balance ?? 0) : 0;
 
-      const dbNetBalance = genesisBalance + inflow - outPayouts - outRefunds - outCharges;
+      const dbNetBalance = genesisBalance + inflow - outPayouts - outRefunds;
 
       // Sum ALL trustlines with the same asset code — a wallet can hold the same
       // asset from multiple issuers (e.g. after a canonical issuer change).

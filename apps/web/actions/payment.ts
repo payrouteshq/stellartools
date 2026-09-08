@@ -1,7 +1,6 @@
 "use server";
 
 import { retrieveAccount } from "@/actions/account";
-import { processPaymentBilling } from "@/actions/billing";
 import { retrieveCheckout, retrieveCheckoutAndCustomer } from "@/actions/checkout";
 import { putCheckout } from "@/actions/checkout";
 import { retrieveCustomers, upsertCustomerWallet } from "@/actions/customers";
@@ -184,8 +183,6 @@ const paymentActionHandler = async (
       const runBackgroundTasks = async () => {
         try {
           const ctx = await loadPaymentContext(payment, organizationId, environment);
-
-          await processPaymentBilling(payment.id, organizationId, environment);
 
           if (ctx.customer?.email) {
             if (ctx.org.settings?.disableNativeEmails === true) return;

@@ -16,9 +16,6 @@ const pick = (network: Network, testnet: string | undefined, mainnet: string | u
 export const getKeeperSecret = (network: Network) =>
   pick(network, process.env.KEEPER_SECRET_TESTNET, process.env.KEEPER_SECRET_MAINNET, "KEEPER_SECRET");
 
-export const getChargesPublicKey = (network: Network) =>
-  pick(network, process.env.CHARGES_PUBLIC_KEY_TESTNET, process.env.CHARGES_PUBLIC_KEY_MAINNET, "CHARGES_PUBLIC_KEY");
-
 export const getSubscriptionContractId = (network: Network) =>
   pick(
     network,
@@ -261,8 +258,7 @@ export const verifyPaymentByPagingToken = async (
     if (!match) return null;
 
     const ops = await server.payments().forTransaction(match.hash).call();
-    // Find the payment op directed TO the merchant — handles both single-op (managed)
-    // and split two-op (direct: fee + merchant) transactions.
+    // Find the payment op directed TO the merchant.
     // Accept regular payments AND DEX path payments — path_payment_strict_receive is used
     // when the customer pays with XLM and the DEX converts it to the merchant's asset.
     const paymentOp = ops.records.find(
@@ -519,8 +515,8 @@ export function parseError(
       if (topCode === "txFailed") {
         try {
           const results = xdrResult.results();
-          // Scan all ops — multi-op txs (e.g. direct-wallet fee split) have op 0 succeed
-          // and op 1 fail; always returning results[0] masks the real error.
+          // Scan all ops — always returning results[0] can mask the real error
+          // in a multi-op transaction.
           for (let i = 0; i < results.length; i++) {
             const opResult = results[i];
             const opSwitchName = opResult.switch().name as string;

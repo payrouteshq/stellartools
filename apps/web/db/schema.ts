@@ -1,13 +1,10 @@
 import {
   AssetCode,
-  AssetIssuer,
   AuthProvider,
-  WalletStrategy,
   authProviderEnum as authProviderEnum$1,
   networkEnum as networkEnum$1,
   paymentStatusEnum as paymentStatusEnum$1,
   payoutStatusEnum as payoutStatusEnum$1,
-  walletStrategyEnum as walletStrategyEnum$1,
 } from "@/constant/schema.client";
 import { type AppScope, eventTypeEnum as eventTypeEnum$1 } from "@stellartools/app-sdk/schema";
 import {
@@ -41,8 +38,6 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const networkEnum = pgEnum("network", networkEnum$1);
-
-export const walletStrategyEnum = pgEnum("wallet_strategy", walletStrategyEnum$1);
 
 export const authProviderEnum = pgEnum("auth_provider", authProviderEnum$1);
 
@@ -106,7 +101,6 @@ export const organizations = pgTable(
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     supportEmail: text("support_email"),
     selectedCurrency: text("selected_currency").notNull(),
-    walletStrategy: walletStrategyEnum("wallet_strategy").default("managed").notNull(),
   },
   (table) => [index("idx_org_created_at").on(table.accountId, table.createdAt)]
 );
@@ -330,34 +324,7 @@ export const payments = pgTable("payment", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const chargeTypeEnum = pgEnum("charge_type", ["platform_fee", "payout_fee"]);
-
-export const chargeStatusEnum = pgEnum("charge_status", ["pending", "succeeded", "failed"]);
-
-export const charges = pgTable("charge", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }),
-  paymentId: text("payment_id").references(() => payments.id, { onDelete: "set null" }),
-  amountCents: integer("amount_cents").notNull(),
-  currencyCode: text("currency_code").notNull().default("USD"),
-  cryptoAmount: text("crypto_amount").notNull(), // "81.2345678" - what was actually sent
-  selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
-  selectedAssetIssuer: text("selected_asset_issuer"),
-  type: chargeTypeEnum("type").notNull(),
-  status: chargeStatusEnum("status").notNull(),
-  transactionHash: text("tx_hash"),
-  error: text("error"),
-  environment: networkEnum("network").notNull(),
-  clearedAt: timestamp("cleared_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
 export const payoutStatusEnum = pgEnum("payout_status", payoutStatusEnum$1);
-
-export const payoutMethodEnum = pgEnum("payout_method", ["crypto", "fiat"]);
 
 export const payouts = pgTable(
   "payout",
@@ -371,7 +338,6 @@ export const payouts = pgTable(
     cryptoAmount: text("crypto_amount").notNull(),
     selectedAssetCode: text("selected_asset_code").$type<AssetCode>(),
     selectedAssetIssuer: text("selected_asset_issuer"),
-    method: payoutMethodEnum("method").notNull().default("crypto"),
     status: payoutStatusEnum("status").notNull(),
     walletAddress: text("wallet_address"),
     memo: text("memo"),
@@ -380,26 +346,12 @@ export const payouts = pgTable(
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     environment: networkEnum("network").notNull(),
     transactionHash: text("transaction_hash").unique(),
-    bankAccount: jsonb("bank_account").$type<Record<string, unknown> | null>(), // withdawal receipts, account number etc.
-    provider: text("provider"),
-    providerTransactionId: text("provider_transaction_id"),
-    providerStatus: text("provider_status"),
-    destinationCurrency: text("destination_currency"),
-    destinationCountry: text("destination_country"),
-    withdrawalMethod: text("withdrawal_method"),
-    quoteId: text("quote_id"),
-    quoteExpiresAt: timestamp("quote_expires_at"),
-    providerUpdatedAt: timestamp("provider_updated_at"),
-    failureCode: text("failure_code"),
-    failureMessage: text("failure_message"),
-    fundingTransactionXdr: text("funding_transaction_xdr"),
   },
   (table) => [
     check(
-      "crypto_or_fiat_constraint",
-      sql`(${table.method} = 'crypto' AND ${table.selectedAssetCode} IS NOT NULL AND (${table.transactionHash} IS NOT NULL OR ${table.status} = 'pending')) OR (${table.method} = 'fiat' AND ${table.selectedAssetCode} IS NOT NULL)`
+      "payout_asset_check",
+      sql`${table.selectedAssetCode} IS NOT NULL AND (${table.transactionHash} IS NOT NULL OR ${table.status} = 'pending')`
     ),
-    unique("payout_provider_transaction_unique").on(table.provider, table.providerTransactionId),
   ]
 );
 
@@ -653,12 +605,6 @@ export type AppInstallation = InferSelectModel<typeof appInstallations>;
 export type AppLog = InferSelectModel<typeof appLogs>;
 export type RateLimit = InferSelectModel<typeof rateLimits>;
 
-export type Charge = InferSelectModel<typeof charges>;
-
-export type ChargeType = (typeof chargeTypeEnum.enumValues)[number];
-
-export type ChargeStatus = (typeof chargeStatusEnum.enumValues)[number];
-
 export type ResolvedCustomer = Customer & { wallets?: Array<CustomerWallet> };
 
 export type ResolvedPayment = Payment & {
@@ -675,4 +621,4 @@ export type ResolvedSubscription = Subscription & {
   customerWallet?: CustomerWallet | null;
 };
 
-export type { ProductStatus, ProductType, WalletStrategy };
+export type { ProductStatus, ProductType };
