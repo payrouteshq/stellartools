@@ -4,17 +4,15 @@
 </p>
 
 <p align="center">
-  An OSS payment infrastructure built on the Stellar blockchain, by <a href="https://payroutes.sh">Payroutes</a>.
+  Free, open-source, self-hosted payment infrastructure on Stellar.
 </p>
 
 <p align="center">
-  <a href="https://stellartools.dev">Website</a> &bull;
   <a href="https://docs.stellartools.dev">Docs</a> &bull;
-  <a href="DEVELOPMENT.md">Development</a>
-</p>
-
-<p align="center">
-  <a href="https://vercel.com/open-source-program"><img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge-2026.svg"/></a>
+  <a href="DEVELOPMENT.md">Self-Hosting</a> &bull;
+  <a href="CONTRIBUTING.md">Contributing</a> &bull;
+  <a href="ROADMAP.md">Roadmap</a> &bull;
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 ---
@@ -25,14 +23,35 @@
 
 ## What is Stellar Tools?
 
-Stellar Tools is an OSS payment platform that lets developers accept and manage payments using the Stellar network. It gives merchants and developers Stripe like primitives such as customer managements, subscriptions via Soroban contracts, checkouts, webhooks, and payouts in both fiat and crypto
+Stellar Tools is Stripe-shaped payment infrastructure for the Stellar network — customers, checkouts, recurring subscriptions, webhooks, and crypto payouts — that you run yourself. There's no hosted SaaS, no plans, and no cut taken from what you process: you deploy it, you hold your own Stellar keys, and the only cost is the Stellar network fee itself (fractions of a cent).
 
-- Accept payments in Stellar-native assets
-- Manage subscriptions with metered billing via Soroban smart contracts
-- Hosted checkout pages and customer portals
-- Webhook delivery for payment and subscription events
-- Dashboard for managing customers, products, and payouts
-- Marketplace for integrations
+- Accept payments in Stellar-native assets, with path payments so customers can pay with whatever they're holding
+- Run subscriptions with real recurring billing, enforced on-chain by a Soroban smart contract you deploy and own
+- Non-custodial checkout via [Stellar Wallets Kit](https://github.com/Creit-Tech/Stellar-Wallets-Kit) — customers sign with their own wallet
+- Hosted checkout pages and a self-service customer portal
+- Webhook delivery for payment and subscription lifecycle events
+- Crypto payouts straight to any Stellar wallet
+- A dashboard for customers, products, and payouts, plus a marketplace for integrations
+
+## Why self-hosted
+
+Every deployment is single-tenant — your instance, your database, your Stellar keys. Nobody but you can see your data or touch your funds. There's no billing relationship with anyone: this repo doesn't meter you, throttle you, or take a percentage. The only recurring cost is the Stellar network fee your own "keeper" account pays to submit transactions — typically a fraction of a cent per operation.
+
+## Getting started
+
+Full setup — env vars, Postgres, deploying the subscription contract, and a one-command Docker path — is documented in **[DEVELOPMENT.md](DEVELOPMENT.md)**. The short version:
+
+```bash
+git clone https://github.com/payrouteshq/stellartools.git
+cd stellartools
+pnpm install
+cp apps/web/.env.example apps/web/.env   # fill in the values
+docker compose up -d database quickstart
+pnpm --filter @stellartools/web db:migrate
+pnpm dev
+```
+
+Or run the whole app in Docker: `docker compose up -d --build web`.
 
 ## Tech Stack
 
@@ -52,7 +71,7 @@ stellar-tools/
 └── packages/
     ├── shared-ui/    # Shared React component library (@stellartools/shared-ui)
     ├── stellartools/ # Core SDK (@stellartools/core)
-    ├── plugin-sdk/   # Plugin SDK (@stellartools/plugin-sdk)
+    ├── app-sdk/      # Build metered integrations on top of Stellar Tools (@stellartools/app-sdk)
     ├── aisdk-adapter/
     ├── betterauth-adapter/
     ├── langchain-adapter/
@@ -61,41 +80,30 @@ stellar-tools/
     └── woocommerce-adapter/
 ```
 
-## Getting Started
-
-```bash
-pnpm install          # install all workspace deps
-pnpm dev              # start the Next.js app (port 3000)
-pnpm storybook        # start Storybook (port 6006)
-pnpm build            # production build
-pnpm build:packages   # build all publishable packages
-pnpm type-check       # run tsc across the workspace
-```
+Everything in `packages/` is reusable outside this app too — pull in just the SDK or an adapter for your own stack.
 
 ## Packages
 
 | Package                             | Description                                         |
-| ----------------------------------- | --------------------------------------------------- |
-| `@stellartools/shared-ui`           | Shared React component library with Storybook       |
-| `@stellartools/core`                | Core SDK for interacting with the Stellar Tools API |
-| `@stellartools/plugin-sdk`          | Build metered integrations on top of Stellar Tools  |
-| `@stellartools/betterauth-adapter`  | BetterAuth integration                              |
-| `@stellartools/aisdk-adapter`       | Vercel AI SDK integration                           |
-| `@stellartools/medusajs-adapter`    | MedusaJS integration                                |
-| `@stellartools/uploadthing-adapter` | UploadThing integration                             |
-| `langchain-adapter`                 | LangChain integration                               |
+| ------------------------------------ | ---------------------------------------------------- |
+| `@stellartools/core`                | Core SDK for interacting with the Stellar Tools API   |
+| `@stellartools/shared-ui`           | Shared React component library with Storybook         |
+| `@stellartools/app-sdk`             | Build metered integrations on top of Stellar Tools    |
+| `@stellartools/betterauth-adapter`  | BetterAuth integration                                |
+| `@stellartools/aisdk-adapter`       | Vercel AI SDK integration                              |
+| `@stellartools/medusajs-adapter`    | MedusaJS integration                                   |
+| `@stellartools/uploadthing-adapter` | UploadThing integration                                |
+| `@stellartools/langchain-adapter`   | LangChain integration                                   |
 
 ## Contributing
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) to get your local environment set up.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR process and code style, and [DEVELOPMENT.md](DEVELOPMENT.md) to get your local environment set up.
 
-Found a bug? [Open an issue](https://github.com/payrouteshq/stellartools/issues).
+Found a bug? [Open an issue](https://github.com/payrouteshq/stellartools/issues). Curious what's planned? See the [roadmap](ROADMAP.md).
 
 ## Security
 
-If you discover a security vulnerability within StellarTools, please send an email to odii@stellartools.dev.
-
-All reports will be promptly addressed, and you'll be credited accordingly.
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 
 ## Maintained by
 
