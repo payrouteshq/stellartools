@@ -23,7 +23,10 @@
 
 ## What is Stellar Tools?
 
-Stellar Tools is Stripe-shaped payment infrastructure for the Stellar network — customers, checkouts, recurring subscriptions, webhooks, and crypto payouts — that you run yourself. There's no hosted SaaS, no plans, and no cut taken from what you process: you deploy it, you hold your own Stellar keys, and the only cost is the Stellar network fee itself (fractions of a cent).
+Stellar Tools is Stripe-shaped payment infrastructure for the Stellar network — customers, checkouts, recurring subscriptions, webhooks, and crypto payouts. Free, with no plans and no cut taken from what you process. Use it two ways:
+
+- **[dashboard.stellartools.dev](https://dashboard.stellartools.dev)** — a free hosted account, no infrastructure to run
+- **Self-host it** — run your own instance (this repo), and hold your own Stellar keys end to end
 
 - Accept payments in Stellar-native assets, with path payments so customers can pay with whatever they're holding
 - Run subscriptions with real recurring billing, enforced on-chain by a Soroban smart contract you deploy and own
@@ -33,25 +36,22 @@ Stellar Tools is Stripe-shaped payment infrastructure for the Stellar network �
 - Crypto payouts straight to any Stellar wallet
 - A dashboard for customers, products, and payouts, plus a marketplace for integrations
 
-## Why self-hosted
+## Why self-host
 
-Every deployment is single-tenant — your instance, your database, your Stellar keys. Nobody but you can see your data or touch your funds. There's no billing relationship with anyone: this repo doesn't meter you, throttle you, or take a percentage. The only recurring cost is the Stellar network fee your own "keeper" account pays to submit transactions — typically a fraction of a cent per operation.
+Self-hosting makes every deployment single-tenant — your instance, your database, your Stellar keys. Nobody but you can see your data or touch your funds. There's no billing relationship with anyone: this repo doesn't meter you, throttle you, or take a percentage, whether you self-host or use the free hosted account. The only recurring cost of running your own instance is the Stellar network fee your own "keeper" account pays to submit transactions — typically a fraction of a cent per operation.
 
 ## Getting started
 
-Full setup — env vars, Postgres, deploying the subscription contract, and a one-command Docker path — is documented in **[DEVELOPMENT.md](DEVELOPMENT.md)**. The short version:
+Full setup is documented in **[DEVELOPMENT.md](DEVELOPMENT.md)**. The short version:
 
 ```bash
 git clone https://github.com/payrouteshq/stellartools.git
 cd stellartools
-pnpm install
-cp apps/web/.env.example apps/web/.env   # fill in the values
-docker compose up -d database quickstart
-pnpm --filter @stellartools/web db:migrate
-pnpm dev
+cp apps/web/.env.example apps/web/.env   # defaults work out of the box on localhost
+docker compose up -d
 ```
 
-Or run the whole app in Docker: `docker compose up -d --build web`.
+That one command builds the app, starts Postgres and a local Stellar node, runs database migrations, and starts the dashboard at `dashboard.localhost:3000`. See [DEVELOPMENT.md](DEVELOPMENT.md) for deploying the subscription contract, going to production, and running without Docker.
 
 ## Tech Stack
 

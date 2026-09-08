@@ -16,7 +16,7 @@ This is a living list of where the project is headed, not a set of promises with
 
 ## Explicitly not planned
 
-- **No hosted SaaS.** This project is self-hosted only — there's no plan to reintroduce a managed offering, billing, or a platform fee.
+- **No paid plans, ever.** The hosted account at dashboard.stellartools.dev and this self-hosted codebase are both free — there's no plan to introduce billing or a platform fee on either.
 - **No custodial wallet mode.** Every deployment holds its own keys; there's no "we hold your funds" tier.
 - **No fiat off-ramp built in.** Payouts are crypto-only. If you need fiat off-ramping, integrate a Stellar anchor (SEP-24) or off-ramp provider on top — this stays out of core scope so the project doesn't take on a dependency on a paid third party.
 

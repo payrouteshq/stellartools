@@ -1,60 +1,55 @@
 # Development & Self-Hosting
 
-This guide covers everything you need to run Stellar Tools yourself — locally for development, or as a self-hosted deployment. There is no hosted SaaS version; running your own instance is the primary way to use this project.
+You can use Stellar Tools two ways: a free hosted account at [dashboard.stellartools.dev](https://dashboard.stellartools.dev), or self-hosted — running your own instance, with your own database and Stellar keys. This guide covers the self-hosted path, plus local development on this repo. For a narrower quickstart and production notes, see the [self-hosting docs](https://docs.stellartools.dev/self-hosting/quickstart).
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) v20+
-- [pnpm](https://pnpm.io) v9+
-- [Docker](https://docker.com) (for PostgreSQL, a local Stellar node, and — for self-hosting — the app itself)
-- [Stellar CLI](https://developers.stellar.org/docs/tools/cli/install-cli) (to deploy the subscription contract)
+- [Docker](https://docker.com) and Docker Compose v2 — this is the only hard requirement to self-host
+- [Node.js](https://nodejs.org) v20+ and [pnpm](https://pnpm.io) v9+ — only needed for local development without Docker
+- [Stellar CLI](https://developers.stellar.org/docs/tools/cli/install-cli) — only needed to deploy the subscription contract (step 3)
 
-## 1. Clone and install
+## 1. Clone and configure
 
 ```bash
 git clone https://github.com/payrouteshq/stellartools.git
 cd stellartools
-pnpm install
-```
-
-## 2. Configure environment variables
-
-```bash
 cp apps/web/.env.example apps/web/.env
 ```
 
-Fill in `apps/web/.env`. The variables you need to get started locally:
+The defaults in `apps/web/.env` are set up to work out of the box on `localhost` — you don't need to fill anything in yet to try it. Two things you'll want before real use:
 
-| Variable                    | Description                                             |
-| ---------------------------- | -------------------------------------------------------- |
-| `DATABASE_URL`               | PostgreSQL connection string                              |
-| `JWT_SECRET`                 | Secret for signing session JWTs                           |
-| `MASTER_ENCRYPTION_KEY`      | Encrypts organization secret keys at rest                 |
-| `ENCRYPTION_SALT`            | Salt used alongside `MASTER_ENCRYPTION_KEY`                |
-| `RESEND_API_KEY`             | Resend API key for transactional email                    |
-| `NEXT_PUBLIC_APP_URL`        | URL of the landing page (e.g. `http://localhost:3000`)    |
-| `NEXT_PUBLIC_DASHBOARD_URL`  | URL of the dashboard                                       |
-| `NEXT_PUBLIC_API_URL`        | URL of the API                                             |
+- `RESEND_API_KEY` — required for account signup/login (StellarTools emails a one-time code). Get a free key at [resend.com](https://resend.com/api-keys).
+- `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, `CRON_SECRET` — leave these blank for Docker; the `web` container generates and persists random values for them on first boot (see `apps/web/docker-entrypoint.sh`) and reuses them across restarts. Set them explicitly here instead if you're running `pnpm dev` directly, or before anything beyond a local trial.
 
-The Stellar-specific variables (`NEXT_PUBLIC_RPC_URL_TESTNET`, `KEEPER_SECRET_TESTNET`, `SUBSCRIPTION_CONTRACT_TESTNET_ID`, etc.) are covered in step 4 below — you'll fill them in once the contract is deployed.
-
-## 3. Start Postgres and a local Stellar node
+## 2. Start everything
 
 ```bash
-docker compose up -d database quickstart
+docker compose up -d
 ```
 
-This starts PostgreSQL (port 5436) and a standalone Stellar node with Soroban RPC (port 8000). If you'd rather point at public testnet/mainnet RPC + Horizon endpoints instead of running your own node, skip `quickstart` and set `NEXT_PUBLIC_RPC_URL_TESTNET` / `NEXT_PUBLIC_STELLAR_HORIZON_TESTNET` to public endpoints in `apps/web/.env`.
+This single command builds the app image, starts PostgreSQL, starts a local Stellar node with Soroban RPC, **runs pending database migrations automatically**, and then starts the web app — in that order (`web` waits for `migrate` to finish successfully before it starts). First run takes a few minutes to build; after that, `docker compose up -d` is seconds.
 
-Run migrations:
+Once it's up:
 
-```bash
-pnpm --filter @stellartools/web db:migrate
+| Surface   | URL                              |
+| --------- | --------------------------------- |
+| Landing   | http://localhost:3000             |
+| Dashboard | http://dashboard.localhost:3000   |
+| Checkout  | http://checkout.localhost:3000    |
+| Portal    | http://portal.localhost:3000      |
+| API       | http://api.localhost:3000         |
+
+Most browsers and OSes resolve `*.localhost` to `127.0.0.1` automatically (it's reserved for this in [RFC 6761](https://www.rfc-editor.org/rfc/rfc6761)). If yours doesn't, add the subdomains you need to `/etc/hosts`:
+
+```
+127.0.0.1 dashboard.localhost checkout.localhost portal.localhost api.localhost invoice.localhost
 ```
 
-## 4. Deploy the subscription contract
+To update after pulling new changes: `docker compose up -d --build`.
 
-Subscriptions are enforced on-chain by the `subscription-engine` Soroban contract — you deploy your own copy, you own it, and nobody but you can touch it.
+## 3. Deploy the subscription contract
+
+This is the one step that can't be automated for you — it's a real on-chain transaction that makes you the owner of your own contract instance. Everything else in the app works without it; you only need this for subscription features.
 
 ```bash
 cd apps/web/soroban
@@ -65,40 +60,19 @@ stellar contract deploy \
   --network testnet
 ```
 
-The deploying account must be funded on testnet (use [Friendbot](https://friendbot.stellar.org)). The command prints the deployed contract ID — set it as `SUBSCRIPTION_CONTRACT_TESTNET_ID` in `apps/web/.env`. Repeat with `--network mainnet` (and a mainnet-funded key) when you're ready to go live, setting `SUBSCRIPTION_CONTRACT_MAINNET_ID`.
+The deploying account must be funded on testnet (use [Friendbot](https://friendbot.stellar.org)). The command prints the deployed contract ID — set it as `SUBSCRIPTION_CONTRACT_TESTNET_ID` in `apps/web/.env`, then `docker compose up -d web` to pick it up. Repeat with `--network mainnet` (and a mainnet-funded key) when you're ready to go live, setting `SUBSCRIPTION_CONTRACT_MAINNET_ID`.
 
 You also need a small "keeper" account that pays the (fractions-of-a-cent) Stellar network fee for contract calls — generate a keypair, fund it with a little XLM, and set `KEEPER_SECRET_TESTNET` / `KEEPER_SECRET_MAINNET`. This account is entirely yours; nothing about this project takes a cut of it or of anything you process.
 
-## 5. Run it
+## Going to production
 
-**Local development:**
+- Put the `web` service behind your own reverse proxy with TLS (Caddy, Traefik, nginx), or use the bundled optional Cloudflare Tunnel: set `CLOUDFLARE_TUNNEL_TOKEN` in `apps/web/.env`, then `docker compose --profile tunnel up -d`.
+- Point the `NEXT_PUBLIC_*_URL` variables and `COOKIE_DOMAIN` at your real domain instead of `*.localhost`.
+- Set `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, and `CRON_SECRET` explicitly rather than relying on the auto-generated ones.
+- Use a managed/backed-up Postgres instead of the bundled `database` container, or make sure the `stellartools-database-data` volume is backed up.
+- Prebuilt images are also published to `ghcr.io/payrouteshq/stellartools` on every push to `main`, if you'd rather pull than build (see `.github/workflows/docker-publish.yml`).
 
-```bash
-pnpm -C packages/stellartools build:dev
-pnpm dev
-```
-
-| Service           | URL                    |
-| ------------------ | ---------------------- |
-| Web app (Next.js)  | http://localhost:3000  |
-| Docs (Mintlify)    | http://localhost:3333  |
-
-**Self-hosted (Docker), instead of step 5's dev server:**
-
-```bash
-docker compose up -d --build web
-```
-
-This builds and runs the app in a container alongside `database` (and `quickstart`, if you're using it), reading its configuration from `apps/web/.env`. The image is production-ready — same build used for `pnpm start`.
-
-To expose your instance publicly, either put it behind your own reverse proxy/TLS, or use the bundled optional Cloudflare Tunnel service:
-
-```bash
-# apps/web/.env: set CLOUDFLARE_TUNNEL_TOKEN
-docker compose --profile tunnel up -d
-```
-
-## Recurring subscription billing outside Vercel
+### Recurring subscription billing outside Vercel
 
 In production on Vercel, subscription renewals are triggered by a Vercel Cron hitting `/dashboard/~api/cron/charge-subscription` hourly (see `apps/web/vercel.json`). Self-hosting elsewhere, trigger the same endpoint yourself on a schedule — a host cron job, systemd timer, or a scheduler container all work:
 
@@ -107,7 +81,22 @@ curl -X POST https://your-domain.com/dashboard/~api/cron/charge-subscription \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-Run it hourly. `CRON_SECRET` must match the value set in `apps/web/.env`.
+Run it hourly. `CRON_SECRET` must match the value set (or auto-generated) in `apps/web/.env` / the `web` container.
+
+## Developing without Docker
+
+```bash
+pnpm install
+docker compose up -d database quickstart   # just Postgres + the local Stellar node
+pnpm --filter @stellartools/web db:migrate
+pnpm -C packages/stellartools build:dev
+pnpm dev
+```
+
+| Service            | URL                    |
+| ------------------- | ---------------------- |
+| Web app (Next.js)   | http://localhost:3000  |
+| Docs (Mintlify)     | http://localhost:3333  |
 
 ## Running tests
 

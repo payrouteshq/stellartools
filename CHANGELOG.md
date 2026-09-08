@@ -8,10 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Converted to a free, self-hosted-only project.** Removed the platform fee (`PLATFORM_FEE_BPS`), the `charge` ledger table, the pricing page, and all billing/plan copy. Nothing is metered; there is no platform cut of anything processed.
+- **Removed the platform fee.** Deleted `PLATFORM_FEE_BPS`, the `charge` ledger table, the pricing page, and all billing/plan copy. Nothing is metered; there is no platform cut of anything processed, whether you self-host or use the free hosted account at dashboard.stellartools.dev.
 - **Collapsed wallet strategy to a single "managed" model.** The `organization.wallet_strategy` column and the "direct" (bring-your-own-key) onboarding path are removed — self-hosting already makes the server-held key model non-custodial in the way that mattered, since each deployment belongs to a single operator.
 - **Removed the SEP-24 anchor fiat off-ramp.** Payouts are crypto-only now; the `integrations/anchor` module, `/api/offramp/*` routes, and the fiat side of the payout UI are gone.
-- Made self-hosting a first-class path: `apps/web/Dockerfile`, a `web` service in `docker-compose.yml`, `next.config.ts` now builds a standalone output, and `DEVELOPMENT.md` is rewritten as a full self-hosting guide (env vars, Postgres, Soroban contract deploy, one-command Docker, and triggering the subscription-renewal cron outside Vercel).
+- Made self-hosting a first-class, one-command path: `docker compose up` now builds the app, starts Postgres and a local Stellar node, runs pending migrations automatically (`web` waits on a `migrate` service via `depends_on: condition: service_completed_successfully`), and generates missing app secrets (`JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, `CRON_SECRET`) on first boot via `apps/web/docker-entrypoint.sh`, persisting them in a Docker volume. `apps/web/.env.example` ships with working `*.localhost` defaults so there's nothing to fill in for a local trial beyond a Resend API key.
+- `next.config.ts` now builds a standalone output; `apps/web/Dockerfile` is a multi-stage build.
+- Added `.github/workflows/docker-publish.yml` — publishes the image to `ghcr.io/payrouteshq/stellartools` on every push to `main`.
+- Added a "Self-Hosting" section (Quickstart, Configuration & Production) to the docs site, and rewrote `DEVELOPMENT.md` as the canonical self-hosting guide.
 - Rewrote `README.md` around the public-good framing and added `CONTRIBUTING.md`, `SECURITY.md`, and `ROADMAP.md`.
 
 ### Removed

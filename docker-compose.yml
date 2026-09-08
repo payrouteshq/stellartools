@@ -33,8 +33,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # One-off: applies pending Drizzle migrations, then exits.
-  #   docker compose run --rm migrate
+  # Applies pending Drizzle migrations, then exits. Runs automatically as
+  # part of `docker compose up` (web waits for it to finish successfully),
+  # and can be re-run by hand any time with: docker compose run --rm migrate
   migrate:
     build:
       context: .
@@ -52,8 +53,7 @@ services:
         condition: service_healthy
     networks:
       - stellartools-network
-    profiles:
-      - tools
+    restart: "no"
 
   web:
     build:
@@ -66,12 +66,22 @@ services:
       - apps/web/.env
     environment:
       DATABASE_URL: postgresql://postgres:local@database:5432/postgres
+    volumes:
+      - stellartools-web-data:/app/data
     depends_on:
       database:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - stellartools-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   # Optional: expose this instance publicly via a Cloudflare Tunnel.
   #   docker compose --profile tunnel up -d
@@ -95,3 +105,4 @@ networks:
 
 volumes:
   stellartools-database-data:
+  stellartools-web-data:
