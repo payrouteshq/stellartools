@@ -1,4 +1,4 @@
-name: stellartools-soroban-rpc
+name: stellartools
 
 services:
   quickstart:
@@ -10,11 +10,11 @@ services:
     container_name: stellartools-soroban-quickstart
     command: --standalone --enable-soroban-rpc
     networks:
-      - stellartools-soroban-network
+      - stellartools-network
 
   database:
     image: postgres:15
-    container_name: stellartools-soroban-database
+    container_name: stellartools-database
     ports:
       - "5436:5432"
     environment:
@@ -22,10 +22,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: local
     volumes:
-      - stellartools-soroban-database-data:/var/lib/postgresql/data
+      - stellartools-database-data:/var/lib/postgresql/data
       - ./seed.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - stellartools-soroban-network
+      - stellartools-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -33,6 +33,48 @@ services:
       timeout: 5s
       retries: 5
 
+  # One-off: applies pending Drizzle migrations, then exits.
+  #   docker compose run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: builder
+    container_name: stellartools-migrate
+    env_file:
+      - apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:local@database:5432/postgres
+    working_dir: /repo/apps/web
+    entrypoint: ["pnpm", "run", "db:migrate"]
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - stellartools-network
+    profiles:
+      - tools
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: stellartools-web
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:local@database:5432/postgres
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - stellartools-network
+    restart: unless-stopped
+
+  # Optional: expose this instance publicly via a Cloudflare Tunnel.
+  #   docker compose --profile tunnel up -d
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: stellartools-cloudflared
@@ -42,10 +84,14 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    networks:
+      - stellartools-network
+    profiles:
+      - tunnel
 
 networks:
-  stellartools-soroban-network:
+  stellartools-network:
     driver: bridge
 
 volumes:
-  stellartools-soroban-database-data:
+  stellartools-database-data:
