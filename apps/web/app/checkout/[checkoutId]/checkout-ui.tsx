@@ -252,6 +252,20 @@ export default function CheckoutUI() {
               )}
             </AnimatePresence>
 
+            <AnimatePresence mode="wait">
+              {wallet.isProcessing && wallet.statusLabel && (
+                <motion.p
+                  key={wallet.statusLabel}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="text-muted-foreground -mt-4 text-center text-xs"
+                >
+                  {wallet.statusLabel}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
             <div className="text-muted-foreground space-y-2 pt-2 text-center text-xs">
               <p className="flex items-center justify-center gap-1.5">
                 <ShieldCheck className="size-3.5" />

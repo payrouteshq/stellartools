@@ -14,6 +14,7 @@ import { buildOneTimePaymentXdr, finalizeSubscriptionCheckout, prepareSubscripti
 import { Money } from "@/lib/money";
 import { getUsdcAsset } from "@/lib/usdc";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffectStream } from "@sorokit/hooks";
 import { Networks, Transaction } from "@stellar/stellar-sdk";
 import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString, toast } from "@stellartools/shared-ui";
 import { UseMutationResult, UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +46,7 @@ interface CheckoutContextValue {
     handleWalletPay: () => Promise<void>;
     disconnect: () => void;
     isProcessing: boolean;
+    statusLabel: string | null;
     kit: { connectWallet: (handleSuccess: (success: boolean) => void) => Promise<void> };
   };
   updateDetails: UseMutationResult<any, Error, CheckoutFormData>;
@@ -140,6 +142,28 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
   const isFailed = checkout?.status === "failed";
   const hasDetails = !!(checkout?.customerEmail && checkout?.customerPhone);
   const isProcessing = [TxStatus.BUILDING, TxStatus.SIGNING, TxStatus.SUBMITTING].includes(wallet.txStatus);
+
+  // Live "still working" signal for the wait after the tx is submitted: the RPC poll in
+  // wallet-context confirms success authoritatively, but that can take several seconds
+  // with no visible change — this surfaces the on-chain effect the moment Horizon's SSE
+  // stream sees it land, so the status copy moves before the RPC poll concludes.
+  const paymentActivity = useEffectStream(wallet.walletAddress, {
+    enabled: wallet.txStatus === TxStatus.SUBMITTING && !!wallet.walletAddress,
+    maxEvents: 1,
+  });
+
+  const statusLabel = React.useMemo(() => {
+    switch (wallet.txStatus) {
+      case TxStatus.BUILDING:
+        return "Preparing transaction…";
+      case TxStatus.SIGNING:
+        return "Waiting for wallet signature…";
+      case TxStatus.SUBMITTING:
+        return paymentActivity.latest ? "Payment detected on-chain — confirming…" : "Submitting to the network…";
+      default:
+        return null;
+    }
+  }, [wallet.txStatus, paymentActivity.latest]);
 
   const [showBanner, setShowBanner] = React.useState(true);
 
@@ -252,6 +276,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
       handleWalletPay,
       disconnect: wallet.disconnect,
       isProcessing,
+      statusLabel,
       kit: { connectWallet: wallet.connect },
     },
   };

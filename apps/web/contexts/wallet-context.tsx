@@ -22,7 +22,10 @@ import {
   WalletConnectAllowedMethods,
   WalletConnectModule,
 } from "@creit.tech/stellar-wallets-kit/modules/walletconnect.module";
+import { SorokitProvider } from "@sorokit/provider";
+import { WalletAdapter, WalletConnector, useWallet as useSorokitWallet } from "@sorokit/wallet-adapter";
 import { Asset, Networks, Operation, Transaction, TransactionBuilder, rpc } from "@stellar/stellar-sdk";
+import { useQueryClient } from "@tanstack/react-query";
 
 export enum TxStatus {
   NONE,
@@ -53,99 +56,152 @@ export interface IWalletContext {
 
 const WalletContext = React.createContext<IWalletContext | undefined>(undefined);
 
-let walletConnectModule: WalletConnectModule | undefined;
-let walletKit: StellarWalletsKit | undefined;
-let walletKitNetwork: WalletNetwork | undefined;
+/**
+ * Sorokit's prebuilt `stellarWalletsKit()` connector targets the kit's v2
+ * static API (`StellarWalletsKit.init()`, `.authModal()`), but this app runs
+ * `@creit.tech/stellar-wallets-kit@1.9.5`'s instance API. This hand-rolled
+ * WalletAdapter wraps the existing v1.9.5 kit (same modules/WalletConnect
+ * config as before) so it plugs into SorokitProvider/useWallet without
+ * bumping the signing SDK.
+ */
+function createKitConnector(): WalletConnector {
+  const stateListeners = new Set<(state: { address: string | undefined; network: string | undefined }) => void>();
+  const disconnectListeners = new Set<() => void>();
 
-function getWalletKit(network: Networks): StellarWalletsKit {
-  const swkNetwork = network === Networks.PUBLIC ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
+  let kit: StellarWalletsKit | undefined;
+  let kitNetwork: WalletNetwork | undefined;
+  let walletConnectModule: WalletConnectModule | undefined;
 
-  if (!walletKit || walletKitNetwork !== swkNetwork) {
-    walletConnectModule = new WalletConnectModule({
-      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
-      method: WalletConnectAllowedMethods.SIGN,
-      url: process.env.NEXT_PUBLIC_APP_URL!,
-      name: "Stellar Tools",
-      description: "Stellar checkout payments",
-      icons: [`${process.env.NEXT_PUBLIC_APP_URL}/favicon.ico`],
-      network: swkNetwork,
-    });
+  function ensureKit(networkPassphrase: string): StellarWalletsKit {
+    const swkNetwork = networkPassphrase === Networks.PUBLIC ? WalletNetwork.PUBLIC : WalletNetwork.TESTNET;
 
-    walletKit = new StellarWalletsKit({
-      network: swkNetwork,
-      selectedWalletId: XBULL_ID,
-      modules: [
-        new xBullModule(),
-        new FreighterModule(),
-        new LobstrModule(),
-        new AlbedoModule(),
-        new HanaModule(),
-        new HotWalletModule(),
-        walletConnectModule,
-      ],
-    });
-    walletKitNetwork = swkNetwork;
+    if (!kit || kitNetwork !== swkNetwork) {
+      walletConnectModule = new WalletConnectModule({
+        projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+        method: WalletConnectAllowedMethods.SIGN,
+        url: process.env.NEXT_PUBLIC_APP_URL!,
+        name: "Stellar Tools",
+        description: "Stellar checkout payments",
+        icons: [`${process.env.NEXT_PUBLIC_APP_URL}/favicon.ico`],
+        network: swkNetwork,
+      });
+
+      kit = new StellarWalletsKit({
+        network: swkNetwork,
+        selectedWalletId: XBULL_ID,
+        modules: [
+          new xBullModule(),
+          new FreighterModule(),
+          new LobstrModule(),
+          new AlbedoModule(),
+          new HanaModule(),
+          new HotWalletModule(),
+          walletConnectModule,
+        ],
+      });
+      kitNetwork = swkNetwork;
+    }
+
+    return kit;
   }
-  return walletKit;
+
+  const adapter: WalletAdapter = {
+    init(networkPassphrase) {
+      ensureKit(networkPassphrase);
+    },
+    connect: () =>
+      new Promise((resolve, reject) => {
+        const activeKit = kit;
+        if (!activeKit) {
+          reject(new AppError("INTERNAL_ERROR", "Wallet kit not initialized"));
+          return;
+        }
+
+        activeKit
+          .openModal({
+            onWalletSelected: async (option: ISupportedWallet) => {
+              try {
+                if (option.id === WALLET_CONNECT_ID && walletConnectModule) {
+                  try {
+                    await walletConnectModule.disconnect();
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+
+                activeKit.setWallet(option.id);
+                const { address } = await activeKit.getAddress();
+                if (!address) {
+                  reject(new AppError("INTERNAL_ERROR", "Unable to load wallet address"));
+                  return;
+                }
+
+                const network = kitNetwork === WalletNetwork.PUBLIC ? Networks.PUBLIC : Networks.TESTNET;
+                stateListeners.forEach((listener) => listener({ address, network }));
+                resolve({ address });
+              } catch (e) {
+                reject(e);
+              }
+            },
+            onClosed: () => reject(new AppError("VALIDATION_ERROR", "Wallet selection cancelled")),
+          })
+          .catch(reject);
+      }),
+    disconnect: async () => {
+      await kit?.disconnect();
+      disconnectListeners.forEach((listener) => listener());
+    },
+    signTransaction: (xdr, opts) => {
+      if (!kit) throw new AppError("INTERNAL_ERROR", "Wallet kit not initialized");
+      return kit.signTransaction(xdr, opts);
+    },
+    signAuthEntry: (authEntry, opts) => {
+      if (!kit) throw new AppError("INTERNAL_ERROR", "Wallet kit not initialized");
+      return kit.signAuthEntry(authEntry, opts);
+    },
+    onStateChange(listener) {
+      stateListeners.add(listener);
+      return () => stateListeners.delete(listener);
+    },
+    onDisconnect(listener) {
+      disconnectListeners.add(listener);
+      return () => disconnectListeners.delete(listener);
+    },
+  };
+
+  return { useAdapter: () => adapter };
 }
 
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [connected, setConnected] = React.useState(false);
-  const [walletAddress, setWalletAddress] = React.useState("");
+// Constructed once at module scope — Sorokit tears down and resubscribes its
+// listeners whenever it sees a new connector reference.
+const kitConnector = createKitConnector();
+
+const WalletBridge: React.FC<{
+  environment: StellarToolsNetwork;
+  setEnvironment: (environment: StellarToolsNetwork) => void;
+  children: React.ReactNode;
+}> = ({ environment, setEnvironment, children }) => {
+  const sorokitWallet = useSorokitWallet();
+
   const [txStatus, setTxStatus] = React.useState<TxStatus>(TxStatus.NONE);
   const [txHash, setTxHash] = React.useState<string | undefined>();
   const [error, setError] = React.useState<string | undefined>();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [environment, setEnvironment] = React.useState<StellarToolsNetwork>("testnet");
+
+  const walletAddress = sorokitWallet.address ?? "";
 
   const rpcUrl = React.useMemo(() => {
     if (environment === "testnet") return process.env.NEXT_PUBLIC_RPC_URL_TESTNET!;
     else return process.env.NEXT_PUBLIC_RPC_URL_MAINNET!;
   }, [environment]);
 
-  const network = React.useMemo(() => {
-    if (environment === "testnet") return Networks.TESTNET;
-    else return Networks.PUBLIC;
-  }, [environment]);
-
   const stellarRpc = React.useMemo(() => (rpcUrl ? new rpc.Server(rpcUrl) : null), [rpcUrl]);
-
-  async function handleSetWalletAddress(): Promise<boolean> {
-    try {
-      const { address: publicKey } = await getWalletKit(network).getAddress();
-      if (publicKey === "" || publicKey == undefined) {
-        console.error("Unable to load wallet key: ", publicKey);
-        return false;
-      }
-      setWalletAddress(publicKey);
-      setConnected(true);
-      return true;
-    } catch (e: any) {
-      console.error("Unable to load wallet information: ", e);
-      return false;
-    }
-  }
 
   const connect = async (handleSuccess: (success: boolean) => void) => {
     try {
       setIsLoading(true);
-      const kit = getWalletKit(network);
-
-      await kit.openModal({
-        onWalletSelected: async (option: ISupportedWallet) => {
-          if (option.id === WALLET_CONNECT_ID && walletConnectModule) {
-            try {
-              await walletConnectModule.disconnect();
-            } catch (e) {
-              console.error(e);
-            }
-          }
-
-          kit.setWallet(option.id);
-          let result = await handleSetWalletAddress();
-          handleSuccess(result);
-        },
-      });
+      await sorokitWallet.connect();
+      handleSuccess(true);
     } catch (e: any) {
       setError(e.message);
       handleSuccess(false);
@@ -154,10 +210,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const disconnect = async () => {
-    getWalletKit(network).disconnect();
-    setConnected(false);
-    setWalletAddress("");
+  const disconnect = () => {
+    void sorokitWallet.disconnect();
   };
 
   const signAndSubmit = async (
@@ -168,7 +222,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const network = input instanceof Transaction ? input.networkPassphrase : (input as any).networkPassphrase;
     const xdr = input instanceof Transaction ? input.toXDR() : input.build().toXDR();
 
-    const { signedTxXdr } = await getWalletKit(network as Networks).signTransaction(xdr, {
+    const { signedTxXdr } = await sorokitWallet.signTransaction(xdr, {
       address: walletAddress,
       networkPassphrase: network,
     });
@@ -272,26 +326,50 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const value: IWalletContext = {
+    connected: sorokitWallet.isConnected,
+    walletAddress,
+    txStatus,
+    lastTxHash: txHash,
+    error,
+    isLoading,
+    connect,
+    disconnect,
+    signAndSubmit,
+    createTrustlines,
+    setTxStatus,
+    setError,
+    setEnvironment,
+  };
+
+  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+};
+
+export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
+  const [environment, setEnvironment] = React.useState<StellarToolsNetwork>("testnet");
+
+  const network = environment === "testnet" ? "TESTNET" : "PUBLIC";
+  const rpcUrl =
+    environment === "testnet" ? process.env.NEXT_PUBLIC_RPC_URL_TESTNET : process.env.NEXT_PUBLIC_RPC_URL_MAINNET;
+  const horizonUrl =
+    environment === "testnet"
+      ? process.env.NEXT_PUBLIC_STELLAR_HORIZON_TESTNET
+      : process.env.NEXT_PUBLIC_STELLAR_HORIZON_MAINNET;
+
   return (
-    <WalletContext.Provider
-      value={{
-        connected,
-        walletAddress,
-        txStatus,
-        lastTxHash: txHash,
-        error,
-        isLoading,
-        connect,
-        disconnect,
-        signAndSubmit,
-        createTrustlines,
-        setTxStatus,
-        setError,
-        setEnvironment,
-      }}
+    <SorokitProvider
+      devtools
+      network={network}
+      rpcUrl={rpcUrl}
+      horizonUrl={horizonUrl}
+      wallet={kitConnector}
+      queryClient={queryClient}
     >
-      {children}
-    </WalletContext.Provider>
+      <WalletBridge environment={environment} setEnvironment={setEnvironment}>
+        {children}
+      </WalletBridge>
+    </SorokitProvider>
   );
 };
 
