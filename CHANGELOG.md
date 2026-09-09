@@ -11,11 +11,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Removed the platform fee.** Deleted `PLATFORM_FEE_BPS`, the `charge` ledger table, the pricing page, and all billing/plan copy. Nothing is metered; there is no platform cut of anything processed, whether you self-host or use the free hosted account at dashboard.stellartools.dev.
 - **Collapsed wallet strategy to a single "managed" model.** The `organization.wallet_strategy` column and the "direct" (bring-your-own-key) onboarding path are removed — self-hosting already makes the server-held key model non-custodial in the way that mattered, since each deployment belongs to a single operator.
 - **Removed the SEP-24 anchor fiat off-ramp.** Payouts are crypto-only now; the `integrations/anchor` module, `/api/offramp/*` routes, and the fiat side of the payout UI are gone.
-- Made self-hosting a first-class, one-command path: `docker compose up` now builds the app, starts Postgres and a local Stellar node, runs pending migrations automatically (`web` waits on a `migrate` service via `depends_on: condition: service_completed_successfully`), and generates missing app secrets (`JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, `CRON_SECRET`) on first boot via `apps/web/docker-entrypoint.sh`, persisting them in a Docker volume. `apps/web/.env.example` ships with working `*.localhost` defaults so there's nothing to fill in for a local trial beyond a Resend API key.
+- Made self-hosting a first-class, one-command path via `docker compose up`, running four services from `apps/web/Dockerfile` (plus a plain-Alpine `cron` sidecar): `init` generates any app secrets left blank in `apps/web/.env` and shares them via a Docker volume; `migrate` applies pending Drizzle migrations; `web` waits on both before starting; `cron` calls the subscription-renewal endpoint hourly — the self-hosted equivalent of the Vercel Cron this app uses in production, which has no way to reach a container you run yourself. `apps/web/.env.example` ships with working `*.localhost` defaults so there's nothing to fill in for a local trial beyond a Resend API key. Full breakdown in the new `DOCKER.md`.
+- `pnpm install` in the Docker build is now scoped to `@stellartools/web` and its actual workspace dependencies (`--filter "@stellartools/web..."`) instead of the whole monorepo — the framework adapter packages under `packages/*` are published to npm independently and nothing in `apps/web` imports them.
+- Excluded `apps/web/app/landing/docs` (the Mintlify docs site's content, ~8MB) from the Docker build context — it isn't a Next.js route at all, just source files for a separately-deployed Mintlify site.
+- Simplified organization onboarding: removed the post-signup "book a call" (Cal.com) step — creating an organization now goes straight to the dashboard.
 - `next.config.ts` now builds a standalone output; `apps/web/Dockerfile` is a multi-stage build.
 - Added `.github/workflows/docker-publish.yml` — publishes the image to `ghcr.io/payrouteshq/stellartools` on every push to `main`.
 - Added a "Self-Hosting" section (Quickstart, Configuration & Production) to the docs site, and rewrote `DEVELOPMENT.md` as the canonical self-hosting guide.
-- Rewrote `README.md` around the public-good framing and added `CONTRIBUTING.md`, `SECURITY.md`, and `ROADMAP.md`.
+- Rewrote `README.md` around the public-good framing and added `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md`, and `DOCKER.md`.
 
 ### Removed
 
@@ -23,6 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `apps/web/integrations/anchor/`, `apps/web/actions/offramp.ts`, `/api/offramp/*`, the `reconcile-offramps` cron
 - The `payout` table's fiat-only columns (`method`, `bank_account`, `provider*`, `destination_*`, `withdrawal_method`, `quote_*`, `failure_*`, `funding_transaction_xdr`)
 - The `/pricing` marketing page and its nav/footer links
+- The `@calcom/embed-react` dependency and the onboarding "book a call" step (`CalBookingStep`) — unused now that onboarding goes straight to the dashboard
 
 ### Fixed
 

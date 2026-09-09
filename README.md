@@ -10,6 +10,7 @@
 <p align="center">
   <a href="https://docs.stellartools.dev">Docs</a> &bull;
   <a href="DEVELOPMENT.md">Self-Hosting</a> &bull;
+  <a href="DOCKER.md">Docker Image</a> &bull;
   <a href="CONTRIBUTING.md">Contributing</a> &bull;
   <a href="ROADMAP.md">Roadmap</a> &bull;
   <a href="CHANGELOG.md">Changelog</a>

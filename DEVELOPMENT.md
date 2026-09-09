@@ -19,7 +19,7 @@ cp apps/web/.env.example apps/web/.env
 The defaults in `apps/web/.env` are set up to work out of the box on `localhost` — you don't need to fill anything in yet to try it. Two things you'll want before real use:
 
 - `RESEND_API_KEY` — required for account signup/login (StellarTools emails a one-time code). Get a free key at [resend.com](https://resend.com/api-keys).
-- `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, `CRON_SECRET` — leave these blank for Docker; the `web` container generates and persists random values for them on first boot (see `apps/web/docker-entrypoint.sh`) and reuses them across restarts. Set them explicitly here instead if you're running `pnpm dev` directly, or before anything beyond a local trial.
+- `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, `CRON_SECRET` — leave these blank for Docker; the `init` service generates and persists random values for them on first run (see `apps/web/docker-entrypoint.sh` and [DOCKER.md](DOCKER.md)). Set them explicitly here instead if you're running `pnpm dev` directly, or before anything beyond a local trial.
 
 ## 2. Start everything
 
@@ -27,7 +27,7 @@ The defaults in `apps/web/.env` are set up to work out of the box on `localhost`
 docker compose up -d
 ```
 
-This single command builds the app image, starts PostgreSQL, starts a local Stellar node with Soroban RPC, **runs pending database migrations automatically**, and then starts the web app — in that order (`web` waits for `migrate` to finish successfully before it starts). First run takes a few minutes to build; after that, `docker compose up -d` is seconds.
+This single command builds the app image; starts PostgreSQL and a local Stellar node with Soroban RPC; generates any missing app secrets; **runs pending database migrations automatically**; starts the web app; and starts an hourly cron job for subscription renewals — in dependency order, so nothing races. First run takes a few minutes to build; after that, `docker compose up -d` is seconds. See [DOCKER.md](DOCKER.md) for exactly what each service does and why.
 
 Once it's up:
 
@@ -72,16 +72,18 @@ You also need a small "keeper" account that pays the (fractions-of-a-cent) Stell
 - Use a managed/backed-up Postgres instead of the bundled `database` container, or make sure the `stellartools-database-data` volume is backed up.
 - Prebuilt images are also published to `ghcr.io/payrouteshq/stellartools` on every push to `main`, if you'd rather pull than build (see `.github/workflows/docker-publish.yml`).
 
-### Recurring subscription billing outside Vercel
+### Recurring subscription billing
 
-In production on Vercel, subscription renewals are triggered by a Vercel Cron hitting `/dashboard/~api/cron/charge-subscription` hourly (see `apps/web/vercel.json`). Self-hosting elsewhere, trigger the same endpoint yourself on a schedule — a host cron job, systemd timer, or a scheduler container all work:
+In production on Vercel, subscription renewals are triggered by a Vercel Cron hitting `/dashboard/~api/cron/charge-subscription` hourly (see `apps/web/vercel.json`) — that only works because Vercel Cron calls a Vercel deployment; it has no way to reach a container you're running yourself. `docker-compose.yml` includes a `cron` service that does the equivalent for self-hosting: it calls that same endpoint hourly, authenticated with `CRON_SECRET`. It's part of `docker compose up` — no separate setup. See [DOCKER.md](DOCKER.md) for how it works.
+
+If you're deploying without Docker Compose at all (e.g. a custom orchestration setup), trigger the endpoint yourself on a schedule instead:
 
 ```bash
 curl -X POST https://your-domain.com/dashboard/~api/cron/charge-subscription \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-Run it hourly. `CRON_SECRET` must match the value set (or auto-generated) in `apps/web/.env` / the `web` container.
+Run it hourly. `CRON_SECRET` must match the value set (or auto-generated) in `apps/web/.env`.
 
 ## Developing without Docker
 

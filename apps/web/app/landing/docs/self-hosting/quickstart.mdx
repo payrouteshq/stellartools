@@ -33,12 +33,16 @@ This one command:
 
 1. Builds the app image
 2. Starts PostgreSQL and a local Stellar node with Soroban RPC
-3. Runs pending database migrations automatically
-4. Starts the web app, after migrations finish
+3. Generates any app secrets you left blank
+4. Runs pending database migrations automatically
+5. Starts the web app
+6. Starts an hourly job that renews subscriptions — the self-hosted equivalent of the Vercel Cron this app uses in production on Vercel, which can't reach a container you run yourself
 
 <Info>
-  Secrets like `JWT_SECRET` and `MASTER_ENCRYPTION_KEY` are generated automatically on first boot if you left them
+  Secrets like `JWT_SECRET` and `MASTER_ENCRYPTION_KEY` are generated automatically on first run if you left them
   blank in `apps/web/.env`, and persisted across restarts in a Docker volume. Set them explicitly before production.
+  See [DOCKER.md](https://github.com/payrouteshq/stellartools/blob/main/DOCKER.md) in the repo for exactly what each
+  service does.
 </Info>
 
 ## 3. Open it

@@ -9,10 +9,15 @@ RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 # ---- install workspace dependencies ----
+# Scoped to @stellartools/web and its actual workspace dependencies (core,
+# app-sdk, shared-ui) — the other packages/* (framework adapters) are
+# published to npm independently and aren't imported by this app, so their
+# dependencies aren't installed here. See DOCKER.md at the repo root for
+# the full breakdown of what does and doesn't end up in the image.
 FROM base AS deps
 WORKDIR /repo
 COPY . .
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter "@stellartools/web..."
 
 # ---- build the reusable packages, then the app ----
 FROM base AS builder
@@ -34,8 +39,8 @@ COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
 COPY --from=builder /repo/apps/web/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh \
-  && mkdir -p /app/data \
-  && chown -R nextjs:nodejs /app/data
+  && mkdir -p /shared \
+  && chown -R nextjs:nodejs /shared
 
 USER nextjs
 EXPOSE 3000
