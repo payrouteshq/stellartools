@@ -61,6 +61,32 @@ Removed the post-signup "book a call" step (a Cal.com embed shown after creating
 - Added `.github/workflows/ci.yml` (type-check + test on PRs; lint isn't wired in yet — the existing codebase has a backlog of ~65 pre-existing lint findings unrelated to this work, called out in `ROADMAP.md` instead of bundled in here) and `.github/workflows/docker-publish.yml` (builds and pushes the image to `ghcr.io/<repo>:latest` on every push to `main`).
 - **Correction mid-session**: I initially wrote the docs/README as if self-hosting were the *only* way to use StellarTools. That was wrong — there are two ways (the free hosted account at dashboard.stellartools.dev, or self-hosting) — and I went back through and fixed every place that implied otherwise (`README.md`, `DEVELOPMENT.md`, `ROADMAP.md`, `CHANGELOG.md`, the docs homepage, and I'd made some over-broad edits to `webhooks.mdx`/`authentication.mdx`/`mcp.mdx`/`woocommerce.mdx` that I reverted back to their original `dashboard.stellartools.dev` references, since those pages are for anyone using the product, not specifically self-hosters).
 
+## 5. Cost-shifting and naming issues you flagged, plus a full self-hostability scan
+
+You asked three specific questions, and to have me scan for anything else still blocking real self-hosting. Findings:
+
+### The 1 XLM funding — this was a real bug, now fixed
+
+`fundAccount` funded every new organization's **mainnet** wallet with ~1 XLM (the Stellar account reserve, `2 × base_reserve`) sent from `KEEPER_SECRET_MAINNET` — a genuinely separate role from what the keeper is documented to do (pay fractions-of-a-cent network fees for Soroban contract calls). This meant every signup — on a self-hosted instance, or on StellarTools' own free hosted account — cost the keeper's owner real, uncapped money with no revenue to offset it. Exactly the "we/they eat the cost" problem you flagged.
+
+Fixed: `fundAccount` (`integrations/stellar-core.ts`) is now testnet-only, funded via Friendbot (free). `postOrganizationAndSecret` (`actions/organization.ts`) no longer funds mainnet at all — it generates and stores the mainnet keypair (so the address is known and stable) but leaves it unfunded. The organization funds it themselves by sending at least 1 XLM to their own wallet address (already shown on their Settings page) before they can receive mainnet payments. `ensureTrustline` now throws a clear message instead of a raw Horizon 404 if a checkout hits an unfunded merchant wallet — this became a real reachable path once mainnet accounts could legitimately be unfunded, so it needed handling, not just the funding logic itself.
+
+I checked every other `getKeeperSecret` call site (3 in `integrations/soroban-contract.ts`) — those are all `fee: BASE_FEE` Soroban invocation submissions, no value transfer, exactly the intended tiny-cost role. Also checked every `sendAssetPayment` call site (refunds, payouts) — both already use the organization's own decrypted secret, never the keeper. This account-funding call was the only place real value moved from a shared/keeper account without the org's consent.
+
+### "vercelToken" — renamed to "cronToken"
+
+You asked if we still need "vercelToken" auth now that self-hosting doesn't involve Vercel, and what a better name would be. Turns out the name was already misleading before today — `resolveAuthContext` (`actions/apikey.ts`) never checked anything Vercel-specific, it's a plain `Authorization: Bearer $CRON_SECRET` string comparison. Renamed the `AuthScope` literal from `"vercelToken"` to `"cronToken"` everywhere it appears: `types.ts`, `lib/api-handler.ts`, `actions/apikey.ts`, the `charge-subscription` cron route, the `/dashboard/~api/encrypt` route (an internal utility endpoint that reuses the same auth — also renamed), and the test file that covered it.
+
+### "What if it's not Vercel that calls the cron" — it wasn't going to work at all
+
+While checking the auth rename, I found the actual route only exports `GET` — but the `cron` sidecar I built last session was sending a `POST` (`wget --post-data=''`), which would have gotten a `405` from Next.js every single hour. The self-hosted cron literally would not have worked. Fixed the entrypoint script's `wget` call to plain `GET`, and fixed the same mistake in `DEVELOPMENT.md`'s manual-trigger `curl` example (also `-X POST`, also wrong). This was never tested against a real server in the last session — a `docker compose up` would not have caught it either, since the cron only fires once an hour and fails silently into its own log file.
+
+### Everything else the scan turned up
+
+- No other `@vercel/*` package beyond `@vercel/functions` (`waitUntil`), and no `process.env.VERCEL`-based branching anywhere. Checked `waitUntil`'s actual implementation: off-Vercel it's a no-op wrapper (`getContext().waitUntil?.(promise)` — optional-chains into nothing), but the underlying async work still runs to completion regardless, because it's a persistent Node process (not a serverless function Vercel would freeze after the response) keeping the event loop alive. Not a self-hosting blocker, just noting I checked rather than guessed.
+- Cleaned up dead code in `checkout-tx.ts` left over from the wallet-strategy removal a few sessions back: a fallback branch for orgs with no stored secret (the old "direct" strategy) that can't be reached anymore now that every org is "managed." Left as dead code before, actually dead now that I looked closely enough to notice it.
+- `x-vercel-ip-country` header reads (`proxy.ts`, the onboarding page for currency detection) already degrade gracefully to `null`/fallback logic off-Vercel — not a blocker, just absent geo-IP convenience.
+
 ## Commits on this branch so far
 
 ```

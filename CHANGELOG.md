@@ -30,6 +30,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **New mainnet organizations are no longer auto-funded from the keeper account.** `fundAccount` funded every new org's mainnet wallet with ~1 XLM (the account reserve) from `KEEPER_SECRET_MAINNET` — real money, uncapped, on every signup, which is exactly the cost this project isn't supposed to carry (or push onto self-hosters unknowingly). Testnet is still funded automatically via Friendbot (free). Mainnet wallets are now generated and stored but left unfunded — the organization sends its own wallet at least 1 XLM before it can receive mainnet payments. `ensureTrustline` now throws a clear error instead of a raw Horizon 404 when a checkout hits an unfunded merchant wallet.
+- **The self-hosted `cron` service was calling the wrong HTTP method.** `charge-subscription`'s route only handles `GET` (matching how Vercel Cron calls it); the cron sidecar was sending a `POST`, which would 405. Fixed the entrypoint script and the manual-trigger `curl` example in `DEVELOPMENT.md` to use `GET`.
+- **Renamed the `"vercelToken"` auth scope to `"cronToken"`.** It never actually checked anything Vercel-specific — it's a plain `Authorization: Bearer $CRON_SECRET` comparison, used by both the subscription-renewal cron and the internal `/dashboard/~api/encrypt` endpoint. The old name was actively misleading for self-hosters reading the code.
+- Removed now-dead code in `checkout-tx.ts` left over from the wallet-strategy removal: a fallback branch for orgs with no stored secret (the "direct" strategy, which no longer exists) that could never be reached anymore.
 - A stray, unused migration file (`0000_panoramic_skaar.sql`) containing unresolved git merge-conflict markers, left over from an old merge and never referenced by the migration journal
 - An orphaned `supported_asset` table with no corresponding schema definition or code path, left over from an earlier removal that never generated its drop migration
 - A duplicate import in `apps/web/eslint.config.mjs` that made `pnpm lint` fail outright
