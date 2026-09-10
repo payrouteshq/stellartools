@@ -79,7 +79,7 @@ In production on Vercel, subscription renewals are triggered by a Vercel Cron hi
 If you're deploying without Docker Compose at all (e.g. a custom orchestration setup), trigger the endpoint yourself on a schedule instead:
 
 ```bash
-curl -X POST https://your-domain.com/dashboard/~api/cron/charge-subscription \
+curl https://your-domain.com/dashboard/~api/cron/charge-subscription \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 

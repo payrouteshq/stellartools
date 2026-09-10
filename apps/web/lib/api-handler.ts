@@ -25,7 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { AppError } from "./action-handler";
 
-const DEFAULT_LIMITS: Record<Exclude<AuthScope, "vercelToken">, number> = {
+const DEFAULT_LIMITS: Record<Exclude<AuthScope, "cronToken">, number> = {
   apikey: 20,
   session: 20,
   portal: 20,
@@ -48,7 +48,7 @@ function toSnakeCase(data: any): any {
 
 export const mcpToolsRegistry = new Map<string, HandlerConfig<any, any, any>>();
 
-export type AuthScope = "session" | "apikey" | "portal" | "app" | "vercelToken";
+export type AuthScope = "session" | "apikey" | "portal" | "app" | "cronToken";
 
 export type HandlerConfig<TBody, TParams, TQuery> = {
   schema?: {
@@ -124,7 +124,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
         sessionToken: req.headers.get("x-session-token"),
         portalToken: req.headers.get("x-portal-token"),
         appToken: req.headers.get("x-stellartools-app-token"),
-        vercelToken: req.headers.get("authorization"),
+        cronToken: req.headers.get("authorization"),
       };
 
       const authResult = await resolveAuthContext(authParams);
@@ -135,7 +135,7 @@ export const apiHandler = <TBody = any, TParams = any, TQuery = any>(config: Han
       }
 
       // 2. RATE LIMITING
-      if (authResult && authResult.type !== "vercelToken") {
+      if (authResult && authResult.type !== "cronToken") {
         const baseLimit = DEFAULT_LIMITS[authResult.type];
 
         const customLimit = authResult.customApiRateLimit;

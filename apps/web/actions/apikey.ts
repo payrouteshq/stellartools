@@ -101,19 +101,19 @@ export const resolveAuthContext = async (params: {
   sessionToken?: string | null;
   portalToken?: string | null;
   appToken?: string | null;
-  vercelToken?: string | null;
+  cronToken?: string | null;
 }): Promise<AuthContext | null> => {
-  const { apiKey, sessionToken, portalToken, appToken, vercelToken } = params;
+  const { apiKey, sessionToken, portalToken, appToken, cronToken } = params;
 
-  if (vercelToken) {
+  if (cronToken) {
     const cronSecret = process.env.CRON_SECRET;
 
-    if (cronSecret && vercelToken === `Bearer ${cronSecret}`) {
+    if (cronSecret && cronToken === `Bearer ${cronSecret}`) {
       // Cron jobs usually iterate over all orgs, so we return a system-level context
       return {
         organizationId: "system",
         environment: "mainnet",
-        type: "vercelToken",
+        type: "cronToken",
       };
     }
 

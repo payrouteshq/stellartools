@@ -43,7 +43,8 @@ cron)
   [ -f "$SHARED_FILE" ] && . "$SHARED_FILE"
   : "${CRON_SECRET:?CRON_SECRET missing — did the init service run and complete first?}"
   : "${WEB_INTERNAL_URL:=http://web:3000}"
-  echo "0 * * * * wget -q -O- --header=\"Authorization: Bearer ${CRON_SECRET}\" --post-data='' ${WEB_INTERNAL_URL}/dashboard/~api/cron/charge-subscription >>/var/log/stellartools-cron.log 2>&1" >/etc/crontabs/root
+  # The route only handles GET (matches how Vercel Cron calls it in production).
+  echo "0 * * * * wget -q -O- --header=\"Authorization: Bearer ${CRON_SECRET}\" ${WEB_INTERNAL_URL}/dashboard/~api/cron/charge-subscription >>/var/log/stellartools-cron.log 2>&1" >/etc/crontabs/root
   touch /var/log/stellartools-cron.log
   echo "[stellartools/cron] scheduled charge-subscription hourly against ${WEB_INTERNAL_URL}"
   exec crond -f -l 8

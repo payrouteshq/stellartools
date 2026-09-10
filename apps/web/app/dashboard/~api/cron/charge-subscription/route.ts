@@ -207,7 +207,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
 }
 
 export const GET = apiHandler({
-  auth: ["vercelToken"],
+  auth: ["cronToken"],
   handler: async () => {
     const subs = await retrieveDueSubscriptions({
       withCustomer: true,

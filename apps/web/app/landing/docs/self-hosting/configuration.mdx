@@ -38,7 +38,7 @@ If you'd rather pull than build locally, point `docker-compose.yml`'s `web` (and
 - **Secrets.** Set `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, and `CRON_SECRET` explicitly rather than relying on the auto-generated ones — generate each with something like `openssl rand -hex 32`.
 - **Database.** Use a managed, backed-up Postgres instead of (or in addition to backing up) the bundled `database` container's volume.
 - **Recurring billing.** Handled automatically by the `cron` service — no setup needed. It calls `/dashboard/~api/cron/charge-subscription` hourly, authenticated with `CRON_SECRET`, the self-hosted equivalent of the Vercel Cron this app uses in production on Vercel (which can't reach a container you run yourself). If you're deploying without Docker Compose at all, trigger that same endpoint yourself on an hourly schedule instead.
-- **Mainnet.** Repeat the contract deploy with `--network mainnet` and a mainnet-funded key, set `SUBSCRIPTION_CONTRACT_MAINNET_ID` and `KEEPER_SECRET_MAINNET`, and switch your API keys to mainnet.
+- **Mainnet.** Repeat the contract deploy with `--network mainnet` and a mainnet-funded key, set `SUBSCRIPTION_CONTRACT_MAINNET_ID` and `KEEPER_SECRET_MAINNET`, and switch your API keys to mainnet. Each organization's mainnet wallet is generated but **not auto-funded** — unlike testnet (free via Friendbot), a mainnet account needs real XLM, and that has to come from the organization itself, not your keeper account. An org sends at least 1 XLM (the network's minimum account reserve) to its own wallet address — shown on its Settings page — before it can receive mainnet payments.
 
 ## Updating
 

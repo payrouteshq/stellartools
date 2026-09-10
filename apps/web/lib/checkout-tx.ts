@@ -79,25 +79,16 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   if (sendAssetIssuer) {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
 
-    if (orgSecret) {
-      await ensureTrustline(
-        decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
-        sendAssetCode,
-        sendAssetIssuer,
-        checkout.environment
-      );
-    } else {
-      const merchantAccount = await server.loadAccount(checkout.merchantPublicKey).catch(() => null);
-      const hasTrustline = merchantAccount?.balances.some(
-        (b: any) => b.asset_code === sendAssetCode && b.asset_issuer === sendAssetIssuer
-      );
-      if (!hasTrustline) {
-        throw new AppError(
-          "VALIDATION_ERROR",
-          `Merchant wallet has no trustline for ${sendAssetCode}. Add it from your Stellar wallet to accept this asset.`
-        );
-      }
+    if (!orgSecret) {
+      throw new AppError("INTERNAL_ERROR", "Organization has no stored wallet — contact support@stellartools.dev.");
     }
+
+    await ensureTrustline(
+      decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
+      sendAssetCode,
+      sendAssetIssuer,
+      checkout.environment
+    );
   }
 
   // Always use path finding — Stellar's DEX handles any issuer mismatch, partial balances,

@@ -52,16 +52,19 @@ export const postOrganizationAndSecret = safeAction(
         .returning();
 
       const keypair = StellarSDK.Keypair.random();
-      const [testnetResult, mainnetResult] = await Promise.all([
-        fundAccount(keypair, "testnet"),
-        fundAccount(keypair, "mainnet"),
-      ]);
 
+      // Testnet is funded automatically via Friendbot — free, no cost to
+      // anyone. Mainnet is NOT auto-funded: that would mean this project's
+      // (or a self-hoster's) keeper account paying real XLM for every new
+      // org, an uncapped cost with no revenue to offset it. The mainnet
+      // keypair is generated and stored now so the address is stable and
+      // known, but the organization must fund it themselves — send at
+      // least 1 XLM to their own wallet address — before it can receive
+      // mainnet payments.
+      const testnetResult = await fundAccount(keypair);
       if (testnetResult.isErr()) throw new AppError("INTERNAL_ERROR", testnetResult.error?.message);
-      if (mainnetResult.isErr()) throw new AppError("INTERNAL_ERROR", mainnetResult.error?.message);
 
       const testnetBal = testnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
-      const mainnetBal = mainnetResult.value?.balances.find((b) => b.asset_type === "native")?.balance ?? "0";
 
       await postOrganizationSecretWithEncryption(
         {
@@ -70,7 +73,7 @@ export const postOrganizationAndSecret = safeAction(
           mainnetSecret: keypair.secret(),
           mainnetPublicKey: keypair.publicKey(),
           testnetInitialBalance: testnetBal,
-          mainnetInitialBalance: mainnetBal,
+          mainnetInitialBalance: "0",
         },
         organization.id,
         defaultEnvironment
