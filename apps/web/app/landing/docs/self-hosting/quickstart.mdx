@@ -1,0 +1,88 @@
+---
+title: "Quickstart"
+description: "Run your own Stellar Tools instance in one command"
+---
+
+Prefer not to run your own infrastructure? [dashboard.stellartools.dev](https://dashboard.stellartools.dev) offers a free hosted account — no setup required. This page is for running your own instance instead: it's free too, and the only recurring cost is the Stellar network fee your own accounts pay (fractions of a cent per transaction).
+
+<Note>
+  This page covers the fast path. For prerequisites, going to production, and running without Docker, see
+  [Configuration & Production](/self-hosting/configuration) and [DEVELOPMENT.md](https://github.com/payrouteshq/stellartools/blob/main/DEVELOPMENT.md)
+  in the repo.
+</Note>
+
+## 1. Clone and configure
+
+```bash
+git clone https://github.com/payrouteshq/stellartools.git
+cd stellartools
+cp apps/web/.env.example apps/web/.env
+```
+
+The example file is pre-filled with working defaults for `localhost` — you can start the app immediately. Before creating an account, set one thing:
+
+- `RESEND_API_KEY` in `apps/web/.env` — required for the sign-up/login one-time-code email. Free key at [resend.com](https://resend.com/api-keys).
+
+## 2. Start everything
+
+```bash
+docker compose up -d
+```
+
+This one command:
+
+1. Builds the app image
+2. Starts PostgreSQL and a local Stellar node with Soroban RPC
+3. Generates any app secrets you left blank
+4. Runs pending database migrations automatically
+5. Starts the web app
+6. Starts an hourly job that renews subscriptions — the self-hosted equivalent of the Vercel Cron this app uses in production on Vercel, which can't reach a container you run yourself
+
+<Info>
+  Secrets like `JWT_SECRET` and `MASTER_ENCRYPTION_KEY` are generated automatically on first run if you left them
+  blank in `apps/web/.env`, and persisted across restarts in a Docker volume. Set them explicitly before production.
+  See [DOCKER.md](https://github.com/payrouteshq/stellartools/blob/main/DOCKER.md) in the repo for exactly what each
+  service does.
+</Info>
+
+## 3. Open it
+
+| Surface   | URL                              |
+| --------- | --------------------------------- |
+| Landing   | `http://localhost:3000`           |
+| Dashboard | `http://dashboard.localhost:3000` |
+| Checkout  | `http://checkout.localhost:3000`  |
+| Portal    | `http://portal.localhost:3000`    |
+| API       | `http://api.localhost:3000`       |
+
+Most browsers and OSes resolve `*.localhost` to `127.0.0.1` automatically. If yours doesn't, add the subdomains to `/etc/hosts`:
+
+```
+127.0.0.1 dashboard.localhost checkout.localhost portal.localhost api.localhost invoice.localhost
+```
+
+Create an account at the dashboard URL, generate an API key, and you're integrating against your own instance — see [Get your API key](/index#get-your-api-key).
+
+## 4. Deploy the subscription contract (optional)
+
+Everything works without this except subscriptions. It's the one step that can't be automated for you — deploying a Soroban contract is a real on-chain transaction that makes you its owner.
+
+```bash
+cd apps/web/soroban
+make release
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/subscription_engine.wasm \
+  --source <your-funded-key> \
+  --network testnet
+```
+
+Fund the deploying account with [Friendbot](https://friendbot.stellar.org) first. Set the printed contract ID as `SUBSCRIPTION_CONTRACT_TESTNET_ID` in `apps/web/.env`, then `docker compose up -d web`. You'll also need a small "keeper" account, funded with a little XLM, to pay network fees for contract calls — set it as `KEEPER_SECRET_TESTNET`. Full details in [Configuration & Production](/self-hosting/configuration).
+
+## Updating
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Migrations run automatically again before the app restarts.

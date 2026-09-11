@@ -23,7 +23,7 @@ pnpm dev
 
 ## Environment
 
-Copy `.env.example` to `.env.local` and fill in the required variables (database URL, Stellar keys, auth secrets, etc.).
+Copy `.env.example` to `.env` and fill in the required variables (database URL, Stellar keys, auth secrets, etc.). See [DEVELOPMENT.md](../../DEVELOPMENT.md) at the repo root for the full setup and self-hosting guide.
 
 ## Structure
 

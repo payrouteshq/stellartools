@@ -6,7 +6,6 @@ const links = [
   { label: "Docs", href: process.env.NEXT_PUBLIC_DOCS_URL ?? "#" },
   { label: "API Reference", href: `${process.env.NEXT_PUBLIC_DOCS_URL ?? ""}/api-reference` },
   { label: "GitHub", href: "https://github.com/payrouteshq/stellartools" },
-  { label: "Pricing", href: "/pricing" },
 ];
 
 const social = [

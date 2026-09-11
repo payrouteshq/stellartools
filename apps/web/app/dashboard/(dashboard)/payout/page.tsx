@@ -7,7 +7,6 @@ import { WalletAsset, retrievePayouts, retrieveWalletBalance } from "@/actions/p
 import { DashboardSidebarInset } from "@/components/app-sidebar-inset";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PayoutReceipt } from "@/components/receipt-engine";
-import { COUNTRIES, FIAT_CURRENCIES, PAYOUT_RAILS } from "@/constant/countries";
 import { PayoutStatus } from "@/constant/schema.client";
 import { Payout } from "@/db";
 import { useAction } from "@/hooks/use-action";
@@ -25,7 +24,6 @@ import {
   Card,
   CardContent,
   DataTable,
-  SelectField,
   SelectInput,
   Separator,
   Skeleton,
@@ -37,22 +35,7 @@ import {
 } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import _ from "lodash";
-import {
-  ArrowRight,
-  ArrowUpFromLine,
-  CheckCircle2,
-  ChevronLeft,
-  CircleAlert,
-  Clock,
-  Construction,
-  ExternalLink,
-  Landmark,
-  RefreshCw,
-  ShieldCheck,
-  Wallet,
-  XCircle,
-} from "lucide-react";
+import { ArrowUpFromLine, CheckCircle2, Clock, Wallet, XCircle } from "lucide-react";
 import moment from "moment";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -127,30 +110,6 @@ const payoutSchema = z.object({
 });
 
 type PayoutFormData = z.infer<typeof payoutSchema>;
-
-type FiatCurrency = "NGN" | "USD" | "GBP" | "EUR";
-
-interface OfframpCapabilities {
-  provider: { id: "sdf-test-anchor"; name: string };
-  environment: "testnet" | "mainnet";
-  sandbox: boolean;
-  assets: Array<{
-    code: string;
-    issuer: string | null;
-    minAmount: string | null;
-    maxAmount: string | null;
-  }>;
-  destinationCurrencies: readonly FiatCurrency[];
-  payoutRails: readonly ["bank_account"];
-}
-
-interface CreateOfframpResponse {
-  id: string;
-  status: "pending";
-  providerTransactionId: string;
-  interactiveUrl: string;
-  sandbox: boolean;
-}
 
 function PayoutForm({
   assets,
@@ -321,478 +280,6 @@ function PayoutForm({
   );
 }
 
-const fiatPayoutSchema = z.object({
-  assetCode: z.string().min(1, "Please select an asset"),
-  cryptoAmount: z.string().refine((value) => Number(value) > 0, "Enter a valid amount greater than 0"),
-  destinationCurrency: z.enum(["NGN", "USD", "GBP", "EUR"]),
-  destinationCountry: z
-    .string()
-    .trim()
-    .length(2, "Use a two-letter country code, for example NG")
-    .transform((value) => value.toUpperCase()),
-  payoutRail: z.literal("bank_account"),
-});
-
-type FiatPayoutFormData = z.infer<typeof fiatPayoutSchema>;
-
-function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSuccess: () => void }) {
-  const { data: org } = useOrgContext();
-  const idempotencyKey = React.useRef(crypto.randomUUID());
-  const popupRef = React.useRef<Window | null>(null);
-
-  const {
-    data: capabilities,
-    error: capabilitiesError,
-    isLoading: isLoadingCapabilities,
-    refetch: refetchCapabilities,
-  } = useQuery({
-    queryKey: ["offramp-capabilities", org?.id],
-    enabled: !!org?.token,
-    retry: false,
-    queryFn: async () => {
-      if (!org?.token) throw new AppError("NOT_FOUND", "No organization context");
-      const api = new ApiClient({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-        headers: { "x-session-token": org.token },
-      });
-      const result = await api.get<OfframpCapabilities>("/offramp/capabilities");
-      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
-      return result.value;
-    },
-  });
-
-  const availableAssets = React.useMemo(
-    () =>
-      assets.filter((walletAsset) =>
-        capabilities?.assets.some(
-          (providerAsset) => providerAsset.code === walletAsset.code && providerAsset.issuer === walletAsset.issuer
-        )
-      ),
-    [assets, capabilities]
-  );
-
-  const form = useForm<FiatPayoutFormData>({
-    resolver: zodResolver(fiatPayoutSchema),
-    defaultValues: {
-      assetCode: "",
-      cryptoAmount: "",
-      destinationCurrency: "NGN",
-      destinationCountry: "NG",
-      payoutRail: "bank_account",
-    },
-  });
-
-  React.useEffect(() => {
-    if (!form.getValues("assetCode") && availableAssets[0]) {
-      form.setValue("assetCode", availableAssets[0].code, { shouldValidate: true });
-    }
-  }, [availableAssets, form]);
-
-  React.useEffect(() => {
-    const supportedCurrencies = capabilities?.destinationCurrencies;
-    if (!supportedCurrencies?.length || supportedCurrencies.includes(form.getValues("destinationCurrency"))) return;
-    form.setValue("destinationCurrency", supportedCurrencies[0], { shouldValidate: true });
-  }, [capabilities?.destinationCurrencies, form]);
-
-  const selectedCode = form.watch("assetCode");
-  const cryptoAmount = form.watch("cryptoAmount");
-  const selectedAsset = availableAssets.find((asset) => asset.code === selectedCode);
-  const providerAsset = capabilities?.assets.find(
-    (asset) => asset.code === selectedAsset?.code && asset.issuer === selectedAsset?.issuer
-  );
-  const numericAmount = Number(cryptoAmount);
-  const providerMin = providerAsset?.minAmount ? Number(providerAsset.minAmount) : null;
-  const providerMax = providerAsset?.maxAmount ? Number(providerAsset.maxAmount) : null;
-  const balanceExceeded = !!selectedAsset && numericAmount > selectedAsset.balance;
-  const belowProviderMinimum = providerMin !== null && numericAmount > 0 && numericAmount < providerMin;
-  const aboveProviderMaximum = providerMax !== null && numericAmount > providerMax;
-  const amountInvalid =
-    !Number.isFinite(numericAmount) ||
-    numericAmount <= 0 ||
-    balanceExceeded ||
-    belowProviderMinimum ||
-    aboveProviderMaximum;
-
-  const maximumSelectableAmount = React.useMemo(() => {
-    if (!selectedAsset) return null;
-    const maximum = providerMax === null ? selectedAsset.balance : Math.min(selectedAsset.balance, providerMax);
-    return maximum > 0 ? maximum.toFixed(7) : null;
-  }, [providerMax, selectedAsset]);
-  const transactionLimitLabel = providerAsset
-    ? providerAsset.minAmount && providerAsset.maxAmount
-      ? `${providerAsset.minAmount}–${providerAsset.maxAmount} ${selectedCode}`
-      : providerAsset.minAmount
-        ? `Minimum ${providerAsset.minAmount} ${selectedCode}`
-        : providerAsset.maxAmount
-          ? `Maximum ${providerAsset.maxAmount} ${selectedCode}`
-          : null
-    : null;
-
-  const { mutate: createOfframp, isPending } = useAction(
-    async (data: FiatPayoutFormData) => {
-      if (!org?.token || !capabilities || !selectedAsset) {
-        throw new AppError("NOT_FOUND", "Offramp is not available");
-      }
-      const api = new ApiClient({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-        headers: { "x-session-token": org.token },
-        maxRetries: 0,
-      });
-      const result = await api.post<CreateOfframpResponse>(
-        "/offramp",
-        {
-          providerId: capabilities.provider.id,
-          assetCode: selectedAsset.code,
-          assetIssuer: selectedAsset.issuer,
-          cryptoAmount: data.cryptoAmount,
-          destinationCurrency: data.destinationCurrency,
-          destinationCountry: data.destinationCountry,
-          payoutRail: data.payoutRail,
-        },
-        { "Idempotency-Key": idempotencyKey.current }
-      );
-      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
-      return result.value;
-    },
-    {
-      onSuccess: (result) => {
-        if (popupRef.current) {
-          popupRef.current.opener = null;
-          popupRef.current.location.href = result.interactiveUrl;
-        }
-        onSuccess();
-      },
-      onError: () => {
-        popupRef.current?.close();
-        popupRef.current = null;
-        idempotencyKey.current = crypto.randomUUID();
-      },
-      successMsg: "Fiat payout started. Complete the provider flow in the new window.",
-    }
-  );
-
-  const handleSubmit = form.handleSubmit((data) => {
-    if (amountInvalid) return;
-    popupRef.current = window.open("/payout/provider-loading", "_blank");
-    if (!popupRef.current) {
-      toast.error("Your browser blocked the provider window. Allow popups and try again.");
-      return;
-    }
-    createOfframp(data);
-  });
-
-  const amountError = balanceExceeded
-    ? `Exceeds available balance of ${Money.formatCrypto(selectedAsset?.balance ?? 0, selectedCode)}`
-    : belowProviderMinimum
-      ? `Minimum provider amount is ${providerAsset?.minAmount} ${selectedCode}`
-      : aboveProviderMaximum
-        ? `Maximum provider amount is ${providerAsset?.maxAmount} ${selectedCode}`
-        : form.formState.errors.cryptoAmount?.message;
-
-  if (org?.environment === "mainnet") {
-    return (
-      <div className="flex min-h-72 flex-col items-center justify-center gap-4 py-12 text-center">
-        <div className="flex size-12 items-center justify-center rounded-full bg-amber-500/10">
-          <ShieldCheck className="size-6 text-amber-600" />
-        </div>
-        <div className="max-w-sm">
-          <p className="font-semibold">Fiat offramp payouts are only available in Test Mode</p>
-          <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
-            Fiat payout is unavailable at the moment.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoadingCapabilities) {
-    return (
-      <div className="flex min-h-72 flex-col items-center justify-center gap-3 py-12 text-center">
-        <Spinner size={28} />
-        <div>
-          <p className="text-sm font-medium">Getting your payout options</p>
-          <p className="text-muted-foreground mt-1 text-xs">This should only take a moment…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (capabilitiesError) {
-    return (
-      <div className="flex min-h-72 flex-col items-center justify-center gap-4 py-12 text-center">
-        <div className="bg-destructive/10 flex size-12 items-center justify-center rounded-full">
-          <CircleAlert className="text-destructive size-6" />
-        </div>
-        <div className="max-w-sm">
-          <p className="font-medium">Fiat payouts are temporarily unavailable</p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            We couldn’t load your payout options. Check your connection and try again.
-          </p>
-        </div>
-        <Button type="button" variant="outline" className="gap-2" onClick={() => void refetchCapabilities()}>
-          <RefreshCw className="size-4" /> Try again
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-2xl space-y-5 py-2">
-      {capabilities?.sandbox && (
-        <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 dark:border-amber-900/50 dark:bg-amber-950/30">
-          <ShieldCheck className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-          <p className="text-xs text-amber-800 dark:text-amber-300">
-            <span className="font-semibold">Test mode —</span> No real fiat will be sent.
-          </p>
-        </div>
-      )}
-
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <p className="text-foreground text-sm font-semibold">You send</p>
-          {selectedAsset && maximumSelectableAmount && (
-            <button
-              type="button"
-              className="text-primary cursor-pointer text-xs font-medium hover:underline"
-              onClick={() =>
-                form.setValue("cryptoAmount", maximumSelectableAmount, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            >
-              Max: {Money.formatCrypto(selectedAsset.balance, selectedAsset.code)}
-            </button>
-          )}
-        </div>
-        <SelectInput
-          id="fiat-payout-amount"
-          mode="plain"
-          placeholder="0.0000000"
-          value={{ amount: cryptoAmount, option: selectedCode }}
-          onChange={({ amount, option }) => {
-            if (option !== selectedCode) {
-              form.setValue("assetCode", option, { shouldValidate: true });
-              form.setValue("cryptoAmount", "", { shouldValidate: false });
-            } else {
-              form.setValue("cryptoAmount", amount, { shouldValidate: true });
-            }
-          }}
-          options={availableAssets.map((asset) => asset.code)}
-          optionLabels={Object.fromEntries(
-            availableAssets.map((asset) => [
-              asset.code,
-              `${asset.code} — ${Money.formatCrypto(asset.balance, asset.code)} available`,
-            ])
-          )}
-          error={amountError ?? form.formState.errors.assetCode?.message}
-        />
-        {transactionLimitLabel && (
-          <div className="bg-muted/50 flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs">
-            <span className="text-muted-foreground">Provider limit</span>
-            <span className="font-mono font-medium tabular-nums">{transactionLimitLabel}</span>
-          </div>
-        )}
-      </section>
-
-      <Separator />
-
-      <section className="space-y-4">
-        <p className="text-foreground text-sm font-semibold">You receive</p>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Controller
-            control={form.control}
-            name="destinationCurrency"
-            render={({ field, fieldState }) => (
-              <SelectField
-                id="fiat-currency"
-                label="Currency"
-                value={field.value}
-                onChange={field.onChange}
-                items={(capabilities?.destinationCurrencies ?? FIAT_CURRENCIES.map((f) => f.code)).map((currency) => {
-                  const match = FIAT_CURRENCIES.find((f) => f.code === currency);
-                  return {
-                    value: currency,
-                    label: match ? match.name : `${currency} — Currency`,
-                  };
-                })}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="destinationCountry"
-            render={({ field, fieldState }) => (
-              <SelectField
-                id="fiat-country"
-                label="Country"
-                value={field.value}
-                onChange={(code) => {
-                  field.onChange(code);
-                  const countryObj = COUNTRIES.find((c) => c.code === code);
-                  if (countryObj?.currency) {
-                    const availableCurrencies =
-                      capabilities?.destinationCurrencies ?? FIAT_CURRENCIES.map((f) => f.code);
-                    if (availableCurrencies.includes(countryObj.currency as any)) {
-                      form.setValue("destinationCurrency", countryObj.currency as any);
-                    }
-                  }
-                }}
-                items={COUNTRIES.map((c) => ({
-                  value: c.code,
-                  label: `${c.name} (${c.code})`,
-                }))}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
-        </div>
-
-        <Controller
-          control={form.control}
-          name="payoutRail"
-          render={({ field, fieldState }) => (
-            <SelectField
-              id="fiat-payout-rail"
-              label="Receive via"
-              value={field.value}
-              onChange={field.onChange}
-              items={(capabilities?.payoutRails ?? PAYOUT_RAILS.map((r) => r.value)).map((rail) => {
-                const match = PAYOUT_RAILS.find((r) => r.value === rail);
-                return {
-                  value: rail,
-                  label: match ? match.label : _.startCase(rail),
-                };
-              })}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-      </section>
-
-      <div className="flex items-start gap-2.5 rounded-xl border px-4 py-3">
-        <Landmark className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          <span className="text-foreground font-medium">{capabilities?.provider.name ?? "The payout partner"}</span>
-          {" "}will securely collect your bank and identity details in the next step. StellarTools does not store them.
-        </p>
-      </div>
-
-      <Button
-        type="button"
-        onClick={handleSubmit}
-        disabled={isPending || availableAssets.length === 0 || amountInvalid}
-        className="w-full gap-2"
-        size="lg"
-      >
-        {isPending ? <Spinner size={16} strokeColor="currentColor" /> : <ArrowUpFromLine className="size-4" />}
-        {isPending ? "Preparing your payout…" : "Continue to payout"}
-      </Button>
-
-      {availableAssets.length === 0 && (
-        <p className="text-destructive text-center text-sm">
-          None of your current wallet assets can be used for a fiat payout.
-        </p>
-      )}
-    </div>
-  );
-}
-
-type PayoutMethod = "select" | "crypto" | "fiat";
-
-function PayoutMethodPicker({ onSelect }: { onSelect: (method: PayoutMethod) => void }) {
-  return (
-    <div className="space-y-6 py-1">
-      <div className="space-y-1">
-        <p className="text-base font-semibold">How would you like to send?</p>
-        <p className="text-muted-foreground text-sm">Choose a payout method to continue.</p>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => onSelect("crypto")}
-          className="group flex flex-col gap-4 rounded-2xl border-2 border-border/60 bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
-        >
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-            <Wallet className="size-5 text-primary" />
-          </div>
-          <div className="flex-1 space-y-1">
-            <p className="font-semibold">Crypto Transfer</p>
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              Send directly to any Stellar wallet address instantly.
-            </p>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-primary text-xs font-medium">Select</span>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onSelect("fiat")}
-          className="group flex flex-col gap-4 rounded-2xl border-2 border-border/60 bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-2">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-              <Landmark className="size-5 text-primary" />
-            </div>
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              Test mode
-            </span>
-          </div>
-          <div className="flex-1 space-y-1">
-            <p className="font-semibold">Fiat Withdrawal</p>
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              Convert your crypto and cash out to a bank account in your local currency.
-            </p>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-primary text-xs font-medium">Select</span>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-          </div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PayoutModalContent({
-  assets,
-  publicKey,
-  onSuccess,
-}: {
-  assets: WalletAsset[];
-  publicKey: string | null;
-  onSuccess: () => void;
-}) {
-  const [method, setMethod] = React.useState<PayoutMethod>("select");
-
-  if (method === "select") {
-    return <PayoutMethodPicker onSelect={setMethod} />;
-  }
-
-  return (
-    <div className="space-y-5">
-      <button
-        type="button"
-        onClick={() => setMethod("select")}
-        className="text-muted-foreground hover:text-foreground -ml-1 flex items-center gap-1 text-sm transition-colors"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </button>
-      {method === "crypto" ? (
-        <PayoutForm assets={assets} publicKey={publicKey} onSuccess={onSuccess} />
-      ) : (
-        <FiatPayoutForm assets={assets} onSuccess={onSuccess} />
-      )}
-    </div>
-  );
-}
-
 export default function PayoutPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -818,19 +305,13 @@ export default function PayoutPage() {
       meta: { filterable: true, filterVariant: "date" },
     },
     {
-      header: "Method",
-      cell: ({
-        row: {
-          original: { walletAddress, bankAccount },
-        },
-      }) => (
+      header: "Wallet",
+      cell: ({ row }) => (
         <div className="flex items-center gap-2 font-mono text-sm">
           <Wallet className="h-4 w-4" />{" "}
-          {walletAddress
-            ? walletAddress.slice(0, 8) + "..." + walletAddress.slice(-4)
-            : bankAccount
-              ? "Bank Account"
-              : "N/A"}
+          {row.original.walletAddress
+            ? row.original.walletAddress.slice(0, 8) + "..." + row.original.walletAddress.slice(-4)
+            : "N/A"}
         </div>
       ),
       meta: { filterable: true, filterVariant: "text" },
@@ -845,17 +326,9 @@ export default function PayoutPage() {
     },
     {
       header: "Amount",
-      cell: ({ row }) => {
-        const isPendingProviderQuote =
-          row.original.method === "fiat" && row.original.metadata?.amountPendingProviderQuote === true;
-        return (
-          <div className="font-medium">
-            {isPendingProviderQuote
-              ? `Pending ${row.original.destinationCurrency ?? row.original.currencyCode} quote`
-              : Money.formatFiat(row.original.amountCents, row.original.currencyCode)}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="font-medium">{Money.formatFiat(row.original.amountCents, row.original.currencyCode)}</div>
+      ),
     },
     {
       accessorKey: "status",
@@ -908,7 +381,7 @@ export default function PayoutPage() {
       title: "Request Payout",
       description: "Send funds from your Stellar wallet.",
       content: (
-        <PayoutModalContent
+        <PayoutForm
           assets={walletData?.assets ?? []}
           publicKey={walletData?.publicKey ?? null}
           onSuccess={() => {
@@ -936,34 +409,6 @@ export default function PayoutPage() {
               <ArrowUpFromLine className="size-4" />
               <span className="hidden md:inline!">Request Payout</span>
             </Button>
-          </div>
-
-          <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-            <Construction className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              <span className="font-semibold">Fiat payouts are in test mode.</span> The Fiat tab currently uses the SDF
-              Test Anchor and does not send real money.
-              <a
-                href="https://stellarterm.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 underline underline-offset-2"
-              >
-                StellarTerm
-                <ExternalLink className="size-3" />
-              </a>{" "}
-              or{" "}
-              <a
-                href="https://aqua.network"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 underline underline-offset-2"
-              >
-                Aqua
-                <ExternalLink className="size-3" />
-              </a>
-              .
-            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

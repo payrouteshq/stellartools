@@ -65,9 +65,9 @@ describe("apiHandler: Authentication & Lifecycle", () => {
     expect(await res.json()).toMatchObject({ error: { code: "UNAUTHORIZED" } });
   });
 
-  it("correctly routes multiple auth scopes (Vercel Cron example)", async () => {
+  it("correctly routes multiple auth scopes (cron job example)", async () => {
     const handler = apiHandler({
-      auth: ["vercelToken"],
+      auth: ["cronToken"],
       handler: async () => Result.ok({ verified: true }),
     });
 
@@ -76,7 +76,7 @@ describe("apiHandler: Authentication & Lifecycle", () => {
 
     expect(resolveAuthContext).toHaveBeenCalledWith(
       expect.objectContaining({
-        vercelToken: "Bearer cron_secret",
+        cronToken: "Bearer cron_secret",
       })
     );
   });

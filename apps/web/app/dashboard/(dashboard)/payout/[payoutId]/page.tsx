@@ -11,12 +11,9 @@ import { CheckMark2 } from "@/components/icon";
 import { PayoutReceipt } from "@/components/receipt-engine";
 import { TIMELINE_ROUTE_MAP, stellarExplorerUrl } from "@/constant";
 import { PayoutStatus } from "@/constant/schema.client";
-import { useAction } from "@/hooks/use-action";
 import { useOrgContext, useOrgQuery } from "@/hooks/use-org-query";
-import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { downloadReceipt } from "@/lib/utils";
-import { ApiClient } from "@stellartools/core";
 import {
   Badge,
   Breadcrumb,
@@ -31,7 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Separator,
-  Spinner,
   Timeline,
   cn,
   toast,
@@ -46,7 +42,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  Landmark,
   LucideIcon,
   MoreHorizontal,
   RefreshCw,
@@ -181,49 +176,9 @@ export default function PayoutDetailPage() {
     });
   }, [payout]);
 
-  const refreshProvider = async () => {
-    if (!payout || payout.method !== "fiat") return;
-    if (!orgContext?.token) throw new AppError("NOT_FOUND", "No organization context");
-    const api = new ApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-      headers: { "x-session-token": orgContext.token },
-    });
-    const result = await api.get<{ providerStatus: string }>(`/offramp/${payout.id}`);
-    if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
-    return result.value;
-  };
-
-  const { mutate: confirmFunding, isPending: isConfirmingFunding } = useAction(
-    async () => {
-      if (!payout || !orgContext?.token) throw new AppError("NOT_FOUND", "No organization context");
-      const api = new ApiClient({
-        baseUrl: process.env.NEXT_PUBLIC_API_URL!,
-        headers: { "x-session-token": orgContext.token },
-      });
-      const result = await api.post<{ transactionHash: string | null }>(`/offramp/${payout.id}`, undefined, {
-        "Idempotency-Key": crypto.randomUUID(),
-      });
-      if (result.isErr()) throw new AppError("INTERNAL_ERROR", result.error.message);
-      return result.value;
-    },
-    {
-      onSuccess: async () => {
-        try {
-          await refreshProvider();
-        } catch {}
-        await refetchPayout();
-        await refetchPayoutEvents();
-        queryClient.invalidateQueries({ queryKey: ["payout-events", payoutId] });
-        queryClient.invalidateQueries({ queryKey: ["payout", payoutId] });
-      },
-      successMsg: "Funding payment submitted. The provider is processing your fiat payout.",
-    }
-  );
-
   const onRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshProvider();
       await refetchPayout();
       await refetchPayoutEvents();
       queryClient.invalidateQueries({ queryKey: ["payout-events", payoutId] });
@@ -234,31 +189,6 @@ export default function PayoutDetailPage() {
       setIsRefreshing(false);
     }
   };
-
-  React.useEffect(() => {
-    if (!payout || payout.method !== "fiat" || payout.status !== "pending") return;
-    let isCancelled = false;
-
-    const performRefresh = async () => {
-      try {
-        await refreshProvider();
-        if (!isCancelled) {
-          await refetchPayout();
-          await refetchPayoutEvents();
-          queryClient.invalidateQueries({ queryKey: ["payout-events", payoutId] });
-        }
-      } catch {
-        // silent background polling
-      }
-    };
-
-    performRefresh();
-    const interval = setInterval(performRefresh, 4000);
-    return () => {
-      isCancelled = true;
-      clearInterval(interval);
-    };
-  }, [payout?.id, payout?.status, payout?.method]);
 
   const copyToClipboard = (text: string, msg: string) => {
     navigator.clipboard.writeText(text);
@@ -331,25 +261,6 @@ export default function PayoutDetailPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              {payout.method === "fiat" &&
-                payout.providerStatus === "pending_user_transfer_start" &&
-                !payout.transactionHash && (
-                  payout.failureCode ? (
-                    <Button onClick={() => confirmFunding(undefined)} disabled={isConfirmingFunding} variant="outline" className="gap-2">
-                      {isConfirmingFunding ? (
-                        <Spinner size={16} strokeColor="currentColor" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                      Retry Funding
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-600 font-medium">
-                      <Spinner size={14} />
-                      Funding payout to provider...
-                    </div>
-                  )
-                )}
               <Button variant="outline" onClick={onRefresh} disabled={isRefreshing} className="gap-2 shadow-none">
                 <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} /> Refresh
               </Button>
@@ -409,21 +320,11 @@ export default function PayoutDetailPage() {
                   <Separator />
                   <DetailRow
                     label="Payout Method"
-                    value={
-                      payout.method === "fiat"
-                        ? `${payout.withdrawalMethod ?? "Provider payout"} · ${payout.destinationCurrency ?? "Fiat"}`
-                        : payout.walletAddress
-                    }
-                    icon={payout.method === "fiat" ? Landmark : Wallet}
+                    value={payout.walletAddress}
+                    icon={Wallet}
                     mono
-                    action={payout.method === "crypto" ? <CopyBtn text={payout.walletAddress} /> : undefined}
+                    action={<CopyBtn text={payout.walletAddress} />}
                   />
-                  {payout.method === "fiat" && (
-                    <>
-                      <Separator />
-                      <DetailRow label="Provider Status" value={_.startCase(payout.providerStatus ?? "initiating")} />
-                    </>
-                  )}
                   {payout.transactionHash && (
                     <>
                       <Separator />

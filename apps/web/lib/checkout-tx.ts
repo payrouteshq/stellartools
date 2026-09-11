@@ -18,13 +18,11 @@ import {
   SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE,
   buildPreSwapXdr,
   ensureTrustline,
-  getChargesPublicKey,
   getStellarConfig,
   retrieveAssetContractId,
 } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
-import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
 import { getUsdcAsset } from "@/lib/usdc";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
@@ -78,30 +76,19 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const asset = sendAssetCode === "XLM" ? Asset.native() : new Asset(sendAssetCode, sendAssetIssuer!);
   const builder = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: passphrase });
 
-  const isDirect = checkout.walletStrategy === "direct";
-
   if (sendAssetIssuer) {
     const { secret: orgSecret } = await retrieveOrganizationIdAndSecret(checkout.organizationId, checkout.environment);
 
-    if (orgSecret) {
-      await ensureTrustline(
-        decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
-        sendAssetCode,
-        sendAssetIssuer,
-        checkout.environment
-      );
-    } else {
-      const merchantAccount = await server.loadAccount(checkout.merchantPublicKey).catch(() => null);
-      const hasTrustline = merchantAccount?.balances.some(
-        (b: any) => b.asset_code === sendAssetCode && b.asset_issuer === sendAssetIssuer
-      );
-      if (!hasTrustline) {
-        throw new AppError(
-          "VALIDATION_ERROR",
-          `Merchant wallet has no trustline for ${sendAssetCode}. Add it from your Stellar wallet to accept this asset.`
-        );
-      }
+    if (!orgSecret) {
+      throw new AppError("INTERNAL_ERROR", "Organization has no stored wallet — contact support@stellartools.dev.");
     }
+
+    await ensureTrustline(
+      decrypt(orgSecret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? ""),
+      sendAssetCode,
+      sendAssetIssuer,
+      checkout.environment
+    );
   }
 
   // Always use path finding — Stellar's DEX handles any issuer mismatch, partial balances,
@@ -123,46 +110,16 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
     p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
   );
 
-  if (isDirect) {
-    const totalBig: Big = new Big(amount);
-    const feeAmount = totalBig.times(PLATFORM_FEE_BPS).div(BPS_DENOMINATOR).toFixed(7);
-    const merchantAmount = totalBig.minus(new Big(feeAmount)).toFixed(7);
-    const sendMaxBig = new Big(pathSendMax);
-    const feeSendMax = sendMaxBig.times(new Big(feeAmount)).div(totalBig).times(1.02).toFixed(7);
-    const merchantSendMax = sendMaxBig.times(new Big(merchantAmount)).div(totalBig).times(1.02).toFixed(7);
-    builder
-      .addOperation(
-        Operation.pathPaymentStrictReceive({
-          sendAsset: pathSourceAsset,
-          sendMax: feeSendMax,
-          destination: getChargesPublicKey(checkout.environment),
-          destAsset: asset,
-          destAmount: feeAmount,
-          path: pathIntermediates,
-        })
-      )
-      .addOperation(
-        Operation.pathPaymentStrictReceive({
-          sendAsset: pathSourceAsset,
-          sendMax: merchantSendMax,
-          destination: checkout.merchantPublicKey,
-          destAsset: asset,
-          destAmount: merchantAmount,
-          path: pathIntermediates,
-        })
-      );
-  } else {
-    builder.addOperation(
-      Operation.pathPaymentStrictReceive({
-        sendAsset: pathSourceAsset,
-        sendMax: pathSendMax,
-        destination: checkout.merchantPublicKey,
-        destAsset: asset,
-        destAmount: amount,
-        path: pathIntermediates,
-      })
-    );
-  }
+  builder.addOperation(
+    Operation.pathPaymentStrictReceive({
+      sendAsset: pathSourceAsset,
+      sendMax: pathSendMax,
+      destination: checkout.merchantPublicKey,
+      destAsset: asset,
+      destAmount: amount,
+      path: pathIntermediates,
+    })
+  );
 
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };

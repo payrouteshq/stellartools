@@ -511,14 +511,10 @@ const OrganizationTabContent = ({ organization }: { organization: Organization }
                   <div className="flex items-center gap-2">
                     <Label htmlFor="organization-public-key">Wallet public key</Label>
                     <Badge
-                      variant={organization.walletStrategy === "direct" ? "outline" : "secondary"}
-                      className={
-                        organization.walletStrategy === "direct"
-                          ? "border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[11px] text-amber-500"
-                          : "bg-emerald-500/10 px-1.5 py-0 text-[11px] text-emerald-500"
-                      }
+                      variant="secondary"
+                      className="bg-emerald-500/10 px-1.5 py-0 text-[11px] text-emerald-500"
                     >
-                      {organization.walletStrategy === "direct" ? "Self-custody" : "Managed"}
+                      Managed
                     </Badge>
                   </div>
                   <div className="relative w-full">

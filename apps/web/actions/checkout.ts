@@ -165,7 +165,6 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
       organizationName: organizations.name,
       organizationLogo: organizations.logoUrl,
       organizationCurrency: organizations.selectedCurrency,
-      walletStrategy: organizations.walletStrategy,
       merchantEmail: accounts.email,
     })
     .from(checkouts)
@@ -205,7 +204,6 @@ export const retrieveCheckoutAndCustomer = async (id: string) => {
     organizationName,
     organizationLogo,
     merchantEmail,
-    walletStrategy: result.walletStrategy ?? "managed",
     customDurationMs: product?.customDurationMs,
   };
 };

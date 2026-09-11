@@ -1,0 +1,50 @@
+---
+title: "Configuration & Production"
+description: "Environment variables, prebuilt images, and going live"
+---
+
+## Environment variables
+
+All configuration lives in `apps/web/.env` (copied from `apps/web/.env.example`). The example file groups them by purpose:
+
+| Group             | Examples                                                             | Notes                                                                 |
+| ------------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Required           | `DATABASE_URL`, `RESEND_API_KEY`, `NEXT_PUBLIC_RESOURCE_ID_ALPHABET`  | `RESEND_API_KEY` is only required once you need account signup/login to work |
+| App URLs           | `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_DASHBOARD_URL`, etc.              | Dashboard/checkout/portal/API are routed by hostname (see `proxy.ts`) — pre-filled with `*.localhost` defaults |
+| Secrets            | `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, `CRON_SECRET` | Auto-generated on first Docker boot if left blank — see below        |
+| Stellar / Soroban  | `SUBSCRIPTION_CONTRACT_TESTNET_ID`, `KEEPER_SECRET_TESTNET`, RPC/Horizon URLs | Only needed for subscription features                          |
+| Optional           | Google OAuth, PostHog, Cal.com, WalletConnect, Cloudflare Tunnel      | Everything else works without these                                  |
+
+### Auto-generated secrets
+
+`JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, and `CRON_SECRET` protect session tokens, encrypted organization keys, and the cron endpoint. If you leave them blank, a one-shot `init` service generates random values the first time you run `docker compose up` and writes them to the `stellartools-secrets` volume, shared read-only with `web` and `cron` — they persist across restarts as long as that volume isn't removed, and both containers agree on the same `CRON_SECRET`. Full details in [DOCKER.md](https://github.com/payrouteshq/stellartools/blob/main/DOCKER.md).
+
+This is meant for getting started quickly and for local trials. **Set them explicitly in `apps/web/.env` before running anything beyond a local trial** — especially `MASTER_ENCRYPTION_KEY`, since it protects the encrypted Stellar secret keys StellarTools stores on your behalf per organization.
+
+## Prebuilt images
+
+Every push to `main` builds and publishes an image to GitHub Container Registry via `.github/workflows/docker-publish.yml`:
+
+```
+ghcr.io/payrouteshq/stellartools:latest
+```
+
+If you'd rather pull than build locally, point `docker-compose.yml`'s `web` (and `migrate`) service at this image instead of the `build:` block, or reference it directly in your own deployment tooling (Kubernetes, Nomad, a plain `docker run`, etc).
+
+## Going to production
+
+- **TLS / reverse proxy.** Put `web` behind Caddy, Traefik, nginx, or similar — or use the bundled optional Cloudflare Tunnel: set `CLOUDFLARE_TUNNEL_TOKEN` and run `docker compose --profile tunnel up -d`.
+- **Real domains.** Point every `NEXT_PUBLIC_*_URL` variable and `COOKIE_DOMAIN` at your actual domain instead of `*.localhost`.
+- **Secrets.** Set `JWT_SECRET`, `MASTER_ENCRYPTION_KEY`, `ENCRYPTION_SALT`, and `CRON_SECRET` explicitly rather than relying on the auto-generated ones — generate each with something like `openssl rand -hex 32`.
+- **Database.** Use a managed, backed-up Postgres instead of (or in addition to backing up) the bundled `database` container's volume.
+- **Recurring billing.** Handled automatically by the `cron` service — no setup needed. It calls `/dashboard/~api/cron/charge-subscription` hourly, authenticated with `CRON_SECRET`, the self-hosted equivalent of the Vercel Cron this app uses in production on Vercel (which can't reach a container you run yourself). If you're deploying without Docker Compose at all, trigger that same endpoint yourself on an hourly schedule instead.
+- **Mainnet.** Repeat the contract deploy with `--network mainnet` and a mainnet-funded key, set `SUBSCRIPTION_CONTRACT_MAINNET_ID` and `KEEPER_SECRET_MAINNET`, and switch your API keys to mainnet. Each organization's mainnet wallet is generated but **not auto-funded** — unlike testnet (free via Friendbot), a mainnet account needs real XLM, and that has to come from the organization itself, not your keeper account. An org sends at least 1 XLM (the network's minimum account reserve) to its own wallet address — shown on its Settings page — before it can receive mainnet payments.
+
+## Updating
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+`web` waits for `migrate` to apply any new database migrations before it starts, every time.

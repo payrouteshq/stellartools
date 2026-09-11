@@ -16,9 +16,6 @@ const pick = (network: Network, testnet: string | undefined, mainnet: string | u
 export const getKeeperSecret = (network: Network) =>
   pick(network, process.env.KEEPER_SECRET_TESTNET, process.env.KEEPER_SECRET_MAINNET, "KEEPER_SECRET");
 
-export const getChargesPublicKey = (network: Network) =>
-  pick(network, process.env.CHARGES_PUBLIC_KEY_TESTNET, process.env.CHARGES_PUBLIC_KEY_MAINNET, "CHARGES_PUBLIC_KEY");
-
 export const getSubscriptionContractId = (network: Network) =>
   pick(
     network,
@@ -26,15 +23,6 @@ export const getSubscriptionContractId = (network: Network) =>
     process.env.SUBSCRIPTION_CONTRACT_MAINNET_ID,
     "SUBSCRIPTION_CONTRACT"
   );
-
-/** Minimum starting balance for a new account (2 × base reserve, no subentries). */
-async function getMinCreateAccountBalance(server: StellarSDK.Horizon.Server): Promise<string> {
-  const { records } = await server.ledgers().order("desc").limit(1).call();
-  const ledger = records[0];
-  if (!ledger) return "1";
-  const baseReserveXlm = Number(ledger.base_reserve_in_stroops) / 10_000_000;
-  return (baseReserveXlm * 2).toFixed(7);
-}
 
 export const getStellarConfig = (network: Network) => {
   const isTestnet = network === "testnet";
@@ -53,35 +41,21 @@ export const getAsset = (code: string, issuer?: string) => {
   return code.toUpperCase() === "XLM" ? StellarSDK.Asset.native() : new StellarSDK.Asset(code, issuer!);
 };
 
-export const fundAccount = async (keypair: StellarSDK.Keypair, network: Network) => {
+/**
+ * Testnet only — funds a freshly generated keypair via Friendbot (free, no
+ * cost to anyone). There is deliberately no mainnet equivalent: a mainnet
+ * account requires real XLM (the 1 XLM minimum reserve) sent by someone, and
+ * that someone should be the organization itself, not this project's keeper
+ * account. Auto-funding every new mainnet org from the keeper would mean
+ * every self-hoster (or StellarTools' own free hosted account) eats an
+ * unbounded, uncapped cost per signup — see postOrganizationAndSecret, which
+ * only calls this for testnet and leaves the mainnet keypair unfunded until
+ * the organization sends it XLM themselves.
+ */
+export const fundAccount = async (keypair: StellarSDK.Keypair) => {
   return Result.tryPromise(async () => {
-    const { passphrase, server } = getStellarConfig(network);
-
-    if (network === "testnet") {
-      await server.friendbot(keypair.publicKey()).call();
-      const account = await server.loadAccount(keypair.publicKey());
-      return { ...account, keypair };
-    }
-
-    const sourceKeypair = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
-    const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
-    const startingBalance = await getMinCreateAccountBalance(server);
-
-    const tx = new StellarSDK.TransactionBuilder(sourceAccount, {
-      fee: StellarSDK.BASE_FEE,
-      networkPassphrase: passphrase,
-    })
-      .addOperation(
-        StellarSDK.Operation.createAccount({
-          destination: keypair.publicKey(),
-          startingBalance,
-        })
-      )
-      .setTimeout(30)
-      .build();
-
-    tx.sign(sourceKeypair);
-    await server.submitTransaction(tx);
+    const { server } = getStellarConfig("testnet");
+    await server.friendbot(keypair.publicKey()).call();
     const account = await server.loadAccount(keypair.publicKey());
     return { ...account, keypair };
   });
@@ -105,7 +79,17 @@ export const ensureTrustline = async (
 ): Promise<void> => {
   const { server, passphrase } = getStellarConfig(network);
   const keypair = StellarSDK.Keypair.fromSecret(accountSecret);
-  const account = await server.loadAccount(keypair.publicKey());
+  const account = await server.loadAccount(keypair.publicKey()).catch(() => {
+    // Managed wallets aren't auto-funded on mainnet (see fundAccount) — an
+    // org that hasn't sent its own wallet the minimum XLM reserve yet will
+    // hit this on its first mainnet checkout.
+    throw new AppError(
+      "VALIDATION_ERROR",
+      network === "mainnet"
+        ? "This merchant's mainnet wallet hasn't been funded yet. Contact the merchant — they need to send at least 1 XLM to their organization's wallet address before it can accept payments."
+        : "Merchant wallet account not found."
+    );
+  });
 
   const hasTrustline = account.balances.some(
     (b): b is StellarSDK.Horizon.HorizonApi.BalanceLineAsset =>
@@ -261,8 +245,7 @@ export const verifyPaymentByPagingToken = async (
     if (!match) return null;
 
     const ops = await server.payments().forTransaction(match.hash).call();
-    // Find the payment op directed TO the merchant — handles both single-op (managed)
-    // and split two-op (direct: fee + merchant) transactions.
+    // Find the payment op directed TO the merchant.
     // Accept regular payments AND DEX path payments — path_payment_strict_receive is used
     // when the customer pays with XLM and the DEX converts it to the merchant's asset.
     const paymentOp = ops.records.find(
@@ -519,8 +502,8 @@ export function parseError(
       if (topCode === "txFailed") {
         try {
           const results = xdrResult.results();
-          // Scan all ops — multi-op txs (e.g. direct-wallet fee split) have op 0 succeed
-          // and op 1 fail; always returning results[0] masks the real error.
+          // Scan all ops — always returning results[0] can mask the real error
+          // in a multi-op transaction.
           for (let i = 0; i < results.length; i++) {
             const opResult = results[i];
             const opSwitchName = opResult.switch().name as string;

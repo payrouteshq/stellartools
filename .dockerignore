@@ -8,3 +8,9 @@
 **/*.log
 **/.env*
 !**/.env.example
+
+# Mintlify docs content (apps/web/app/landing/docs) — not a Next.js route
+# (no page.tsx/mdx loader), served by a separate Mintlify process/deploy,
+# and by far the largest thing under apps/web/app that the Docker build
+# doesn't need (images, logos, ~8MB of .mdx content).
+apps/web/app/landing/docs

@@ -46,8 +46,8 @@ export function HeroSection() {
       </h1>
 
       <p className="text-muted-foreground mb-10 max-w-120 text-[17px] leading-relaxed">
-        Accept payments from anywhere and cash out to your bank. Open-source, Stripe-like billing on Stellar that
-        settles in seconds for pennies.
+        Accept crypto payments and run subscriptions on Stellar — checkouts, recurring billing, and payouts that
+        settle in seconds for pennies. Free and open-source, self-hosted on your own infrastructure.
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">

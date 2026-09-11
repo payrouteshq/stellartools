@@ -1,4 +1,3 @@
-import { retrieveCharges } from "@/actions/charges";
 import { retrieveCustomers } from "@/actions/customers";
 import { retrieveOrganization, retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePayments } from "@/actions/payment";
@@ -53,15 +52,8 @@ export const POST = apiHandler({
 
     const refundToWalletAddress = wallet_address ?? payment?.wallets?.address;
 
-    const {
-      data: [platformCharge],
-    } = await retrieveCharges(organizationId, environment, { paymentId, type: "platform_fee" }, { limit: 1 });
-
-    const feeCrypto = platformCharge ? Number(platformCharge.cryptoAmount) : 0;
-    const feeAmountCents = platformCharge ? platformCharge.amountCents : 0;
-
-    const refundCryptoAmount = (Number(payment.cryptoAmount) - feeCrypto).toFixed(7);
-    const refundAmountCents = payment.amountCents - feeAmountCents;
+    const refundCryptoAmount = Number(payment.cryptoAmount).toFixed(7);
+    const refundAmountCents = payment.amountCents;
 
     const refundId = generateResourceId("rf", paymentId, 15);
     const secretKey = decrypt(secret.encrypted?.replace(SENSITIVE_KEY_PREFIX, "") ?? "");

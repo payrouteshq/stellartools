@@ -14,7 +14,12 @@ StellarTools is a payments platform built on [Stellar](https://stellar.org). You
 
 ## Get your API key
 
-Go to [dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys) and create a new key. The key encodes your environment (testnet or mainnet), so you do not need to set any base URLs or environment flags.
+There are two ways to use StellarTools:
+
+- **[dashboard.stellartools.dev/api-keys](https://dashboard.stellartools.dev/api-keys)** — create a free StellarTools account and get an API key in seconds. No infrastructure to run.
+- **[Self-host it](/self-hosting/quickstart)** — run your own instance with one `docker compose up` command. You own the infrastructure, the database, and the Stellar keys.
+
+Either way, create a new key and copy it. The key encodes your environment (testnet or mainnet), so you do not need to set any base URLs or environment flags — unless you're self-hosting with a custom API URL, see [Self-Hosting](/self-hosting/configuration).
 
 <Note>Use testnet keys while building. Switch to a mainnet key when you are ready to go live.</Note>
 
@@ -59,6 +64,9 @@ Webhook events and delivery logs always record the API version that was active w
 ## Explore
 
 <CardGroup cols={2}>
+  <Card title="Self-Hosting" icon="server" href="/self-hosting/quickstart">
+    Run your own instance with one `docker compose up` command.
+  </Card>
   <Card title="TypeScript SDK" icon="code" href="/integrations/typescript-sdk">
     Core SDK for customers, checkouts, products, subscriptions, and more.
   </Card>

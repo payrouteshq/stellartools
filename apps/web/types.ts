@@ -42,7 +42,7 @@ export interface EventConfig<T> {
 export type AuthContext = {
   organizationId: string;
   environment: Network;
-  type: "session" | "apikey" | "portal" | "app" | "vercelToken";
+  type: "session" | "apikey" | "portal" | "app" | "cronToken";
   appId?: string; // Only present if type === "app"
   installationId?: string; // Only present if type === "app"
   scopes?: AppScope[];

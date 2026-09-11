@@ -6,7 +6,7 @@ import { Result, z as Schema } from "@stellartools/core";
 export const OPTIONS = createOptionsHandler();
 
 export const POST = apiHandler({
-  auth: ["vercelToken"],
+  auth: ["cronToken"],
   schema: { body: Schema.object({ text: Schema.string().min(1) }) },
   handler: async ({ body }) => {
     return Result.ok({ encrypted: `${SENSITIVE_KEY_PREFIX}${encrypt(body.text)}` });

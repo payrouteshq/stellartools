@@ -27,6 +27,10 @@
             "pages": ["index", "adapter-playground"]
           },
           {
+            "group": "Self-Hosting",
+            "pages": ["self-hosting/quickstart", "self-hosting/configuration"]
+          },
+          {
             "group": "Concepts",
             "pages": ["products"]
           },

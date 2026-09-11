@@ -1,4 +1,4 @@
-name: stellartools-soroban-rpc
+name: stellartools
 
 services:
   quickstart:
@@ -10,11 +10,11 @@ services:
     container_name: stellartools-soroban-quickstart
     command: --standalone --enable-soroban-rpc
     networks:
-      - stellartools-soroban-network
+      - stellartools-network
 
   database:
     image: postgres:15
-    container_name: stellartools-soroban-database
+    container_name: stellartools-database
     ports:
       - "5436:5432"
     environment:
@@ -22,10 +22,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: local
     volumes:
-      - stellartools-soroban-database-data:/var/lib/postgresql/data
+      - stellartools-database-data:/var/lib/postgresql/data
       - ./seed.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - stellartools-soroban-network
+      - stellartools-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -33,6 +33,105 @@ services:
       timeout: 5s
       retries: 5
 
+  # Runs once: fills in JWT_SECRET / MASTER_ENCRYPTION_KEY / ENCRYPTION_SALT /
+  # CRON_SECRET if you left them blank in apps/web/.env, and writes them to
+  # the shared `stellartools-secrets` volume so `web` and `cron` agree on the
+  # same values. Doesn't touch Stellar keys or the contract ID — see
+  # DEVELOPMENT.md for that manual step. Re-run any time with:
+  #   docker compose run --rm init
+  init:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: stellartools-init
+    env_file:
+      - apps/web/.env
+    entrypoint: ["/app/docker-entrypoint.sh", "generate-secrets"]
+    volumes:
+      - stellartools-secrets:/shared
+    networks:
+      - stellartools-network
+    restart: "no"
+
+  # Applies pending Drizzle migrations, then exits. Runs automatically as
+  # part of `docker compose up` (web waits for it to finish successfully),
+  # and can be re-run by hand any time with: docker compose run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: builder
+    container_name: stellartools-migrate
+    env_file:
+      - apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:local@database:5432/postgres
+    working_dir: /repo/apps/web
+    entrypoint: ["pnpm", "run", "db:migrate"]
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - stellartools-network
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: stellartools-web
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/web/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:local@database:5432/postgres
+    volumes:
+      - stellartools-secrets:/shared:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      init:
+        condition: service_completed_successfully
+    networks:
+      - stellartools-network
+    restart: unless-stopped
+    healthcheck:
+      # Hits the dashboard specifically (via the Host header proxy.ts routes
+      # on) rather than `/`, since the marketing landing page isn't part of
+      # this image — see DOCKER.md.
+      test: ["CMD", "wget", "-qO-", "--header=Host: dashboard.localhost", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Triggers subscription renewals hourly by calling web's charge-subscription
+  # cron endpoint — the self-hosted equivalent of the Vercel Cron this app
+  # uses in production on Vercel (Vercel Cron can only reach a Vercel
+  # deployment, not a container you're running yourself, so it's not usable
+  # here at all). No image build: plain Alpine + a bind-mounted script,
+  # using busybox's built-in crond.
+  cron:
+    image: alpine:3.20
+    container_name: stellartools-cron
+    volumes:
+      - stellartools-secrets:/shared:ro
+      - ./apps/web/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+    entrypoint: ["/docker-entrypoint.sh", "cron"]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      web:
+        condition: service_healthy
+    networks:
+      - stellartools-network
+    restart: unless-stopped
+
+  # Optional: expose this instance publicly via a Cloudflare Tunnel.
+  #   docker compose --profile tunnel up -d
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: stellartools-cloudflared
@@ -42,10 +141,15 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    networks:
+      - stellartools-network
+    profiles:
+      - tunnel
 
 networks:
-  stellartools-soroban-network:
+  stellartools-network:
     driver: bridge
 
 volumes:
-  stellartools-soroban-database-data:
+  stellartools-database-data:
+  stellartools-secrets:
