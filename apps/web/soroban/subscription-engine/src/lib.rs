@@ -26,6 +26,23 @@ fn sub_key(customer: Address, merchant: Address, product_id: String) -> DataKey 
     DataKey::Sub(customer, merchant, product_id)
 }
 
+const BUMP_THRESHOLD: u32 = 17_280;
+const BUMP_AMOUNT: u32 = 1_555_200;
+const LEDGER_SECONDS: u64 = 5;
+const SUB_TTL_BUFFER_LEDGERS: u64 = 17_280;
+const MAX_TTL_LEDGERS: u64 = 6_311_900;
+
+fn ttl_for_period(period_duration: u64) -> u32 {
+    let ledgers = period_duration / LEDGER_SECONDS;
+    let with_buffer = ledgers.saturating_add(SUB_TTL_BUFFER_LEDGERS);
+    with_buffer.min(MAX_TTL_LEDGERS) as u32
+}
+
+fn bump_sub_ttl(e: &Env, key: &DataKey, period_duration: u64) {
+    let extend_to = ttl_for_period(period_duration);
+    e.storage().persistent().extend_ttl(key, BUMP_THRESHOLD, extend_to);
+}
+
 fn status_active(e: &Env) -> String { String::from_str(e, "active") }
 fn status_paused(e: &Env) -> String { String::from_str(e, "paused") }
 fn status_canceled(e: &Env) -> String { String::from_str(e, "canceled") }
@@ -74,6 +91,7 @@ pub struct SubscriptionEngine;
 impl SubscriptionEngine {
     pub fn __constructor(e: Env, admin: Address) {
         e.storage().instance().set(&DataKey::Admin, &admin);
+        e.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_AMOUNT);
     }
 
     pub fn set_admin(e: Env, new_admin: Address) {
@@ -128,6 +146,8 @@ impl SubscriptionEngine {
         };
 
         e.storage().persistent().set(&key, &sub);
+        bump_sub_ttl(&e, &key, duration);
+        e.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_AMOUNT);
         e.events().publish((symbol_short!("sub_start"), customer, product_id), amount);
     }
 
@@ -157,6 +177,8 @@ impl SubscriptionEngine {
         sub.amount = amount;
         sub.period_end += sub.period_duration;
         e.storage().persistent().set(&key, &sub);
+        bump_sub_ttl(&e, &key, sub.period_duration);
+        e.storage().instance().extend_ttl(BUMP_THRESHOLD, BUMP_AMOUNT);
         e.events().publish(
             (symbol_short!("sub_pay"), customer, product_id),
             (amount, sub.period_end),
@@ -172,6 +194,7 @@ impl SubscriptionEngine {
 
         sub.status = status_paused(&e);
         e.storage().persistent().set(&key, &sub);
+        bump_sub_ttl(&e, &key, sub.period_duration);
         e.events().publish((symbol_short!("sub_pau"), customer, product_id), ());
     }
 
@@ -189,6 +212,7 @@ impl SubscriptionEngine {
 
         sub.status = status_active(&e);
         e.storage().persistent().set(&key, &sub);
+        bump_sub_ttl(&e, &key, sub.period_duration);
         e.events().publish((symbol_short!("sub_res"), customer, product_id), sub.period_end);
     }
 
@@ -201,6 +225,7 @@ impl SubscriptionEngine {
 
         sub.status = status_canceled(&e);
         e.storage().persistent().set(&key, &sub);
+        bump_sub_ttl(&e, &key, sub.period_duration);
         e.events().publish((symbol_short!("sub_can"), customer, product_id), ());
     }
 
@@ -228,6 +253,7 @@ impl SubscriptionEngine {
         sub.period_duration = period_duration;
         sub.period_end = period_end;
         e.storage().persistent().set(&key, &sub);
+        bump_sub_ttl(&e, &key, period_duration);
         e.events().publish(
             (symbol_short!("sub_upd"), customer, product_id),
             (status, period_duration, period_end),
