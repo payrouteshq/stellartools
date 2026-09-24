@@ -10,6 +10,7 @@ pub struct Subscription {
     pub merchant: Address,
     pub token: Address,
     pub amount: i128,
+    pub max_amount: i128,
     pub period_duration: u64,
     pub period_end: u64,
     pub status: String,
@@ -31,6 +32,7 @@ const BUMP_AMOUNT: u32 = 1_555_200;
 const LEDGER_SECONDS: u64 = 5;
 const SUB_TTL_BUFFER_LEDGERS: u64 = 17_280;
 const MAX_TTL_LEDGERS: u64 = 6_311_900;
+const MAX_CHARGE_MULTIPLIER: i128 = 2;
 
 fn ttl_for_period(period_duration: u64) -> u32 {
     let ledgers = period_duration / LEDGER_SECONDS;
@@ -135,11 +137,14 @@ impl SubscriptionEngine {
             &amount,
         );
 
+        let max_amount = amount.checked_mul(MAX_CHARGE_MULTIPLIER).expect("max_amount overflow");
+
         let sub = Subscription {
             customer: customer.clone(),
             merchant,
             token,
             amount,
+            max_amount,
             period_duration: duration,
             period_end: e.ledger().timestamp() + duration,
             status: status_active(&e),
@@ -165,6 +170,9 @@ impl SubscriptionEngine {
 
         if e.ledger().timestamp() < sub.period_end {
             panic!("billing period has not ended");
+        }
+        if amount > sub.max_amount {
+            panic!("amount exceeds subscription ceiling");
         }
 
         token::Client::new(&e, &sub.token).transfer_from(
@@ -237,6 +245,7 @@ impl SubscriptionEngine {
         status: String,
         period_duration: u64,
         period_end: u64,
+        max_amount: i128,
     ) {
         require_admin(&e);
 
@@ -245,6 +254,9 @@ impl SubscriptionEngine {
         if period_duration == 0 {
             panic!("period_duration must be positive");
         }
+        if max_amount <= 0 {
+            panic!("max_amount must be positive");
+        }
 
         let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
@@ -252,6 +264,7 @@ impl SubscriptionEngine {
         sub.status = status.clone();
         sub.period_duration = period_duration;
         sub.period_end = period_end;
+        sub.max_amount = max_amount;
         e.storage().persistent().set(&key, &sub);
         bump_sub_ttl(&e, &key, period_duration);
         e.events().publish(
