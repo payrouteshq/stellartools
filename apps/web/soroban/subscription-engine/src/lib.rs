@@ -15,6 +15,12 @@ pub struct Subscription {
     pub status: String,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub enum DataKey {
+    Admin,
+}
+
 fn status_active(e: &Env) -> String { String::from_str(e, "active") }
 fn status_paused(e: &Env) -> String { String::from_str(e, "paused") }
 fn status_canceled(e: &Env) -> String { String::from_str(e, "canceled") }
@@ -51,13 +57,25 @@ fn require_allowed_status(e: &Env, s: &String) {
     }
 }
 
+fn require_admin(e: &Env) {
+    let admin: Address = e.storage().instance().get(&DataKey::Admin).expect("not initialized");
+    admin.require_auth();
+}
+
 #[contract]
 pub struct SubscriptionEngine;
 
 #[contractimpl]
 impl SubscriptionEngine {
-    /// Initial call by customer. Bundles approval + first payment + subscription creation.
-    /// `duration` is in seconds (e.g. 86400 = 1 day, 3600 = 1 hour for custom periods).
+    pub fn __constructor(e: Env, admin: Address) {
+        e.storage().instance().set(&DataKey::Admin, &admin);
+    }
+
+    pub fn set_admin(e: Env, new_admin: Address) {
+        require_admin(&e);
+        e.storage().instance().set(&DataKey::Admin, &new_admin);
+    }
+
     pub fn start(
         e: Env,
         customer: Address,
@@ -66,10 +84,12 @@ impl SubscriptionEngine {
         product_id: String,
         amount: i128,
         duration: u64,
-        caller: Address,
     ) {
-        caller.require_auth();
+        customer.require_auth();
 
+        if customer == merchant {
+            panic!("customer and merchant must differ");
+        }
         if amount <= 0 {
             panic!("amount must be positive");
         }
@@ -77,7 +97,6 @@ impl SubscriptionEngine {
             panic!("duration must be positive");
         }
 
-        // Prevent duplicate active subscription for same (customer, product)
         let key = (customer.clone(), product_id.clone());
         if e.storage().persistent().has(&key) {
             let existing: Subscription = e.storage().persistent().get(&key).unwrap();
@@ -107,10 +126,9 @@ impl SubscriptionEngine {
         e.events().publish((symbol_short!("sub_start"), customer, product_id), amount);
     }
 
-    /// Called by backend/cron when the billing period ends.
-    /// `amount` is computed off-chain from current fiat/crypto rates each cycle.
-    /// Panics on insufficient funds — period_end is NOT advanced on failure.
     pub fn charge(e: Env, customer: Address, product_id: String, amount: i128) {
+        require_admin(&e);
+
         if amount <= 0 {
             panic!("amount must be positive");
         }
@@ -124,7 +142,6 @@ impl SubscriptionEngine {
             panic!("billing period has not ended");
         }
 
-        // Transfer first — if it panics, state below never runs (atomic)
         token::Client::new(&e, &sub.token).transfer_from(
             &e.current_contract_address(),
             &sub.customer,
@@ -153,9 +170,6 @@ impl SubscriptionEngine {
         e.events().publish((symbol_short!("sub_pau"), customer, product_id), ());
     }
 
-    /// Resume a paused subscription.
-    /// If the paused period already expired, resets period_end from now so the
-    /// customer gets a full cycle without immediately triggering charge.
     pub fn resume(e: Env, customer: Address, product_id: String, caller: Address) {
         let key = (customer.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
@@ -164,7 +178,6 @@ impl SubscriptionEngine {
         require_paused(&e, &sub);
 
         let now = e.ledger().timestamp();
-        // If the period expired while paused, reset it from now
         if now >= sub.period_end {
             sub.period_end = now + sub.period_duration;
         }
@@ -186,7 +199,6 @@ impl SubscriptionEngine {
         e.events().publish((symbol_short!("sub_can"), customer, product_id), ());
     }
 
-    /// Admin / backend override. Validates status and guards against zero duration.
     pub fn update(
         e: Env,
         customer: Address,
@@ -194,9 +206,8 @@ impl SubscriptionEngine {
         status: String,
         period_duration: u64,
         period_end: u64,
-        caller: Address,
     ) {
-        caller.require_auth();
+        require_admin(&e);
 
         require_allowed_status(&e, &status);
 
