@@ -13,7 +13,8 @@ interface CustomerPaymentReceiptEmailProps {
 }
 
 export const CustomerPaymentReceiptEmail = (props: CustomerPaymentReceiptEmailProps) => {
-  const { customerName, amount, reference, date, organizationName, organizationLogo, supportEmail, environment } = props;
+  const { customerName, amount, reference, date, organizationName, organizationLogo, supportEmail, environment } =
+    props;
 
   const preview = `${organizationName} received your payment of ${amount}`;
 

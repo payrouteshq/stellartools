@@ -157,7 +157,14 @@ export const sendAssetPayment = async (
         const path: StellarSDK.Asset[] = (best.path ?? []).map((p: any) =>
           p.asset_type === "native" ? StellarSDK.Asset.native() : new StellarSDK.Asset(p.asset_code!, p.asset_issuer!)
         );
-        op = StellarSDK.Operation.pathPaymentStrictSend({ sendAsset: asset, sendAmount: amount, destination, destAsset, destMin, path });
+        op = StellarSDK.Operation.pathPaymentStrictSend({
+          sendAsset: asset,
+          sendAmount: amount,
+          destination,
+          destAsset,
+          destMin,
+          path,
+        });
       } else {
         op = StellarSDK.Operation.payment({ destination, asset, amount });
       }

@@ -521,7 +521,12 @@ export default function TransactionDetailPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => window.open(getStellarExplorerUrl(refund.transactionHash!, payment.environment), "_blank")}
+                                onClick={() =>
+                                  window.open(
+                                    getStellarExplorerUrl(refund.transactionHash!, payment.environment),
+                                    "_blank"
+                                  )
+                                }
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </Button>

@@ -70,11 +70,7 @@ export async function processFiatPayoutFunding(
       .returning();
 
     if (!claimed) {
-      const [refetched] = await db
-        .select()
-        .from(payouts)
-        .where(eq(payouts.id, payout.id))
-        .limit(1);
+      const [refetched] = await db.select().from(payouts).where(eq(payouts.id, payout.id)).limit(1);
       if (!refetched) throw new Error("Payout not found");
       currentPayout = refetched;
     } else {
@@ -178,4 +174,3 @@ export async function reconcilePendingFiatPayouts(limit = 50) {
   }
   return results;
 }
-

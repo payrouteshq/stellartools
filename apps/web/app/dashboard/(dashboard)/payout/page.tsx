@@ -675,8 +675,8 @@ function FiatPayoutForm({ assets, onSuccess }: { assets: WalletAsset[]; onSucces
       <div className="flex items-start gap-2.5 rounded-xl border px-4 py-3">
         <Landmark className="text-muted-foreground mt-0.5 size-4 shrink-0" />
         <p className="text-muted-foreground text-xs leading-relaxed">
-          <span className="text-foreground font-medium">{capabilities?.provider.name ?? "The payout partner"}</span>
-          {" "}will securely collect your bank and identity details in the next step. StellarTools does not store them.
+          <span className="text-foreground font-medium">{capabilities?.provider.name ?? "The payout partner"}</span>{" "}
+          will securely collect your bank and identity details in the next step. StellarTools does not store them.
         </p>
       </div>
 
@@ -713,10 +713,10 @@ function PayoutMethodPicker({ onSelect }: { onSelect: (method: PayoutMethod) => 
         <button
           type="button"
           onClick={() => onSelect("crypto")}
-          className="group flex flex-col gap-4 rounded-2xl border-2 border-border/60 bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+          className="group border-border/60 bg-card hover:border-primary/50 flex flex-col gap-4 rounded-2xl border-2 p-5 text-left transition-all hover:shadow-md active:scale-[0.99]"
         >
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-            <Wallet className="size-5 text-primary" />
+          <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+            <Wallet className="text-primary size-5" />
           </div>
           <div className="flex-1 space-y-1">
             <p className="font-semibold">Crypto Transfer</p>
@@ -726,18 +726,18 @@ function PayoutMethodPicker({ onSelect }: { onSelect: (method: PayoutMethod) => 
           </div>
           <div className="flex items-center justify-between">
             <span className="text-primary text-xs font-medium">Select</span>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
           </div>
         </button>
 
         <button
           type="button"
           onClick={() => onSelect("fiat")}
-          className="group flex flex-col gap-4 rounded-2xl border-2 border-border/60 bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99]"
+          className="group border-border/60 bg-card hover:border-primary/50 flex flex-col gap-4 rounded-2xl border-2 p-5 text-left transition-all hover:shadow-md active:scale-[0.99]"
         >
           <div className="flex items-center gap-2">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-              <Landmark className="size-5 text-primary" />
+            <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+              <Landmark className="text-primary size-5" />
             </div>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
               Test mode
@@ -751,7 +751,7 @@ function PayoutMethodPicker({ onSelect }: { onSelect: (method: PayoutMethod) => 
           </div>
           <div className="flex items-center justify-between">
             <span className="text-primary text-xs font-medium">Select</span>
-            <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
           </div>
         </button>
       </div>

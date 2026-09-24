@@ -1,16 +1,6 @@
 import * as React from "react";
 
-import {
-  Body,
-  Container,
-  Font,
-  Head,
-  Html,
-  Img,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Body, Container, Font, Head, Html, Img, Preview, Section, Text } from "@react-email/components";
 
 interface EmailLayoutProps {
   preview: string;
@@ -21,7 +11,14 @@ interface EmailLayoutProps {
   children: React.ReactNode;
 }
 
-export function EmailLayout({ preview, organizationName, organizationLogo, supportEmail, environment, children }: EmailLayoutProps) {
+export function EmailLayout({
+  preview,
+  organizationName,
+  organizationLogo,
+  supportEmail,
+  environment,
+  children,
+}: EmailLayoutProps) {
   const isTestnet = environment === "testnet";
 
   return (
@@ -49,9 +46,15 @@ export function EmailLayout({ preview, organizationName, organizationLogo, suppo
         />
       </Head>
       <Preview>{preview}</Preview>
-      <Body style={{ backgroundColor: "#ffffff", fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif", margin: 0, padding: 0 }}>
+      <Body
+        style={{
+          backgroundColor: "#ffffff",
+          fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+          margin: 0,
+          padding: 0,
+        }}
+      >
         <Container style={{ maxWidth: "560px", margin: "0 auto", padding: "40px 24px 48px" }}>
-
           {/* Org identity — centered above card */}
           <Section style={{ textAlign: "center", marginBottom: "20px" }}>
             {organizationLogo ? (
@@ -63,9 +66,7 @@ export function EmailLayout({ preview, organizationName, organizationLogo, suppo
                 style={{ borderRadius: "8px", margin: "0 auto 10px", display: "block" }}
               />
             ) : null}
-            <Text style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "#111827" }}>
-              {organizationName}
-            </Text>
+            <Text style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "#111827" }}>{organizationName}</Text>
           </Section>
 
           {/* Support line */}
@@ -102,12 +103,9 @@ export function EmailLayout({ preview, organizationName, organizationLogo, suppo
 
             {/* Footer inside card */}
             <Section style={{ padding: "16px 32px", borderTop: "1px solid #f3f4f6", textAlign: "center" }}>
-              <Text style={{ margin: 0, fontSize: "12px", color: "#9ca3af" }}>
-                Powered by StellarTools
-              </Text>
+              <Text style={{ margin: 0, fontSize: "12px", color: "#9ca3af" }}>Powered by StellarTools</Text>
             </Section>
           </Section>
-
         </Container>
       </Body>
     </Html>
