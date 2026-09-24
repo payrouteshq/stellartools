@@ -1,5 +1,6 @@
 import { retrieveCustomerWallets } from "@/actions/customers";
 import { runAtomic } from "@/actions/event";
+import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayment, retrievePayments } from "@/actions/payment";
 import { putSubscription, retrieveDueSubscriptions } from "@/actions/subscription";
 import { STELLAR_PRECISION, subscriptionPeriodMs } from "@/constant";
@@ -8,11 +9,15 @@ import {
   resolveMerchantSecret,
   cancelSubscription as soroban$cancelSubscription,
   chargeSubscription as soroban$chargeSubscription,
+  retrieveSubscription as soroban$retrieveSubscription,
   updateSubscriptionPeriod as soroban$updateSubscriptionPeriod,
 } from "@/integrations/soroban-contract";
 import { apiHandler } from "@/lib/api-handler";
 import { Money } from "@/lib/money";
-import { MAX_CONSECUTIVE_FAILED_PAYMENTS, shouldMarkOverdueAfterFailures } from "@/lib/subscription";
+import {
+  MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE,
+  shouldMarkOverdueAfterFailures,
+} from "@/lib/subscription";
 import { generateResourceId } from "@/lib/utils";
 import { Result } from "@stellartools/core";
 import _ from "lodash";
@@ -59,6 +64,10 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
       return { status: "error", subId, error: "No prior payment found to determine the charge asset" };
     }
 
+    const { secret } = await retrieveOrganizationIdAndSecret(orgId, env);
+    const merchantPublicKey = secret?.publicKey;
+    if (!merchantPublicKey) return { status: "error", subId, error: "Merchant public key not found" };
+
     const { cryptoAmount: chargeDisplay, amountRaw: chargeRaw } = await Money.calculateSubscriptionAmount({
       priceCents,
       currencyCode,
@@ -77,7 +86,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     let chargeRes: Awaited<ReturnType<typeof soroban$chargeSubscription>> | undefined;
     for (const address of walletAddresses) {
       walletAddress = address;
-      chargeRes = await soroban$chargeSubscription(env, address, productId, chargeRaw);
+      chargeRes = await soroban$chargeSubscription(env, address, merchantPublicKey, productId, chargeRaw);
       if (chargeRes.isOk()) break;
     }
 
@@ -113,7 +122,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
       // expose a hosted invoice so the customer can recover the subscription.
       const { data: recentPayments } = await retrievePayments(orgId, env, {
         subscriptionId: subId,
-        limit: MAX_CONSECUTIVE_FAILED_PAYMENTS,
+        limit: MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE,
       });
 
       if (shouldMarkOverdueAfterFailures(recentPayments.map((p) => p.status))) {
@@ -126,7 +135,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
         return {
           status: "failed",
           subId,
-          error: `Overdue after ${MAX_CONSECUTIVE_FAILED_PAYMENTS} consecutive failed charges: ${chargeRes.error.message}`,
+          error: `Overdue after ${MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE} consecutive failed charges: ${chargeRes.error.message}`,
         };
       }
 
@@ -183,11 +192,25 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     // 6. For converted trials, sync the real billing period on-chain. The
     // payment is already recorded above.
     if (sub.status === "trialing") {
+      const currentSub = await soroban$retrieveSubscription(env, chargedWalletAddress, merchantPublicKey, productId);
+      if (currentSub.isErr()) {
+        return {
+          status: "error",
+          subId,
+          error: `Charge recorded but reading on-chain subscription failed: ${currentSub.error.message}`,
+        };
+      }
+
       const updateRes = await soroban$updateSubscriptionPeriod(env, {
         customerAddress: chargedWalletAddress,
+        merchantAddress: merchantPublicKey,
         productId,
         periodDurationMs: billingMs,
         periodEnd: nextPeriod,
+        // Carry the existing ceiling through unchanged — this call only
+        // syncs the billing period after a trial converts, it's not meant
+        // to change how much a future charge is allowed to request.
+        maxAmountRaw: currentSub.value.maxAmount,
       });
 
       if (updateRes.isErr()) {

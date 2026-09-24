@@ -10,8 +10,8 @@ import { decrypt } from "@/integrations/encryption";
 import { getFiatRates } from "@/integrations/price-feed";
 import {
   buildSubscriptionApprovalXdr as soroban$buildSubscriptionApprovalXdr,
+  buildSubscriptionStartXdr as soroban$buildSubscriptionStartXdr,
   retrieveSubscription as soroban$retrieveSubscription,
-  startSubscription as soroban$startSubscription,
   verifySorobanTx as soroban$verifySorobanTx,
 } from "@/integrations/soroban-contract";
 import {
@@ -173,7 +173,14 @@ export async function prepareSubscriptionApproval(
   selectedAssetCode: string,
   selectedAssetIssuer: string | null
 ): Promise<
-  | { xdr: string; periodStart: string; periodEnd: string; needsPreSwap: boolean; preSwapXdr?: string }
+  | {
+      xdr: string;
+      startXdr: string;
+      periodStart: string;
+      periodEnd: string;
+      needsPreSwap: boolean;
+      preSwapXdr?: string;
+    }
   | { error: string }
 > {
   try {
@@ -182,6 +189,20 @@ export async function prepareSubscriptionApproval(
     if (checkout.status !== "open") return { error: "Checkout is no longer open" };
     if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
     if (!selectedAssetCode) return { error: "No payment asset selected" };
+    if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
+
+    const existingSub = await soroban$retrieveSubscription(
+      checkout.environment,
+      customerAddress,
+      checkout.merchantPublicKey,
+      checkout.productId
+    );
+    if (existingSub.isOk()) {
+      const status = existingSub.value.status;
+      if (status === "active" || status === "paused") {
+        return { error: SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE };
+      }
+    }
 
     const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
@@ -269,8 +290,21 @@ export async function prepareSubscriptionApproval(
 
     if (xdrResult.isErr()) return { error: xdrResult.error.message };
 
+    const startXdrResult = await soroban$buildSubscriptionStartXdr(checkout.environment, {
+      customerAddress,
+      merchantAddress: checkout.merchantPublicKey,
+      tokenContractId,
+      productId: checkout.productId,
+      amountRaw,
+      durationMs: trialDays > 0 ? trialDays * MS_PER_DAY : durationMs,
+      timeoutSeconds: txTimeout,
+    });
+
+    if (startXdrResult.isErr()) return { error: startXdrResult.error.message };
+
     return {
       xdr: xdrResult.value,
+      startXdr: startXdrResult.value,
       periodStart: periodStart.toISOString(),
       periodEnd: periodEnd.toISOString(),
       needsPreSwap,
@@ -284,6 +318,7 @@ export async function prepareSubscriptionApproval(
 export async function finalizeSubscriptionCheckout(
   checkoutId: string,
   approvalTxHash: string,
+  startTxHash: string,
   customerAddress: string,
   selectedAssetCode: string,
   selectedAssetIssuer: string
@@ -316,44 +351,29 @@ export async function finalizeSubscriptionCheckout(
       (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
     const hasTrial = trialDays > 0;
 
-    const verifyResult = await soroban$verifySorobanTx(environment, approvalTxHash);
+    // Both the allowance approval and the `start` call are signed and
+    // submitted by the customer's own wallet — the contract requires the
+    // customer's own authorization to open a subscription in their name, so
+    // the backend never invokes `start` on their behalf. We just verify both
+    // landed on-chain before recording the subscription.
+    const [verifyApproval, verifyStart] = await Promise.all([
+      soroban$verifySorobanTx(environment, approvalTxHash),
+      soroban$verifySorobanTx(environment, startTxHash),
+    ]);
 
-    if (verifyResult.isErr()) {
-      return { success: false, error: `Approval not confirmed: ${verifyResult.error.message}` };
+    if (verifyApproval.isErr()) {
+      return { success: false, error: `Approval not confirmed: ${verifyApproval.error.message}` };
+    }
+    if (verifyStart.isErr()) {
+      return { success: false, error: `Subscription start not confirmed: ${verifyStart.error.message}` };
     }
 
-    const { cryptoAmount, amountRaw } = await Money.calculateSubscriptionAmount({
+    const { cryptoAmount } = await Money.calculateSubscriptionAmount({
       priceCents: checkout.finalAmount,
       currencyCode: checkout.currencyCode ?? "USD",
       assetMetadata: { usdPeg: true },
     });
-    if (amountRaw <= BigInt(0))
-      return { success: false, error: `Unable to price subscription in ${selectedAssetCode}` };
 
-    const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
-
-    const existingSub = await soroban$retrieveSubscription(environment, customerAddress, productId);
-    if (existingSub.isOk()) {
-      const status = existingSub.value.status;
-      if (status === "active" || status === "paused") {
-        return { success: false, error: SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE };
-      }
-    }
-
-    const startResult = await soroban$startSubscription(environment, {
-      customerAddress,
-      merchantAddress: merchantPublicKey,
-      tokenContractId,
-      productId,
-      amountRaw,
-      durationMs: hasTrial ? trialDays * MS_PER_DAY : durationMs,
-    });
-
-    if (startResult.isErr()) {
-      return { success: false, error: startResult.error.message };
-    }
-
-    const { hash } = startResult.value;
     const subscriptionId = generateResourceId("sub", checkout.organizationId, 20);
     const periodStart = new Date();
     const periodEnd = hasTrial ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
@@ -387,7 +407,7 @@ export async function finalizeSubscriptionCheckout(
           cryptoAmount,
           selectedAssetCode,
           selectedAssetIssuer,
-          transactionHash: hash,
+          transactionHash: startTxHash,
           status: "confirmed",
           metadata: null,
           subscriptionId,

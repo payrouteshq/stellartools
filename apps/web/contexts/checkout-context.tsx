@@ -189,11 +189,25 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           if (res?.status !== "SUCCESS") throw new AppError("INTERNAL_ERROR", "Swap failed");
         }
 
-        const res = await wallet.signAndSubmit(new Transaction(prep.xdr, network));
-        if (res?.status === "SUCCESS") {
+        const approvalRes = await wallet.signAndSubmit(new Transaction(prep.xdr, network));
+        if (approvalRes?.status !== "SUCCESS") {
+          const reason = approvalRes?.message ?? "Subscription approval failed";
+          toast.error(reason);
+          if (approvalRes?.txHash) await reportFailure(approvalRes.txHash, reason);
+          queryClient.invalidateQueries({ queryKey: ["checkout", checkoutId] });
+          return;
+        }
+
+        // The contract requires the customer's own authorization to open a
+        // subscription, so this is a second signature from the same wallet —
+        // not something the backend can do on the customer's behalf.
+        toast.info("Confirm opening your subscription...");
+        const startRes = await wallet.signAndSubmit(new Transaction(prep.startXdr, network));
+        if (startRes?.status === "SUCCESS") {
           const result = await finalizeSubscriptionCheckout(
             checkoutId,
-            res.txHash!,
+            approvalRes.txHash!,
+            startRes.txHash!,
             wallet.walletAddress,
             selectedAsset.code,
             selectedAsset.canonicalIssuer ?? ""
@@ -201,9 +215,9 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           if (!result.success) throw new AppError("STELLAR_ERROR", result.error ?? "Subscription failed");
           toast.success("You're all set!");
         } else {
-          const reason = res?.message ?? "Subscription failed";
+          const reason = startRes?.message ?? "Subscription failed";
           toast.error(reason);
-          if (res?.txHash) await reportFailure(res.txHash, reason);
+          if (startRes?.txHash) await reportFailure(startRes.txHash, reason);
         }
       } else {
         const xdr = await buildOneTimePaymentXdr({
