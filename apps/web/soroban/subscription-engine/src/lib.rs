@@ -277,3 +277,6 @@ impl SubscriptionEngine {
         e.storage().persistent().get(&sub_key(customer, merchant, product_id)).expect("subscription not found")
     }
 }
+
+#[cfg(test)]
+mod test;
