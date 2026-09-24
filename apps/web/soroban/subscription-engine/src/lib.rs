@@ -19,6 +19,11 @@ pub struct Subscription {
 #[derive(Clone)]
 pub enum DataKey {
     Admin,
+    Sub(Address, Address, String),
+}
+
+fn sub_key(customer: Address, merchant: Address, product_id: String) -> DataKey {
+    DataKey::Sub(customer, merchant, product_id)
 }
 
 fn status_active(e: &Env) -> String { String::from_str(e, "active") }
@@ -97,7 +102,7 @@ impl SubscriptionEngine {
             panic!("duration must be positive");
         }
 
-        let key = (customer.clone(), product_id.clone());
+        let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         if e.storage().persistent().has(&key) {
             let existing: Subscription = e.storage().persistent().get(&key).unwrap();
             if existing.status == status_active(&e) || existing.status == status_paused(&e) {
@@ -126,14 +131,14 @@ impl SubscriptionEngine {
         e.events().publish((symbol_short!("sub_start"), customer, product_id), amount);
     }
 
-    pub fn charge(e: Env, customer: Address, product_id: String, amount: i128) {
+    pub fn charge(e: Env, customer: Address, merchant: Address, product_id: String, amount: i128) {
         require_admin(&e);
 
         if amount <= 0 {
             panic!("amount must be positive");
         }
 
-        let key = (customer.clone(), product_id.clone());
+        let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
         require_active(&e, &sub);
@@ -158,8 +163,8 @@ impl SubscriptionEngine {
         );
     }
 
-    pub fn pause(e: Env, customer: Address, product_id: String, caller: Address) {
-        let key = (customer.clone(), product_id.clone());
+    pub fn pause(e: Env, customer: Address, merchant: Address, product_id: String, caller: Address) {
+        let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
         require_customer_or_merchant(&sub, &caller);
@@ -170,8 +175,8 @@ impl SubscriptionEngine {
         e.events().publish((symbol_short!("sub_pau"), customer, product_id), ());
     }
 
-    pub fn resume(e: Env, customer: Address, product_id: String, caller: Address) {
-        let key = (customer.clone(), product_id.clone());
+    pub fn resume(e: Env, customer: Address, merchant: Address, product_id: String, caller: Address) {
+        let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
         require_customer_or_merchant(&sub, &caller);
@@ -187,8 +192,8 @@ impl SubscriptionEngine {
         e.events().publish((symbol_short!("sub_res"), customer, product_id), sub.period_end);
     }
 
-    pub fn cancel(e: Env, customer: Address, product_id: String, caller: Address) {
-        let key = (customer.clone(), product_id.clone());
+    pub fn cancel(e: Env, customer: Address, merchant: Address, product_id: String, caller: Address) {
+        let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
         require_customer_or_merchant(&sub, &caller);
@@ -202,6 +207,7 @@ impl SubscriptionEngine {
     pub fn update(
         e: Env,
         customer: Address,
+        merchant: Address,
         product_id: String,
         status: String,
         period_duration: u64,
@@ -215,7 +221,7 @@ impl SubscriptionEngine {
             panic!("period_duration must be positive");
         }
 
-        let key = (customer.clone(), product_id.clone());
+        let key = sub_key(customer.clone(), merchant.clone(), product_id.clone());
         let mut sub: Subscription = e.storage().persistent().get(&key).expect("subscription not found");
 
         sub.status = status.clone();
@@ -228,7 +234,7 @@ impl SubscriptionEngine {
         );
     }
 
-    pub fn get_subscription(e: Env, customer: Address, product_id: String) -> Subscription {
-        e.storage().persistent().get(&(customer, product_id)).expect("subscription not found")
+    pub fn get_subscription(e: Env, customer: Address, merchant: Address, product_id: String) -> Subscription {
+        e.storage().persistent().get(&sub_key(customer, merchant, product_id)).expect("subscription not found")
     }
 }
