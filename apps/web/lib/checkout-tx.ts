@@ -245,6 +245,18 @@ export async function quoteSubscriptionPeriods(
       return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods: 0 };
     }
 
+    // Already holding the destination asset directly needs no swap, so there's
+    // no DEX path to quote. strictSendPaths returns nothing for converting an
+    // asset into itself, which would otherwise look like a zero balance.
+    const isSameAsset = sourceAssetCode === selectedAssetCode && sourceAssetIssuer === canonicalIssuer;
+    if (isSameAsset) {
+      const maxAffordablePeriods = Math.min(
+        MAX_QUOTABLE_PERIODS,
+        Math.floor(availableSource.div(perPeriodAmount).toNumber())
+      );
+      return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods };
+    }
+
     // How much of the destination asset can this source balance actually
     // reach via the DEX? Uses a real quote rather than assuming the one-period
     // exchange rate holds linearly at larger sizes.
