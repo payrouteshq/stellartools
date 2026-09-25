@@ -186,10 +186,13 @@ export async function prepareSubscriptionSwap(
       return { error: `No canonical issuer available for ${selectedAssetCode}` };
     }
 
-    // Neither call depends on the other's result, so run them concurrently
-    // instead of paying for both round trips back to back.
     const [existingSub, fiatRates] = await Promise.all([
-      soroban$retrieveSubscription(checkout.environment, customerAddress, checkout.merchantPublicKey, checkout.productId),
+      soroban$retrieveSubscription(
+        checkout.environment,
+        customerAddress,
+        checkout.merchantPublicKey,
+        checkout.productId
+      ),
       canonicalIssuer ? getFiatRates() : Promise.resolve(undefined),
     ]);
     lap("soroban$retrieveSubscription+getFiatRates");
