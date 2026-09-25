@@ -157,7 +157,7 @@ export const retrieveDueSubscriptions = async (options?: {
         and(
           eq(subscriptions.status, "trialing"),
           gt(subscriptions.trialDays, 0),
-          lt(sql`${subscriptions.createdAt} + (${subscriptions.trialDays} * interval '1 day')`, new Date()),
+          sql`${subscriptions.createdAt} + (${subscriptions.trialDays} * interval '1 day') < ${new Date().toISOString()}`,
           eq(subscriptions.cancelAtPeriodEnd, false)
         ),
         and(
