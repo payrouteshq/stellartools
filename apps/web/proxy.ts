@@ -7,6 +7,11 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 
   const url = req.nextUrl.clone();
 
+  if (url.pathname.startsWith("/.well-known/")) {
+    url.pathname = `/api/well-known/${url.pathname.slice("/.well-known/".length)}`;
+    return NextResponse.rewrite(url);
+  }
+
   let prefix = "/api";
 
   if (url.pathname.includes("/~api/cron")) {
