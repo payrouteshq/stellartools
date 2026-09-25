@@ -99,9 +99,13 @@ export const SubscriptionStatusBadge = ({
   canceledAt?: Date | string | null;
 }) => {
   if (cancelAtPeriodEnd && status !== "canceled" && currentPeriodEnd) {
+    // The actual on-chain cancel only runs via the hourly cron, so once the
+    // period end has passed there can be a lag before status flips to
+    // "canceled" — show that as in-progress rather than a stale future date.
+    const isOverdue = moment(currentPeriodEnd).isBefore(moment());
     return (
       <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive gap-1.5">
-        Cancels on {moment(currentPeriodEnd).format("MMM D, YYYY")}
+        {isOverdue ? "Canceling..." : `Cancels on ${moment(currentPeriodEnd).format("MMM D, YYYY")}`}
       </Badge>
     );
   }

@@ -181,7 +181,9 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                     <div className="flex flex-wrap items-center gap-2">
                       {sub.cancelAtPeriodEnd ? (
                         <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
-                          Cancels on {moment(sub.currentPeriodEnd).format("MMM D, YYYY")}
+                          {moment(sub.currentPeriodEnd).isBefore(moment())
+                            ? "Canceling..."
+                            : `Cancels on ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`}
                         </Badge>
                       ) : sub.status === "paused" ? (
                         <Badge variant="secondary">Paused</Badge>
