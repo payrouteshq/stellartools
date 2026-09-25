@@ -7,7 +7,6 @@ import { StellarToolsIcon } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useCookieState } from "@/hooks/use-cookie-state";
 import { Button, InputOTP, InputOTPGroup, InputOTPSlot, Spinner } from "@stellartools/shared-ui";
-import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Org = { name: string; logoUrl: string | null } | null;
@@ -54,34 +53,20 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
   const orgName = org?.name ?? "StellarTools";
 
   return (
-    <div className="bg-background flex min-h-screen">
-      <aside className="border-border bg-background hidden w-70 shrink-0 flex-col border-r px-8 py-10 md:flex">
-        <div className="mb-6 flex items-center gap-3">
+    <div className="bg-background flex min-h-screen flex-col">
+      <div className="border-border flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2.5">
           {org?.logoUrl ? (
-            <img src={org.logoUrl} alt={orgName} className="size-8 rounded-md object-contain" />
+            <img src={org.logoUrl} alt={orgName} className="size-7 rounded-md object-contain" />
           ) : (
-            <Building2 className="text-foreground size-8" />
+            <StellarToolsIcon width={24} height={24} className="shrink-0 object-contain" />
           )}
-          <span className="text-foreground truncate text-sm font-semibold">{orgName}</span>
+          <span className="text-foreground text-sm font-semibold">{orgName}</span>
         </div>
-        <div className="mt-auto flex justify-end">
-          <ModeToggle />
-        </div>
-      </aside>
+        <ModeToggle />
+      </div>
 
       <main className="flex flex-1 flex-col">
-        <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
-          <div className="flex items-center gap-2.5">
-            {org?.logoUrl ? (
-              <img src={org.logoUrl} alt={orgName} className="size-7 rounded-md object-contain" />
-            ) : (
-              <StellarToolsIcon width={24} height={24} className="shrink-0 object-contain" />
-            )}
-            <span className="text-foreground text-sm font-semibold">{orgName}</span>
-          </div>
-          <ModeToggle />
-        </div>
-
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="w-full max-w-sm space-y-6 text-center">
             {otpStep.step === "idle" ? (
