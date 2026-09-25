@@ -210,6 +210,22 @@ export async function quoteSubscriptionPeriods(
       return { perPeriodAmount, sourceAssetCode: "XLM", sourceAssetIssuer: null, maxAffordablePeriods };
     }
 
+    // If the wallet already holds enough of the exact target asset directly,
+    // no swap is needed at all, so there's no DEX path to quote. Horizon's
+    // path-finding endpoints never return a trivial "convert an asset into
+    // itself" path, so this has to be checked against the real balance up
+    // front rather than inferred from a strictReceivePaths/strictSendPaths result.
+    const heldBalance = account.balances.find(
+      (b: any) => b.asset_code === selectedAssetCode && b.asset_issuer === canonicalIssuer
+    );
+    if (heldBalance) {
+      const maxAffordablePeriods = Math.min(
+        MAX_QUOTABLE_PERIODS,
+        Math.floor(new Big(heldBalance.balance).div(perPeriodAmount).toNumber())
+      );
+      return { perPeriodAmount, sourceAssetCode: selectedAssetCode, sourceAssetIssuer: canonicalIssuer, maxAffordablePeriods };
+    }
+
     const destAsset = new Asset(selectedAssetCode, canonicalIssuer);
     const onePeriodPaths = await server.strictReceivePaths(customerAddress, destAsset, perPeriodAmount).call();
 
@@ -243,18 +259,6 @@ export async function quoteSubscriptionPeriods(
     }
     if (availableSource.lte(0)) {
       return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods: 0 };
-    }
-
-    // Already holding the destination asset directly needs no swap, so there's
-    // no DEX path to quote. strictSendPaths returns nothing for converting an
-    // asset into itself, which would otherwise look like a zero balance.
-    const isSameAsset = sourceAssetCode === selectedAssetCode && sourceAssetIssuer === canonicalIssuer;
-    if (isSameAsset) {
-      const maxAffordablePeriods = Math.min(
-        MAX_QUOTABLE_PERIODS,
-        Math.floor(availableSource.div(perPeriodAmount).toNumber())
-      );
-      return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods };
     }
 
     // How much of the destination asset can this source balance actually
@@ -325,6 +329,20 @@ export async function prepareSubscriptionSwap(
     const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents * periods);
 
     const { server } = getStellarConfig(checkout.environment);
+
+    // If the wallet already holds enough of the exact target asset directly,
+    // no swap is needed at all. Horizon's path-finding endpoints never return
+    // a trivial "convert an asset into itself" path, so this has to be
+    // checked against the account's real balance up front, not inferred from
+    // the DEX query below.
+    const account = await server.loadAccount(customerAddress);
+    const heldBalance = account.balances.find(
+      (b: any) => b.asset_code === selectedAssetCode && b.asset_issuer === canonicalIssuer
+    );
+    if (heldBalance && new Big(heldBalance.balance).gte(neededStellarAmount)) {
+      return { needsPreSwap: false };
+    }
+
     const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
     const pathsResult = await server.strictReceivePaths(customerAddress, destAssetForPath, neededStellarAmount).call();
     lap("strictReceivePaths");
@@ -336,9 +354,6 @@ export async function prepareSubscriptionSwap(
     const best = pathsResult.records[0] as any;
     const swapSourceCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
     const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
-    const isSameAsset = swapSourceCode === selectedAssetCode && swapSourceIssuer === canonicalIssuer;
-
-    if (isSameAsset) return { needsPreSwap: false };
 
     const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
     const swapIntermediates = (best.path ?? []).map((p: any) =>
