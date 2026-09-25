@@ -12,9 +12,9 @@ import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { AppError, execute } from "@/lib/action-handler";
 import { buildOneTimePaymentXdr, finalizeSubscriptionCheckout, prepareSubscriptionApproval } from "@/lib/checkout-tx";
 import { Money } from "@/lib/money";
-import { getUsdcAsset } from "@/lib/usdc";
+import { getUsdcIssuers } from "@/lib/usdc";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Networks, Transaction } from "@stellar/stellar-sdk";
+import { Horizon, Networks, Transaction } from "@stellar/stellar-sdk";
 import { phoneNumberFromString, phoneNumberSchema, phoneNumberToString, toast } from "@stellartools/shared-ui";
 import { UseMutationResult, UseQueryResult, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as RHF from "react-hook-form";
@@ -79,11 +79,40 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
 
   const checkout = query.data;
 
-  // Always settle on USDC — path payments handle conversion from whatever the customer holds.
-  const selectedAsset = React.useMemo<SelectedAsset | null>(() => {
-    if (!checkout?.environment) return null;
-    return getUsdcAsset(checkout.environment);
+  const acceptedUsdcAssets = React.useMemo<SelectedAsset[]>(() => {
+    if (!checkout?.environment) return [];
+    return getUsdcIssuers(checkout.environment).map((canonicalIssuer) => ({ code: "USDC", canonicalIssuer }));
   }, [checkout?.environment]);
+
+  const selectedAssetQuery = useQuery({
+    queryKey: ["checkout-selected-asset", checkout?.environment, wallet.walletAddress, acceptedUsdcAssets],
+    queryFn: async (): Promise<SelectedAsset> => {
+      const [primary] = acceptedUsdcAssets;
+      if (!primary) throw new Error("No USDC issuer configured for this network");
+      if (!wallet.connected || !wallet.walletAddress) return primary;
+
+      const horizonUrl =
+        checkout!.environment === "testnet"
+          ? process.env.NEXT_PUBLIC_STELLAR_HORIZON_TESTNET
+          : process.env.NEXT_PUBLIC_STELLAR_HORIZON_MAINNET;
+      if (!horizonUrl) return primary;
+
+      try {
+        const server = new Horizon.Server(horizonUrl);
+        const account = await server.loadAccount(wallet.walletAddress);
+        const held = acceptedUsdcAssets.find((asset) =>
+          account.balances.some((b: any) => b.asset_code === asset.code && b.asset_issuer === asset.canonicalIssuer)
+        );
+        return held ?? primary;
+      } catch {
+        return primary;
+      }
+    },
+    enabled: acceptedUsdcAssets.length > 0,
+    staleTime: 30_000,
+  });
+
+  const selectedAsset = selectedAssetQuery.data ?? null;
 
   React.useEffect(() => {
     if (checkout?.environment) wallet.setEnvironment(checkout.environment);

@@ -25,7 +25,6 @@ import {
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
-import { getUsdcAsset } from "@/lib/usdc";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { SubscriptionData } from "@stellartools/core";
