@@ -91,7 +91,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     queryFn: () => retrieveCheckoutAndCustomer(checkoutId),
   });
 
-  // Fiat rates only — needed to convert non-USD product prices to USD cents for crypto display.
+  // Fiat rates only, needed to convert non-USD product prices to USD cents for crypto display.
   const fiatRatesQuery = useQuery({
     queryKey: ["checkout-fiat-rates", checkoutId],
     queryFn: () => retrieveCheckoutPublicData(checkoutId),
@@ -163,7 +163,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
   const periodsQuoteError =
     periodsQuoteQuery.data && "error" in periodsQuoteQuery.data ? periodsQuoteQuery.data.error : null;
 
-  // Clamp the selection into range whenever a fresh quote comes back — never
+  // Clamp the selection into range whenever a fresh quote comes back, never
   // let the customer submit a period count we already know they can't afford.
   React.useEffect(() => {
     if (!periodsQuote) return;

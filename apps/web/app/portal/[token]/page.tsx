@@ -197,7 +197,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                       {sub.cancelAtPeriodEnd
                         ? "No further charges will be made."
                         : sub.status === "paused"
-                          ? "Paused — no charges until resumed"
+                          ? "Paused, no charges until resumed"
                           : `Renews ${moment(sub.currentPeriodEnd).format("MMM D, YYYY")}`}
                     </p>
                     {sub.walletAddress && (
@@ -215,7 +215,7 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                             <span className="font-mono">
                               {truncate(chargeAsset.selectedAssetIssuer, { start: 6, end: 6 })}
                             </span>
-                            ) — keep this exact asset funded to avoid missed renewals
+                            ). Keep this asset funded to avoid missed renewals.
                           </>
                         )}
                       </p>

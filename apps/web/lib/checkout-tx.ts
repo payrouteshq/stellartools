@@ -61,7 +61,7 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const fiatRate = pub?.fiatRates?.[checkout.currencyCode] ?? 1;
   const usdCents = checkout.finalAmount / fiatRate;
 
-  // USDC is always $1 — amount = USD cents / 100.
+  // USDC is always $1, amount = USD cents / 100.
   const amount: string = Money.calculateCryptoNeeded(usdCents, 1);
 
   const { server, passphrase } = getStellarConfig(checkout.environment);
@@ -101,7 +101,7 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
     }
   }
 
-  // Always use path finding — Stellar's DEX handles any issuer mismatch, partial balances,
+  // Always use path finding. Stellar's DEX handles any issuer mismatch, partial balances,
   // and non-USDC holdings automatically. If the customer has canonical USDC, the path finder
   // returns source=USDC path=[] which is a zero-hop direct transfer.
   const pathsResult = await server.strictReceivePaths(customerPublicKey, asset, amount).call();
@@ -201,7 +201,7 @@ export async function quoteSubscriptionPeriods(
     const account = await server.loadAccount(customerAddress);
 
     if (!canonicalIssuer) {
-      // Paying in XLM directly — no swap involved, just check the native balance.
+      // Paying in XLM directly, no swap involved, just check the native balance.
       const nativeBalance = account.balances.find((b: any) => b.asset_type === "native");
       const available = nativeBalance ? new Big(nativeBalance.balance).minus(NATIVE_RESERVE_BUFFER) : new Big(0);
       const maxAffordablePeriods = available.lte(0)
@@ -371,7 +371,7 @@ export async function prepareSubscriptionApproval(
     if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
 
     // The existing-subscription check already ran in prepareSubscriptionSwap
-    // moments earlier in this same checkout flow — no need to repeat it here.
+    // moments earlier in this same checkout flow, no need to repeat it here.
 
     const canonicalIssuer = selectedAssetIssuer;
     if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
@@ -416,7 +416,7 @@ export async function prepareSubscriptionApproval(
 
 /**
  * Builds the `start` transaction. Must be called *after* the approval
- * transaction has confirmed on-chain — building it any earlier reads the same
+ * transaction has confirmed on-chain. Building it any earlier reads the same
  * account sequence number the approval already consumed, and the wallet's
  * submission gets rejected as tx_bad_seq.
  */
@@ -523,7 +523,7 @@ export async function finalizeSubscriptionCheckout(
     const hasTrial = trialDays > 0;
 
     // Both the allowance approval and the `start` call are signed and
-    // submitted by the customer's own wallet — the contract requires the
+    // submitted by the customer's own wallet. The contract requires the
     // customer's own authorization to open a subscription in their name, so
     // the backend never invokes `start` on their behalf. We just verify both
     // landed on-chain before recording the subscription.

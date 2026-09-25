@@ -13,7 +13,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   }
 
   // Vercel Cron (see vercel.json) always hits the app's primary domain with
-  // the route's real, already-prefixed path — serve it as-is before any
+  // the route's real, already-prefixed path. Serve it as-is before any
   // host-based prefixing below gets a chance to prepend or override it.
   if (url.pathname.startsWith("/dashboard/~api/cron/")) {
     return NextResponse.rewrite(url);

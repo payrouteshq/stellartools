@@ -2,6 +2,7 @@
 
 import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { useCheckout } from "@/contexts/checkout-context";
+import { truncate } from "@/lib/utils";
 import {
   Button,
   Dialog,
@@ -25,15 +26,18 @@ export function SubscriptionPeriodsModal() {
     : "billing period";
 
   const maxSelectable = quote ? Math.max(quote.maxAffordablePeriods, 1) : 1;
+  const assetLabel = quote
+    ? `${quote.sourceAssetCode}${quote.sourceAssetIssuer ? ` (${truncate(quote.sourceAssetIssuer, { start: 4, end: 4 })})` : ""}`
+    : "";
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>How many billing periods to fund now?</DialogTitle>
+          <DialogTitle>Fund future billing periods now?</DialogTitle>
           <DialogDescription>
-            Paying for more than one {billingPeriodLabel} up front means your subscription can keep renewing
-            automatically without you needing to come back and top up your wallet.
+            Only the first {billingPeriodLabel} is charged now. Anything extra you fund stays in your wallet and
+            is charged automatically at each future renewal.
           </DialogDescription>
         </DialogHeader>
 
@@ -68,17 +72,17 @@ export function SubscriptionPeriodsModal() {
               <Spinner className="size-3.5" /> Checking your balance...
             </p>
           ) : quoteError ? (
-            <p className="text-muted-foreground text-sm">Couldn't check your balance — proceeding with 1 period.</p>
+            <p className="text-muted-foreground text-sm">Could not check your balance. Proceeding with 1 period.</p>
           ) : quote ? (
             quote.maxAffordablePeriods < 1 ? (
               <p className="text-destructive text-sm">
-                Your {quote.sourceAssetCode} balance may not cover even one period yet — you can still continue,
-                but the payment step will tell you if it's not enough.
+                You may not have enough {assetLabel} yet to fund even one period. You can still continue, and the
+                payment step will confirm.
               </p>
             ) : (
               <p className="text-muted-foreground text-sm">
-                Funded from your {quote.sourceAssetCode} balance — up to {quote.maxAffordablePeriods}{" "}
-                {quote.maxAffordablePeriods === 1 ? "period" : "periods"} available right now.
+                Up to {quote.maxAffordablePeriods} {quote.maxAffordablePeriods === 1 ? "period" : "periods"}{" "}
+                available from your {assetLabel} balance right now.
               </p>
             )
           ) : null}
