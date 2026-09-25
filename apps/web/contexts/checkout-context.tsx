@@ -16,6 +16,7 @@ import {
   prepareSubscriptionApproval,
   prepareSubscriptionStart,
   prepareSubscriptionSwap,
+  quoteSubscriptionPeriods,
 } from "@/lib/checkout-tx";
 import { Money } from "@/lib/money";
 import { getUsdcIssuers } from "@/lib/usdc";
@@ -55,6 +56,21 @@ interface CheckoutContextValue {
   };
   updateDetails: UseMutationResult<any, Error, CheckoutFormData>;
   banner: { show: boolean; setShow: (show: boolean) => void };
+  subscriptionPeriods: {
+    open: boolean;
+    close: () => void;
+    selected: number;
+    setSelected: (n: number) => void;
+    quote: {
+      perPeriodAmount: string;
+      sourceAssetCode: string;
+      sourceAssetIssuer: string | null;
+      maxAffordablePeriods: number;
+    } | null;
+    quoteError: string | null;
+    isLoading: boolean;
+    confirm: () => void;
+  };
 }
 
 const CheckoutContext = React.createContext({} as CheckoutContextValue);
@@ -123,6 +139,36 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
   React.useEffect(() => {
     if (checkout?.environment) wallet.setEnvironment(checkout.environment);
   }, [checkout?.environment]);
+
+  const [periodModalOpen, setPeriodModalOpen] = React.useState(false);
+  const [selectedPeriods, setSelectedPeriods] = React.useState(1);
+
+  const periodsQuoteQuery = useQuery({
+    queryKey: [
+      "checkout-periods-quote",
+      checkoutId,
+      wallet.walletAddress,
+      selectedAsset?.code,
+      selectedAsset?.canonicalIssuer,
+    ],
+    queryFn: () =>
+      quoteSubscriptionPeriods(checkoutId, wallet.walletAddress, selectedAsset!.code, selectedAsset!.canonicalIssuer),
+    enabled:
+      checkout?.productType === "subscription" && wallet.connected && !!wallet.walletAddress && !!selectedAsset,
+    staleTime: 15_000,
+  });
+
+  const periodsQuote =
+    periodsQuoteQuery.data && !("error" in periodsQuoteQuery.data) ? periodsQuoteQuery.data : null;
+  const periodsQuoteError =
+    periodsQuoteQuery.data && "error" in periodsQuoteQuery.data ? periodsQuoteQuery.data.error : null;
+
+  // Clamp the selection into range whenever a fresh quote comes back — never
+  // let the customer submit a period count we already know they can't afford.
+  React.useEffect(() => {
+    if (!periodsQuote) return;
+    setSelectedPeriods((prev) => Math.min(Math.max(prev, 1), Math.max(periodsQuote.maxAffordablePeriods, 1)));
+  }, [periodsQuote]);
 
   const finalAmountUsdCents = React.useMemo(() => {
     if (!checkout?.finalAmount) return 0;
@@ -196,7 +242,7 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     onError: (e) => toast.error(e.message || "Failed to save your details"),
   });
 
-  const handleWalletPay = async () => {
+  const handleWalletPay = async (periods: number = 1) => {
     if (!wallet.connected) return wallet.connect((s) => !s && toast.error("Connection failed"));
     if (!checkout || !selectedAsset || !cryptoAmount) {
       toast.error("Setup incomplete");
@@ -214,12 +260,13 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           checkoutId,
           wallet.walletAddress,
           selectedAsset.code,
-          selectedAsset.canonicalIssuer
+          selectedAsset.canonicalIssuer,
+          periods
         );
         if ("error" in swapPrep) throw new AppError("INTERNAL_ERROR", swapPrep.error);
 
         if (swapPrep.needsPreSwap && swapPrep.preSwapXdr) {
-          toast.info("Swapping tokens...");
+          toast.info(periods > 1 ? `Swapping tokens for ${periods} billing periods...` : "Swapping tokens...");
           const swapRes = await wallet.signAndSubmit(new Transaction(swapPrep.preSwapXdr, network));
           if (swapRes?.status !== "SUCCESS") throw new AppError("INTERNAL_ERROR", "Swap failed");
         }
@@ -294,6 +341,24 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     }
   };
 
+  // Subscriptions get an interstitial period-selection step (the customer is
+  // present and can sign a bigger swap once, instead of needing to come back
+  // and top up manually before every future renewal). One-time payments pay
+  // immediately, unchanged.
+  const startPayment = async () => {
+    if (!wallet.connected) return wallet.connect((s) => !s && toast.error("Connection failed"));
+    if (checkout?.productType === "subscription") {
+      setPeriodModalOpen(true);
+      return;
+    }
+    await handleWalletPay(1);
+  };
+
+  const confirmSubscriptionPeriods = () => {
+    setPeriodModalOpen(false);
+    handleWalletPay(selectedPeriods);
+  };
+
   const value: CheckoutContextValue = {
     id: checkoutId,
     checkout,
@@ -309,9 +374,19 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
     finalAmountUsdCents,
     updateDetails,
     banner: { show: showBanner, setShow: setShowBanner },
+    subscriptionPeriods: {
+      open: periodModalOpen,
+      close: () => setPeriodModalOpen(false),
+      selected: selectedPeriods,
+      setSelected: setSelectedPeriods,
+      quote: periodsQuote,
+      quoteError: periodsQuoteError,
+      isLoading: periodsQuoteQuery.isLoading,
+      confirm: confirmSubscriptionPeriods,
+    },
     wallet: {
       connectedAddress: wallet.walletAddress,
-      handleWalletPay,
+      handleWalletPay: startPayment,
       disconnect: wallet.disconnect,
       isProcessing,
       kit: { connectWallet: wallet.connect },

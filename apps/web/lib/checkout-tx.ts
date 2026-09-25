@@ -164,15 +164,116 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };
 
-export async function prepareSubscriptionSwap(
+const NATIVE_RESERVE_BUFFER = "5";
+const MAX_QUOTABLE_PERIODS = 24;
+
+export async function quoteSubscriptionPeriods(
   checkoutId: string,
   customerAddress: string,
   selectedAssetCode: string,
   selectedAssetIssuer: string | null
+): Promise<
+  | {
+      perPeriodAmount: string;
+      sourceAssetCode: string;
+      sourceAssetIssuer: string | null;
+      maxAffordablePeriods: number;
+    }
+  | { error: string }
+> {
+  try {
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    if (!checkout) return { error: "Checkout not found" };
+    if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
+    if (!selectedAssetCode) return { error: "No payment asset selected" };
+
+    const canonicalIssuer = selectedAssetIssuer;
+    if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
+      return { error: `No canonical issuer available for ${selectedAssetCode}` };
+    }
+
+    const fiatRates = await getFiatRates();
+    const fiatRate = fiatRates[checkout.currencyCode ?? "USD"] ?? 1;
+    const finalAmountUsdCents = checkout.finalAmount / fiatRate;
+    const perPeriodAmount = Money.centsToStellarString(finalAmountUsdCents);
+
+    const { server } = getStellarConfig(checkout.environment);
+    const account = await server.loadAccount(customerAddress);
+
+    if (!canonicalIssuer) {
+      // Paying in XLM directly — no swap involved, just check the native balance.
+      const nativeBalance = account.balances.find((b: any) => b.asset_type === "native");
+      const available = nativeBalance ? new Big(nativeBalance.balance).minus(NATIVE_RESERVE_BUFFER) : new Big(0);
+      const maxAffordablePeriods = available.lte(0)
+        ? 0
+        : Math.min(MAX_QUOTABLE_PERIODS, Math.floor(available.div(perPeriodAmount).toNumber()));
+      return { perPeriodAmount, sourceAssetCode: "XLM", sourceAssetIssuer: null, maxAffordablePeriods };
+    }
+
+    const destAsset = new Asset(selectedAssetCode, canonicalIssuer);
+    const onePeriodPaths = await server.strictReceivePaths(customerAddress, destAsset, perPeriodAmount).call();
+
+    if (onePeriodPaths.records.length === 0) {
+      return {
+        perPeriodAmount,
+        sourceAssetCode: selectedAssetCode,
+        sourceAssetIssuer: canonicalIssuer,
+        maxAffordablePeriods: 0,
+      };
+    }
+
+    const best = onePeriodPaths.records[0] as any;
+    const sourceAssetCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
+    const sourceAssetIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
+    const sourceAsset =
+      best.source_asset_type === "native" ? Asset.native() : new Asset(sourceAssetCode, sourceAssetIssuer!);
+
+    const sourceBalanceEntry =
+      best.source_asset_type === "native"
+        ? account.balances.find((b: any) => b.asset_type === "native")
+        : account.balances.find((b: any) => b.asset_code === sourceAssetCode && b.asset_issuer === sourceAssetIssuer);
+
+    if (!sourceBalanceEntry) {
+      return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods: 0 };
+    }
+
+    let availableSource = new Big(sourceBalanceEntry.balance);
+    if (best.source_asset_type === "native") {
+      availableSource = availableSource.minus(NATIVE_RESERVE_BUFFER);
+    }
+    if (availableSource.lte(0)) {
+      return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods: 0 };
+    }
+
+    // How much of the destination asset can this source balance actually
+    // reach via the DEX? Uses a real quote rather than assuming the one-period
+    // exchange rate holds linearly at larger sizes.
+    const sendResult = await server.strictSendPaths(sourceAsset, availableSource.toFixed(7), [destAsset]).call();
+    const bestSend = sendResult.records[0] as any;
+    const maxDestAmount = bestSend ? new Big(bestSend.destination_amount) : new Big(0);
+    const maxAffordablePeriods = Math.min(
+      MAX_QUOTABLE_PERIODS,
+      Math.max(0, Math.floor(maxDestAmount.div(perPeriodAmount).toNumber()))
+    );
+
+    return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods };
+  } catch (e: any) {
+    return { error: e.message ?? "Failed to quote billing periods" };
+  }
+}
+
+export async function prepareSubscriptionSwap(
+  checkoutId: string,
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null,
+  periods: number = 1
 ): Promise<{ needsPreSwap: boolean; preSwapXdr?: string } | { error: string }> {
   const t0 = Date.now();
   const lap = (label: string) => console.log(`[timing:prepareSubscriptionSwap] ${label}: ${Date.now() - t0}ms`);
   try {
+    if (!Number.isInteger(periods) || periods < 1) return { error: "Invalid number of billing periods" };
+
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
     lap("retrieveCheckoutAndCustomer");
     if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
@@ -208,7 +309,8 @@ export async function prepareSubscriptionSwap(
     const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
     const fiatRate = fiatRates![checkout.currencyCode ?? "USD"] ?? 1;
     const finalAmountUsdCents = checkout.finalAmount / fiatRate;
-    const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents);
+
+    const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents * periods);
 
     const { server } = getStellarConfig(checkout.environment);
     const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
@@ -224,7 +326,6 @@ export async function prepareSubscriptionSwap(
     const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
     const isSameAsset = swapSourceCode === selectedAssetCode && swapSourceIssuer === canonicalIssuer;
 
-    // Only pre-swap if the best path isn't already the canonical asset itself.
     if (isSameAsset) return { needsPreSwap: false };
 
     const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
