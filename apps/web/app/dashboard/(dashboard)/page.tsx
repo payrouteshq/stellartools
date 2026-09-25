@@ -46,19 +46,22 @@ import {
   cn,
 } from "@stellartools/shared-ui";
 import { ArrowUpRight, ChevronsUpDown } from "lucide-react";
+import moment from "moment";
 import Link from "next/link";
 
 type CurrencyItem = { code: string; name: string };
 
 const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
 
+const DEFAULT_PERIOD = 365;
+
 export default function DashboardPage() {
   const [countryOpen, setCountryOpen] = React.useState(false);
-  const [period, setPeriod] = useCookieState("dashboard_period", "30");
+  const [period, setPeriod] = useCookieState("dashboard_period", DEFAULT_PERIOD.toString());
 
   const { data: org } = useOrgContext();
 
-  const since = React.useMemo(() => new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000), [period]);
+  const since = moment().subtract(Number(period), "days").toDate();
 
   const { data: stats, isLoading: isStatsLoading } = useOrgQuery(
     ["overview-stats", period, org?.selectedCurrency],
