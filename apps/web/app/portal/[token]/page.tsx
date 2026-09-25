@@ -169,7 +169,10 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
       <main className="flex-1 overflow-auto">
         <MobileOrgHeader org={organization} />
         <div className="mx-auto max-w-2xl space-y-10 px-6 py-12">
-          {activeSubscriptions.map((sub) => (
+          {activeSubscriptions.map((sub) => {
+            const chargeAsset = payments.find((p) => p.subscriptionId === sub.id);
+
+            return (
             <section key={sub.id}>
               <SectionLabel>Current subscription</SectionLabel>
               <div className="border-border rounded-xl border px-5 py-4">
@@ -199,6 +202,21 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                     {sub.walletAddress && (
                       <p className="text-muted-foreground font-mono text-xs">
                         {truncate(sub.walletAddress, { start: 8, end: 8 })}
+                      </p>
+                    )}
+                    {chargeAsset?.selectedAssetCode && (
+                      <p className="text-muted-foreground text-xs">
+                        Charged in {chargeAsset.selectedAssetCode}
+                        {chargeAsset.selectedAssetIssuer && (
+                          <>
+                            {" "}
+                            (issuer{" "}
+                            <span className="font-mono">
+                              {truncate(chargeAsset.selectedAssetIssuer, { start: 6, end: 6 })}
+                            </span>
+                            ) — keep this exact asset funded to avoid missed renewals
+                          </>
+                        )}
                       </p>
                     )}
                   </div>
@@ -252,7 +270,8 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
                 </div>
               </div>
             </section>
-          ))}
+            );
+          })}
 
           <section data-testid="payment-methods">
             <SectionLabel>Payment methods</SectionLabel>
