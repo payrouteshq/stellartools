@@ -5,16 +5,22 @@ import { useState, useTransition } from "react";
 import { sendPortalOtp, verifyPortalOtp } from "@/actions/customers";
 import { StellarToolsIcon } from "@/components/icon";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useCookieState } from "@/hooks/use-cookie-state";
 import { Button, InputOTP, InputOTPGroup, InputOTPSlot, Spinner } from "@stellartools/shared-ui";
 import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type Org = { name: string; logoUrl: string | null } | null;
 
+const OTP_STEP_COOKIE_TTL = new Date(Date.now() + 60 * 60 * 1000);
+
 export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
   const router = useRouter();
-  const [step, setStep] = useState<"idle" | "sent">("idle");
-  const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
+  const [otpStep, setOtpStep] = useCookieState<{ step: "idle" | "sent"; maskedEmail: string | null }>(
+    `portal_otp_step_${token.slice(0, 20)}`,
+    { step: "idle", maskedEmail: null },
+    { expires: OTP_STEP_COOKIE_TTL, path: "/" }
+  );
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSending, startSend] = useTransition();
@@ -26,8 +32,7 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
       if ("error" in result) {
         setError(result.error);
       } else {
-        setMaskedEmail(result.maskedEmail);
-        setStep("sent");
+        setOtpStep({ step: "sent", maskedEmail: result.maskedEmail });
         setError(null);
       }
     });
@@ -40,6 +45,7 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
         setError(result.error);
         setCode("");
       } else {
+        setOtpStep({ step: "idle", maskedEmail: null });
         router.refresh();
       }
     });
@@ -78,7 +84,7 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
 
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="w-full max-w-sm space-y-6 text-center">
-            {step === "idle" ? (
+            {otpStep.step === "idle" ? (
               <>
                 <div>
                   <p className="text-foreground text-lg font-semibold">Verify your identity</p>
@@ -96,7 +102,8 @@ export function PortalAuthGate({ token, org }: { token: string; org: Org }) {
                 <div>
                   <p className="text-foreground text-lg font-semibold">Enter your code</p>
                   <p className="text-muted-foreground mt-1 text-sm">
-                    We sent a 6-digit code to <span className="text-foreground font-medium">{maskedEmail}</span>.
+                    We sent a 6-digit code to{" "}
+                    <span className="text-foreground font-medium">{otpStep.maskedEmail}</span>.
                   </p>
                 </div>
                 <div className="flex flex-col items-center gap-4">
