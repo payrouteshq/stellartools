@@ -13,9 +13,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useAction } from "@/hooks/use-action";
 import { AppError } from "@/lib/action-handler";
 import { truncate } from "@/lib/utils";
-import { AppModal, Badge, Button, Separator, Skeleton } from "@stellartools/shared-ui";
+import { AppModal, Badge, Button, Separator, Skeleton, toast } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, CheckCircle2, ChevronRight, Link2, Trash2, Wallet } from "lucide-react";
+import { Building2, ChevronRight, Link2, Trash2, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,14 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   React.useEffect(() => {
     if (data?.environment) wallet.setEnvironment(data.environment);
   }, [data?.environment]);
+
+  const walletAlreadyLinked = wallet.connected
+    ? (data?.wallets ?? []).some((w) => w.address === wallet.walletAddress)
+    : false;
+
+  React.useEffect(() => {
+    if (walletAlreadyLinked) toast.info("This wallet is already linked to your account");
+  }, [walletAlreadyLinked]);
 
   const activeSubscriptions =
     data?.subscriptions?.filter((s) => s.status === "active" || s.status === "trialing" || s.status === "paused") ?? [];
@@ -95,7 +103,6 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   if (!data?.customer) return null;
 
   const wallets = data.wallets ?? [];
-  const walletAlreadyLinked = wallet.connected ? wallets.some((w) => w.address === wallet.walletAddress) : false;
 
   return (
     <div className="bg-background flex min-h-screen flex-col">
@@ -162,41 +169,34 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
               </section>
             )}
 
-            <section>
-              <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
-                Connect a wallet
-              </p>
-              <div className="border-border rounded-xl border">
-                {wallet.connected ? (
-                  <div className="space-y-5 p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-full">
-                        <Wallet className="text-primary size-4" />
-                      </div>
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="text-foreground font-mono text-sm">
-                          {truncate(wallet.walletAddress, { start: 10, end: 10 })}
-                        </p>
-                        {walletAlreadyLinked ? (
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="text-primary size-3.5" />
-                            <p className="text-primary text-xs">Already linked to your account</p>
-                          </div>
-                        ) : (
+            {!(wallet.connected && walletAlreadyLinked) && (
+              <section>
+                <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+                  Connect a wallet
+                </p>
+                <div className="border-border rounded-xl border">
+                  {wallet.connected ? (
+                    <div className="space-y-5 p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-full">
+                          <Wallet className="text-primary size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="text-foreground font-mono text-sm">
+                            {truncate(wallet.walletAddress, { start: 10, end: 10 })}
+                          </p>
                           <p className="text-muted-foreground text-xs">Ready to link</p>
-                        )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground shrink-0 text-xs"
+                          onClick={wallet.disconnect}
+                        >
+                          Disconnect
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground shrink-0 text-xs"
-                        onClick={wallet.disconnect}
-                      >
-                        Disconnect
-                      </Button>
-                    </div>
 
-                    {!walletAlreadyLinked && (
                       <Button
                         className="w-full"
                         onClick={() => linkWallet(wallet.walletAddress)}
@@ -206,31 +206,31 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
                         <Link2 className="mr-2 size-4" />
                         Link this wallet
                       </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
-                    <div className="bg-muted flex size-12 items-center justify-center rounded-full">
-                      <Wallet className="text-muted-foreground size-5" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-foreground text-sm font-medium">Connect a Stellar wallet</p>
-                      <p className="text-muted-foreground max-w-xs text-sm">
-                        Link your Stellar wallet to manage subscriptions and make payments.
-                      </p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
+                      <div className="bg-muted flex size-12 items-center justify-center rounded-full">
+                        <Wallet className="text-muted-foreground size-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-foreground text-sm font-medium">Connect a Stellar wallet</p>
+                        <p className="text-muted-foreground max-w-xs text-sm">
+                          Link your Stellar wallet to manage subscriptions and make payments.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => wallet.connect(() => {})}
+                        isLoading={wallet.isLoading}
+                        disabled={wallet.isLoading}
+                      >
+                        <Wallet className="mr-2 size-4" />
+                        Connect wallet
+                      </Button>
                     </div>
-                    <Button
-                      onClick={() => wallet.connect(() => {})}
-                      isLoading={wallet.isLoading}
-                      disabled={wallet.isLoading}
-                    >
-                      <Wallet className="mr-2 size-4" />
-                      Connect wallet
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </section>
+                  )}
+                </div>
+              </section>
+            )}
 
             <Separator />
 
