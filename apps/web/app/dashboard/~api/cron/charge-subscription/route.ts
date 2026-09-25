@@ -84,16 +84,24 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
     }
 
     let chargeRes: Awaited<ReturnType<typeof soroban$chargeSubscription>> | undefined;
+    // The known/primary wallet is tried first and is almost always the one
+    // actually bound to the on-chain subscription — surface its error even if
+    // later fallback attempts against the customer's other wallets also fail,
+    // or their unrelated "subscription not found" errors mask the real one.
+    let firstErrorMessage: string | undefined;
     for (const address of walletAddresses) {
       walletAddress = address;
       chargeRes = await soroban$chargeSubscription(env, address, merchantPublicKey, productId, chargeRaw);
       if (chargeRes.isOk()) break;
+      firstErrorMessage ??= chargeRes.error.message;
     }
 
     if (!chargeRes) return { status: "error", subId, error: "Customer wallet not found" };
     const chargedWalletAddress = walletAddress!;
 
     if (chargeRes.isErr()) {
+      const failureReason = firstErrorMessage ?? chargeRes.error.message;
+
       await runAtomic(async () => {
         await putSubscription(subId, { status: "past_due" }, orgId, env);
         await postPayment(
@@ -110,7 +118,7 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
             transactionHash: `failed_${subId}_${Date.now()}`,
             status: "failed",
             metadata: null,
-            failureReason: chargeRes.error.message,
+            failureReason,
           },
           orgId,
           env,
@@ -135,11 +143,11 @@ async function processSingleSubscription(sub: ResolvedSubscription) {
         return {
           status: "failed",
           subId,
-          error: `Overdue after ${MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE} consecutive failed charges: ${chargeRes.error.message}`,
+          error: `Overdue after ${MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE} consecutive failed charges: ${failureReason}`,
         };
       }
 
-      return { status: "failed", subId, error: chargeRes.error.message };
+      return { status: "failed", subId, error: failureReason };
     }
 
     // 4. PARSE ON-CHAIN SUCCESS. The charge already settled on-chain, so from
