@@ -29,9 +29,7 @@ import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { SubscriptionData } from "@stellartools/core";
 import Big from "big.js";
-import moment from "moment";
 
-/** Stellar max transaction lifetime (7 days). */
 const STELLAR_MAX_TX_TIMEOUT_SEC = 604_800;
 
 const MIN_CHECKOUT_TX_TIMEOUT_SEC = 120;
@@ -166,36 +164,35 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };
 
-export async function prepareSubscriptionApproval(
+export async function prepareSubscriptionSwap(
   checkoutId: string,
   customerAddress: string,
   selectedAssetCode: string,
   selectedAssetIssuer: string | null
-): Promise<
-  | {
-      xdr: string;
-      startXdr: string;
-      periodStart: string;
-      periodEnd: string;
-      needsPreSwap: boolean;
-      preSwapXdr?: string;
-    }
-  | { error: string }
-> {
+): Promise<{ needsPreSwap: boolean; preSwapXdr?: string } | { error: string }> {
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[timing:prepareSubscriptionSwap] ${label}: ${Date.now() - t0}ms`);
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    lap("retrieveCheckoutAndCustomer");
     if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
     if (checkout.status !== "open") return { error: "Checkout is no longer open" };
     if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
     if (!selectedAssetCode) return { error: "No payment asset selected" };
     if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
 
-    const existingSub = await soroban$retrieveSubscription(
-      checkout.environment,
-      customerAddress,
-      checkout.merchantPublicKey,
-      checkout.productId
-    );
+    const canonicalIssuer = selectedAssetIssuer;
+    if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
+      return { error: `No canonical issuer available for ${selectedAssetCode}` };
+    }
+
+    // Neither call depends on the other's result, so run them concurrently
+    // instead of paying for both round trips back to back.
+    const [existingSub, fiatRates] = await Promise.all([
+      soroban$retrieveSubscription(checkout.environment, customerAddress, checkout.merchantPublicKey, checkout.productId),
+      canonicalIssuer ? getFiatRates() : Promise.resolve(undefined),
+    ]);
+    lap("soroban$retrieveSubscription+getFiatRates");
     if (existingSub.isOk()) {
       const status = existingSub.value.status;
       if (status === "active" || status === "paused") {
@@ -203,25 +200,90 @@ export async function prepareSubscriptionApproval(
       }
     }
 
+    if (!canonicalIssuer) return { needsPreSwap: false };
+
     const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
+    const fiatRate = fiatRates![checkout.currencyCode ?? "USD"] ?? 1;
+    const finalAmountUsdCents = checkout.finalAmount / fiatRate;
+    const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents);
+
+    const { server } = getStellarConfig(checkout.environment);
+    const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
+    const pathsResult = await server.strictReceivePaths(customerAddress, destAssetForPath, neededStellarAmount).call();
+    lap("strictReceivePaths");
+
+    if (pathsResult.records.length === 0) {
+      return { error: `No payment route found. Add USDC or XLM to your wallet to continue.` };
+    }
+
+    const best = pathsResult.records[0] as any;
+    const swapSourceCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
+    const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
+    const isSameAsset = swapSourceCode === selectedAssetCode && swapSourceIssuer === canonicalIssuer;
+
+    // Only pre-swap if the best path isn't already the canonical asset itself.
+    if (isSameAsset) return { needsPreSwap: false };
+
+    const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
+    const swapIntermediates = (best.path ?? []).map((p: any) =>
+      p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
+    );
+    const preSwapXdr = await buildPreSwapXdr({
+      customerPublicKey: customerAddress,
+      sendAssetCode: swapSourceCode,
+      sendAssetIssuer: swapSourceIssuer,
+      destAssetCode: selectedAssetCode,
+      canonicalIssuer,
+      neededStellarAmount,
+      sendMax: swapSendMax,
+      path: swapIntermediates,
+      network: checkout.environment,
+      timeoutSeconds: txTimeout,
+    });
+    lap("buildPreSwapXdr");
+
+    return { needsPreSwap: true, preSwapXdr };
+  } catch (e: any) {
+    lap(`threw: ${e.message}`);
+    return { error: e.message ?? "Failed to prepare swap" };
+  }
+}
+
+export async function prepareSubscriptionApproval(
+  checkoutId: string,
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null
+): Promise<{ xdr: string } | { error: string }> {
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[timing:prepareSubscriptionApproval] ${label}: ${Date.now() - t0}ms`);
+  try {
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    lap("retrieveCheckoutAndCustomer");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+    if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
+    if (!selectedAssetCode) return { error: "No payment asset selected" };
+    if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
+
+    // The existing-subscription check already ran in prepareSubscriptionSwap
+    // moments earlier in this same checkout flow — no need to repeat it here.
 
     const canonicalIssuer = selectedAssetIssuer;
     if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
       return { error: `No canonical issuer available for ${selectedAssetCode}` };
     }
 
-    const fiatRates = await getFiatRates();
-    const fiatRate = fiatRates[checkout.currencyCode ?? "USD"] ?? 1;
-    const finalAmountUsdCents = checkout.finalAmount / fiatRate;
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
     const { amountRaw } = await Money.calculateSubscriptionAmount({
       priceCents: checkout.finalAmount,
       currencyCode: checkout.currencyCode ?? "USD",
       assetMetadata: { usdPeg: true },
     });
+    lap("Money.calculateSubscriptionAmount");
     if (amountRaw <= BigInt(0)) return { error: `Unable to price subscription in ${selectedAssetCode}` };
 
-    const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents);
     const totalAllowance = amountRaw * BigInt(200);
 
     const tokenContractId = await retrieveAssetContractId(
@@ -229,56 +291,7 @@ export async function prepareSubscriptionApproval(
       canonicalIssuer ?? "",
       checkout.environment
     );
-
-    let needsPreSwap = false;
-    let preSwapXdr: string | undefined;
-
-    if (canonicalIssuer) {
-      const { server } = getStellarConfig(checkout.environment);
-      const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
-      const pathsResult = await server
-        .strictReceivePaths(customerAddress, destAssetForPath, neededStellarAmount)
-        .call();
-
-      if (pathsResult.records.length === 0) {
-        return { error: `No payment route found. Add USDC or XLM to your wallet to continue.` };
-      }
-
-      const best = pathsResult.records[0] as any;
-      const swapSourceCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
-      const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
-      const isSameAsset = swapSourceCode === selectedAssetCode && swapSourceIssuer === canonicalIssuer;
-
-      // Only pre-swap if the best path isn't already the canonical asset itself.
-      needsPreSwap = !isSameAsset;
-      if (needsPreSwap) {
-        const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
-        const swapIntermediates = (best.path ?? []).map((p: any) =>
-          p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
-        );
-        preSwapXdr = await buildPreSwapXdr({
-          customerPublicKey: customerAddress,
-          sendAssetCode: swapSourceCode,
-          sendAssetIssuer: swapSourceIssuer,
-          destAssetCode: selectedAssetCode,
-          canonicalIssuer,
-          neededStellarAmount,
-          sendMax: swapSendMax,
-          path: swapIntermediates,
-          network: checkout.environment,
-          timeoutSeconds: txTimeout,
-        });
-      }
-    }
-
-    const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
-    if (!durationMs) return { error: "Invalid subscription billing period" };
-
-    const trialDays =
-      (checkout.subscriptionData as { trial_days?: number } | null)?.trial_days ??
-      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
-    const periodStart = new Date();
-    const periodEnd = trialDays > 0 ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
+    lap("retrieveAssetContractId");
 
     const xdrResult = await soroban$buildSubscriptionApprovalXdr(checkout.environment, {
       customerAddress,
@@ -286,8 +299,68 @@ export async function prepareSubscriptionApproval(
       amount: totalAllowance,
       timeoutSeconds: txTimeout,
     });
+    lap("buildSubscriptionApprovalXdr");
 
     if (xdrResult.isErr()) return { error: xdrResult.error.message };
+
+    return { xdr: xdrResult.value };
+  } catch (e: any) {
+    lap(`threw: ${e.message}`);
+    return { error: e.message ?? "Failed to prepare approval" };
+  }
+}
+
+/**
+ * Builds the `start` transaction. Must be called *after* the approval
+ * transaction has confirmed on-chain — building it any earlier reads the same
+ * account sequence number the approval already consumed, and the wallet's
+ * submission gets rejected as tx_bad_seq.
+ */
+export async function prepareSubscriptionStart(
+  checkoutId: string,
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null
+): Promise<{ startXdr: string } | { error: string }> {
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[timing:prepareSubscriptionStart] ${label}: ${Date.now() - t0}ms`);
+  try {
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    lap("retrieveCheckoutAndCustomer");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+    if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
+    if (!selectedAssetCode) return { error: "No payment asset selected" };
+    if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
+
+    const canonicalIssuer = selectedAssetIssuer;
+    if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
+      return { error: `No canonical issuer available for ${selectedAssetCode}` };
+    }
+
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
+
+    const { amountRaw } = await Money.calculateSubscriptionAmount({
+      priceCents: checkout.finalAmount,
+      currencyCode: checkout.currencyCode ?? "USD",
+      assetMetadata: { usdPeg: true },
+    });
+    lap("Money.calculateSubscriptionAmount");
+    if (amountRaw <= BigInt(0)) return { error: `Unable to price subscription in ${selectedAssetCode}` };
+
+    const tokenContractId = await retrieveAssetContractId(
+      selectedAssetCode,
+      canonicalIssuer ?? "",
+      checkout.environment
+    );
+    lap("retrieveAssetContractId");
+
+    const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
+    if (!durationMs) return { error: "Invalid subscription billing period" };
+
+    const trialDays =
+      (checkout.subscriptionData as { trial_days?: number } | null)?.trial_days ??
+      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
 
     const startXdrResult = await soroban$buildSubscriptionStartXdr(checkout.environment, {
       customerAddress,
@@ -298,19 +371,14 @@ export async function prepareSubscriptionApproval(
       durationMs: trialDays > 0 ? trialDays * MS_PER_DAY : durationMs,
       timeoutSeconds: txTimeout,
     });
+    lap("buildSubscriptionStartXdr");
 
     if (startXdrResult.isErr()) return { error: startXdrResult.error.message };
 
-    return {
-      xdr: xdrResult.value,
-      startXdr: startXdrResult.value,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      needsPreSwap,
-      preSwapXdr,
-    };
+    return { startXdr: startXdrResult.value };
   } catch (e: any) {
-    return { error: e.message ?? "Failed to prepare approval" };
+    lap(`threw: ${e.message}`);
+    return { error: e.message ?? "Failed to prepare start" };
   }
 }
 

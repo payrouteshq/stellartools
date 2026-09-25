@@ -10,7 +10,13 @@ import {
 import { postPayment, sweepAndProcessPayment } from "@/actions/payment";
 import { TxStatus, useWallet } from "@/contexts/wallet-context";
 import { AppError, execute } from "@/lib/action-handler";
-import { buildOneTimePaymentXdr, finalizeSubscriptionCheckout, prepareSubscriptionApproval } from "@/lib/checkout-tx";
+import {
+  buildOneTimePaymentXdr,
+  finalizeSubscriptionCheckout,
+  prepareSubscriptionApproval,
+  prepareSubscriptionStart,
+  prepareSubscriptionSwap,
+} from "@/lib/checkout-tx";
 import { Money } from "@/lib/money";
 import { getUsdcIssuers } from "@/lib/usdc";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -204,6 +210,20 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
       wallet.setTxStatus(TxStatus.BUILDING);
 
       if (checkout.productType === "subscription") {
+        const swapPrep = await prepareSubscriptionSwap(
+          checkoutId,
+          wallet.walletAddress,
+          selectedAsset.code,
+          selectedAsset.canonicalIssuer
+        );
+        if ("error" in swapPrep) throw new AppError("INTERNAL_ERROR", swapPrep.error);
+
+        if (swapPrep.needsPreSwap && swapPrep.preSwapXdr) {
+          toast.info("Swapping tokens...");
+          const swapRes = await wallet.signAndSubmit(new Transaction(swapPrep.preSwapXdr, network));
+          if (swapRes?.status !== "SUCCESS") throw new AppError("INTERNAL_ERROR", "Swap failed");
+        }
+
         const prep = await prepareSubscriptionApproval(
           checkoutId,
           wallet.walletAddress,
@@ -211,12 +231,6 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           selectedAsset.canonicalIssuer
         );
         if ("error" in prep) throw new AppError("INTERNAL_ERROR", prep.error);
-
-        if (prep.needsPreSwap && prep.preSwapXdr) {
-          toast.info("Swapping tokens...");
-          const res = await wallet.signAndSubmit(new Transaction(prep.preSwapXdr, network));
-          if (res?.status !== "SUCCESS") throw new AppError("INTERNAL_ERROR", "Swap failed");
-        }
 
         const approvalRes = await wallet.signAndSubmit(new Transaction(prep.xdr, network));
         if (approvalRes?.status !== "SUCCESS") {
@@ -227,11 +241,16 @@ export const CheckoutProvider = ({ checkoutId, children }: { checkoutId: string;
           return;
         }
 
-        // The contract requires the customer's own authorization to open a
-        // subscription, so this is a second signature from the same wallet —
-        // not something the backend can do on the customer's behalf.
+        const startPrep = await prepareSubscriptionStart(
+          checkoutId,
+          wallet.walletAddress,
+          selectedAsset.code,
+          selectedAsset.canonicalIssuer
+        );
+        if ("error" in startPrep) throw new AppError("INTERNAL_ERROR", startPrep.error);
+
         toast.info("Confirm opening your subscription...");
-        const startRes = await wallet.signAndSubmit(new Transaction(prep.startXdr, network));
+        const startRes = await wallet.signAndSubmit(new Transaction(startPrep.startXdr, network));
         if (startRes?.status === "SUCCESS") {
           const result = await finalizeSubscriptionCheckout(
             checkoutId,
