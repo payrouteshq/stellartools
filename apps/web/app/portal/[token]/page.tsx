@@ -12,7 +12,7 @@ import { truncate } from "@/lib/utils";
 import { ApiClient } from "@stellartools/core";
 import { AppModal, Badge, Button, Skeleton } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Building2, Edit2, Plus, Wallet } from "lucide-react";
+import { Edit2, Plus, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 
@@ -163,11 +163,10 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   const activeWalletIds = new Set(activeSubscriptions.map((s) => s.customerWalletId).filter(Boolean));
 
   return (
-    <div className="bg-background flex min-h-screen">
-      <PortalSidebar org={organization} />
+    <div className="bg-background flex min-h-screen flex-col">
+      <PortalHeader org={organization} />
 
       <main className="flex-1 overflow-auto">
-        <MobileOrgHeader org={organization} />
         <div className="mx-auto max-w-2xl space-y-10 px-6 py-12">
           {activeSubscriptions.map((sub) => {
             const chargeAsset = payments.find((p) => p.subscriptionId === sub.id);
@@ -380,58 +379,16 @@ export default function PortalPage({ params }: { params: Promise<{ token: string
   );
 }
 
-function PortalSidebar({ org }: { org: Organization | null }) {
-  const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
-
+function PortalHeader({ org }: { org: Organization | null }) {
   return (
-    <aside className="border-border bg-background hidden w-70 shrink-0 flex-col border-r px-8 py-10 md:flex!">
-      <div className="mb-6 flex items-center gap-3">
-        {org?.logoUrl ? (
-          <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
-        ) : (
-          <Building2 className="text-foreground size-8" />
-        )}
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
-        </div>
-      </div>
-
-      {org?.name && (
-        <p className="text-foreground mb-auto text-sm leading-relaxed">
-          {org.name} partners with StellarTools for simplified billing.
-        </p>
-      )}
-
-      <div className="mt-10 flex items-center justify-between">
-        {websiteUrl ? (
-          <Link
-            href={websiteUrl}
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
-          >
-            <ArrowLeft className="size-3.5 shrink-0" />
-            Return to {org?.name}
-          </Link>
-        ) : (
-          <span />
-        )}
-        <ModeToggle />
-      </div>
-    </aside>
-  );
-}
-
-function MobileOrgHeader({ org }: { org: Organization | null }) {
-  return (
-    <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
+    <div className="border-border flex items-center justify-between border-b px-4 py-3">
       <div className="flex items-center gap-2.5">
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
         ) : (
           <StellarToolsIcon width={24} height={24} className="shrink-0 object-contain" />
         )}
-        <div className="flex flex-col gap-0.5">
-          <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
-        </div>
+        <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
       </div>
       <ModeToggle />
     </div>
