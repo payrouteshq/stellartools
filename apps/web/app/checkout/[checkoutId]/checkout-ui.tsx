@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckoutSkeleton } from "@/app/checkout/[checkoutId]/checkout-skeleton";
+import { SubscriptionPeriodsModal } from "@/app/checkout/[checkoutId]/subscription-periods-modal";
 import { formatPeriod } from "@/app/dashboard/(dashboard)/subscriptions/_shared";
 import { TestModeBanner } from "@/components/environment-mode";
 import { AnimatedCheckmark, StellarToolsIcon } from "@/components/icon";
@@ -67,6 +68,7 @@ export default function CheckoutUI() {
 
   return (
     <div className="bg-background flex min-h-screen flex-col">
+      <SubscriptionPeriodsModal />
       {banner.show && checkout.environment === "testnet" && <TestModeBanner />}
 
       <div

@@ -108,7 +108,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     else return Networks.PUBLIC;
   }, [environment]);
 
-  const stellarRpc = React.useMemo(() => (rpcUrl ? new rpc.Server(rpcUrl) : null), [rpcUrl]);
+  const stellarRpc = React.useMemo(() => (rpcUrl ? new rpc.Server(rpcUrl, { timeout: 15_000 }) : null), [rpcUrl]);
 
   async function handleSetWalletAddress(): Promise<boolean> {
     try {

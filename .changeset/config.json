@@ -17,6 +17,7 @@
     "@dtc/backend",
     "@dtc/storefront",
     "@stellartools/app-posthog",
-    "@stellartools/example-nextjs"
+    "@stellartools/example-nextjs",
+    "@stellartools/subscription-contract"
   ]
 }

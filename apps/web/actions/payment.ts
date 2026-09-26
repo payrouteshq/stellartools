@@ -260,19 +260,48 @@ export const postPayment = async (
 
   return await paymentActionHandler(
     async () => {
+      const values = {
+        ...params,
+        id: generateResourceId("pay", organizationId, 25),
+        organizationId,
+        environment,
+        customerWalletId,
+        metadata: params.metadata ?? null,
+        ...(options?.failErrorMessage ? { failureReason: options.failErrorMessage } : {}),
+      };
+
+      // tx_hash is unique, the same transaction can be reported more than
+      // once (a race between a premature "not found yet" sweep and a later
+      // correct one, a retried webhook, etc). Reconcile instead of crashing,
+      // but never let a stale/duplicate report downgrade an already-confirmed
+      // payment, and skip re-running confirm side effects on a no-op repeat.
       const [payment] = await db
         .insert(payments)
-        .values({
-          ...params,
-          id: generateResourceId("pay", organizationId, 25),
-          organizationId,
-          environment,
-          customerWalletId,
-          metadata: params.metadata ?? null,
-          ...(options?.failErrorMessage ? { failureReason: options.failErrorMessage } : {}),
+        .values(values)
+        .onConflictDoUpdate({
+          target: payments.transactionHash,
+          set: {
+            status: values.status,
+            cryptoAmount: values.cryptoAmount,
+            selectedAssetCode: values.selectedAssetCode,
+            selectedAssetIssuer: values.selectedAssetIssuer,
+            failureReason: values.failureReason ?? null,
+            metadata: values.metadata,
+            customerWalletId: values.customerWalletId,
+            updatedAt: new Date(),
+          },
+          where: sql`${payments.status} <> 'confirmed'`,
         })
         .returning();
-      return payment;
+
+      if (payment) return payment;
+
+      const [existing] = await db
+        .select()
+        .from(payments)
+        .where(eq(payments.transactionHash, values.transactionHash))
+        .limit(1);
+      return existing;
     },
     organizationId,
     environment

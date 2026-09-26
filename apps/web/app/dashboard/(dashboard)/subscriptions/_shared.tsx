@@ -65,14 +65,31 @@ export const formatPeriod = (
   if (recurringPeriod === "custom" && customDurationMs) {
     const MS_MONTH = 2592000000,
       MS_WEEK = 604800000,
-      MS_DAY = 86400000;
-    const qty =
-      customDurationMs % MS_MONTH === 0
-        ? customDurationMs / MS_MONTH
-        : customDurationMs % MS_WEEK === 0
-          ? customDurationMs / MS_WEEK
-          : Math.round(customDurationMs / MS_DAY);
-    const unit = customDurationMs % MS_MONTH === 0 ? "month" : customDurationMs % MS_WEEK === 0 ? "week" : "day";
+      MS_DAY = 86400000,
+      MS_HOUR = 3600000,
+      MS_MINUTE = 60000;
+
+    let qty: number;
+    let unit: string;
+    if (customDurationMs % MS_MONTH === 0) {
+      qty = customDurationMs / MS_MONTH;
+      unit = "month";
+    } else if (customDurationMs % MS_WEEK === 0) {
+      qty = customDurationMs / MS_WEEK;
+      unit = "week";
+    } else if (customDurationMs % MS_DAY === 0) {
+      qty = customDurationMs / MS_DAY;
+      unit = "day";
+    } else if (customDurationMs % MS_HOUR === 0) {
+      qty = customDurationMs / MS_HOUR;
+      unit = "hour";
+    } else if (customDurationMs % MS_MINUTE === 0) {
+      qty = customDurationMs / MS_MINUTE;
+      unit = "minute";
+    } else {
+      qty = Math.round(customDurationMs / MS_DAY);
+      unit = "day";
+    }
     return `every ${qty} ${unit}${qty !== 1 ? "s" : ""}`;
   }
   return recurringPeriod;
@@ -99,9 +116,13 @@ export const SubscriptionStatusBadge = ({
   canceledAt?: Date | string | null;
 }) => {
   if (cancelAtPeriodEnd && status !== "canceled" && currentPeriodEnd) {
+    // The actual on-chain cancel only runs via the hourly cron, so once the
+    // period end has passed there can be a lag before status flips to
+    // "canceled". Show that as in-progress rather than a stale future date.
+    const isOverdue = moment(currentPeriodEnd).isBefore(moment());
     return (
       <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive gap-1.5">
-        Cancels on {moment(currentPeriodEnd).format("MMM D, YYYY")}
+        {isOverdue ? "Canceling..." : `Cancels on ${moment(currentPeriodEnd).format("MMM D, YYYY")}`}
       </Badge>
     );
   }
