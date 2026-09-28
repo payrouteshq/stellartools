@@ -1,0 +1,69 @@
+---
+title: "GoHighLevel"
+description: "Accept Stellar-native payments as a Custom Payments Integration on GoHighLevel"
+---
+
+StellarTools plugs into GoHighLevel as a [Custom Payments Provider](https://help.gohighlevel.com/support/solutions/articles/155000002620-how-to-build-a-custom-payments-integration-on-the-platform). Once connected, **StellarTools** appears as a payment option in Payments > Integrations on a sub-account, and customers pay with USDC, EURC, or XLM on checkout.
+
+GoHighLevel has no plugin file or SDK to install — it's fully SaaS-hosted, so nobody runs their
+own server for this. StellarTools hosts one backend, permanently, that GoHighLevel calls
+directly; a merchant "installs" it the same way they'd install any Marketplace app.
+
+Connecting an account is two installs, not one — this is what makes setup a couple of clicks instead of copying API keys around:
+
+1. **GoHighLevel app** — a Marketplace app the agency installs on a sub-account (location). This is the piece GoHighLevel actually talks to: it hosts the payment iframe and answers GoHighLevel's `verify`/`charge`/`refund` requests.
+2. **GoHighLevel connector** — a StellarTools Marketplace app the org installs from inside their StellarTools dashboard. It's a single "Connect GoHighLevel" button that pairs the two sides automatically, so nobody has to find and paste a secret API key.
+
+## Requirements
+
+- A [StellarTools account](https://dashboard.stellartools.dev/signup)
+- A GoHighLevel agency account with access to Marketplace app installs
+
+## Getting started, end to end
+
+This is the path from nothing to a working payment on a test sub-account.
+
+1. **Create a StellarTools account** at [dashboard.stellartools.dev/signup](https://dashboard.stellartools.dev/signup) if you don't have one. Note whether you're in test or live mode — that's what decides which slot (test or live) gets connected later.
+2. **Create the GoHighLevel Marketplace app**, once, at [marketplace.gohighlevel.com](https://marketplace.gohighlevel.com): scopes, redirect URL, and Payment Provider entry as listed under [App configuration](#app-configuration) below. Start it as a **Private** app — private apps install and work on your own sub-accounts immediately, with no HighLevel review. This is the "have they approved it yet" question below.
+3. **Register the StellarTools Marketplace app** ("GoHighLevel connector") from the StellarTools side, so it shows up under a StellarTools org's Marketplace tab.
+4. **Install on a GoHighLevel sub-account.** Either:
+   - From the StellarTools dashboard: open the **GoHighLevel** app in the Marketplace, click **Connect GoHighLevel**, pick the sub-account, approve scopes. You're redirected back once connected — no API key to copy.
+   - Or manually: install the app directly from GoHighLevel (or a direct install link, while private), then open **Payments > Integrations > Manage Integration** on that location and paste a StellarTools secret key. Validated against the matching network (test keys must be testnet, live keys mainnet) before saving.
+5. **Set StellarTools as the default provider** on that sub-account's Payments > Integrations page.
+6. **Send a test payment** through a GoHighLevel checkout/invoice on that sub-account. The iframe loads StellarTools' own checkout UI; on completion GoHighLevel gets notified and marks it paid.
+
+## Do they need to approve the app first?
+
+Two different things are gated, and only one needs HighLevel's review:
+
+- **Testing it yourself, on your own sub-accounts** — no review needed. Create the app as **Private** distribution in the developer portal; private apps install and run immediately on accounts you control (HighLevel also offers a dedicated Sandbox/App Test account for this). This is enough to build, test, and use the integration in a real workflow today.
+- **Letting other agencies find and install it** — requires switching the app to **Public**, which puts it through HighLevel's review (they've reported ~10 business days: a working integration, a logo/description, a support contact, and pricing info if it's paid). Only after that does it appear in the Marketplace for anyone else.
+
+So: nothing blocks building and testing this right now. Publishing publicly is a separate, later step.
+
+## How it works
+
+- **Checkout**: GoHighLevel loads `checkout.stellartools.dev/ghl/checkout` in an iframe on its checkout pages. That page creates a StellarTools checkout for the order amount and renders the same checkout UI customers see anywhere else on StellarTools — nothing custom-built for GoHighLevel. Once the customer pays, GoHighLevel is notified and marks the order paid.
+- **Refunds**: issued from GoHighLevel call back into StellarTools. Refunds are full-refund only — StellarTools doesn't support partial refunds, so a partial refund request is rejected with a clear message instead of over-refunding.
+- **Subscriptions**: StellarTools payments are customer-signed on-chain transactions, so there's no saved card to silently charge on a schedule. A subscription created in GoHighLevel is stored as a schedule; on each billing date a fresh checkout is generated for the customer to complete, and GoHighLevel is notified once it's paid. There are no saved payment methods for one-off repeat charges either.
+
+## App configuration
+
+Values for the Marketplace app at `marketplace.gohighlevel.com`, where `<APP_URL>` is wherever
+`apps/marketplace-apps/gohighlevel` is deployed and `<WEB_URL>` is `checkout.stellartools.dev`
+(or wherever `apps/web` is deployed):
+
+| Field | Value |
+|---|---|
+| Redirect URL | `<APP_URL>/install` |
+| Install/uninstall webhook | `<APP_URL>/api/ghl/lifecycle` |
+| queryUrl | `<APP_URL>/api/ghl/query` |
+| paymentsUrl | `<WEB_URL>/ghl/checkout` |
+| Scopes | `payments/orders.readonly`, `payments/orders.write`, `payments/subscriptions.readonly`, `payments/transactions.readonly`, `payments/custom-provider.readonly`, `payments/custom-provider.write`, `products.readonly`, `products/prices.readonly` |
+
+## Reference
+
+The UI lives in `apps/web`; the backend that GoHighLevel actually talks to is its own app.
+
+- `apps/web/app/ghl/*`, `apps/web/app/api/ghl/*` — the checkout iframe, the manual config page, the post-connect confirmation, and same-origin proxies into the backend below.
+- `apps/marketplace-apps/gohighlevel` — the backend: OAuth install, `queryUrl`, the StellarTools webhook relay, the renewal cron, and the StellarTools-embedded "Connect GoHighLevel" button (same mechanism as the `loops`/`resend`/`posthog` marketplace apps).

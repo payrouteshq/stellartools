@@ -1,5 +1,6 @@
 import {
   AppInstallationSettings,
+  HandlerError,
   Network,
   z as Schema,
   WebhookEvent,
@@ -8,8 +9,9 @@ import {
   WebhookObjectMap,
   WebhookSigner,
   parseJSON,
+  routeHandler,
 } from "@stellartools/core";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { PostHog } from "posthog-node";
 
 type WebhookHandlers = {
@@ -113,7 +115,7 @@ const HANDLERS: WebhookHandlers = {
   },
 };
 
-export async function POST(req: NextRequest) {
+export const POST = routeHandler<NextRequest>(async (req) => {
   const rawBody = await req.text();
   const signature = req.headers.get("x-stellartools-signature") ?? "";
 
@@ -122,7 +124,7 @@ export async function POST(req: NextRequest) {
   try {
     signer.constructEvent(rawBody, signature, process.env.POSTHOG_APP_SECRET!);
   } catch {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    throw new HandlerError("Invalid signature", 401);
   }
 
   const { event, settings } = parseJSON<{ event: WebhookEvent; settings: AppInstallationSettings }>(
@@ -130,42 +132,38 @@ export async function POST(req: NextRequest) {
     Schema.object({ event: Schema.any(), settings: Schema.any() })
   );
 
+  const projectToken = settings["posthogProjectToken"] as string | undefined;
+  if (!projectToken) throw new HandlerError("No project token configured", 404);
+
+  const handler = HANDLERS[event.type] as
+    | ((event: WebhookEvent, track: (event: string, properties: Record<string, unknown>) => void) => Promise<void>)
+    | undefined;
+
+  if (!handler) throw new HandlerError("No handler for event type", 404);
+
+  const environment: Network = event.livemode ? "mainnet" : "testnet";
+
+  const posthog = new PostHog(projectToken, { flushAt: 1, flushInterval: 0 });
+
+  const track = (eventName: string, properties: Record<string, unknown>) => {
+    const distinctId = String(properties.stellartools_customer_id ?? "anonymous");
+    const $set: Record<string, unknown> = {};
+    if (properties.email != null) $set.email = properties.email;
+    if (properties.name != null) $set.name = properties.name;
+    posthog.capture({
+      distinctId,
+      event: eventName,
+      properties: { ...properties, environment, ...(Object.keys($set).length ? { $set } : {}) },
+    });
+  };
+
   try {
-    const projectToken = settings["posthogProjectToken"] as string | undefined;
-    if (!projectToken) {
-      return NextResponse.json({ error: "No project token configured" }, { status: 404 });
-    }
-
-    const handler = HANDLERS[event.type] as
-      | ((event: WebhookEvent, track: (event: string, properties: Record<string, unknown>) => void) => Promise<void>)
-      | undefined;
-
-    if (!handler) {
-      return NextResponse.json({ error: "No handler for event type" }, { status: 404 });
-    }
-
-    const environment: Network = event.livemode ? "mainnet" : "testnet";
-
-    const posthog = new PostHog(projectToken, { flushAt: 1, flushInterval: 0 });
-
-    const track = (eventName: string, properties: Record<string, unknown>) => {
-      const distinctId = String(properties.stellartools_customer_id ?? "anonymous");
-      const $set: Record<string, unknown> = {};
-      if (properties.email != null) $set.email = properties.email;
-      if (properties.name != null) $set.name = properties.name;
-      posthog.capture({
-        distinctId,
-        event: eventName,
-        properties: { ...properties, environment, ...(Object.keys($set).length ? { $set } : {}) },
-      });
-    };
-
     await handler(event, track);
     await posthog.shutdown();
-
-    return NextResponse.json({ ok: true });
-  } catch (err: unknown) {
+  } catch (err) {
     console.error("[PostHog Webhook Error]:", err);
-    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
+    throw new HandlerError("Processing failed", 500);
   }
-}
+
+  return { ok: true };
+});

@@ -89,4 +89,5 @@ export * from "./schema/webhooks";
 export * from "./schema/app-installation";
 export * from "./jwt";
 export { SignatureVerificationError } from "./errors";
+export { HandlerError, routeHandler } from "./api-handler";
 export * from "./versioning";

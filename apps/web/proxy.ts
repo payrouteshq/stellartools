@@ -9,13 +9,17 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 
   let prefix = "/api";
 
-  if (url.pathname.includes("/~api/cron")) {
-    prefix = "/dashboard";
-  }
-
   const apiHosts = process.env.NEXT_PUBLIC_API_URL?.split(",").map((url) => new URL(url.trim()).host) ?? [];
 
-  if (apiHosts.includes(host)) {
+  if (
+    url.pathname.startsWith("/ghl") ||
+    url.pathname.startsWith("/api") ||
+    url.pathname.startsWith("/payout-provider")
+  ) {
+    prefix = "";
+  } else if (url.pathname.includes("/~api/cron")) {
+    prefix = "/dashboard";
+  } else if (apiHosts.includes(host)) {
     prefix = "/api";
   } else if (process.env.NEXT_PUBLIC_INVOICE_URL && host === new URL(process.env.NEXT_PUBLIC_INVOICE_URL).host) {
     prefix = "/invoice";

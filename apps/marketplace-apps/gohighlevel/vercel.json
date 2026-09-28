@@ -1,0 +1,11 @@
+{
+  "buildCommand": "pnpm -w --filter @stellartools/core run build:prod && pnpm -w --filter @stellartools/shared-ui run build && next build",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/renew-subscriptions",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

@@ -43,7 +43,7 @@ export const POST = apiHandler({
   auth: ["session", "apikey"],
   mcp: { name: "create_product", description: "Create a product" },
   schema: { body: CreateProductSchema_2026_08_18 },
-  handler: async ({ body, auth: { organizationId, environment } }) => {
+  handler: async ({ body, req, auth: { organizationId, environment } }) => {
     const productData: Parameters<typeof postProduct>[0] = {
       name: body.name,
       description: body.description ?? null,
@@ -60,7 +60,10 @@ export const POST = apiHandler({
       updatedAt: new Date(),
     };
 
-    const response = await postProduct(productData, organizationId, environment);
+    // Internal products (e.g. platform integration subscriptions) are hidden from public queries using a suffix.
+    const internal = req.headers.get("x-stellartools-internal-product") === "true";
+
+    const response = await postProduct(productData, organizationId, environment, { internal });
 
     return Result.ok({
       id: response.id,

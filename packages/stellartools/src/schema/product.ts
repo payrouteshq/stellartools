@@ -156,4 +156,4 @@ export const PRODUCT_SCHEMAS = {
     update: UpdateProductSchema_2026_08_18,
     retrieve: RetrieveProductSchema_2026_08_18,
   },
-} satisfies Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>;
+} satisfies Partial<Record<ApiVersion, { create: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>>;

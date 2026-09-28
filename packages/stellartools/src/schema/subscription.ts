@@ -141,17 +141,19 @@ export const SUBSCRIPTION_SCHEMAS = {
     list: ListSubscriptionsSchema_2026_08_18,
     cancel: CancelSubscriptionSchema_2026_08_18,
   },
-} satisfies Record<
-  ApiVersion,
-  {
-    create: z.ZodSchema;
-    update: z.ZodSchema;
-    pause: z.ZodSchema;
-    resume: z.ZodSchema;
-    retrieve: z.ZodSchema;
-    list: z.ZodSchema;
-    cancel: z.ZodSchema;
-  }
+} satisfies Partial<
+  Record<
+    ApiVersion,
+    {
+      create: z.ZodSchema;
+      update: z.ZodSchema;
+      pause: z.ZodSchema;
+      resume: z.ZodSchema;
+      retrieve: z.ZodSchema;
+      list: z.ZodSchema;
+      cancel: z.ZodSchema;
+    }
+  >
 >;
 
 /** Whether a subscription currently grants product access. */

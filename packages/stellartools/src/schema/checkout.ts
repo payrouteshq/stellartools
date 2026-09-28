@@ -161,8 +161,23 @@ export const CreateDirectCheckoutSchema_2026_08_18 = baseCreateSchema.extend({
   currency_code: currencyCodeSchema,
 });
 
+/**
+ * A direct checkout has no product to read a billing interval off of, so the interval itself
+ * (`duration_ms`) travels with the request instead of a `recurring_period` enum.
+ */
+export const DirectSubscriptionDataSchema = z.object({
+  trial_days: z.number().int().nonnegative().optional(),
+  duration_ms: z.number().int().positive(),
+});
+
+export type DirectSubscriptionData = z.infer<typeof DirectSubscriptionDataSchema>;
+
+export const CreateDirectCheckoutSchema_2026_09_01 = CreateDirectCheckoutSchema_2026_08_18.extend({
+  subscription_data: DirectSubscriptionDataSchema.optional(),
+});
+
 export type CreateCheckout = z.infer<typeof CreateCheckoutSchema_2026_08_18>;
-export type CreateDirectCheckout = z.infer<typeof CreateDirectCheckoutSchema_2026_08_18>;
+export type CreateDirectCheckout = z.infer<typeof CreateDirectCheckoutSchema_2026_09_01>;
 
 export const UpdateCheckoutSchema_2026_08_18 = z.object({
   status: checkoutStatusEnum.optional(),
@@ -182,7 +197,12 @@ export const CHECKOUT_SCHEMAS = {
     update: UpdateCheckoutSchema_2026_08_18,
     retrieve: RetrieveCheckoutSchema_2026_08_18,
   },
-} satisfies Record<
-  ApiVersion,
-  { create: z.ZodSchema; createDirect: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }
+  "2026-09-01": {
+    create: CreateCheckoutSchema_2026_08_18,
+    createDirect: CreateDirectCheckoutSchema_2026_09_01,
+    update: UpdateCheckoutSchema_2026_08_18,
+    retrieve: RetrieveCheckoutSchema_2026_08_18,
+  },
+} satisfies Partial<
+  Record<ApiVersion, { create: z.ZodSchema; createDirect: z.ZodSchema; update: z.ZodSchema; retrieve: z.ZodSchema }>
 >;
