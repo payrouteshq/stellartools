@@ -3,7 +3,7 @@ import * as React from "react";
 import Cookies from "js-cookie";
 
 interface CookieOptions {
-  expires?: number;
+  expires?: number | Date;
   path?: string;
   domain?: string;
   secure?: boolean;

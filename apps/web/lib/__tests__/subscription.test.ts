@@ -1,5 +1,5 @@
 import {
-  MAX_CONSECUTIVE_FAILED_PAYMENTS,
+  MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE,
   initialSubscriptionStatus,
   shouldMarkOverdueAfterFailures,
 } from "@/lib/subscription";
@@ -36,7 +36,7 @@ describe("shouldMarkOverdueAfterFailures (dunning)", () => {
   });
 
   it("becomes overdue after the configured number of consecutive failures", () => {
-    const streak = Array.from({ length: MAX_CONSECUTIVE_FAILED_PAYMENTS }, () => "failed");
+    const streak = Array.from({ length: MAX_CONSECUTIVE_FAILED_PAYMENTS_BEFORE_MARKED_AS_OVERDUE }, () => "failed");
     expect(shouldMarkOverdueAfterFailures(streak)).toBe(true);
   });
 

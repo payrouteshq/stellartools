@@ -332,10 +332,20 @@ export const buildPreSwapXdr = async (params: {
 
   const destAsset = new StellarSDK.Asset(destAssetCode, canonicalIssuer);
 
-  const tx = new StellarSDK.TransactionBuilder(account, {
+  const hasTrustline = account.balances.some(
+    (b: any) => b.asset_code === destAssetCode && b.asset_issuer === canonicalIssuer
+  );
+
+  const builder = new StellarSDK.TransactionBuilder(account, {
     fee: StellarSDK.BASE_FEE,
     networkPassphrase: passphrase,
-  })
+  });
+
+  if (!hasTrustline) {
+    builder.addOperation(StellarSDK.Operation.changeTrust({ asset: destAsset }));
+  }
+
+  const tx = builder
     .addOperation(
       StellarSDK.Operation.pathPaymentStrictReceive({
         sendAsset,

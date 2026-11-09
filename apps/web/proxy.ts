@@ -7,11 +7,19 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 
   const url = req.nextUrl.clone();
 
-  let prefix = "/api";
-
-  if (url.pathname.includes("/~api/cron")) {
-    prefix = "/dashboard";
+  if (url.pathname.startsWith("/.well-known/")) {
+    url.pathname = `/api/well-known/${url.pathname.slice("/.well-known/".length)}`;
+    return NextResponse.rewrite(url);
   }
+
+  // Vercel Cron (see vercel.json) always hits the app's primary domain with
+  // the route's real, already-prefixed path. Serve it as-is before any
+  // host-based prefixing below gets a chance to prepend or override it.
+  if (url.pathname.startsWith("/dashboard/~api/cron/")) {
+    return NextResponse.rewrite(url);
+  }
+
+  let prefix = "/api";
 
   const apiHosts = process.env.NEXT_PUBLIC_API_URL?.split(",").map((url) => new URL(url.trim()).host) ?? [];
 

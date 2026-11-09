@@ -13,9 +13,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useAction } from "@/hooks/use-action";
 import { AppError } from "@/lib/action-handler";
 import { truncate } from "@/lib/utils";
-import { AppModal, Badge, Button, Separator, Skeleton } from "@stellartools/shared-ui";
+import { AppModal, Badge, Button, Separator, Skeleton, toast } from "@stellartools/shared-ui";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Building2, CheckCircle2, ChevronRight, Link2, Trash2, Wallet } from "lucide-react";
+import { Building2, ChevronRight, Link2, Trash2, Wallet } from "lucide-react";
 import moment from "moment";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,14 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   React.useEffect(() => {
     if (data?.environment) wallet.setEnvironment(data.environment);
   }, [data?.environment]);
+
+  const walletAlreadyLinked = wallet.connected
+    ? (data?.wallets ?? []).some((w) => w.address === wallet.walletAddress)
+    : false;
+
+  React.useEffect(() => {
+    if (walletAlreadyLinked) toast.info("This wallet is already linked to your account");
+  }, [walletAlreadyLinked]);
 
   const activeSubscriptions =
     data?.subscriptions?.filter((s) => s.status === "active" || s.status === "trialing" || s.status === "paused") ?? [];
@@ -95,14 +103,12 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   if (!data?.customer) return null;
 
   const wallets = data.wallets ?? [];
-  const walletAlreadyLinked = wallet.connected ? wallets.some((w) => w.address === wallet.walletAddress) : false;
 
   return (
-    <div className="bg-background flex min-h-screen">
-      <PortalSidebar org={data.organization} />
+    <div className="bg-background flex min-h-screen flex-col">
+      <PortalHeader org={data.organization} />
 
       <main className="flex-1 overflow-auto">
-        <MobileOrgHeader org={data.organization} />
         <div className="mx-auto max-w-2xl px-6 py-12">
           <nav className="text-muted-foreground mb-8 flex items-center gap-1.5 text-sm">
             <Link href={`/${token}`} className="hover:text-foreground transition-colors">
@@ -163,41 +169,34 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
               </section>
             )}
 
-            <section>
-              <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
-                Connect a wallet
-              </p>
-              <div className="border-border rounded-xl border">
-                {wallet.connected ? (
-                  <div className="space-y-5 p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-full">
-                        <Wallet className="text-primary size-4" />
-                      </div>
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="text-foreground font-mono text-sm">
-                          {truncate(wallet.walletAddress, { start: 10, end: 10 })}
-                        </p>
-                        {walletAlreadyLinked ? (
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="text-primary size-3.5" />
-                            <p className="text-primary text-xs">Already linked to your account</p>
-                          </div>
-                        ) : (
+            {!(wallet.connected && walletAlreadyLinked) && (
+              <section>
+                <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+                  Connect a wallet
+                </p>
+                <div className="border-border rounded-xl border">
+                  {wallet.connected ? (
+                    <div className="space-y-5 p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 flex size-10 shrink-0 items-center justify-center rounded-full">
+                          <Wallet className="text-primary size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="text-foreground font-mono text-sm">
+                            {truncate(wallet.walletAddress, { start: 10, end: 10 })}
+                          </p>
                           <p className="text-muted-foreground text-xs">Ready to link</p>
-                        )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground shrink-0 text-xs"
+                          onClick={wallet.disconnect}
+                        >
+                          Disconnect
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground shrink-0 text-xs"
-                        onClick={wallet.disconnect}
-                      >
-                        Disconnect
-                      </Button>
-                    </div>
 
-                    {!walletAlreadyLinked && (
                       <Button
                         className="w-full"
                         onClick={() => linkWallet(wallet.walletAddress)}
@@ -207,31 +206,31 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
                         <Link2 className="mr-2 size-4" />
                         Link this wallet
                       </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
-                    <div className="bg-muted flex size-12 items-center justify-center rounded-full">
-                      <Wallet className="text-muted-foreground size-5" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-foreground text-sm font-medium">Connect a Stellar wallet</p>
-                      <p className="text-muted-foreground max-w-xs text-sm">
-                        Link your Stellar wallet to manage subscriptions and make payments.
-                      </p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
+                      <div className="bg-muted flex size-12 items-center justify-center rounded-full">
+                        <Wallet className="text-muted-foreground size-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-foreground text-sm font-medium">Connect a Stellar wallet</p>
+                        <p className="text-muted-foreground max-w-xs text-sm">
+                          Link your Stellar wallet to manage subscriptions and make payments.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => wallet.connect(() => {})}
+                        isLoading={wallet.isLoading}
+                        disabled={wallet.isLoading}
+                      >
+                        <Wallet className="mr-2 size-4" />
+                        Connect wallet
+                      </Button>
                     </div>
-                    <Button
-                      onClick={() => wallet.connect(() => {})}
-                      isLoading={wallet.isLoading}
-                      disabled={wallet.isLoading}
-                    >
-                      <Wallet className="mr-2 size-4" />
-                      Connect wallet
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </section>
+                  )}
+                </div>
+              </section>
+            )}
 
             <Separator />
 
@@ -245,58 +244,16 @@ export default function PaymentMethodsPage({ params }: { params: Promise<{ token
   );
 }
 
-function PortalSidebar({ org }: { org: Organization | null }) {
-  const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
-
+function PortalHeader({ org }: { org: Organization | null }) {
   return (
-    <aside className="border-border bg-background hidden w-70 shrink-0 flex-col border-r px-8 py-10 md:flex!">
-      <div className="mb-6 flex items-center gap-3">
-        {org?.logoUrl ? (
-          <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
-        ) : (
-          <Building2 className="text-foreground size-8" />
-        )}
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
-        </div>
-      </div>
-
-      {org?.name && (
-        <p className="text-foreground mb-auto text-sm leading-relaxed">
-          {org.name} partners with StellarTools for simplified billing.
-        </p>
-      )}
-
-      <div className="mt-10 flex items-center justify-between">
-        {websiteUrl ? (
-          <Link
-            href={websiteUrl}
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
-          >
-            <ArrowLeft className="size-3.5 shrink-0" />
-            Return to {org?.name}
-          </Link>
-        ) : (
-          <span />
-        )}
-        <ModeToggle />
-      </div>
-    </aside>
-  );
-}
-
-function MobileOrgHeader({ org }: { org: Organization | null }) {
-  return (
-    <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
+    <div className="border-border flex items-center justify-between border-b px-4 py-3">
       <div className="flex items-center gap-2.5">
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
         ) : (
           <Building2 className="text-foreground size-7" />
         )}
-        <div className="flex flex-col gap-0.5">
-          <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
-        </div>
+        <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
       </div>
       <ModeToggle />
     </div>
@@ -305,15 +262,13 @@ function MobileOrgHeader({ org }: { org: Organization | null }) {
 
 function PageSkeleton() {
   return (
-    <div className="bg-background flex min-h-screen">
-      <aside className="border-border hidden w-70 shrink-0 flex-col gap-4 border-r px-8 py-10 md:flex!">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-8 rounded-md" />
+    <div className="bg-background flex min-h-screen flex-col">
+      <div className="border-border flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="size-7 rounded-md" />
           <Skeleton className="h-4 w-28" />
         </div>
-        <Skeleton className="mt-2 h-3 w-full" />
-        <Skeleton className="h-3 w-3/4" />
-      </aside>
+      </div>
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-2xl space-y-8 px-6 py-12">
           <Skeleton className="h-4 w-48" />

@@ -1,4 +1,5 @@
 import { runAtomic } from "@/actions/event";
+import { retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { retrievePaymentCount, retrievePayments } from "@/actions/payment";
 import { retrieveProducts } from "@/actions/product";
 import { putSubscription, retrieveSubscriptions } from "@/actions/subscription";
@@ -32,9 +33,14 @@ export const GET = apiHandler({
       return Result.err(new AppError("NOT_FOUND", "Customer wallet not found"));
     }
 
+    const { secret } = await retrieveOrganizationIdAndSecret(organizationId, environment);
+    const merchantPublicKey = secret?.publicKey;
+    if (!merchantPublicKey) return Result.err(new AppError("NOT_FOUND", "Merchant public key not found"));
+
     const onchainSubscription = await soroban$retrieveSubscription(
       environment,
       customerWallet.address,
+      merchantPublicKey,
       subscription.productId
     );
 

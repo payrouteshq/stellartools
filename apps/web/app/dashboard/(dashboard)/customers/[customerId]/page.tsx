@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
   EmbeddedFieldRow,
   FieldStack,
+  Input,
   NumberField,
   SelectField,
   Separator,
@@ -913,29 +914,19 @@ function PortalLinkModalContent({ customerId, onClose }: { customerId: string; o
   return (
     <div className="flex flex-col gap-6">
       {url ? (
-        <div className="space-y-6 py-4">
-          <p className="text-muted-foreground text-sm">Share this link with the customer.</p>
-          <div className="flex items-center gap-2">
-            <div className="bg-muted border-border flex-1 rounded-md border px-3 py-1.5 shadow-none">
-              <code className="text-muted-foreground font-mono text-sm break-all">{url}</code>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => handleCopy({ text: url, message: "Copied" })}
-              className="shrink-0 shadow-none"
-            >
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          <Input value={url} readOnly className="text-muted-foreground font-mono text-sm break-all" />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => handleCopy({ text: url, message: "Copied" })}
+            className="shrink-0 shadow-none"
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          </Button>
         </div>
-      ) : (
-        <p className="text-muted-foreground py-2 text-sm">
-          Generate a one-time link for this customer to view subscriptions and payments.
-          {url}
-        </p>
-      )}
+      ) : null}
 
       <div className="flex w-full justify-end gap-2 pb-4">
         {url ? (

@@ -5,13 +5,16 @@ import { decrypt } from "@/integrations/encryption";
 import { getKeeperSecret, getSubscriptionContractId, parseError } from "@/integrations/stellar-core";
 import { AppError } from "@/lib/action-handler";
 import * as StellarSDK from "@stellar/stellar-sdk";
+import type { AssembledTransaction, ClientOptions as SubscriptionClientOptions } from "@stellar/stellar-sdk/contract";
 import { Result } from "@stellartools/core";
+import { Client as SubscriptionClient } from "@stellartools/subscription-contract";
 
 export type SorobanSubscription = {
   customer: string;
   merchant: string;
   token: string;
   amount: bigint;
+  maxAmount: bigint;
   periodDuration: bigint;
   periodEnd: bigint;
   status: "active" | "paused" | "canceled";
@@ -36,6 +39,7 @@ const getSorobanConfig = (network: Network) => {
   return {
     passphrase: isTestnet ? StellarSDK.Networks.TESTNET : StellarSDK.Networks.PUBLIC,
     server: new StellarSDK.rpc.Server(rpcUrl),
+    rpcUrl,
     contractId: getSubscriptionContractId(network),
   };
 };
@@ -56,6 +60,37 @@ export const resolveMerchantSecret = async (orgId: string, network: Network, fea
     );
   }
   return await decrypt(secret!.encrypted.replace(SENSITIVE_KEY_PREFIX, "") ?? "");
+};
+
+/** A `signTransaction` that signs locally with a keypair — for backend/operator/merchant-signed calls. */
+const keypairSigner = (secret: string): NonNullable<SubscriptionClientOptions["signTransaction"]> => {
+  const keypair = StellarSDK.Keypair.fromSecret(secret);
+  return async (xdr, opts) => {
+    const tx = StellarSDK.TransactionBuilder.fromXDR(xdr, opts?.networkPassphrase ?? StellarSDK.Networks.TESTNET);
+    tx.sign(keypair);
+    return { signedTxXdr: tx.toXDR(), signerAddress: keypair.publicKey() };
+  };
+};
+
+/** Client for calls this backend signs and submits itself (keeper/operator by default, or a specific signer). */
+const getContractClient = (network: Network, opts: { signerSecret?: string } = {}) => {
+  const { passphrase, contractId, rpcUrl } = getSorobanConfig(network);
+  const signerSecret = opts.signerSecret ?? getKeeperSecret(network);
+  const keypair = StellarSDK.Keypair.fromSecret(signerSecret);
+
+  return new SubscriptionClient({
+    contractId,
+    networkPassphrase: passphrase,
+    rpcUrl,
+    publicKey: keypair.publicKey(),
+    signTransaction: keypairSigner(signerSecret),
+  });
+};
+
+/** Client for read-only / build-only calls — no signer, just a source account to simulate against. */
+const getReadOnlyClient = (network: Network, sourcePublicKey: string) => {
+  const { passphrase, contractId, rpcUrl } = getSorobanConfig(network);
+  return new SubscriptionClient({ contractId, networkPassphrase: passphrase, rpcUrl, publicKey: sourcePublicKey });
 };
 
 const parseContractEvent = (topics: unknown[], data: unknown): SorobanEvent => {
@@ -108,76 +143,25 @@ const extractContractEvents = (result: StellarSDK.rpc.Api.GetSuccessfulTransacti
     );
   }
 
-  console.dir({ events }, { depth: 100 });
-
   return events;
 };
 
-const invokeSoroban = async <T = SorobanTxResult>(
-  network: Network,
-  operation: StellarSDK.xdr.Operation,
-  options: { readOnly?: boolean; signerSecret?: string; sourcePublicKey?: string } = {}
-): Promise<Result<T, AppError>> => {
-  return Result.tryPromise({
-    try: async () => {
-      const { server, passphrase } = getSorobanConfig(network);
-      const keypair = options.signerSecret
-        ? StellarSDK.Keypair.fromSecret(options.signerSecret)
-        : StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
-      const sourceKey = options.readOnly ? (options.sourcePublicKey ?? keypair.publicKey()) : keypair.publicKey();
-      const sourceAccount = await server.getAccount(sourceKey);
+/** Signs (via the client's configured signer) and submits an already-simulated write call. */
+const sendAssembled = async <T>(assembled: AssembledTransaction<T>, network: Network): Promise<SorobanTxResult> => {
+  const { passphrase } = getSorobanConfig(network);
+  const sent = await assembled.signAndSend();
+  const getTx = sent.getTransactionResponse;
 
-      const tx = new StellarSDK.TransactionBuilder(sourceAccount, {
-        fee: StellarSDK.BASE_FEE,
-        networkPassphrase: passphrase,
-      })
-        .addOperation(operation)
-        .setTimeout(30)
-        .build();
+  if (!getTx || getTx.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
+    throw new AppError("STELLAR_ERROR", `Transaction not confirmed: ${getTx?.status ?? "unknown"}`);
+  }
 
-      const simulation = await server.simulateTransaction(tx);
+  const hash = sent.sendTransactionResponse?.hash ?? getTx.txHash;
+  const sourceWalletAddress = getTx.envelopeXdr
+    ? new StellarSDK.Transaction(getTx.envelopeXdr, passphrase).source
+    : undefined;
 
-      if (StellarSDK.rpc.Api.isSimulationError(simulation)) {
-        const parsed = parseError(simulation);
-        throw new AppError("STELLAR_ERROR", parsed.message);
-      }
-
-      if (options.readOnly) {
-        if (!simulation.result) throw new AppError("STELLAR_ERROR", "Simulation returned no result");
-        return StellarSDK.scValToNative(simulation.result.retval) as T;
-      }
-
-      const assembledTx = StellarSDK.rpc.assembleTransaction(tx, simulation).build();
-      assembledTx.sign(keypair);
-
-      const response = await server.sendTransaction(assembledTx);
-
-      if (response.status !== "PENDING") {
-        throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
-      }
-
-      const result = await server.pollTransaction(response.hash, { attempts: 15 });
-
-      if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-        throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
-      }
-      if (result.status !== StellarSDK.rpc.Api.GetTransactionStatus.SUCCESS) {
-        throw new AppError("STELLAR_ERROR", `Transaction not confirmed: ${result.status}`);
-      }
-
-      const walletAddres = result.envelopeXdr
-        ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
-        : undefined;
-
-      const events = extractContractEvents(result);
-
-      return { hash: response.hash, sourceWalletAddress: walletAddres, events } as T;
-    },
-    catch: (cause) =>
-      cause instanceof AppError
-        ? cause
-        : new AppError("STELLAR_ERROR", cause instanceof Error ? cause.message : String(cause)),
-  });
+  return { hash, sourceWalletAddress, events: extractContractEvents(getTx) };
 };
 
 export const verifySorobanTx = async (network: Network, hash: string) => {
@@ -245,28 +229,14 @@ export const buildSubscriptionApprovalXdr = async (
   });
 };
 
-export const submitSorobanTx = async (network: Network, signedXDR: string) => {
-  return Result.tryPromise(async () => {
-    const { server, passphrase } = getSorobanConfig(network);
-    const tx = StellarSDK.TransactionBuilder.fromXDR(signedXDR, passphrase);
-    const response = await server.sendTransaction(tx);
-    if (response.status !== "PENDING") throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
-
-    const result = await server.pollTransaction(response.hash, { attempts: 15 });
-    if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
-      throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
-    }
-
-    const walletAddres =
-      "envelopeXdr" in result && result.envelopeXdr
-        ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
-        : undefined;
-
-    return { hash: response.hash, sourceWalletAddress: walletAddres, events: [] };
-  });
-};
-
-export const startSubscription = async (
+/**
+ * Builds the (unsigned) `start` invocation, source = customer. The contract
+ * requires the customer's own authorization to open a subscription, so this
+ * must be signed by the customer's wallet — never invoked by the backend on
+ * its own, and never bundled into the approval tx (Soroban only allows one
+ * invokeHostFunction operation per transaction).
+ */
+export const buildSubscriptionStartXdr = async (
   network: Network,
   params: {
     customerAddress: string;
@@ -275,65 +245,77 @@ export const startSubscription = async (
     productId: string;
     amountRaw: bigint;
     durationMs: number;
+    timeoutSeconds: number;
   }
 ) => {
-  const keeper = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
-  const { contractId } = getSorobanConfig(network);
-  const durationSeconds = Math.max(1, Math.round(params.durationMs / 1000));
-  const operation = new StellarSDK.Contract(contractId).call(
-    "start",
-    StellarSDK.nativeToScVal(params.customerAddress, { type: "address" }),
-    StellarSDK.nativeToScVal(params.merchantAddress, { type: "address" }),
-    StellarSDK.nativeToScVal(params.tokenContractId, { type: "address" }),
-    StellarSDK.nativeToScVal(params.productId, { type: "string" }),
-    StellarSDK.nativeToScVal(params.amountRaw, { type: "i128" }),
-    StellarSDK.nativeToScVal(BigInt(durationSeconds), { type: "u64" }),
-    StellarSDK.nativeToScVal(keeper.publicKey(), { type: "address" })
-  );
+  return Result.tryPromise(async () => {
+    const durationSeconds = BigInt(Math.max(1, Math.round(params.durationMs / 1000)));
+    const client = getReadOnlyClient(network, params.customerAddress);
 
-  return await invokeSoroban(network, operation);
+    const assembled = await client.start(
+      {
+        customer: params.customerAddress,
+        merchant: params.merchantAddress,
+        token: params.tokenContractId,
+        product_id: params.productId,
+        amount: params.amountRaw,
+        duration: durationSeconds,
+      },
+      { timeoutInSeconds: params.timeoutSeconds }
+    );
+
+    return assembled.toXDR();
+  });
 };
 
 export const chargeSubscription = async (
   network: Network,
   customerAddress: string,
+  merchantAddress: string,
   productId: string,
   amountRaw: bigint
 ) => {
-  const { contractId } = getSorobanConfig(network);
-  const operation = new StellarSDK.Contract(contractId).call(
-    "charge",
-    StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
-    StellarSDK.nativeToScVal(productId, { type: "string" }),
-    StellarSDK.nativeToScVal(amountRaw, { type: "i128" })
-  );
-  return await invokeSoroban(network, operation);
+  return Result.tryPromise(async () => {
+    const client = getContractClient(network);
+    const assembled = await client.charge(
+      { customer: customerAddress, merchant: merchantAddress, product_id: productId, amount: amountRaw },
+      { timeoutInSeconds: 60 }
+    );
+    return await sendAssembled(assembled, network);
+  });
 };
 
 export const updateSubscriptionPeriod = async (
   network: Network,
   params: {
     customerAddress: string;
+    merchantAddress: string;
     productId: string;
     periodDurationMs: number;
     periodEnd: Date;
+    /** Pass the subscription's existing on-chain maxAmount through unchanged unless you're deliberately raising it. */
+    maxAmountRaw: bigint;
   }
 ) => {
-  const keeper = StellarSDK.Keypair.fromSecret(getKeeperSecret(network));
-  const { contractId } = getSorobanConfig(network);
-  const periodDurationSeconds = Math.max(1, Math.round(params.periodDurationMs / 1000));
-  const periodEndSeconds = BigInt(Math.floor(params.periodEnd.getTime() / 1000));
-  const operation = new StellarSDK.Contract(contractId).call(
-    "update",
-    StellarSDK.nativeToScVal(params.customerAddress, { type: "address" }),
-    StellarSDK.nativeToScVal(params.productId, { type: "string" }),
-    StellarSDK.nativeToScVal("active", { type: "string" }),
-    StellarSDK.nativeToScVal(BigInt(periodDurationSeconds), { type: "u64" }),
-    StellarSDK.nativeToScVal(periodEndSeconds, { type: "u64" }),
-    StellarSDK.nativeToScVal(keeper.publicKey(), { type: "address" })
-  );
+  return Result.tryPromise(async () => {
+    const client = getContractClient(network);
+    const periodDurationSeconds = BigInt(Math.max(1, Math.round(params.periodDurationMs / 1000)));
+    const periodEndSeconds = BigInt(Math.floor(params.periodEnd.getTime() / 1000));
 
-  return await invokeSoroban(network, operation);
+    const assembled = await client.update(
+      {
+        customer: params.customerAddress,
+        merchant: params.merchantAddress,
+        product_id: params.productId,
+        status: "active",
+        period_duration: periodDurationSeconds,
+        period_end: periodEndSeconds,
+        max_amount: params.maxAmountRaw,
+      },
+      { timeoutInSeconds: 60 }
+    );
+    return await sendAssembled(assembled, network);
+  });
 };
 
 const merchantLifecycleCall = async (
@@ -343,15 +325,25 @@ const merchantLifecycleCall = async (
   customerAddress: string,
   productId: string
 ) => {
-  const merchant = StellarSDK.Keypair.fromSecret(merchantSecret);
-  const { contractId } = getSorobanConfig(network);
-  const operation = new StellarSDK.Contract(contractId).call(
-    method,
-    StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
-    StellarSDK.nativeToScVal(productId, { type: "string" }),
-    StellarSDK.nativeToScVal(merchant.publicKey(), { type: "address" })
-  );
-  return await invokeSoroban(network, operation, { signerSecret: merchantSecret });
+  return Result.tryPromise(async () => {
+    const merchant = StellarSDK.Keypair.fromSecret(merchantSecret);
+    const client = getContractClient(network, { signerSecret: merchantSecret });
+    const args = {
+      customer: customerAddress,
+      merchant: merchant.publicKey(),
+      product_id: productId,
+      caller: merchant.publicKey(),
+    };
+
+    const assembled =
+      method === "pause"
+        ? await client.pause(args, { timeoutInSeconds: 60 })
+        : method === "resume"
+          ? await client.resume(args, { timeoutInSeconds: 60 })
+          : await client.cancel(args, { timeoutInSeconds: 60 });
+
+    return await sendAssembled(assembled, network);
+  });
 };
 
 export const pauseSubscription = async (
@@ -375,16 +367,51 @@ export const cancelSubscription = async (
   productId: string
 ) => merchantLifecycleCall(network, merchantSecret, "cancel", customerAddress, productId);
 
-export const retrieveSubscription = async (network: Network, customerAddress: string, productId: string) => {
-  const { contractId } = getSorobanConfig(network);
-  const operation = new StellarSDK.Contract(contractId).call(
-    "get_subscription",
-    StellarSDK.nativeToScVal(customerAddress, { type: "address" }),
-    StellarSDK.nativeToScVal(productId, { type: "string" })
-  );
+export const retrieveSubscription = async (
+  network: Network,
+  customerAddress: string,
+  merchantAddress: string,
+  productId: string
+) => {
+  return Result.tryPromise(async () => {
+    const client = getReadOnlyClient(network, customerAddress);
+    const assembled = await client.get_subscription({
+      customer: customerAddress,
+      merchant: merchantAddress,
+      product_id: productId,
+    });
+    const sub = assembled.result;
 
-  return await invokeSoroban<SorobanSubscription>(network, operation, {
-    readOnly: true,
-    sourcePublicKey: customerAddress,
+    return {
+      customer: sub.customer,
+      merchant: sub.merchant,
+      token: sub.token,
+      amount: sub.amount,
+      maxAmount: sub.max_amount,
+      periodDuration: sub.period_duration,
+      periodEnd: sub.period_end,
+      status: sub.status as SorobanSubscription["status"],
+    } satisfies SorobanSubscription;
+  });
+};
+
+export const submitSorobanTx = async (network: Network, signedXDR: string) => {
+  return Result.tryPromise(async () => {
+    const { server, passphrase } = getSorobanConfig(network);
+    const tx = StellarSDK.TransactionBuilder.fromXDR(signedXDR, passphrase);
+    const response = await server.sendTransaction(tx);
+    if (response.status !== "PENDING") throw new AppError("STELLAR_ERROR", `Submission failed: ${response.status}`);
+
+    const result = await server.pollTransaction(response.hash, { attempts: 15 });
+    if (result.status === StellarSDK.rpc.Api.GetTransactionStatus.FAILED) {
+      throw new AppError("STELLAR_ERROR", `Transaction failed on-chain: ${response.hash}`);
+    }
+
+    const walletAddres =
+      "envelopeXdr" in result && result.envelopeXdr
+        ? new StellarSDK.Transaction(result.envelopeXdr, passphrase).source
+        : undefined;
+
+    return { hash: response.hash, sourceWalletAddress: walletAddres, events: [] };
   });
 };

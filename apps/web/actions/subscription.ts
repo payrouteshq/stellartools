@@ -2,7 +2,7 @@
 
 import { upsertCustomerWallet } from "@/actions/customers";
 import { paginate, parseOffset, runAtomic, withEvent } from "@/actions/event";
-import { resolveOrgContext } from "@/actions/organization";
+import { resolveOrgContext, retrieveOrganizationIdAndSecret } from "@/actions/organization";
 import { postPayment, retrievePaymentCount, retrievePayments } from "@/actions/payment";
 import { STELLAR_PRECISION, subscriptionPeriodMs } from "@/constant";
 import { SubscriptionStatus } from "@/constant/schema.client";
@@ -157,7 +157,7 @@ export const retrieveDueSubscriptions = async (options?: {
         and(
           eq(subscriptions.status, "trialing"),
           gt(subscriptions.trialDays, 0),
-          lt(sql`${subscriptions.createdAt} + (${subscriptions.trialDays} * interval '1 day')`, new Date()),
+          sql`${subscriptions.createdAt} + (${subscriptions.trialDays} * interval '1 day') < ${new Date().toISOString()}`,
           eq(subscriptions.cancelAtPeriodEnd, false)
         ),
         and(
@@ -459,7 +459,19 @@ export const paySubscriptionInvoice = async (token: string, connectedWalletAddre
   const billingMs = subscriptionPeriodMs(sub.product.recurringPeriod, sub.product.customDurationMs);
   if (!billingMs) throw new AppError("VALIDATION_ERROR", "Invalid subscription billing period");
 
-  const charge = await soroban$chargeSubscription(record.environment, walletAddress, record.productId, amountRaw);
+  const { secret } = await retrieveOrganizationIdAndSecret(record.organizationId, record.environment);
+
+  const merchantPublicKey = secret?.publicKey;
+
+  if (!merchantPublicKey) throw new AppError("NOT_FOUND", "Merchant public key not found");
+
+  const charge = await soroban$chargeSubscription(
+    record.environment,
+    walletAddress,
+    merchantPublicKey,
+    record.productId,
+    amountRaw
+  );
   if (charge.isErr()) throw new AppError("STELLAR_ERROR", charge.error.message);
 
   const payEvent = charge.value.events.find((event) => event.topic.includes("sub_pay"));

@@ -10,8 +10,8 @@ import { decrypt } from "@/integrations/encryption";
 import { getFiatRates } from "@/integrations/price-feed";
 import {
   buildSubscriptionApprovalXdr as soroban$buildSubscriptionApprovalXdr,
+  buildSubscriptionStartXdr as soroban$buildSubscriptionStartXdr,
   retrieveSubscription as soroban$retrieveSubscription,
-  startSubscription as soroban$startSubscription,
   verifySorobanTx as soroban$verifySorobanTx,
 } from "@/integrations/soroban-contract";
 import {
@@ -25,14 +25,11 @@ import {
 import { AppError } from "@/lib/action-handler";
 import { Money } from "@/lib/money";
 import { BPS_DENOMINATOR, PLATFORM_FEE_BPS } from "@/lib/pricing";
-import { getUsdcAsset } from "@/lib/usdc";
 import { generateResourceId } from "@/lib/utils";
 import { Asset, BASE_FEE, Memo, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { SubscriptionData } from "@stellartools/core";
 import Big from "big.js";
-import moment from "moment";
 
-/** Stellar max transaction lifetime (7 days). */
 const STELLAR_MAX_TX_TIMEOUT_SEC = 604_800;
 
 const MIN_CHECKOUT_TX_TIMEOUT_SEC = 120;
@@ -64,7 +61,7 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   const fiatRate = pub?.fiatRates?.[checkout.currencyCode] ?? 1;
   const usdCents = checkout.finalAmount / fiatRate;
 
-  // USDC is always $1 — amount = USD cents / 100.
+  // USDC is always $1, amount = USD cents / 100.
   const amount: string = Money.calculateCryptoNeeded(usdCents, 1);
 
   const { server, passphrase } = getStellarConfig(checkout.environment);
@@ -104,7 +101,7 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
     }
   }
 
-  // Always use path finding — Stellar's DEX handles any issuer mismatch, partial balances,
+  // Always use path finding. Stellar's DEX handles any issuer mismatch, partial balances,
   // and non-USDC holdings automatically. If the customer has canonical USDC, the path finder
   // returns source=USDC path=[] which is a zero-hop direct transfer.
   const pathsResult = await server.strictReceivePaths(customerPublicKey, asset, amount).call();
@@ -167,23 +164,28 @@ export const buildOneTimePaymentXdr = async (params: OneTimePaymentParams) => {
   return builder.addMemo(Memo.text(checkoutId)).setTimeout(txTimeout).build().toXDR();
 };
 
-export async function prepareSubscriptionApproval(
+const NATIVE_RESERVE_BUFFER = "5";
+const MAX_QUOTABLE_PERIODS = 24;
+
+export async function quoteSubscriptionPeriods(
   checkoutId: string,
   customerAddress: string,
   selectedAssetCode: string,
   selectedAssetIssuer: string | null
 ): Promise<
-  | { xdr: string; periodStart: string; periodEnd: string; needsPreSwap: boolean; preSwapXdr?: string }
+  | {
+      perPeriodAmount: string;
+      sourceAssetCode: string;
+      sourceAssetIssuer: string | null;
+      maxAffordablePeriods: number;
+    }
   | { error: string }
 > {
   try {
     const checkout = await retrieveCheckoutAndCustomer(checkoutId);
-    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
-    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+    if (!checkout) return { error: "Checkout not found" };
     if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
     if (!selectedAssetCode) return { error: "No payment asset selected" };
-
-    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
     const canonicalIssuer = selectedAssetIssuer;
     if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
@@ -193,15 +195,226 @@ export async function prepareSubscriptionApproval(
     const fiatRates = await getFiatRates();
     const fiatRate = fiatRates[checkout.currencyCode ?? "USD"] ?? 1;
     const finalAmountUsdCents = checkout.finalAmount / fiatRate;
+    const perPeriodAmount = Money.centsToStellarString(finalAmountUsdCents);
+
+    const { server } = getStellarConfig(checkout.environment);
+    const account = await server.loadAccount(customerAddress);
+
+    if (!canonicalIssuer) {
+      // Paying in XLM directly, no swap involved, just check the native balance.
+      const nativeBalance = account.balances.find((b: any) => b.asset_type === "native");
+      const available = nativeBalance ? new Big(nativeBalance.balance).minus(NATIVE_RESERVE_BUFFER) : new Big(0);
+      const maxAffordablePeriods = available.lte(0)
+        ? 0
+        : Math.min(MAX_QUOTABLE_PERIODS, Math.floor(available.div(perPeriodAmount).toNumber()));
+      return { perPeriodAmount, sourceAssetCode: "XLM", sourceAssetIssuer: null, maxAffordablePeriods };
+    }
+
+    // If the wallet already holds enough of the exact target asset directly,
+    // no swap is needed at all, so there's no DEX path to quote. Horizon's
+    // path-finding endpoints never return a trivial "convert an asset into
+    // itself" path, so this has to be checked against the real balance up
+    // front rather than inferred from a strictReceivePaths/strictSendPaths result.
+    const heldBalance = account.balances.find(
+      (b: any) => b.asset_code === selectedAssetCode && b.asset_issuer === canonicalIssuer
+    );
+    if (heldBalance) {
+      const maxAffordablePeriods = Math.min(
+        MAX_QUOTABLE_PERIODS,
+        Math.floor(new Big(heldBalance.balance).div(perPeriodAmount).toNumber())
+      );
+      return { perPeriodAmount, sourceAssetCode: selectedAssetCode, sourceAssetIssuer: canonicalIssuer, maxAffordablePeriods };
+    }
+
+    const destAsset = new Asset(selectedAssetCode, canonicalIssuer);
+    const onePeriodPaths = await server.strictReceivePaths(customerAddress, destAsset, perPeriodAmount).call();
+
+    if (onePeriodPaths.records.length === 0) {
+      return {
+        perPeriodAmount,
+        sourceAssetCode: selectedAssetCode,
+        sourceAssetIssuer: canonicalIssuer,
+        maxAffordablePeriods: 0,
+      };
+    }
+
+    const best = onePeriodPaths.records[0] as any;
+    const sourceAssetCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
+    const sourceAssetIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
+    const sourceAsset =
+      best.source_asset_type === "native" ? Asset.native() : new Asset(sourceAssetCode, sourceAssetIssuer!);
+
+    const sourceBalanceEntry =
+      best.source_asset_type === "native"
+        ? account.balances.find((b: any) => b.asset_type === "native")
+        : account.balances.find((b: any) => b.asset_code === sourceAssetCode && b.asset_issuer === sourceAssetIssuer);
+
+    if (!sourceBalanceEntry) {
+      return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods: 0 };
+    }
+
+    let availableSource = new Big(sourceBalanceEntry.balance);
+    if (best.source_asset_type === "native") {
+      availableSource = availableSource.minus(NATIVE_RESERVE_BUFFER);
+    }
+    if (availableSource.lte(0)) {
+      return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods: 0 };
+    }
+
+    // How much of the destination asset can this source balance actually
+    // reach via the DEX? Uses a real quote rather than assuming the one-period
+    // exchange rate holds linearly at larger sizes.
+    const sendResult = await server.strictSendPaths(sourceAsset, availableSource.toFixed(7), [destAsset]).call();
+    const bestSend = sendResult.records[0] as any;
+    const maxDestAmount = bestSend ? new Big(bestSend.destination_amount) : new Big(0);
+    const maxAffordablePeriods = Math.min(
+      MAX_QUOTABLE_PERIODS,
+      Math.max(0, Math.floor(maxDestAmount.div(perPeriodAmount).toNumber()))
+    );
+
+    return { perPeriodAmount, sourceAssetCode, sourceAssetIssuer, maxAffordablePeriods };
+  } catch (e: any) {
+    return { error: e.message ?? "Failed to quote billing periods" };
+  }
+}
+
+export async function prepareSubscriptionSwap(
+  checkoutId: string,
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null,
+  periods: number = 1
+): Promise<{ needsPreSwap: boolean; preSwapXdr?: string } | { error: string }> {
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[timing:prepareSubscriptionSwap] ${label}: ${Date.now() - t0}ms`);
+  try {
+    if (!Number.isInteger(periods) || periods < 1) return { error: "Invalid number of billing periods" };
+
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    lap("retrieveCheckoutAndCustomer");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+    if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
+    if (!selectedAssetCode) return { error: "No payment asset selected" };
+    if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
+
+    const canonicalIssuer = selectedAssetIssuer;
+    if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
+      return { error: `No canonical issuer available for ${selectedAssetCode}` };
+    }
+
+    const [existingSub, fiatRates] = await Promise.all([
+      soroban$retrieveSubscription(
+        checkout.environment,
+        customerAddress,
+        checkout.merchantPublicKey,
+        checkout.productId
+      ),
+      canonicalIssuer ? getFiatRates() : Promise.resolve(undefined),
+    ]);
+    lap("soroban$retrieveSubscription+getFiatRates");
+    if (existingSub.isOk()) {
+      const status = existingSub.value.status;
+      if (status === "active" || status === "paused") {
+        return { error: SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE };
+      }
+    }
+
+    if (!canonicalIssuer) return { needsPreSwap: false };
+
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
+    const fiatRate = fiatRates![checkout.currencyCode ?? "USD"] ?? 1;
+    const finalAmountUsdCents = checkout.finalAmount / fiatRate;
+
+    const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents * periods);
+
+    const { server } = getStellarConfig(checkout.environment);
+
+    // If the wallet already holds enough of the exact target asset directly,
+    // no swap is needed at all. Horizon's path-finding endpoints never return
+    // a trivial "convert an asset into itself" path, so this has to be
+    // checked against the account's real balance up front, not inferred from
+    // the DEX query below.
+    const account = await server.loadAccount(customerAddress);
+    const heldBalance = account.balances.find(
+      (b: any) => b.asset_code === selectedAssetCode && b.asset_issuer === canonicalIssuer
+    );
+    if (heldBalance && new Big(heldBalance.balance).gte(neededStellarAmount)) {
+      return { needsPreSwap: false };
+    }
+
+    const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
+    const pathsResult = await server.strictReceivePaths(customerAddress, destAssetForPath, neededStellarAmount).call();
+    lap("strictReceivePaths");
+
+    if (pathsResult.records.length === 0) {
+      return { error: `No payment route found. Add USDC or XLM to your wallet to continue.` };
+    }
+
+    const best = pathsResult.records[0] as any;
+    const swapSourceCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
+    const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
+
+    const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
+    const swapIntermediates = (best.path ?? []).map((p: any) =>
+      p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
+    );
+    const preSwapXdr = await buildPreSwapXdr({
+      customerPublicKey: customerAddress,
+      sendAssetCode: swapSourceCode,
+      sendAssetIssuer: swapSourceIssuer,
+      destAssetCode: selectedAssetCode,
+      canonicalIssuer,
+      neededStellarAmount,
+      sendMax: swapSendMax,
+      path: swapIntermediates,
+      network: checkout.environment,
+      timeoutSeconds: txTimeout,
+    });
+    lap("buildPreSwapXdr");
+
+    return { needsPreSwap: true, preSwapXdr };
+  } catch (e: any) {
+    lap(`threw: ${e.message}`);
+    return { error: e.message ?? "Failed to prepare swap" };
+  }
+}
+
+export async function prepareSubscriptionApproval(
+  checkoutId: string,
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null
+): Promise<{ xdr: string } | { error: string }> {
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[timing:prepareSubscriptionApproval] ${label}: ${Date.now() - t0}ms`);
+  try {
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    lap("retrieveCheckoutAndCustomer");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+    if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
+    if (!selectedAssetCode) return { error: "No payment asset selected" };
+    if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
+
+    // The existing-subscription check already ran in prepareSubscriptionSwap
+    // moments earlier in this same checkout flow, no need to repeat it here.
+
+    const canonicalIssuer = selectedAssetIssuer;
+    if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
+      return { error: `No canonical issuer available for ${selectedAssetCode}` };
+    }
+
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
 
     const { amountRaw } = await Money.calculateSubscriptionAmount({
       priceCents: checkout.finalAmount,
       currencyCode: checkout.currencyCode ?? "USD",
       assetMetadata: { usdPeg: true },
     });
+    lap("Money.calculateSubscriptionAmount");
     if (amountRaw <= BigInt(0)) return { error: `Unable to price subscription in ${selectedAssetCode}` };
 
-    const neededStellarAmount = Money.centsToStellarString(finalAmountUsdCents);
     const totalAllowance = amountRaw * BigInt(200);
 
     const tokenContractId = await retrieveAssetContractId(
@@ -209,56 +422,7 @@ export async function prepareSubscriptionApproval(
       canonicalIssuer ?? "",
       checkout.environment
     );
-
-    let needsPreSwap = false;
-    let preSwapXdr: string | undefined;
-
-    if (canonicalIssuer) {
-      const { server } = getStellarConfig(checkout.environment);
-      const destAssetForPath = new Asset(selectedAssetCode, canonicalIssuer);
-      const pathsResult = await server
-        .strictReceivePaths(customerAddress, destAssetForPath, neededStellarAmount)
-        .call();
-
-      if (pathsResult.records.length === 0) {
-        return { error: `No payment route found. Add USDC or XLM to your wallet to continue.` };
-      }
-
-      const best = pathsResult.records[0] as any;
-      const swapSourceCode = best.source_asset_type === "native" ? "XLM" : best.source_asset_code!;
-      const swapSourceIssuer = best.source_asset_type === "native" ? null : (best.source_asset_issuer ?? null);
-      const isSameAsset = swapSourceCode === selectedAssetCode && swapSourceIssuer === canonicalIssuer;
-
-      // Only pre-swap if the best path isn't already the canonical asset itself.
-      needsPreSwap = !isSameAsset;
-      if (needsPreSwap) {
-        const swapSendMax = new Big(best.source_amount).times(1.01).toFixed(7);
-        const swapIntermediates = (best.path ?? []).map((p: any) =>
-          p.asset_type === "native" ? Asset.native() : new Asset(p.asset_code!, p.asset_issuer!)
-        );
-        preSwapXdr = await buildPreSwapXdr({
-          customerPublicKey: customerAddress,
-          sendAssetCode: swapSourceCode,
-          sendAssetIssuer: swapSourceIssuer,
-          destAssetCode: selectedAssetCode,
-          canonicalIssuer,
-          neededStellarAmount,
-          sendMax: swapSendMax,
-          path: swapIntermediates,
-          network: checkout.environment,
-          timeoutSeconds: txTimeout,
-        });
-      }
-    }
-
-    const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
-    if (!durationMs) return { error: "Invalid subscription billing period" };
-
-    const trialDays =
-      (checkout.subscriptionData as { trial_days?: number } | null)?.trial_days ??
-      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
-    const periodStart = new Date();
-    const periodEnd = trialDays > 0 ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
+    lap("retrieveAssetContractId");
 
     const xdrResult = await soroban$buildSubscriptionApprovalXdr(checkout.environment, {
       customerAddress,
@@ -266,24 +430,93 @@ export async function prepareSubscriptionApproval(
       amount: totalAllowance,
       timeoutSeconds: txTimeout,
     });
+    lap("buildSubscriptionApprovalXdr");
 
     if (xdrResult.isErr()) return { error: xdrResult.error.message };
 
-    return {
-      xdr: xdrResult.value,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      needsPreSwap,
-      preSwapXdr,
-    };
+    return { xdr: xdrResult.value };
   } catch (e: any) {
+    lap(`threw: ${e.message}`);
     return { error: e.message ?? "Failed to prepare approval" };
+  }
+}
+
+/**
+ * Builds the `start` transaction. Must be called *after* the approval
+ * transaction has confirmed on-chain. Building it any earlier reads the same
+ * account sequence number the approval already consumed, and the wallet's
+ * submission gets rejected as tx_bad_seq.
+ */
+export async function prepareSubscriptionStart(
+  checkoutId: string,
+  customerAddress: string,
+  selectedAssetCode: string,
+  selectedAssetIssuer: string | null
+): Promise<{ startXdr: string } | { error: string }> {
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[timing:prepareSubscriptionStart] ${label}: ${Date.now() - t0}ms`);
+  try {
+    const checkout = await retrieveCheckoutAndCustomer(checkoutId);
+    lap("retrieveCheckoutAndCustomer");
+    if (!checkout) throw new AppError("NOT_FOUND", "Checkout not found");
+    if (checkout.status !== "open") return { error: "Checkout is no longer open" };
+    if (checkout.productType !== "subscription") return { error: "Not a subscription checkout" };
+    if (!selectedAssetCode) return { error: "No payment asset selected" };
+    if (!checkout.productId || !checkout.merchantPublicKey) return { error: "Missing required checkout data" };
+
+    const canonicalIssuer = selectedAssetIssuer;
+    if (!canonicalIssuer && selectedAssetCode.toUpperCase() !== "XLM") {
+      return { error: `No canonical issuer available for ${selectedAssetCode}` };
+    }
+
+    const txTimeout = checkoutTxTimeoutSeconds(checkout.expiresAt);
+
+    const { amountRaw } = await Money.calculateSubscriptionAmount({
+      priceCents: checkout.finalAmount,
+      currencyCode: checkout.currencyCode ?? "USD",
+      assetMetadata: { usdPeg: true },
+    });
+    lap("Money.calculateSubscriptionAmount");
+    if (amountRaw <= BigInt(0)) return { error: `Unable to price subscription in ${selectedAssetCode}` };
+
+    const tokenContractId = await retrieveAssetContractId(
+      selectedAssetCode,
+      canonicalIssuer ?? "",
+      checkout.environment
+    );
+    lap("retrieveAssetContractId");
+
+    const durationMs = subscriptionPeriodMs(checkout.recurringPeriod, checkout.customDurationMs);
+    if (!durationMs) return { error: "Invalid subscription billing period" };
+
+    const trialDays =
+      (checkout.subscriptionData as { trial_days?: number } | null)?.trial_days ??
+      (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
+
+    const startXdrResult = await soroban$buildSubscriptionStartXdr(checkout.environment, {
+      customerAddress,
+      merchantAddress: checkout.merchantPublicKey,
+      tokenContractId,
+      productId: checkout.productId,
+      amountRaw,
+      durationMs: trialDays > 0 ? trialDays * MS_PER_DAY : durationMs,
+      timeoutSeconds: txTimeout,
+    });
+    lap("buildSubscriptionStartXdr");
+
+    if (startXdrResult.isErr()) return { error: startXdrResult.error.message };
+
+    return { startXdr: startXdrResult.value };
+  } catch (e: any) {
+    lap(`threw: ${e.message}`);
+    return { error: e.message ?? "Failed to prepare start" };
   }
 }
 
 export async function finalizeSubscriptionCheckout(
   checkoutId: string,
   approvalTxHash: string,
+  startTxHash: string,
   customerAddress: string,
   selectedAssetCode: string,
   selectedAssetIssuer: string
@@ -316,44 +549,29 @@ export async function finalizeSubscriptionCheckout(
       (typeof checkout.metadata?.trial_days === "number" ? checkout.metadata.trial_days : 0);
     const hasTrial = trialDays > 0;
 
-    const verifyResult = await soroban$verifySorobanTx(environment, approvalTxHash);
+    // Both the allowance approval and the `start` call are signed and
+    // submitted by the customer's own wallet. The contract requires the
+    // customer's own authorization to open a subscription in their name, so
+    // the backend never invokes `start` on their behalf. We just verify both
+    // landed on-chain before recording the subscription.
+    const [verifyApproval, verifyStart] = await Promise.all([
+      soroban$verifySorobanTx(environment, approvalTxHash),
+      soroban$verifySorobanTx(environment, startTxHash),
+    ]);
 
-    if (verifyResult.isErr()) {
-      return { success: false, error: `Approval not confirmed: ${verifyResult.error.message}` };
+    if (verifyApproval.isErr()) {
+      return { success: false, error: `Approval not confirmed: ${verifyApproval.error.message}` };
+    }
+    if (verifyStart.isErr()) {
+      return { success: false, error: `Subscription start not confirmed: ${verifyStart.error.message}` };
     }
 
-    const { cryptoAmount, amountRaw } = await Money.calculateSubscriptionAmount({
+    const { cryptoAmount } = await Money.calculateSubscriptionAmount({
       priceCents: checkout.finalAmount,
       currencyCode: checkout.currencyCode ?? "USD",
       assetMetadata: { usdPeg: true },
     });
-    if (amountRaw <= BigInt(0))
-      return { success: false, error: `Unable to price subscription in ${selectedAssetCode}` };
 
-    const tokenContractId = await retrieveAssetContractId(selectedAssetCode, selectedAssetIssuer, checkout.environment);
-
-    const existingSub = await soroban$retrieveSubscription(environment, customerAddress, productId);
-    if (existingSub.isOk()) {
-      const status = existingSub.value.status;
-      if (status === "active" || status === "paused") {
-        return { success: false, error: SUBSCRIPTION_ALREADY_ACTIVE_MESSAGE };
-      }
-    }
-
-    const startResult = await soroban$startSubscription(environment, {
-      customerAddress,
-      merchantAddress: merchantPublicKey,
-      tokenContractId,
-      productId,
-      amountRaw,
-      durationMs: hasTrial ? trialDays * MS_PER_DAY : durationMs,
-    });
-
-    if (startResult.isErr()) {
-      return { success: false, error: startResult.error.message };
-    }
-
-    const { hash } = startResult.value;
     const subscriptionId = generateResourceId("sub", checkout.organizationId, 20);
     const periodStart = new Date();
     const periodEnd = hasTrial ? trialEndAt(periodStart, trialDays) : new Date(Date.now() + durationMs);
@@ -387,7 +605,7 @@ export async function finalizeSubscriptionCheckout(
           cryptoAmount,
           selectedAssetCode,
           selectedAssetIssuer,
-          transactionHash: hash,
+          transactionHash: startTxHash,
           status: "confirmed",
           metadata: null,
           subscriptionId,

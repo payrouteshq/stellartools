@@ -21,7 +21,7 @@ import {
   useFilePreview,
 } from "@stellartools/shared-ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Building2, ChevronRight } from "lucide-react";
+import { Building2, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as RHF from "react-hook-form";
@@ -116,11 +116,10 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
   if (!data?.customer) return null;
 
   return (
-    <div className="bg-background flex min-h-screen">
-      <PortalSidebar org={data.organization} />
+    <div className="bg-background flex min-h-screen flex-col">
+      <PortalHeader org={data.organization} />
 
       <main className="flex-1 overflow-auto">
-        <MobileOrgHeader org={data.organization} />
         <div className="mx-auto max-w-2xl px-6 py-12">
           <nav className="text-muted-foreground mb-8 flex items-center gap-1.5 text-sm">
             <Link href={`/${token}`} className="hover:text-foreground transition-colors">
@@ -216,58 +215,16 @@ export default function CustomerUpdatePage({ params }: { params: Promise<{ token
   );
 }
 
-function PortalSidebar({ org }: { org: Organization | null }) {
-  const websiteUrl = (org?.socialLinks as Record<string, string> | null)?.website;
-
+function PortalHeader({ org }: { org: Organization | null }) {
   return (
-    <aside className="border-border bg-background hidden w-70 shrink-0 flex-col border-r px-8 py-10 md:flex!">
-      <div className="mb-6 flex items-center gap-3">
-        {org?.logoUrl ? (
-          <img src={org.logoUrl} alt={org.name} className="size-8 rounded-md object-contain" />
-        ) : (
-          <Building2 className="text-foreground size-8" />
-        )}
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-foreground truncate text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
-        </div>
-      </div>
-
-      {org?.name && (
-        <p className="text-foreground mb-auto text-sm leading-relaxed">
-          {org.name} partners with StellarTools for simplified billing.
-        </p>
-      )}
-
-      <div className="mt-10 flex items-center justify-between">
-        {websiteUrl ? (
-          <Link
-            href={websiteUrl}
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm transition-colors"
-          >
-            <ArrowLeft className="size-3.5 shrink-0" />
-            Return to {org?.name}
-          </Link>
-        ) : (
-          <span />
-        )}
-        <ModeToggle />
-      </div>
-    </aside>
-  );
-}
-
-function MobileOrgHeader({ org }: { org: Organization | null }) {
-  return (
-    <div className="border-border flex items-center justify-between border-b px-4 py-3 md:hidden">
+    <div className="border-border flex items-center justify-between border-b px-4 py-3">
       <div className="flex items-center gap-2.5">
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={org.name} className="size-7 rounded-md object-contain" />
         ) : (
           <Building2 className="text-foreground size-7" />
         )}
-        <div className="flex flex-col gap-0.5">
-          <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
-        </div>
+        <span className="text-foreground text-sm font-semibold">{org?.name ?? "StellarTools"}</span>
       </div>
       <ModeToggle />
     </div>
@@ -276,15 +233,13 @@ function MobileOrgHeader({ org }: { org: Organization | null }) {
 
 function PageSkeleton() {
   return (
-    <div className="bg-background flex min-h-screen">
-      <aside className="border-border hidden w-70 shrink-0 flex-col gap-4 border-r px-8 py-10 md:flex!">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-8 rounded-md" />
+    <div className="bg-background flex min-h-screen flex-col">
+      <div className="border-border flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="size-7 rounded-md" />
           <Skeleton className="h-4 w-28" />
         </div>
-        <Skeleton className="mt-2 h-3 w-full" />
-        <Skeleton className="h-3 w-3/4" />
-      </aside>
+      </div>
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-2xl space-y-6 px-6 py-12">
           <Skeleton className="h-4 w-48" />
