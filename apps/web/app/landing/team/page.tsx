@@ -26,14 +26,6 @@ const team = [
     },
   },
   {
-    name: "Lucas Svoboda",
-    role: "Head of Product",
-    image: "/images/lucas.jpeg",
-    socials: {
-      linkedin: "https://www.linkedin.com/in/lucas-s-723a73212/",
-    },
-  },
-  {
     name: "Mauricio Iriarte Hermida",
     role: "Designer",
     image: "/images/mau.jpeg",
@@ -54,7 +46,7 @@ export default function TeamPage() {
           <h1 className="text-foreground text-[clamp(32px,4.5vw,52px)] font-bold tracking-tight">Who&apos;s cooking</h1>
         </div>
 
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3">
           {team.map((member) => (
             <div key={member.name} className="flex flex-col items-center gap-3 text-center">
               <div className="size-20 overflow-hidden rounded-full">
